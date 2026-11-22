@@ -32,10 +32,15 @@ bignums. All of them become explicit, and so does their proof.
 ## Shape of the port
 
 1. **Data representation.** Inductive values (`Expr`, `Level`, `Name`,
-   declarations) become blocks in Pancake memory: a header word (constructor
-   tag, cached data word) followed by fields, which are words or addresses.
-   Expression nodes are hash-consed where con-leche shares them, so pointer
-   equality is word equality.
+   declarations) become blocks in Pancake memory: a tag word, the cached
+   hash/data word, then fields (words or addresses). These values are DAGs
+   (shared prefixes and subterms), so their nodes live in an immutable,
+   append-only arena: the arena is one owned region in separation logic, and
+   a value's shape is a non-separating predicate over the arena's words
+   (`NameAt h p n`), monotone under heap extension. Mutable structures
+   (caches, tables, the free region) are separating assertions. Expression
+   nodes are hash-consed where con-leche shares them, so pointer equality is
+   word equality.
 2. **Memory.** A bump allocator over `@base`. con-leche checks one
    declaration at a time: a per-declaration scratch region is reset after
    each declaration, and the results that outlive it (the declaration, its

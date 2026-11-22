@@ -6,45 +6,21 @@ open Flapjack ConPanqueque.Sep
 /-!
 # Representations of con-leche's data in Pancake memory
 
-Separation-logic predicates relating con-leche values to memory: naturals
-(small values odd-tagged, large ones as limb blocks), strings, and names
-(hash-carrying blocks). `nameHashBody` is the first con-leche function in
-Pancake, proved to compute `Name.hashData`.
+con-leche's names, levels and expressions are DAGs (shared prefixes and
+subterms), so their nodes live in an immutable, append-only arena: the arena is
+one owned region (separation logic, `Logic/Sep.lean`), and the shape of a value
+is a non-separating predicate over the arena's words (`NameAt h p n`), monotone
+under heap extension (`nameAt_mono`). `nameHashBody` is the first con-leche
+function in Pancake, proved to compute `Name.hashData`.
 -/
 
 namespace ConPanqueque.Rep
+open Flapjack Flapjack.PanSemStateFiniteExact ConPanqueque.Sep
 
 /-- The value of little-endian 64-bit limbs. -/
 def limbsVal : List (BitVec 64) → Nat
   | [] => 0
   | l :: ls => l.toNat + 2 ^ 64 * limbsVal ls
-
-/-- A natural number: an odd word `2n + 1` when `n < 2^63`, otherwise a pointer
-(even, nonzero) to a block `[len, limb₀, …]` whose last limb is nonzero. -/
-def NatRep (v : BitVec 64) (n : Nat) : Assn := fun h =>
-  (n < 2 ^ 63 ∧ v = BitVec.ofNat 64 (2 * n + 1) ∧ emp h) ∨
-  (2 ^ 63 ≤ n ∧ v.getLsbD 0 = false ∧ v ≠ 0 ∧ ∃ ls : List (BitVec 64),
-    limbsVal ls = n ∧ ls.getLast? ≠ some 0 ∧
-    block v (.word (BitVec.ofNat 64 ls.length) :: ls.map .word) h)
-
-/-- A string: a block `[len, byte₀, …]`, one UTF-8 byte per word. -/
-def StrRep (v : BitVec 64) (s : String) : Assn :=
-  block v (.word (BitVec.ofNat 64 s.toUTF8.size) ::
-    s.toUTF8.toList.map fun b => .word (BitVec.ofNat 64 b.toNat))
-
-/-- A name: `anonymous` is `0`; `str`/`num` are blocks
-`[tag, hashData, prefix, payload]` (tag 1 for `str`, 2 for `num`). -/
-def NameRep : BitVec 64 → ConLeche.Name → Assn
-  | p, .anonymous => fun h => p = 0 ∧ emp h
-  | p, n@(.str pre s) => fun h => p ≠ 0 ∧ ∃ q sv,
-      (block p [.word 1, .word n.hashData.toBitVec, .word q, .word sv] ∗ (NameRep q pre ∗ StrRep sv s)) h
-  | p, n@(.num pre k) => fun h => p ≠ 0 ∧ ∃ q kv,
-      (block p [.word 2, .word n.hashData.toBitVec, .word q, .word kv] ∗ (NameRep q pre ∗ NatRep kv k)) h
-
-end ConPanqueque.Rep
-
-namespace ConPanqueque.Rep
-open Flapjack.PanSemStateFiniteExact
 
 theorem sat_sep_right {σ : Type} {s : PanSemStateFiniteExact 64 σ} {P Q : Assn}
     (hs : Sat s (P ∗ Q)) : Sat s Q :=
@@ -69,19 +45,52 @@ theorem block_get {σ : Type} (s : PanSemStateFiniteExact 64 σ) :
     rw [he] at this
     simpa using this
 
-/-- A nonempty name's cached hash is the second word of its block. -/
-theorem nameRep_hash {σ : Type} (s : PanSemStateFiniteExact 64 σ) (p : BitVec 64) (n : ConLeche.Name)
-    (hs : Sat s (NameRep p n)) (hp : p ≠ 0) :
+/-- A string in an immutable arena `h`: `[len, byte₀, …]`, one byte per word. -/
+def StrAt (h : Heap) (v : BitVec 64) (s : String) : Prop :=
+  ∀ i (hi : i < s.toUTF8.size + 1),
+    h (v + BitVec.ofNat 64 (8 * i)) =
+      some (.word (if i = 0 then BitVec.ofNat 64 s.toUTF8.size
+                   else BitVec.ofNat 64 (s.toUTF8.get! (i - 1)).toNat))
+
+/-- A natural number (small: odd-tagged word; large: not yet). -/
+def NatAt (_h : Heap) (v : BitVec 64) (n : Nat) : Prop :=
+  n < 2 ^ 63 ∧ v = BitVec.ofNat 64 (2 * n + 1)
+
+/-- A name in an immutable arena `h`, sharing allowed: `anonymous` is `0`;
+`str`/`num` are `[tag, hashData, prefix, payload]`. -/
+inductive NameAt (h : Heap) : BitVec 64 → ConLeche.Name → Prop
+  | anonymous : NameAt h 0 .anonymous
+  | str {p q sv : BitVec 64} {pre : ConLeche.Name} {s : String} (hp : p ≠ 0)
+      (h0 : h p = some (.word 1)) (h1 : h (p + 8) = some (.word (ConLeche.Name.str pre s).hashData.toBitVec))
+      (h2 : h (p + 16) = some (.word q)) (h3 : h (p + 24) = some (.word sv))
+      (hpre : NameAt h q pre) (hs : StrAt h sv s) : NameAt h p (.str pre s)
+  | num {p q kv : BitVec 64} {pre : ConLeche.Name} {k : Nat} (hp : p ≠ 0)
+      (h0 : h p = some (.word 2)) (h1 : h (p + 8) = some (.word (ConLeche.Name.num pre k).hashData.toBitVec))
+      (h2 : h (p + 16) = some (.word q)) (h3 : h (p + 24) = some (.word kv))
+      (hpre : NameAt h q pre) (hk : NatAt h kv k) : NameAt h p (.num pre k)
+
+/-- Heap inclusion. -/
+def Sub (h h' : Heap) : Prop := ∀ a w, h a = some w → h' a = some w
+
+theorem nameAt_mono {h h' : Heap} (hs : Sub h h') {p : BitVec 64} {n : ConLeche.Name}
+    (hn : NameAt h p n) : NameAt h' p n := by
+  induction hn with
+  | anonymous => exact .anonymous
+  | str hp h0 h1 h2 h3 _ hstr ih =>
+    exact .str hp (hs _ _ h0) (hs _ _ h1) (hs _ _ h2) (hs _ _ h3) ih (fun i hi => hs _ _ (hstr i hi))
+  | num hp h0 h1 h2 h3 _ hk ih => exact .num hp (hs _ _ h0) (hs _ _ h1) (hs _ _ h2) (hs _ _ h3) ih hk
+
+/-- What the memory of a state holds of an arena fragment `h`. -/
+def InMem {σ : Type} (s : PanSemStateFiniteExact 64 σ) (h : Heap) : Prop :=
+  ∀ a w, h a = some w → s.memaddrs a ∧ s.memory a = w
+
+theorem nameAt_hash {σ : Type} {s : PanSemStateFiniteExact 64 σ} {h : Heap} (hm : InMem s h)
+    {p : BitVec 64} {n : ConLeche.Name} (hn : NameAt h p n) (hp : p ≠ 0) :
     s.memaddrs (p + 8) ∧ s.memory (p + 8) = .word n.hashData.toBitVec := by
-  obtain ⟨h, hr, hm⟩ := hs
-  cases n with
-  | anonymous => exact absurd hr.1 hp
-  | str pre str =>
-    obtain ⟨_, q, sv, hh⟩ := hr
-    simpa using block_get s _ p _ 1 (by simp) ⟨h, hh, hm⟩
-  | num pre k =>
-    obtain ⟨_, q, kv, hh⟩ := hr
-    simpa using block_get s _ p _ 1 (by simp) ⟨h, hh, hm⟩
+  cases hn with
+  | anonymous => exact absurd rfl hp
+  | str _ _ h1 => exact hm _ _ h1
+  | num _ _ h1 => exact hm _ _ h1
 
 open Flapjack.Pancake.PanLang Flapjack.Basis.Pure.MlString ConPanqueque.Logic in
 /-- con-leche's `Hashable Name` (`hashData`) in Pancake: `0` is `anonymous`
@@ -93,22 +102,21 @@ def nameHashBody : ProgHOL 64 :=
 
 open Flapjack.Pancake.PanLang Flapjack.Basis.Pure.MlString ConPanqueque.Logic in
 theorem nameHashBody_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) (p : BitVec 64) (n : ConLeche.Name)
-    (hn : s.locals.lookup (ofString "n") = some (.val (.word p))) (hs : Sat s (NameRep p n)) :
+    (hn : s.locals.lookup (ofString "n") = some (.val (.word p))) {h : Heap} (hm : InMem s h) (hs : NameAt h p n) :
     (evaluateHOLFiniteState s nameHashBody).1 = some (.returned (.val (.word n.hashData.toBitVec))) := by
   unfold nameHashBody
   rw [evaluateHOLFiniteState_eq_evaluate_def]
   by_cases hp : p = 0
   · subst hp
-    obtain ⟨h, hr, _⟩ := hs
     have : n = .anonymous := by
-      cases n with
+      cases hs with
       | anonymous => rfl
-      | str => exact absurd rfl hr.1
-      | num => exact absurd rfl hr.1
+      | str hp => exact absurd rfl hp
+      | num hp => exact absurd rfl hp
     subst this
     simp [evalHOLFinite, evalHOLExact, hn, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
     simp [shapeOfHOLExact, ConLeche.Name.hashData]
-  · obtain ⟨hd, hv⟩ := nameRep_hash s p n hs hp
+  · obtain ⟨hd, hv⟩ := nameAt_hash hm hs hp
     simp [evalHOLFinite, evalHOLExact, hn, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hp,
       evalListHOLExact, wordOpHOL, wordOp, valueIsWord, valueWord, memLoadHOLExact, hd, hv, shapeOfHOLExact]
     split
