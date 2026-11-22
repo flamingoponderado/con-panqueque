@@ -57,7 +57,7 @@ theorem flagW_succ (ws1 ws2 : List (BitVec 64)) (i : Nat) (h1 : i + 1 < ws1.leng
 
 theorem cmpLoop_spec {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {rest : ProgHOL 64} {m : AM α}
     {R : α → BitVec 64 → AState → PState σ → Prop} (ws1 ws2 : List (BitVec 64)) (P1 P2 : BitVec 64)
-    (hlen : ws1.length = ws2.length) (hpos : 1 ≤ ws1.length) (hn : ws1.length < 2 ^ 60)
+    (hlen : ws1.length = ws2.length) (hpos : 1 ≤ ws1.length) (hn : ws1.length < 2 ^ 61)
     (hm1 : ∀ i (hi : i < ws1.length), (P1 + BitVec.ofNat 64 (8 * i), ws1[i]) ∈ M)
     (hm2 : ∀ i (hi : i < ws2.length), (P2 + BitVec.ofNat 64 (8 * i), ws2[i]) ∈ M)
     (ha1 : Γ.get lA1 = some P1) (hrp : Γ.get lRp = some P2) (hrn : Γ.get lRn = some (BitVec.ofNat 64 ws1.length))
@@ -152,7 +152,7 @@ theorem flagW_full (ws1 ws2 : List (BitVec 64)) (hl : ws1.length = ws2.length) (
 theorem neqTail_spec (C : Ctx) (hcode : C.code.lookup fNeq = some ([(pNa, .one), (pNb, .one)], neqBody, .one))
     {s : AState} {Γ : Env} {M : Mem} (tag : Nat) (htag : 0 < tag) (htag8 : tag < 8)
     (pa pb : NIdx) (tl1 tl2 : List (BitVec 64)) (qa qb : ConLeche.Name) (P1 P2 : BitVec 64)
-    (hn1 : 1 + tl1.length < 2 ^ 60) (hn2 : 1 + tl2.length < 2 ^ 60)
+    (hn1 : 1 + tl1.length < 2 ^ 61) (hn2 : 1 + tl2.length < 2 ^ 61)
     (hm1 : ∀ i (hi : i < (Enc.idxW pa :: tl1).length), (P1 + BitVec.ofNat 64 (8 * i), (Enc.idxW pa :: tl1)[i]) ∈ M)
     (hm2 : ∀ i (hi : i < (Enc.idxW pb :: tl2).length), (P2 + BitVec.ofNat 64 (8 * i), (Enc.idxW pb :: tl2)[i]) ∈ M)
     (ha1 : Γ.get lA1 = some P1) (ha2 : Γ.get lA2 = some (BitVec.ofNat 64 (1 + tl1.length)))
@@ -213,6 +213,156 @@ theorem neqTail_spec (C : Ctx) (hcode : C.code.lookup fNeq = some ([(pNa, .one),
     refine specR_congr (m' := pure false)
       (by simp only [show ¬(qa = qb ∧ tl1 = tl2) from fun h => hl (by rw [h.2]), decide_false]) ?_
     exact specR_returnI (.const 0) 0 rfl (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+end
+
+section
+variable {σ : Type}
+
+theorem params_noneNE (va vb : BitVec 64) (C : Ctx) :
+    ∀ x, x ∈ inst1Locals → (ctxEnv C ++ [(pNa, va), (pNb, vb)]).get x = none := by
+  intro x hx
+  simp only [inst1Locals, List.mem_cons, List.not_mem_nil, or_false] at hx
+  rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> rfl
+
+def nameTag : ConLeche.Name → Nat
+  | .anonymous => 0 | .str _ _ => 1 | .num _ _ => 2
+
+theorem nameTag_of (st : NStore) (f : Nat) (i : NIdx) (x : ConLeche.Name) (v : NNodeView)
+    (hd : denoteNAux st f i = some x) (hv : st.view i = some v) : nameTag x = v.tagN := by
+  rcases denoteNAux_cases st f i x v hd hv with ⟨rfl, rfl⟩ | ⟨_, _, _, _, rfl, rfl, _⟩ | ⟨_, _, _, _, rfl, rfl, _⟩ <;> rfl
+
+theorem neqTail_diff {C : Ctx} {s : AState} {Γ : Env} {M : Mem} (t1 t2 : Nat) (h12 : t1 ≠ t2) (h1 : t1 < 8)
+    (h2 : t2 < 8) (b : Bool) (hb : b = false)
+    (ha3 : Γ.get lA3 = some (BitVec.ofNat 64 t1)) (hdg : Γ.get lDg = some (BitVec.ofNat 64 t2)) :
+    SpecR (Inv (σ := σ) C s Γ M DI) neqTail s (pure b) (PostB C) := by
+  subst hb
+  unfold neqTail
+  have hne : BitVec.ofNat 64 t1 ≠ BitVec.ofNat 64 t2 := fun e =>
+    h12 ((word_eq_iff t1 t2 (by omega) (by omega)).mp e)
+  refine specR_ifI _ 1 (by simp +decide [sev, ha3, hdg, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne])
+    (fun _ => ?_) (fun hw => absurd hw (by decide))
+  exact specR_returnI (.const 0) 0 rfl (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+theorem neqTail_zero {C : Ctx} {s : AState} {Γ : Env} {M : Mem} (b : Bool) (hb : b = true)
+    (ha3 : Γ.get lA3 = some (BitVec.ofNat 64 0)) (hdg : Γ.get lDg = some (BitVec.ofNat 64 0)) :
+    SpecR (Inv (σ := σ) C s Γ M DI) neqTail s (pure b) (PostB C) := by
+  subst hb
+  unfold neqTail
+  refine specR_ifI _ 0 (by simp +decide [sev, ha3, hdg, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+    (fun hw => absurd rfl hw) (fun _ => ?_)
+  refine specR_ifI _ 1 (by simp +decide [sev, hdg, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+    (fun _ => ?_) (fun hw => absurd hw (by decide))
+  exact specR_returnI (.const 1) 1 rfl (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+/-- The two views, then the tail; equal handles answer at once. -/
+theorem neq_views (C : Ctx) (x y : ConLeche.Name) (a b : NIdx) (fa fb : Nat) (s : AState)
+    (hda : denoteNAux s.store.ns fa a = some x) (hdb : denoteNAux s.store.ns fb b = some y)
+    (hk : ∀ va vb P1 P2, s.store.ns.view a = some va → s.store.ns.view b = some vb →
+      (encNView va).length < 2 ^ 61 → (encNView vb).length < 2 ^ 61 →
+      ∀ Γ : Env, Γ.get lA1 = some P1 → Γ.get lA2 = some (BitVec.ofNat 64 (encNView va).length) →
+        Γ.get lA3 = some (BitVec.ofNat 64 va.tagN) → Γ.get lDg = some (BitVec.ofNat 64 vb.tagN) →
+        Γ.get lRp = some P2 → Γ.get lRn = some (BitVec.ofNat 64 (encNView vb).length) →
+        Γ.get lX = none → Γ.get lY = none →
+        SpecR (Inv (σ := σ) C s Γ (wordsAt P2 (encNView vb) ++ (wordsAt P1 (encNView va) ++ [])) DI) neqTail s
+          (pure (decide (x = y))) (PostB C)) :
+    SpecR (Pre (σ := σ) C s [(pNa, Enc.idxW a), (pNb, Enc.idxW b)]) neqBody s (pure (decide (x = y))) (PostB C) := by
+  refine specR_prologue (postB_locals C) (params_noneNE _ _ C) ?_
+  unfold neqCore
+  by_cases hab : a = b
+  · subst hab
+    have e : x = y := denoteNAux_det _ _ _ _ _ _ hda hdb
+    refine specR_ifI _ 1 (by simp +decide [sev, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+      (fun hw => absurd hw (by decide))
+    exact specR_returnI (.const 1) 1 rfl (fun t ht => ⟨by simp [e], sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  have hne : Enc.idxW a ≠ Enc.idxW b := fun e => hab (Enc.idxW_inj e)
+  refine specR_ifI _ 0 (by simp +decide [sev, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne])
+    (fun hw => absurd rfl hw) (fun _ => ?_)
+  refine specR_assignI lFl (vv lFln) C.FLn (by decide) rfl ?_
+  refine specR_assignI lDh (vv pNa) (Enc.idxW a) (by decide) (by simp +decide [ctxEnv]) ?_
+  refine specR_nviewPI a (by simp) (by simp +decide) (by simp +decide [ctxEnv]) (by decide)
+    (fun va P1 hva _ hsa => ?_)
+  refine specR_assignI lA1 (vv lRp) P1 (by decide) (by simp) ?_
+  refine specR_assignI lA2 (vv lRn) (BitVec.ofNat 64 (encNView va).length) (by decide) (by simp +decide) ?_
+  refine specR_assignI lA3 (vv lDg) (BitVec.ofNat 64 va.tagN) (by decide) (by simp +decide) ?_
+  refine specR_assignI lDh (vv pNb) (Enc.idxW b) (by decide) (by simp +decide [ctxEnv]) ?_
+  refine specR_nviewPI b (by simp) (by simp +decide) (by simp +decide [ctxEnv]) (by decide)
+    (fun vb P2 hvb _ hsb => ?_)
+  exact hk va vb P1 P2 hva hvb hsa hsb _ (by simp +decide) (by simp +decide) (by simp +decide) (by simp +decide)
+    (by simp +decide) (by simp +decide) (by simp +decide [ctxEnv]) (by simp +decide [ctxEnv])
+
+/-- `nameEq` decides the equality of the read-back names. -/
+theorem neq_spec (C : Ctx) (hcode : C.code.lookup fNeq = some ([(pNa, .one), (pNb, .one)], neqBody, .one)) :
+    ∀ (x : ConLeche.Name) (a b : NIdx) (y : ConLeche.Name) (fa fb : Nat) (s : AState),
+      denoteNAux s.store.ns fa a = some x → denoteNAux s.store.ns fb b = some y →
+      SpecR (Pre (σ := σ) C s [(pNa, Enc.idxW a), (pNb, Enc.idxW b)]) neqBody s (pure (decide (x = y)))
+        (PostB C) := by
+  intro x
+  induction x with
+  | anonymous =>
+    intro a b y fa fb s hda hdb
+    refine neq_views C .anonymous y a b fa fb s hda hdb (fun va vb P1 P2 hva hvb _ _ Γ h1 h2 h3 h4 h5 h6 h7 h8 => ?_)
+    have hta := nameTag_of _ _ _ _ _ hda hva
+    have htb := nameTag_of _ _ _ _ _ hdb hvb
+    simp only [nameTag] at hta
+    by_cases hy0 : vb.tagN = 0
+    · have hy : y = .anonymous := by
+        cases y with
+        | anonymous => rfl
+        | str _ _ => simp [nameTag] at htb; omega
+        | num _ _ => simp [nameTag] at htb; omega
+      exact neqTail_zero _ (by simp [hy]) (by rw [← hta] at h3; exact h3) (by rw [hy0] at h4; exact h4)
+    · have hlt : vb.tagN < 3 := by cases vb <;> simp [NNodeView.tagN]
+      refine neqTail_diff va.tagN vb.tagN (by omega) (by omega) (by omega) _ ?_ h3 h4
+      simp only [decide_eq_false_iff_not]; intro e; subst e; simp [nameTag] at htb; omega
+  | str q str ih =>
+    intro a b y fa fb s hda hdb
+    refine neq_views C (.str q str) y a b fa fb s hda hdb
+      (fun va vb P1 P2 hva hvb hsa hsb Γ h1 h2 h3 h4 h5 h6 h7 h8 => ?_)
+    rcases denoteNAux_cases _ _ _ _ _ hda hva with ⟨_, hx⟩ | ⟨pa, sa, qa, fa', rfl, hx, hqa⟩ | ⟨_, _, _, _, _, hx, _⟩
+    · cases hx
+    · injection hx with hq hs; subst hq hs
+      rcases denoteNAux_cases _ _ _ _ _ hdb hvb with ⟨rfl, rfl⟩ | ⟨pb, sb, qb, fb', rfl, rfl, hqb⟩ |
+        ⟨pb, nb, qb, fb', rfl, rfl, hqb⟩
+      · exact neqTail_diff 1 0 (by decide) (by decide) (by decide) _ (by simp) h3 h4
+      · refine specR_congr (m' := pure (decide (q = qb ∧ Enc.strW str = Enc.strW sb))) ?_ ?_
+        · have : (ConLeche.Name.str q str = .str qb sb) ↔ (q = qb ∧ Enc.strW str = Enc.strW sb) := by
+            constructor
+            · intro e; injection e with e1 e2; exact ⟨e1, by rw [e2]⟩
+            · rintro ⟨e1, e2⟩; rw [e1, Enc.strW_inj e2]
+          simp only [this]
+        exact neqTail_spec C hcode 1 (by decide) (by decide) pa pb (Enc.strW str) (Enc.strW sb) q qb P1 P2
+          (by simpa [encNView, Enc.encStr, Nat.add_comm] using hsa) (by simpa [encNView, Enc.encStr, Nat.add_comm] using hsb)
+          (fun i hi => List.mem_append_right _ (wordsAt_get P1 (Enc.idxW pa :: Enc.strW str) i hi []))
+          (fun i hi => wordsAt_get P2 (Enc.idxW pb :: Enc.strW sb) i hi _)
+          h1 (by simpa [encNView, Enc.encStr, Nat.add_comm] using h2) h3 h4 h5
+          (by simpa [encNView, Enc.encStr, Nat.add_comm] using h6) h7 h8 (ih pa pb qb fa' fb' s hqa hqb)
+      · exact neqTail_diff 1 2 (by decide) (by decide) (by decide) _ (by simp) h3 h4
+    · cases hx
+  | num q n ih =>
+    intro a b y fa fb s hda hdb
+    refine neq_views C (.num q n) y a b fa fb s hda hdb
+      (fun va vb P1 P2 hva hvb hsa hsb Γ h1 h2 h3 h4 h5 h6 h7 h8 => ?_)
+    rcases denoteNAux_cases _ _ _ _ _ hda hva with ⟨_, hx⟩ | ⟨_, _, _, _, _, hx, _⟩ | ⟨pa, na, qa, fa', rfl, hx, hqa⟩
+    · cases hx
+    · cases hx
+    · injection hx with hq hs; subst hq hs
+      rcases denoteNAux_cases _ _ _ _ _ hdb hvb with ⟨rfl, rfl⟩ | ⟨pb, sb, qb, fb', rfl, rfl, hqb⟩ |
+        ⟨pb, nb, qb, fb', rfl, rfl, hqb⟩
+      · exact neqTail_diff 2 0 (by decide) (by decide) (by decide) _ (by simp) h3 h4
+      · exact neqTail_diff 2 1 (by decide) (by decide) (by decide) _ (by simp) h3 h4
+      · refine specR_congr (m' := pure (decide (q = qb ∧ Enc.limbs n = Enc.limbs nb))) ?_ ?_
+        · have : (ConLeche.Name.num q n = .num qb nb) ↔ (q = qb ∧ Enc.limbs n = Enc.limbs nb) := by
+            constructor
+            · intro e; injection e with e1 e2; exact ⟨e1, by rw [e2]⟩
+            · rintro ⟨e1, e2⟩; rw [e1, Enc.limbs_inj e2]
+          simp only [this]
+        exact neqTail_spec C hcode 2 (by decide) (by decide) pa pb (Enc.limbs n) (Enc.limbs nb) q qb P1 P2
+          (by simpa [encNView, Enc.encNum, Nat.add_comm] using hsa) (by simpa [encNView, Enc.encNum, Nat.add_comm] using hsb)
+          (fun i hi => List.mem_append_right _ (wordsAt_get P1 (Enc.idxW pa :: Enc.limbs n) i hi []))
+          (fun i hi => wordsAt_get P2 (Enc.idxW pb :: Enc.limbs nb) i hi _)
+          h1 (by simpa [encNView, Enc.encNum, Nat.add_comm] using h2) h3 h4 h5
+          (by simpa [encNView, Enc.encNum, Nat.add_comm] using h6) h7 h8 (ih pa pb qb fa' fb' s hqa hqb)
 
 end
 
