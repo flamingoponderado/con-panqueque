@@ -447,4 +447,87 @@ theorem lsub_spec (hkv : KVAt h c (ks.zip vs)) (hint : Interned h) {p : BitVec 6
 
 end
 
+/-! ## Mapping over level lists -/
+
+/-- `lmap(u, _)`: the list `u` with `lsub` applied to each level, in fresh cells. -/
+def lmapBody (fn ls : MlS) : ProgHOL 64 :=
+  .ite (.cmp .equal (vv iU) (.const 0)) (.return (.const 0))
+    (.dec iRa .one (.const 0) (.seq (.call (some (some (.local, iRa), none)) ls [ldo iU 0, vv iK])
+      (.dec iRb .one (.const 0) (.seq (.call (some (some (.local, iRb), none)) fn [ldo iU 8, vv iK])
+        (mkCell [iRa, iRb])))))
+
+def lmcost (L : Nat) : List ConLeche.Level → Nat
+  | [] => 0
+  | u :: us => 1 + lcost L u + (1 + lmcost L us + 0)
+
+def LMSpec {σ : Type} (fn ls lk : MlS) (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
+    (ks : List ConLeche.Name) (vs : List ConLeche.Level) (c lo : BitVec 64) (h : Heap) (p : BitVec 64)
+    (us : List ConLeche.Level) : Prop :=
+  ∀ (t : PanSemStateFiniteExact 64 σ) (hp : BitVec 64), t.code = C → AInv t lo hp → Sub h (hOf t lo hp) →
+    t.globals.lookup gKV = some (.val (.word c)) → t.locals.lookup iU = some (.val (.word p)) →
+    (∃ w, t.locals.lookup iK = some (.val (.word w))) → lmcost (ks.zip vs).length us ≤ t.clock →
+    RRes t (evaluateHOLFiniteState t (lmapBody fn ls)) lo hp
+      (fun h q => LevelsAt h q (us.map (ConLeche.Level.subst ks vs))) (lmcost (ks.zip vs).length us)
+
+theorem lmap_spec {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (fn ls lk : MlS)
+    (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
+    (hC : C.lookup fn = some ([(iU, .one), (iK, .one)], lmapBody fn ls, .one))
+    (hCs : C.lookup ls = some ([(iU, .one), (iK, .one)], lsubBody ls lk, .one))
+    (hCk : C.lookup lk = some ([(iC, .one), (iN, .one)], lkpBody lk, .one))
+    (ks : List ConLeche.Name) (vs : List ConLeche.Level) (c lo : BitVec 64) (h : Heap)
+    (hkv : KVAt h c (ks.zip vs)) (hint : Interned h) {p : BitVec 64} {us : List ConLeche.Level}
+    (hl : LevelsAt h p us) : LMSpec (σ := σ) fn ls lk C ks vs c lo h p us := by
+  induction hl with
+  | nil =>
+    intro t hq hcd hai hs hg hlu hk hck
+    unfold lmapBody
+    rw [ite_word t _ _ _ 1 (by simp [vv, evalHOLExact, hlu, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])]
+    simp only [ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true, ↓reduceIte]
+    have e : evaluateHOLFiniteState t (.return (.const 0)) = (some (.returned (.val (.word 0))), emptyLocalsHOLFinite t) := by
+      rw [evaluateHOLFiniteState_eq_evaluate_def]; simp [evalHOLExact, shapeOfHOLExact]
+    rw [e]
+    exact rres_ret hai (by simp; exact .nil) (by simp [emptyLocalsHOLFinite]) (by simp [emptyLocalsHOLFinite])
+      (by simp [emptyLocalsHOLFinite]) (by simp [emptyLocalsHOLFinite]) (by simp [emptyLocalsHOLFinite])
+      (by simp [emptyLocalsHOLFinite])
+  | @cons p q r u us hp h0 h1 hu hus ih =>
+    intro t hq hcd hai hs hg hlu hk hck
+    obtain ⟨kw, hk⟩ := hk
+    unfold lmapBody
+    rw [ite_word t _ _ _ 0 (by simp [vv, evalHOLExact, hlu, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hp)]
+    simp only [ne_eq, not_true_eq_false, ↓reduceIte]
+    have m0 := (ainv_arena hai).1 _ _ (hs _ _ (show h (p + 0) = _ by simpa using h0))
+    simp only [lmcost] at hck ⊢
+    apply step_call ls iRa iU iK C _ _ (by decide) hCs (fun h q => LevelAt h q (ConLeche.Level.subst ks vs u)) _ _ _
+      t lo hq q kw (ldo iU 0) (vv iK) hcd hai
+      (ldo_eval _ iU 0 p q (by rw [lookup_setVar_other _ _ (by decide)]; exact hlu) m0.1 m0.2)
+      (by simp [vv, evalHOLExact] <;> (rw [lookup_setVar_other _ _ (by decide)]; exact hk)) (by omega)
+      (hB_of_lspec ls lk C ks vs c lo h (lsub_spec ra ls lk C hCs hCk ks vs c lo h hkv hint hu) t hq hs hg kw)
+    intro t3 q1 hq1 cd3 a3 g3 r1 l3a l3o ck3 gl3 md3 ta3
+    have hs3 : Sub h (hOf t3 lo hq1) := fun x y hx => grows_sub g3 x y (hs x y hx)
+    have m8 := arena_read (hs _ _ h1) g3 a3
+    have hu3 : t3.locals.lookup iU = some (.val (.word p)) := by rw [l3o _ (by decide)]; exact hlu
+    have hk3 : t3.locals.lookup iK = some (.val (.word kw)) := by rw [l3o _ (by decide)]; exact hk
+    apply step_call fn iRb iU iK C _ _ (by decide) hC
+      (fun h q => LevelsAt h q (us.map (ConLeche.Level.subst ks vs))) _ _ _
+      t3 lo hq1 r kw (ldo iU 8) (vv iK) cd3 a3
+      (ldo_eval _ iU 8 p r (by rw [lookup_setVar_other _ _ (by decide)]; exact hu3) m8.1 m8.2)
+      (by simp [vv, evalHOLExact] <;> (rw [lookup_setVar_other _ _ (by decide)]; exact hk3)) (by omega)
+      (fun s' cd a m g hu' hk' hc' => ih s' hq1 cd a (by rw [hOf_of_eq lo hq1 m]; exact hs3)
+        (by rw [g, gl3 gKV (by decide)]; exact hg) hu' ⟨kw, hk'⟩ hc')
+    intro t4 q2 hq2 cd4 a4 g4 r2 l4b l4o ck4 gl4 md4 ta4
+    have l4a : t4.locals.lookup iRa = some (.val (.word q1)) := by rw [l4o _ (by decide)]; exact l3a
+    rcases mkCell_ainv t4 lo hq2 [iRa, iRb] [q1, q2] rfl (by decide) (by simp) (by simp)
+        (fun j hj => match j, hj with | 0, _ => l4a | 1, _ => l4b) a4 with
+      hs' | ⟨hr, a5, g5, hpos, cells, cd5, ck5, gl5, md5, ta5⟩
+    · exact Or.inl hs'
+    right
+    have c0 := cells 0 (by decide)
+    have c1 := cells 1 (by decide)
+    simp only [at8, List.length_cons, List.length_nil] at c0 c1
+    rw [show hq2 + BitVec.ofNat 64 (8 * 0) = hq2 by simp] at c0
+    rw [show BitVec.ofNat 64 (8 * 1) = 8#64 from by decide] at c1
+    have sub := grows_sub g5
+    exact ⟨hq2, hr, _, a5, g5, .cons hpos c0 c1 (levelAt_mono (fun x y hx => sub x y (grows_sub g4 x y hx)) r1)
+      (levelsAt_mono sub r2), cd5, by rw [ck5]; omega, gl5, md5, ta5⟩
+
 end ConPanqueque.LevelSubst
