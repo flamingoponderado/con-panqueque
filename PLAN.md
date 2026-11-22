@@ -86,9 +86,13 @@ runtime. The pieces:
    Pancake loop computing `List.length` over `ListRep`
    (`Examples/ListLength.lean`).
 2. **Words and naturals:** the bignum library, specified by Lean's `Nat`.
-3. **First translated functions:** a translator for a first-order fragment
-   (words, naturals, structures, lists) emitting Pancake and refinement
-   proofs; con-leche's hashing (`mixHash`, data words) as the first target.
+3. **Translator** (in progress): `pan_exp` (`Translate/Exp.lean`) compiles
+   con-leche's word-level definitions (arithmetic, shifts, `/` `%` by powers
+   of two, `if` on comparisons, unfolding of non-recursive definitions) to
+   Pancake expressions with generated proofs. Next: straight-line functions
+   (proofs by evaluation), calls (`call_pure`, `call1`), and structural
+   recursion over arena data (the pattern of `LevelFns.lhp_spec`), so that
+   the kernel's functions translate rather than being written by hand.
 4. **Expressions:** `Level`, `Name`, `Expr` as hash-consed blocks; con-leche's
    expression utilities (instantiate, abstract, lift/lower) translated.
 5. **Kernel:** whnf, infer, defeq with their caches.
