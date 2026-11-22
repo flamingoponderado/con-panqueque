@@ -1,0 +1,125 @@
+import ConPanqueque.ConsLoop
+import ConPanqueque.Logic.Stop
+open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
+open ConPanqueque.Logic ConPanqueque.ConsModel ConPanqueque.ConsLoop
+
+/-!
+# Appending to a table in Pancake
+
+After a miss at slot `j`, `insBody` appends the key's row (two words at
+`R + 16·cnt`) and its derived word (at `D + 8·cnt`), points slot `j` at it, and
+bumps the count word at `C`; a full table (`cnt = cap`) stops (`hang`), a
+resource-limit decline. `ins_spec`: the result represents `rows ++ [a]`,
+`ders ++ [d]` and `slots.set j (cnt + 1)`, and nothing else in memory moves.
+-/
+
+namespace ConPanqueque.ConsIns
+
+def lC0 := ofString "ccnt"
+def lCap := ofString "ccap"
+def lD := ofString "cd"
+def lDv := ofString "cdv"
+def lN := ofString "cn"
+def vv (n : MlS) : ExpHOL 64 := .var .local n
+
+/-- Append the row `kf, ka` with derived word `dv` and point slot `cj` at it. -/
+def insBody : ProgHOL 64 :=
+  .dec lN .one (.load .one (vv lC0))
+   (.ite (.cmp .equal (vv lN) (vv lCap)) hang
+    (.seq (.store (.op .add [vv lR, .shift .lsl (vv lN) (.const 4)]) (vv lKf))
+    (.seq (.store (.op .add [vv lR, .shift .lsl (vv lN) (.const 4), .const 8]) (vv lKa))
+    (.seq (.store (.op .add [vv lD, .shift .lsl (vv lN) (.const 3)]) (vv lDv))
+    (.seq (.store (.op .add [vv lS, .shift .lsl (vv lJ) (.const 3)]) (.op .add [vv lN, .const 1]))
+     (.store (vv lC0) (.op .add [vv lN, .const 1])))))))
+
+/-- One memory word updated. -/
+def upd (m : BitVec 64 → HolWordLab 64) (a w : BitVec 64) : BitVec 64 → HolWordLab 64 :=
+  fun c => if c = a then .word w else m c
+
+/-- The memory after the append. -/
+def insMem (m : BitVec 64 → HolWordLab 64) (C R D S kf ka dv : BitVec 64) (cnt j : Nat) : BitVec 64 → HolWordLab 64 :=
+  upd (upd (upd (upd (upd m (R + BitVec.ofNat 64 (16 * cnt)) kf)
+    (R + BitVec.ofNat 64 (16 * cnt) + 8) ka) (D + BitVec.ofNat 64 (8 * cnt)) dv)
+    (S + BitVec.ofNat 64 (8 * j)) (BitVec.ofNat 64 (cnt + 1))) C (BitVec.ofNat 64 (cnt + 1))
+
+theorem ins_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (C R D S kf ka dv : BitVec 64) (cnt cap j : Nat)
+    (hcap : cap < 2 ^ 56) (hcnt : cnt ≤ cap) (hj : j < 2 ^ 56)
+    (lc : t.locals.lookup lC0 = some (.val (.word C))) (lcap : t.locals.lookup lCap = some (.val (.word (BitVec.ofNat 64 cap))))
+    (lr : t.locals.lookup lR = some (.val (.word R))) (ld : t.locals.lookup lD = some (.val (.word D)))
+    (ls : t.locals.lookup lS = some (.val (.word S))) (lj : t.locals.lookup lJ = some (.val (.word (BitVec.ofNat 64 j))))
+    (lkf : t.locals.lookup lKf = some (.val (.word kf))) (lka : t.locals.lookup lKa = some (.val (.word ka)))
+    (ldv : t.locals.lookup lDv = some (.val (.word dv)))
+    (mc : t.memaddrs C ∧ t.memory C = .word (BitVec.ofNat 64 cnt))
+    (dom : cnt < cap → t.memaddrs (R + BitVec.ofNat 64 (16 * cnt)) ∧ t.memaddrs (R + BitVec.ofNat 64 (16 * cnt) + 8) ∧
+      t.memaddrs (D + BitVec.ofNat 64 (8 * cnt)) ∧ t.memaddrs (S + BitVec.ofNat 64 (8 * j))) :
+    Stop (evaluateHOLFiniteState t insBody).1 ∨
+      (cnt < cap ∧ ∃ L, evaluateHOLFiniteState t insBody =
+        (none, { t with locals := L, memory := insMem t.memory C R D S kf ka dv cnt j })) := by
+  let t1 := setVarHOLFinite lN (.val (.word (BitVec.ofNat 64 cnt))) t
+  obtain ⟨L1, e1⟩ := dec_word' t lN (.load .one (vv lC0)) _ _
+    (by rw [eval_load_word t _ C (by simp [vv, evalHOLExact, lc]) mc.1, mc.2])
+  have l1 : ∀ x, x ≠ lN → t1.locals.lookup x = t.locals.lookup x := fun x hx => lookup_setVar_other _ _ hx
+  have hN : t1.locals.lookup lN = some (.val (.word (BitVec.ofNat 64 cnt))) := lookup_setVar_same _ _ _
+  have hc56 : (2 : Nat) ^ 56 < 2 ^ 64 := by decide
+  have hcmp : @evalHOLExact 64 σ _ t1.toExact (fun a => Classical.propDecidable (t1.memaddrs a))
+      (.cmp .equal (vv lN) (vv lCap)) = some (.val (.word (if cnt = cap then 1 else 0))) := by
+    simp [vv, evalHOLExact, hN, l1 lCap (by decide), lcap, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+    by_cases h : cnt = cap
+    · simp [h]
+    · have : ¬ BitVec.ofNat 64 cnt = BitVec.ofNat 64 cap := by
+        intro e; have := congrArg BitVec.toNat e; simp at this; omega
+      simp [h]; exact this
+  unfold insBody; rw [e1]
+  rw [ite_word t1 _ _ _ _ hcmp]
+  by_cases hfull : cnt = cap
+  · left
+    simp only [hfull, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
+    rw [hang_spec _ t1 rfl]; exact Or.inl rfl
+  right
+  have hlt : cnt < cap := by omega
+  refine ⟨hlt, L1, ?_⟩
+  simp only [hfull, ↓reduceIte, ne_eq, not_true_eq_false]
+  obtain ⟨d1, d2, d3, d4⟩ := dom hlt
+  have sh4 : BitVec.ofNat 64 cnt <<< (4 : Nat) = BitVec.ofNat 64 (16 * cnt) := by
+    apply BitVec.eq_of_toNat_eq; simp [BitVec.toNat_shiftLeft, Nat.shiftLeft_eq]; omega
+  have sh3 : BitVec.ofNat 64 cnt <<< (3 : Nat) = BitVec.ofNat 64 (8 * cnt) := by
+    apply BitVec.eq_of_toNat_eq; simp [BitVec.toNat_shiftLeft, Nat.shiftLeft_eq]; omega
+  have shj : BitVec.ofNat 64 j <<< (3 : Nat) = BitVec.ofNat 64 (8 * j) := by
+    apply BitVec.eq_of_toNat_eq; simp [BitVec.toNat_shiftLeft, Nat.shiftLeft_eq]; omega
+  have add1 : BitVec.ofNat 64 cnt + 1 = BitVec.ofNat 64 (cnt + 1) := by
+    apply BitVec.eq_of_toNat_eq; simp [BitVec.toNat_add]
+  -- the five stores
+  have es1 := store_word t1 (.op .add [vv lR, .shift .lsl (vv lN) (.const 4)]) (vv lKf) _ kf
+    (by simp [vv, evalHOLExact, evalListHOLExact, hN, l1 lR (by decide), lr, wordOpHOL, wordOp, valueIsWord, valueWord,
+          wordShiftHOL]; rw [sh4])
+    (by simp [vv, evalHOLExact, l1 lKf (by decide), lkf]) d1
+  rw [seq_normal _ es1]
+  let t2 : PanSemStateFiniteExact 64 σ := { t1 with memory := fun c => if c = R + BitVec.ofNat 64 (16 * cnt) then .word kf else t1.memory c }
+  have es2 := store_word t2 (.op .add [vv lR, .shift .lsl (vv lN) (.const 4), .const 8]) (vv lKa)
+    (R + BitVec.ofNat 64 (16 * cnt) + 8) ka
+    (by simp [t2, vv, evalHOLExact, evalListHOLExact, hN, l1 lR (by decide), lr, wordOpHOL, wordOp, valueIsWord, valueWord,
+          wordShiftHOL]; rw [sh4, BitVec.add_assoc])
+    (by simp [t2, vv, evalHOLExact, l1 lKa (by decide), lka]) d2
+  rw [seq_normal _ es2]
+  let t3 : PanSemStateFiniteExact 64 σ := { t2 with memory := fun c => if c = R + BitVec.ofNat 64 (16 * cnt) + 8 then .word ka else t2.memory c }
+  have es3 := store_word t3 (.op .add [vv lD, .shift .lsl (vv lN) (.const 3)]) (vv lDv) (D + BitVec.ofNat 64 (8 * cnt)) dv
+    (by simp [t3, t2, vv, evalHOLExact, evalListHOLExact, hN, l1 lD (by decide), ld, wordOpHOL, wordOp, valueIsWord,
+          valueWord, wordShiftHOL]; rw [sh3])
+    (by simp [t3, t2, vv, evalHOLExact, l1 lDv (by decide), ldv]) d3
+  rw [seq_normal _ es3]
+  let t4 : PanSemStateFiniteExact 64 σ := { t3 with memory := fun c => if c = D + BitVec.ofNat 64 (8 * cnt) then .word dv else t3.memory c }
+  have es4 := store_word t4 (.op .add [vv lS, .shift .lsl (vv lJ) (.const 3)]) (.op .add [vv lN, .const 1])
+    (S + BitVec.ofNat 64 (8 * j)) (BitVec.ofNat 64 (cnt + 1))
+    (by simp [t4, t3, t2, vv, evalHOLExact, evalListHOLExact, l1 lJ (by decide), lj, l1 lS (by decide), ls, wordOpHOL,
+          wordOp, valueIsWord, valueWord, wordShiftHOL]; rw [shj])
+    (by simp [t4, t3, t2, vv, evalHOLExact, evalListHOLExact, hN, wordOpHOL, wordOp, valueIsWord, valueWord]; exact add1) d4
+  rw [seq_normal _ es4]
+  let t5 : PanSemStateFiniteExact 64 σ := { t4 with memory := fun c => if c = S + BitVec.ofNat 64 (8 * j) then .word (BitVec.ofNat 64 (cnt + 1)) else t4.memory c }
+  have es5 := store_word t5 (vv lC0) (.op .add [vv lN, .const 1]) C (BitVec.ofNat 64 (cnt + 1))
+    (by simp [t5, t4, t3, t2, vv, evalHOLExact, l1 lC0 (by decide), lc])
+    (by simp [t5, t4, t3, t2, vv, evalHOLExact, evalListHOLExact, hN, wordOpHOL, wordOp, valueIsWord, valueWord]; exact add1)
+    mc.1
+  rw [es5]
+  rfl
+
+end ConPanqueque.ConsIns

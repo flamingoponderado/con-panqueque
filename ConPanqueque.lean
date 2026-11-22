@@ -31,6 +31,7 @@ import ConPanqueque.Spine
 import ConPanqueque.ConsModel
 import ConPanqueque.ConsTbl
 import ConPanqueque.ConsLoop
+import ConPanqueque.ConsIns
 import ConPanqueque.LevelFns
 import ConPanqueque.LevelFold
 import ConPanqueque.Table
