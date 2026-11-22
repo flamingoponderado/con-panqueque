@@ -199,3 +199,41 @@ redone against the twin's `AState`; and the result is one-directional (an
 accepted file is consistent), not "same verdict" in both directions. A
 converse (con-leche rejects ⇒ Pancake rejects) would need a new, two-sided
 refinement proof that neither con-ron nor this repository has.
+
+## Decision (2026-11-22): follow con-ron's twin, soundness first
+
+The user chose con-ron's route. Target theorem, shaped like con-ron's
+`no_False_declaration`: if the compiled Pancake checker, run on an input,
+reports acceptance, then con-leche's soundness conclusion holds for that input
+(no declaration proves `False`; the environment has a model). Resource limits
+(arena or table full, clock) are a decline, about which nothing is claimed;
+a rejection for a different reason than con-leche's is acceptable. Numeral
+scanning differences against con-leche must be proved equivalent.
+
+Composition: Pancake ⇒ (lockstep refinement, to prove here) the twin's
+`PooledAccepts` with one worker ⇒ (con-ron's Theorem 1,
+`Arena.pooledAccepts_bridge`, reused) con-leche's `checkDeclsPure` accepts ⇒
+(con-leche's soundness) the model / no `False`.
+
+Setup: Lean v4.36.0 (flapjack branch `lean-v4.36.0`), con-leche at con-ron's
+pin `bc66761`, con-ron as the submodule `deps/con-ron`, whose `ConRon.Arena`
+(twin) and `ConRon.Bridge` (Theorem 1) are built as libraries of this package.
+
+Refinement shape, per twin function `f : … → AM β`: a Pancake function `f'`
+and a lemma "state relation holds ∧ arguments related ∧ `f'` returns normally
+with result `r'` ⇒ `f … s = .ok (r, s₁)` with `r`, `s₁` related to `r'` and the
+final Pancake state". Only the success direction is needed for soundness, so
+Pancake failures (including `Stop`) need no counterpart.
+
+Steps:
+1. memory representation of the twin's `AState`: the per-constructor node
+   arrays and derived columns (`Tbl.nodes`, `Tbl.der`), the cons tables
+   (`Std.HashMap`, refined by an open-addressed table), the memo and cache
+   maps, the pins; handles as words;
+2. the store primitives (`view`, `derivedE`, `intern*`) and their lockstep
+   lemmas;
+3. a translator from the twin's monadic Lean to Pancake with generated
+   lockstep proofs, reusing the composition lemmas here (`step_call`,
+   `pure_step`, `iteChain`, `Stop`);
+4. the twin's frontend, checker and driver loop, translated; the top-level
+   theorem.

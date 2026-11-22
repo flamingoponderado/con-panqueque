@@ -12,3 +12,20 @@ path = "deps/flapjack"
 
 [[lean_lib]]
 name = "ConPanqueque"
+
+# con-ron's Lean twin of the checker and its Theorem 1 (the twin refines
+# con-leche), built from the `deps/con-ron` submodule. They depend on con-leche
+# only (no Aeneas, no Mathlib). The two options are the ones con-ron sets
+# project-wide; its proofs are elaborated under them.
+[[lean_lib]]
+name = "ConRonArena"
+srcDir = "deps/con-ron/proof"
+roots = ["ConRon.Arena"]
+leanOptions = { "weak.backward.isDefEq.respectTransparency" = false, "weak.backward.do.legacy" = true }
+
+[[lean_lib]]
+name = "ConRonBridge"
+srcDir = "deps/con-ron/proof"
+roots = ["ConRon.Bridge"]
+globs = ["ConRon.Bridge.*"]
+leanOptions = { "weak.backward.isDefEq.respectTransparency" = false, "weak.backward.do.legacy" = true }

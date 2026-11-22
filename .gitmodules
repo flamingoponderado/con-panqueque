@@ -5,3 +5,6 @@
 [submodule "deps/con-leche"]
 	path = deps/con-leche
 	url = https://github.com/leanprover/con-leche.git
+[submodule "deps/con-ron"]
+	path = deps/con-ron
+	url = https://github.com/leanprover/con-ron.git
