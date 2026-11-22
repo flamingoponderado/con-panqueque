@@ -84,4 +84,53 @@ theorem memoProbe_spec {α δ : Type} [BEq α] [LawfulBEq α] [Hashable α] [Dec
     refine Or.inr ⟨by rw [es]; exact m, by rw [es]; exact d, by rw [es]; exact c, by rw [es]; exact gl,
       Or.inr ⟨hf, er⟩⟩
 
+/-! ## The representation of a memo -/
+
+def dWE (v : EIdx) : BitVec 64 × BitVec 64 := (Enc.idxW v, 0)
+
+/-- The twin memo `m` is held at descriptor `G` with geometry `g`. -/
+def MemoAt (t : PState σ) (G : BitVec 64) (g : VGeo) (m : Std.HashMap (EIdx × Nat) EIdx) : Prop :=
+  DescV t G g 1 ∧ g.n = 2 ^ g.b ∧ g.b ≤ 56 ∧ g.cap < 2 ^ 30 ∧
+  ∃ (tb : Tbl (EIdx × Nat) Nat EIdx) (rows : List (EIdx × Nat)) (ders : List (BitVec 64 × BitVec 64))
+    (slots : List Nat) (hu : Nat),
+    VT t encMemo rows ders slots g hu ∧ ConsModel.Inv (homeV encMemo g.b) rows slots g.n ∧ TblRel tb rows id ∧
+      tb.der.toList.map dWE = ders ∧ MemoRel m tb
+
+theorem memoAt_frame {t u : PState σ} {G : BitVec 64} {g : VGeo} {m : Std.HashMap (EIdx × Nat) EIdx}
+    (h : MemoAt t G g m) (hm : ∀ c, inR g c → u.memory c = t.memory c)
+    (hdsc : ∀ k, k < 8 → u.memory (G + BitVec.ofNat 64 (8 * k)) = t.memory (G + BitVec.ofNat 64 (8 * k)))
+    (hd : u.memaddrs = t.memaddrs) : MemoAt u G g m := by
+  obtain ⟨hdesc, h1, h2, h3, tb, rows, ders, slots, hu, hT, hi, hr, hder, hrel⟩ := h
+  exact ⟨fun k hk => by rw [hdsc k hk, hd]; exact hdesc k hk, h1, h2, h3, tb, rows, ders, slots, hu,
+    vt_frame hT hm hd, hi, hr, hder, hrel⟩
+
+theorem memoAt_of_eq {t u : PState σ} {G : BitVec 64} {g : VGeo} {m : Std.HashMap (EIdx × Nat) EIdx}
+    (h : MemoAt t G g m) (hm : u.memory = t.memory) (hd : u.memaddrs = t.memaddrs) : MemoAt u G g m :=
+  memoAt_frame h (fun _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd
+
+/-- A hit's value word: row `i` of the key holds the memo's answer at `D + 16 i`. -/
+theorem memo_value {t : PState σ} {g : VGeo} {m : Std.HashMap (EIdx × Nat) EIdx} {tb : Tbl (EIdx × Nat) Nat EIdx}
+    {rows : List (EIdx × Nat)} {ders : List (BitVec 64 × BitVec 64)} {slots : List Nat} {hu : Nat}
+    (hT : VT t encMemo rows ders slots g hu) (hr : TblRel tb rows id) (hder : tb.der.toList.map dWE = ders)
+    (hrel : MemoRel m tb) (k : EIdx × Nat) (i : Nat) (hf : tb.find? k = some i) :
+    i < g.cap ∧ ∃ v, m[k]? = some v ∧ t.memaddrs (g.D + BitVec.ofNat 64 (16 * i)) ∧
+      t.memory (g.D + BitVec.ofNat 64 (16 * i)) = .word (Enc.idxW v) := by
+  have hil : i < rows.length := by
+    have := hr.cons k
+    simp only [Tbl.find?] at hf
+    rw [hf] at this
+    cases e : rows.findIdx? (· = k) with
+    | none => rw [e] at this; simp at this
+    | some j =>
+      rw [e] at this; simp at this; subst this
+      exact (List.findIdx?_eq_some_iff_getElem.mp e).1
+  have hle := hT.le
+  obtain ⟨a1, _, a3, _⟩ := hT.der i hil
+  have hsz : tb.der.size = rows.length := by
+    have := congrArg List.length hder; simp at this; rw [this, hT.dlen]
+  have hdi : ders[i]'(by rw [hT.dlen]; exact hil) = dWE (tb.derAt i) := by
+    simp only [← hder, List.getElem_map, Array.getElem_toList, Tbl.derAt, Array.getD_eq_getD_getElem?,
+      Array.getElem?_eq_getElem (show i < tb.der.size by omega), Option.getD_some]
+  refine ⟨by omega, tb.derAt i, by rw [hrel k, hf]; rfl, a1, by rw [a3, hdi]; rfl⟩
+
 end ConPanqueque.T
