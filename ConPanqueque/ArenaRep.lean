@@ -1,4 +1,4 @@
-import ConPanqueque.ExprRep
+import ConPanqueque.Rebuild
 open ConPanqueque.Sep ConPanqueque.Rep
 
 /-!
@@ -91,5 +91,56 @@ theorem levelsAt_iff {h : Heap} {p : BitVec 64} {us : List ConLeche.Level} :
   · intro hl; induction hl with
     | nil => exact .nil
     | cons hp h0 h1 hu _ ih => exact .cons hp h0 h1 hu ih
+
+end ConPanqueque.ArenaRep
+
+namespace ConPanqueque.ArenaRep
+open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
+open ConPanqueque.Logic ConPanqueque.Node ConPanqueque.StateHeap ConPanqueque.Rebuild ConPanqueque.ExprCons
+
+/-- A translated function's result: stop, or a word representing `a` in the grown arena. -/
+abbrev RResA {σ : Type} {α : Type} [ArenaRep α] (s : PanSemStateFiniteExact 64 σ)
+    (r : Option (PanSemResultExact 64) × PanSemStateFiniteExact 64 σ) (lo hp : BitVec 64) (a : α) (c : Nat) : Prop :=
+  RRes s r lo hp (fun h q => ArenaRep.R h q a) c
+
+/-- Allocating a two-word cell `[x, y]` whose words represent `a` and `b` gives a representation of `mk a b`,
+for any constructor laid out as such a cell. -/
+theorem cell2_spec {σ : Type} {α β γ : Type} [ArenaRep α] [ArenaRep β] [ArenaRep γ]
+    (t : PanSemStateFiniteExact 64 σ) (lo hp q r : BitVec 64) (x y : MlS) (a : α) (b : β) (g : γ)
+    (hxy : x ≠ y) (hx : x ≠ nP) (hy : y ≠ nP)
+    (hi : AInv t lo hp) (ha : ArenaRep.R (hOf t lo hp) q a) (hb : ArenaRep.R (hOf t lo hp) r b)
+    (lx : t.locals.lookup x = some (.val (.word q))) (ly : t.locals.lookup y = some (.val (.word r)))
+    (hbuild : ∀ (h' : Heap) (p0 : BitVec 64), p0 ≠ 0 → h' p0 = some (.word q) → h' (p0 + 8) = some (.word r) →
+      ArenaRep.R h' q a → ArenaRep.R h' r b → ArenaRep.R h' p0 g) :
+    RResA t (evaluateHOLFiniteState t (mkCell [x, y])) lo hp g 0 := by
+  rcases mkCell_ainv t lo hp [x, y] [q, r] rfl (by simp [Ne.symm hx, Ne.symm hy]) (by simp) (by simp)
+      (fun j hj => match j, hj with | 0, _ => lx | 1, _ => ly) hi with
+    hs | ⟨hr, a5, g5, hpos, cells, cd5, ck5, gl5, md5, ta5⟩
+  · exact Or.inl hs
+  right
+  have c0 := cells 0 (by simp)
+  have c1 := cells 1 (by simp)
+  simp only [at8, List.length_cons, List.length_nil] at c0 c1
+  rw [show hp + BitVec.ofNat 64 (8 * 0) = hp by simp] at c0
+  rw [show BitVec.ofNat 64 (8 * 1) = 8#64 from by decide] at c1
+  have sub := grows_sub g5
+  exact ⟨hp, hr, _, a5, g5, hbuild _ hp hpos c0 c1 (ArenaRep.mono sub ha) (ArenaRep.mono sub hb),
+    cd5, by rw [ck5]; omega, gl5, md5, ta5⟩
+
+theorem cons_spec {σ : Type} {α : Type} [ArenaRep α] (t : PanSemStateFiniteExact 64 σ) (lo hp q r : BitVec 64)
+    (x y : MlS) (a : α) (as : List α) (hxy : x ≠ y) (hx : x ≠ nP) (hy : y ≠ nP) (hi : AInv t lo hp)
+    (ha : ArenaRep.R (hOf t lo hp) q a) (has : ArenaRep.R (hOf t lo hp) r as)
+    (lx : t.locals.lookup x = some (.val (.word q))) (ly : t.locals.lookup y = some (.val (.word r))) :
+    RResA t (evaluateHOLFiniteState t (mkCell [x, y])) lo hp (a :: as) 0 :=
+  cell2_spec t lo hp q r x y a as (a :: as) hxy hx hy hi ha has lx ly
+    (fun _ _ hp0 c0 c1 ha' has' => ListAt.cons hp0 c0 c1 ha' has')
+
+theorem pair_spec {σ : Type} {α β : Type} [ArenaRep α] [ArenaRep β] (t : PanSemStateFiniteExact 64 σ)
+    (lo hp q r : BitVec 64) (x y : MlS) (a : α) (b : β) (hxy : x ≠ y) (hx : x ≠ nP) (hy : y ≠ nP) (hi : AInv t lo hp)
+    (ha : ArenaRep.R (hOf t lo hp) q a) (hb : ArenaRep.R (hOf t lo hp) r b)
+    (lx : t.locals.lookup x = some (.val (.word q))) (ly : t.locals.lookup y = some (.val (.word r))) :
+    RResA t (evaluateHOLFiniteState t (mkCell [x, y])) lo hp (a, b) 0 :=
+  cell2_spec t lo hp q r x y a b (a, b) hxy hx hy hi ha hb lx ly
+    (fun _ _ hp0 c0 c1 ha' hb' => ⟨hp0, q, r, c0, c1, ha', hb'⟩)
 
 end ConPanqueque.ArenaRep
