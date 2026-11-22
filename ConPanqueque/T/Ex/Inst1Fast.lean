@@ -18,9 +18,9 @@ def fInst1F := ofString "instantiate1"
 def fastLocals : List MlS := [lJ0, lW]
 
 def fastBody (C : Ctx) : ProgHOL 64 :=
-  prologue fastLocals (clearCode (C.mg .inst1)
+  prologue fastLocals (clearCode (C.mg (.e .inst1))
     (.seq (.call (some (some (.local, lW), none)) fInst1 [vv pV, vv pFu, vv pH, vv pD])
-      (clearCode (C.mg .inst1) (.return (vv lW)))))
+      (clearCode (C.mg (.e .inst1)) (.return (vv lW)))))
 
 section
 variable {σ : Type}

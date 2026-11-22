@@ -179,7 +179,7 @@ theorem appArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
     (hv : Γ.get pV = some (Enc.idxW v)) (hfu : Γ.get pFu = some (BitVec.ofNat 64 (n + 1)))
     (hh : Γ.get pH = some (Enc.idxW h)) (hdd : Γ.get pD = some (BitVec.ofNat 64 d))
     (hkb : Γ.get lKb = some C.KB) (hfle : Γ.get lFle = some C.FLe) (hdir : Γ.get lDir = some C.L.DIR) :
-    SpecR (Inv (σ := σ) C s Γ M DI) (appArm (C.mG .inst1)) s (instantiate1ArmApp v n h d) (PostE C) := by
+    SpecR (Inv (σ := σ) C s Γ M DI) (appArm (C.mG (.e .inst1))) s (instantiate1ArmApp v n h d) (PostE C) := by
   refine specR_congr (by rw [instantiate1ArmApp]) ?_
   unfold appArm probed memoGetP
   refine specR_memoGetI hok .inst1 inst1Get inst1Get_run hc.memoGet hc.memoProbe lX (vv pH) (vv pD) h d hd (by decide) (by simp [hh])
@@ -225,7 +225,7 @@ theorem bindArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
     (hv : Γ.get pV = some (Enc.idxW v)) (hfu : Γ.get pFu = some (BitVec.ofNat 64 (n + 1)))
     (hh : Γ.get pH = some (Enc.idxW h)) (hdd : Γ.get pD = some (BitVec.ofNat 64 d))
     (hkb : Γ.get lKb = some C.KB) (hfle : Γ.get lFle = some C.FLe) (hdir : Γ.get lDir = some C.L.DIR) :
-    SpecR (Inv (σ := σ) C s Γ M DI) (bindArm (C.mG .inst1)) s (instantiate1ArmBind v n h d) (PostE C) := by
+    SpecR (Inv (σ := σ) C s Γ M DI) (bindArm (C.mG (.e .inst1))) s (instantiate1ArmBind v n h d) (PostE C) := by
   refine specR_congr (by rw [instantiate1ArmBind]) ?_
   unfold bindArm probed memoGetP
   refine specR_memoGetI hok .inst1 inst1Get inst1Get_run hc.memoGet hc.memoProbe lX (vv pH) (vv pD) h d hd (by decide) (by simp [hh])
@@ -325,7 +325,7 @@ theorem letArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
     (hv : Γ.get pV = some (Enc.idxW v)) (hfu : Γ.get pFu = some (BitVec.ofNat 64 (n + 1)))
     (hh : Γ.get pH = some (Enc.idxW h)) (hdd : Γ.get pD = some (BitVec.ofNat 64 d))
     (hkb : Γ.get lKb = some C.KB) (hfle : Γ.get lFle = some C.FLe) (hdir : Γ.get lDir = some C.L.DIR) :
-    SpecR (Inv (σ := σ) C s Γ M DI) (letArm (C.mG .inst1)) s (instantiate1ArmLet v n h d) (PostE C) := by
+    SpecR (Inv (σ := σ) C s Γ M DI) (letArm (C.mG (.e .inst1))) s (instantiate1ArmLet v n h d) (PostE C) := by
   refine specR_congr (by rw [instantiate1ArmLet]) ?_
   unfold letArm probed memoGetP
   refine specR_memoGetI hok .inst1 inst1Get inst1Get_run hc.memoGet hc.memoProbe lX (vv pH) (vv pD) h d hd (by decide) (by simp [hh])
@@ -496,7 +496,7 @@ theorem projRest_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok
     (hh : Γ.get pH = some (Enc.idxW h)) (hdd : Γ.get pD = some (BitVec.ofNat 64 d))
     (hkb : Γ.get lKb = some C.KB) (ha1 : Γ.get lA1 = some (Enc.idxW c)) (ha2 : Γ.get lA2 = some (Enc.idxW e))
     (hb : Γ.get lB = some (BitVec.ofNat 64 i)) :
-    SpecR (Inv (σ := σ) C s Γ M DI) (projRest (C.mG .inst1)) s
+    SpecR (Inv (σ := σ) C s Γ M DI) (projRest (C.mG (.e .inst1))) s
       (do let u ← instantiate1Go v n e d; let r ← internProjE c i u; inst1Set (h, d) r; pure r) (PostE C) := by
   unfold projRest
   refine specR_ifI (.shift .lsr (vv lB) (.const 63)) (BitVec.ofNat 64 i >>> (63 : BitVec 64).toNat)
@@ -516,7 +516,7 @@ theorem projArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
     (hv : Γ.get pV = some (Enc.idxW v)) (hfu : Γ.get pFu = some (BitVec.ofNat 64 (n + 1)))
     (hh : Γ.get pH = some (Enc.idxW h)) (hdd : Γ.get pD = some (BitVec.ofNat 64 d))
     (hkb : Γ.get lKb = some C.KB) (hfle : Γ.get lFle = some C.FLe) (hdir : Γ.get lDir = some C.L.DIR) :
-    SpecR (Inv (σ := σ) C s Γ M DI) (projArm (C.mG .inst1)) s (instantiate1ArmProj v n h d) (PostE C) := by
+    SpecR (Inv (σ := σ) C s Γ M DI) (projArm (C.mG (.e .inst1))) s (instantiate1ArmProj v n h d) (PostE C) := by
   refine specR_congr (by rw [instantiate1ArmProj]) ?_
   unfold projArm probed memoGetP
   refine specR_memoGetI hok .inst1 inst1Get inst1Get_run hc.memoGet hc.memoProbe lX (vv pH) (vv pD) h d hd (by decide) (by simp [hh])
@@ -576,7 +576,7 @@ theorem projArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
 
 end
 
-def body (C : Ctx) : ProgHOL 64 := prologue inst1Locals (core (C.mG .inst1))
+def body (C : Ctx) : ProgHOL 64 := prologue inst1Locals (core (C.mG (.e .inst1)))
 
 theorem bvarOfData_word (der : UInt64) :
     der.toBitVec >>> (16 : Nat) &&& 32767#64 = (ConLeche.bvarOfData der).toBitVec := by

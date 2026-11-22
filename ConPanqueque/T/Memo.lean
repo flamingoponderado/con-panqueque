@@ -484,10 +484,10 @@ theorem specR_memoGetI {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoK) (getOp
     SpecR (Inv C s Γ M D)
       (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 0))]) eh)
         (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 1))]) ed)
-          (.seq (.call (some (some (.local, x), none)) fMemoGet [.const (C.mG mk), lenE ed]) rest)))
+          (.seq (.call (some (some (.local, x), none)) fMemoGet [.const (C.mG (.e mk)), lenE ed]) rest)))
       s (getOp (h, d) >>= k) R := by
   refine specR_storeKB2I hok eh ed (Enc.idxW h) (BitVec.ofNat 64 d) heh hed hkb ?_
-  refine specR_call2IM x fMemoGet pG pLen (by decide) (.const (C.mG mk)) (lenE ed) memoGetBody (C.mG mk)
+  refine specR_call2IM x fMemoGet pG pLen (by decide) (.const (C.mG (.e mk))) (lenE ed) memoGetBody (C.mG (.e mk))
     (BitVec.ofNat 64 (encMemo (h, d)).length) hx hcodeG rfl (sev_lenE _ ed d hd hed h)
     (fun a w s' st => s' = s ∧ w = optW a ∧ SR C s st) (fun _ _ _ _ hp => by rw [hp.1]; exact hp.2.2)
     (fun u hsr hM h1 h2 => ?_) (fun a w s' st hp => by obtain ⟨rfl, rfl, _⟩ := hp; exact hk a)
@@ -503,7 +503,7 @@ theorem specR_memoGetI {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoK) (getOp
       have e1 : (encMemo (h, d))[1]'hj = BitVec.ofNat 64 d := by
         simp only [encMemo, limbs_small d (by omega), h0, ite_false]; rfl
       rw [e1]; exact hM _ _ (by simp)
-  have G := memoGet_spec (σ := σ) (α := Unit) (C.mG mk) C.KB (C.mg mk) encMemo_inj (memoSel mk s.memos) (h, d) s u (hsr.memo mk) hW
+  have G := memoGet_spec (σ := σ) (α := Unit) (C.mG (.e mk)) C.KB (C.mg (.e mk)) encMemo_inj (memoSel mk s.memos) (h, d) s u (hsr.memo mk) hW
     (by simp only [encMemo, List.length_cons, limbs_small d (by omega)]; split <;> simp)
     hsr.gkb h1 h2 (by rw [hsr.code]; exact hcodeP)
   refine specR_congr (hget (h, d) s) (specR_mono G (fun v hv => hv) (fun a w s' st hp => ?_))
@@ -532,12 +532,12 @@ theorem specR_memoSetI {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoK) (setOp
     SpecR (Inv C s Γ M D)
       (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 0))]) eh)
         (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 1))]) ed)
-          (.seq (.call (some (some (.local, x), none)) fMemoSet [.const (C.mG mk), lenE ed, ev]) rest)))
+          (.seq (.call (some (some (.local, x), none)) fMemoSet [.const (C.mG (.e mk)), lenE ed, ev]) rest)))
       s (setOp (h, d) r >>= k) R := by
   let s' : AState := { s with memos := memoUpd mk s.memos ((memoSel mk s.memos).insert (h, d) r) }
   refine specR_storeKB2I hok eh ed (Enc.idxW h) (BitVec.ofNat 64 d) heh hed hkb ?_
-  refine specR_call3IM x fMemoSet pG pLen pVal (by decide) (by decide) (by decide) (.const (C.mG mk)) (lenE ed) ev
-    memoSetBody (C.mG mk) (BitVec.ofNat 64 (encMemo (h, d)).length) (Enc.idxW r) hx hcodeS rfl (sev_lenE _ ed d hd hed h) hev
+  refine specR_call3IM x fMemoSet pG pLen pVal (by decide) (by decide) (by decide) (.const (C.mG (.e mk))) (lenE ed) ev
+    memoSetBody (C.mG (.e mk)) (BitVec.ofNat 64 (encMemo (h, d)).length) (Enc.idxW r) hx hcodeS rfl (sev_lenE _ ed d hd hed h) hev
     (fun _ _ s'' st => s'' = s' ∧ SR C s' st) (fun _ _ _ _ hp => by rw [hp.1]; exact hp.2)
     (fun u hsr hM h1 h2 h3 => ?_) (fun a w s'' st hp => by obtain ⟨rfl, _⟩ := hp; exact hk w)
   have hW : Words u C.KB (encMemo (h, d)) := by
@@ -555,26 +555,30 @@ theorem specR_memoSetI {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoK) (setOp
   have hl2 : (encMemo (h, d)).length ≤ 2 := by
     simp only [encMemo, List.length_cons, limbs_small d (by omega)]; split <;> simp
   have hlen : (encMemo (h, d)).length < 2 ^ 61 := by omega
-  have S := memoSet_spec (σ := σ) (C.mG mk) C.KB (C.mg mk) encMemo_inj (memoSel mk s.memos) (h, d) r s u (hsr.memo mk) hW hlen
-    (fun j hj => hok.kbMemo mk j (by omega)) (fun j hj => hok.mdescMemo mk mk j hj) hsr.gkb h1 h2 h3
+  have S := memoSet_spec (σ := σ) (C.mG (.e mk)) C.KB (C.mg (.e mk)) encMemo_inj (memoSel mk s.memos) (h, d) r s u (hsr.memo mk) hW hlen
+    (fun j hj => hok.kbMemo (.e mk) j (by omega)) (fun j hj => hok.mdescMemo (.e mk) (.e mk) j hj) hsr.gkb h1 h2 h3
     (by rw [hsr.code]; exact hcodeI)
   intro t ht
   rcases S t ht with hs | ⟨w, hr, _, s'', _, hp⟩
   · exact Or.inl hs
   obtain ⟨_, hmem, hfr, hd', hg, hc⟩ := hp
   subst ht
-  refine Or.inr ⟨w, hr, (), s', hset (h, d) r s, rfl, ⟨srep_frame hsr.rep ⟨hfr _ (hok.flMemo mk _ (Or.inl rfl)),
-      hfr _ (hok.flMemo mk _ (Or.inr (Or.inl rfl))),
-      hfr _ (hok.flMemo mk _ (Or.inr (Or.inr (Or.inl rfl)))), hfr _ (hok.flMemo mk _ (Or.inr (Or.inr (Or.inr rfl))))⟩ hd'
-      (fun kk tier hk1 hk2 => ⟨fun mm hm => hfr _ (hok.dirMemo mk kk tier mm hk1 hk2 hm),
-        fun c hc => hfr c (fun hin => hok.memoOut mk c hin ⟨kk, tier, hk1, hk2, hc⟩)⟩),
+  refine Or.inr ⟨w, hr, (), s', hset (h, d) r s, rfl, ⟨srep_frame hsr.rep ⟨hfr _ (hok.flMemo (.e mk) _ (Or.inl rfl)),
+      hfr _ (hok.flMemo (.e mk) _ (Or.inr (Or.inl rfl))),
+      hfr _ (hok.flMemo (.e mk) _ (Or.inr (Or.inr (Or.inl rfl)))), hfr _ (hok.flMemo (.e mk) _ (Or.inr (Or.inr (Or.inr rfl))))⟩ hd'
+      (fun kk tier hk1 hk2 => ⟨fun mm hm => hfr _ (hok.dirMemo (.e mk) kk tier mm hk1 hk2 hm),
+        fun c hc => hfr c (fun hin => hok.memoOut (.e mk) c hin ⟨kk, tier, hk1, hk2, hc⟩)⟩),
     by rw [hg]; exact hsr.gdir, by rw [hg]; exact hsr.gfln, by rw [hg]; exact hsr.gfll, by rw [hg]; exact hsr.gfls,
     by rw [hg]; exact hsr.gfle, by rw [hg]; exact hsr.gkb, by rw [hc]; exact hsr.code,
-    fun j hj => by rw [hd']; exact hsr.kbuf j hj, fun mk' => ?_⟩⟩
+    fun j hj => by rw [hd']; exact hsr.kbuf j hj, fun mk' => ?_, fun nk => ?_⟩⟩
+  rotate_left
+  · show MemoAtN _ _ _ (memoSelN nk (memoUpd mk s.memos _)); rw [memoSelN_upd]
+    exact memoAtN_frame (hsr.memoN nk) (fun c hc => hfr c (hok.memoDis (.n nk) (.e mk) c (by simp) hc))
+      (fun kk hkk => hfr _ (hok.mdescMemo (.e mk) (.n nk) kk hkk)) hd'
   by_cases e : mk' = mk
   · subst e; show MemoAt _ _ _ (memoSel mk' (memoUpd mk' s.memos _)); rw [memoSel_upd_same]; exact hmem
   · show MemoAt _ _ _ (memoSel mk' (memoUpd mk s.memos _)); rw [memoSel_upd_ne mk mk' e]
-    exact memoAt_frame (hsr.memo mk') (fun c hc => hfr c (hok.memoDis mk' mk c e hc))
-      (fun kk hkk => hfr _ (hok.mdescMemo mk mk' kk hkk)) hd'
+    exact memoAt_frame (hsr.memo mk') (fun c hc => hfr c (hok.memoDis (.e mk') (.e mk) c (fun x => e (by cases x; rfl)) hc))
+      (fun kk hkk => hfr _ (hok.mdescMemo (.e mk) (.e mk') kk hkk)) hd'
 
 end ConPanqueque.T

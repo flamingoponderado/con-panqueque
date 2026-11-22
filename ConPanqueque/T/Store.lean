@@ -35,6 +35,44 @@ theorem memoSel_upd_same (k : MemoK) (m : Memos) (x : Std.HashMap (EIdx × Nat) 
 theorem memoSel_upd_ne (k k' : MemoK) (h : k' ≠ k) (m : Memos) (x : Std.HashMap (EIdx × Nat) EIdx) :
     memoSel k' (memoUpd k m x) = memoSel k' m := by cases k <;> cases k' <;> first | rfl | exact absurd rfl h
 
+/-- The `EIdx → Nat` memos. -/
+inductive MemoNK | bvarB | fvarB
+  deriving DecidableEq
+
+def memoSelN : MemoNK → Memos → Std.HashMap EIdx Nat
+  | .bvarB, m => m.bvarBC | .fvarB, m => m.fvarBC
+
+def memoUpdN : MemoNK → Memos → Std.HashMap EIdx Nat → Memos
+  | .bvarB, m, x => { m with bvarBC := x } | .fvarB, m, x => { m with fvarBC := x }
+
+theorem memoSelN_upd_same (k : MemoNK) (m : Memos) (x : Std.HashMap EIdx Nat) :
+    memoSelN k (memoUpdN k m x) = x := by cases k <;> rfl
+
+theorem memoSelN_upd_ne (k k' : MemoNK) (h : k' ≠ k) (m : Memos) (x : Std.HashMap EIdx Nat) :
+    memoSelN k' (memoUpdN k m x) = memoSelN k' m := by cases k <;> cases k' <;> first | rfl | exact absurd rfl h
+
+theorem memoSel_updN (k : MemoK) (k' : MemoNK) (m : Memos) (x : Std.HashMap EIdx Nat) :
+    memoSel k (memoUpdN k' m x) = memoSel k m := by cases k <;> cases k' <;> rfl
+
+theorem memoSelN_upd (k : MemoNK) (k' : MemoK) (m : Memos) (x : Std.HashMap (EIdx × Nat) EIdx) :
+    memoSelN k (memoUpd k' m x) = memoSelN k m := by cases k <;> cases k' <;> rfl
+
+/-- A memo's region: one of the `(EIdx × Nat) → EIdx` memos, or one of the `EIdx → Nat` ones. -/
+inductive Region | e (k : MemoK) | n (k : MemoNK)
+  deriving DecidableEq
+
+/-- An `EIdx → Nat` memo: key `[idxW h]`, value `ofNat n`, every value below `2^63`. -/
+def encN (h : EIdx) : List (BitVec 64) := [Enc.idxW h]
+def natW (n : Nat) : BitVec 64 := BitVec.ofNat 64 n
+
+def MemoAtN {σ : Type} (t : PanSemStateFiniteExact 64 σ) (G : BitVec 64) (g : VGeo) (m : Std.HashMap EIdx Nat) : Prop :=
+  MemoAtG encN natW t G g m ∧ ∀ (k : EIdx) (v : Nat), m[k]? = some v → v < 2 ^ 63
+
+theorem memoAtN_frame {σ : Type} {t u : PanSemStateFiniteExact 64 σ} {G : BitVec 64} {g : VGeo} {m : Std.HashMap EIdx Nat}
+    (h : MemoAtN t G g m) (hm : ∀ c, inR g c → u.memory c = t.memory c)
+    (hdsc : ∀ k, k < 8 → u.memory (G + BitVec.ofNat 64 (8 * k)) = t.memory (G + BitVec.ofNat 64 (8 * k)))
+    (hd : u.memaddrs = t.memaddrs) : MemoAtN u G g m := ⟨memoAtG_frame h.1 hm hdsc hd, h.2⟩
+
 structure Ctx where
   L : Layout
   FLn : BitVec 64
@@ -45,8 +83,8 @@ structure Ctx where
   /-- The program's functions. -/
   code : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL)
   /-- Each memo's descriptor and geometry. -/
-  mG : MemoK → BitVec 64
-  mg : MemoK → VGeo
+  mG : Region → BitVec 64
+  mg : Region → VGeo
 
 def gDir := ofString "Gdir"
 def gFln := ofString "Gfln"
@@ -69,7 +107,9 @@ structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   /-- The key buffer's words are addressable (keys of up to three words; longer ones later). -/
   kbuf : ∀ j, j < 3 → t.memaddrs (C.KB + BitVec.ofNat 64 (8 * j))
   /-- The memos. -/
-  memo : ∀ k, MemoAt t (C.mG k) (C.mg k) (memoSel k s.memos)
+  memo : ∀ k, MemoAt t (C.mG (.e k)) (C.mg (.e k)) (memoSel k s.memos)
+  /-- The `EIdx → Nat` memos. -/
+  memoN : ∀ k, MemoAtN t (C.mG (.n k)) (C.mg (.n k)) (memoSelN k s.memos)
 
 theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u.memory = t.memory)
     (hd : u.memaddrs = t.memaddrs) (hg : u.globals = t.globals) (hc : u.code = t.code) : SR C s u :=
@@ -77,7 +117,8 @@ theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u
       (fun _ _ _ _ => ⟨fun _ _ => by rw [hm], fun _ _ => by rw [hm]⟩),
     by rw [hg]; exact h.gdir, by rw [hg]; exact h.gfln, by rw [hg]; exact h.gfll, by rw [hg]; exact h.gfls,
     by rw [hg]; exact h.gfle, by rw [hg]; exact h.gkb, by rw [hc]; exact h.code,
-    fun j hj => by rw [hd]; exact h.kbuf j hj, fun k => memoAt_of_eq (h.memo k) hm hd⟩
+    fun j hj => by rw [hd]; exact h.kbuf j hj, fun k => memoAt_of_eq (h.memo k) hm hd,
+    fun k => memoAtN_frame (h.memoN k) (fun _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd⟩
 
 theorem eval_gv (t : PState σ) (g : MlS) (w : BitVec 64) (h : t.globals.lookup g = some (.val (.word w))) :
     EV t (.var .global g) = some (.val (.word w)) := by

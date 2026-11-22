@@ -84,7 +84,7 @@ def coreL (G : BitVec 64) : ProgHOL 64 :=
          (.ite (tagEq 9) (projL G)
           (.ite (tagEq 0) bvarL (.return (vv pH))))))))))))))
 
-def bodyL (C : Ctx) : ProgHOL 64 := prologue inst1Locals (coreL (C.mG .lift))
+def bodyL (C : Ctx) : ProgHOL 64 := prologue inst1Locals (coreL (C.mG (.e .lift)))
 
 theorem liftGet_run (k : EIdx × Nat) (s : AState) : liftGet k s = .ok ((memoSel .lift s.memos)[k]?, s) := rfl
 theorem liftSet_run (k : EIdx × Nat) (r : EIdx) (s : AState) :
@@ -143,7 +143,7 @@ theorem probedL_spec {C : Ctx} (hok : CtxOK C) (B : ProgHOL 64) (hc : CodesL C B
     {M : Mem} (h : EIdx) (c : Nat) (hc63 : c < 2 ^ 63) (miss : ProgHOL 64) (m : AM EIdx)
     (hh : Γ.get pH = some (Enc.idxW h)) (hcc : Γ.get pD = some (BitVec.ofNat 64 c)) (hkb : Γ.get lKb = some C.KB)
     (hmiss : SpecR (Inv (σ := σ) C s ((lX, 0) :: Γ) [] DI) miss s m (PostE C)) :
-    SpecR (Inv (σ := σ) C s Γ M DI) (probed (C.mG .lift) miss) s
+    SpecR (Inv (σ := σ) C s Γ M DI) (probed (C.mG (.e .lift)) miss) s
       (do match ← liftGet (h, c) with | some r => pure r | none => m) (PostE C) := by
   unfold probed memoGetP
   refine specR_memoGetI hok .lift liftGet liftGet_run hc.memoGet hc.memoProbe lX (vv pH) (vv pD) h c hc63 (by decide)
@@ -162,7 +162,7 @@ theorem setRetL_spec {C : Ctx} (hok : CtxOK C) (B : ProgHOL 64) (hc : CodesL C B
     {M : Mem} (h : EIdx) (c : Nat) (hc63 : c < 2 ^ 63) (r : EIdx)
     (hh : Γ.get pH = some (Enc.idxW h)) (hcc : Γ.get pD = some (BitVec.ofNat 64 c)) (hkb : Γ.get lKb = some C.KB)
     (hw : Γ.get lW = some (Enc.idxW r)) :
-    SpecR (Inv (σ := σ) C s Γ M DI) (memoSetP (C.mG .lift) (.return (vv lW))) s
+    SpecR (Inv (σ := σ) C s Γ M DI) (memoSetP (C.mG (.e .lift)) (.return (vv lW))) s
       (do liftSet (h, c) r; pure r) (PostE C) := by
   unfold memoSetP
   refine specR_memoSetI hok .lift liftSet liftSet_run hc.memoSet hc.memoIns lX (vv pH) (vv pD) (vv lW) h c r hc63
@@ -181,7 +181,7 @@ theorem appL_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : C
     (hh : Γ.get pH = some (Enc.idxW h)) (hcc : Γ.get pD = some (BitVec.ofNat 64 c))
     (hkb : Γ.get lKb = some C.KB) (hrp : Γ.get lRp = some P) (a b : EIdx)
     (hm0 : (P + BitVec.ofNat 64 0, Enc.idxW a) ∈ M) (hm1 : (P + BitVec.ofNat 64 8, Enc.idxW b) ∈ M) :
-    SpecR (Inv (σ := σ) C s Γ M DI) (appL (C.mG .lift)) s (liftArmApp am n h c a b) (PostE C) := by
+    SpecR (Inv (σ := σ) C s Γ M DI) (appL (C.mG (.e .lift))) s (liftArmApp am n h c a b) (PostE C) := by
   unfold appL
   refine specR_loadI' lA1 _ (P + 0) _ (Enc.idxW a) (by decide) (by simp [sev, hrp]) rfl hm0 ?_
   refine specR_loadI' lA2 _ (P + 8) _ (Enc.idxW b) (by decide) (by simp +decide [sev, hrp]) rfl hm1 ?_
@@ -208,7 +208,7 @@ theorem bindL_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
       (∀ h s', SpecR (Inv C s' ((x, Enc.idxW h) :: Γ) [] DI) rest s' (k h) R) →
       SpecR (Inv C s Γ M DI) (.seq (.call (some (some (.local, x), none)) fn [e1, e2]) rest) s (op t b >>= k) R)
     (hm0 : (P + BitVec.ofNat 64 0, Enc.idxW ty) ∈ M) (hm1 : (P + BitVec.ofNat 64 8, Enc.idxW b) ∈ M) :
-    SpecR (Inv (σ := σ) C s Γ M DI) (bindL (C.mG .lift) fn) s
+    SpecR (Inv (σ := σ) C s Γ M DI) (bindL (C.mG (.e .lift)) fn) s
       (do match ← liftGet (h, c) with
         | some r => pure r
         | none => do
@@ -241,7 +241,7 @@ theorem letL_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : C
     (hkb : Γ.get lKb = some C.KB) (hrp : Γ.get lRp = some P) (ty v b : EIdx)
     (hm0 : (P + BitVec.ofNat 64 0, Enc.idxW ty) ∈ M) (hm1 : (P + BitVec.ofNat 64 8, Enc.idxW v) ∈ M)
     (hm2 : (P + BitVec.ofNat 64 16, Enc.idxW b) ∈ M) :
-    SpecR (Inv (σ := σ) C s Γ M DI) (letL (C.mG .lift)) s (liftArmLet am n h c ty v b) (PostE C) := by
+    SpecR (Inv (σ := σ) C s Γ M DI) (letL (C.mG (.e .lift))) s (liftArmLet am n h c ty v b) (PostE C) := by
   unfold letL
   refine specR_loadI' lA1 _ (P + 0) _ (Enc.idxW ty) (by decide) (by simp [sev, hrp]) rfl hm0 ?_
   refine specR_loadI' lA2 _ (P + 8) _ (Enc.idxW v) (by decide) (by simp +decide [sev, hrp]) rfl hm1 ?_
@@ -276,7 +276,7 @@ theorem projRestL_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (ho
     (hh : Γ.get pH = some (Enc.idxW h)) (hcc : Γ.get pD = some (BitVec.ofNat 64 c))
     (hkb : Γ.get lKb = some C.KB) (ha1 : Γ.get lA1 = some (Enc.idxW nm)) (ha2 : Γ.get lA2 = some (Enc.idxW sub))
     (hb : Γ.get lB = some (BitVec.ofNat 64 i)) :
-    SpecR (Inv (σ := σ) C s Γ M DI) (projRestL (C.mG .lift)) s (liftArmProj am n h c nm i sub) (PostE C) := by
+    SpecR (Inv (σ := σ) C s Γ M DI) (projRestL (C.mG (.e .lift))) s (liftArmProj am n h c nm i sub) (PostE C) := by
   unfold projRestL
   refine specR_ifI (.shift .lsr (vv lB) (.const 63)) (BitVec.ofNat 64 i >>> (63 : BitVec 64).toNat)
     (by simp [sev, hb]) (fun _ => specR_hangI) (fun hw => ?_)
@@ -510,9 +510,9 @@ theorem liftClear_run (s : AState) : liftClear s = .ok ((), { s with memos := me
 def fLiftF := ofString "liftLooseBVars"
 
 def fastBodyL (C : Ctx) : ProgHOL 64 :=
-  prologue fastLocals (clearCode (C.mg .lift)
+  prologue fastLocals (clearCode (C.mg (.e .lift))
     (.seq (.call (some (some (.local, lW), none)) fLift [vv pA, vv pFu, vv pH, vv pD])
-      (clearCode (C.mg .lift) (.return (vv lW)))))
+      (clearCode (C.mg (.e .lift)) (.return (vv lW)))))
 
 section
 variable {σ : Type}
