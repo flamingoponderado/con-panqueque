@@ -453,4 +453,84 @@ theorem word_add_eq (a b : Nat) (ha : a < 2 ^ 63) (hb : b < 2 ^ 63) :
 theorem word_add1_eq (a : Nat) : BitVec.ofNat 64 a + 1#64 = BitVec.ofNat 64 (a + 1) := by
   rw [show (1#64) = BitVec.ofNat 64 1 from rfl, BitVec.ofNat_add_ofNat]
 
+/-! ## Forgetting locals, and derived words -/
+
+/-- `Γ` without the entries for `xs` (locals a step clobbers). -/
+def Env.kill (Γ : Env) (xs : List MlS) : Env := Γ.filter fun p => !(xs.contains p.1)
+
+theorem Env.get_kill (Γ : Env) (xs : List MlS) (y : MlS) (w : BitVec 64) (h : (Γ.kill xs).get y = some w) :
+    y ∉ xs ∧ Γ.get y = some w := by
+  induction Γ with
+  | nil => simp [Env.kill, Env.get] at h
+  | cons p Γ ih =>
+    obtain ⟨x, v⟩ := p
+    simp only [Env.kill, List.filter_cons] at h
+    split at h
+    · rename_i hx
+      simp only [Env.get] at h
+      split at h
+      · rename_i e; subst e
+        simp at h; subst h
+        refine ⟨by simpa using hx, by simp [Env.get]⟩
+      · rename_i e
+        obtain ⟨h1, h2⟩ := ih h
+        exact ⟨h1, by simp [Env.get, e, h2]⟩
+    · rename_i hx
+      obtain ⟨h1, h2⟩ := ih h
+      refine ⟨h1, ?_⟩
+      simp only [Env.get]
+      split
+      · rename_i e; subst e
+        exact absurd (by simpa using hx) h1
+      · exact h2
+
+theorem derivedE_run (h : EIdx) (s : AState) : ConRon.Arena.derivedE h s = .ok (s.store.derived h, s) := rfl
+
+/-- `storeDerived 9 10; rest` against `derivedE h >>= k`: the derived word lands in `do1`, `do2` is zero;
+the decode scratch `dt`, `dg`, `di` is clobbered (dropped from `Γ`, still words). -/
+theorem specR_derivedEI {β : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64}
+    {k : UInt64 → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    (h : EIdx)
+    (hdh : Γ.get lDh = some (Enc.idxW h)) (hfl : Γ.get lFl = some C.FLe) (hdir : Γ.get lDir = some C.L.DIR)
+    (hD : lDt ∈ D ∧ lDg ∈ D ∧ lDi ∈ D ∧ lDo1 ∈ D ∧ lDo2 ∈ D)
+    (hk : SpecR (Inv C s ((lDo1, (s.store.derived h).toBitVec) :: (lDo2, 0) :: Γ.kill [lDt, lDg, lDi]) M D) rest s
+      (k (s.store.derived h)) R) :
+    SpecR (Inv C s Γ M D) (.seq (storeDerived 9 10) rest) s (ConRon.Arena.derivedE h >>= k) R := by
+  intro t ht
+  obtain ⟨hn, hm, hd, hc, hg, _, _, o1, o2, fr, wd⟩ := eDerived_spec t C.L C.FLe s.store ht.sr.rep.e h
+    (ht.env _ _ hdh) (ht.env _ _ hdir) (ht.env _ _ hfl) (ht.decl _ hD.1) (ht.decl _ hD.2.1) (ht.decl _ hD.2.2.1)
+    (ht.decl _ hD.2.2.2.1) (ht.decl _ hD.2.2.2.2)
+  have e : evaluateHOLFiniteState t (storeDerived 9 10) = (none, (evaluateHOLFiniteState t (storeDerived 9 10)).2) := by
+    rw [← hn]
+  rw [seq_normal rest e]
+  have hInv : Inv C s ((lDo1, (s.store.derived h).toBitVec) :: (lDo2, 0) :: Γ.kill [lDt, lDg, lDi]) M D
+      (evaluateHOLFiniteState t (storeDerived 9 10)).2 := by
+    refine ⟨sr_of_eq ht.sr hm hd hg hc, fun y w hy => ?_, fun b w hb => by rw [hm, hd]; exact ht.mem b w hb,
+      fun y hy => ?_⟩
+    · simp only [Env.get] at hy
+      split at hy
+      · rename_i e; subst e; simp at hy; subst hy; exact o1
+      split at hy
+      · rename_i e; subst e; simp at hy; subst hy; exact o2
+      rename_i e1 e2
+      obtain ⟨hk', hy'⟩ := Env.get_kill Γ _ y w hy
+      simp only [List.mem_cons, List.not_mem_nil, or_false, not_or] at hk'
+      rw [fr y e1 e2 hk'.1 hk'.2.1 hk'.2.2]; exact ht.env y w hy'
+    · by_cases e1 : y = lDo1
+      · subst e1; exact ⟨_, o1⟩
+      by_cases e2 : y = lDo2
+      · subst e2; exact ⟨_, o2⟩
+      by_cases e3 : y = lDt
+      · subst e3; exact wd _ (Or.inl rfl)
+      by_cases e4 : y = lDg
+      · subst e4; exact wd _ (Or.inr (Or.inl rfl))
+      by_cases e5 : y = lDi
+      · subst e5; exact wd _ (Or.inr (Or.inr rfl))
+      obtain ⟨w, hw⟩ := ht.decl y hy; exact ⟨w, by rw [fr y e1 e2 e3 e4 e5]; exact hw⟩
+  rcases hk _ hInv with hs | ⟨w, hr', a, s', hk', hR⟩
+  · exact Or.inl hs
+  refine Or.inr ⟨w, hr', a, s', ?_, hR⟩
+  show (do let r ← ConRon.Arena.derivedE h s; match r with | (a, s) => k a s) = _
+  rw [derivedE_run]; exact hk'
+
 end ConPanqueque.T
