@@ -188,4 +188,36 @@ theorem specR_internAppI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions)
           · simp at hy⟩)
     (fun h w s' st hp => by obtain ⟨rfl, _⟩ := hp; exact hk h s')
 
+/-! ## Writing the key buffer -/
+
+/-- A store into key-buffer word `j < 2` leaves the stores' representation alone. -/
+theorem sr_storeKB {C : Ctx} (hok : CtxOK C) {s : AState} {t : PState σ} (h : SR C s t) (j : Nat) (hj : j < 2)
+    (w : BitVec 64) :
+    SR C s { t with memory := fun c => if c = C.KB + BitVec.ofNat 64 (8 * j) then .word w else t.memory c } := by
+  have S := hok.sepApp
+  have hne : ∀ c, c ≠ C.KB + BitVec.ofNat 64 (8 * j) →
+      (fun c => if c = C.KB + BitVec.ofNat 64 (8 * j) then HolWordLab.word w else t.memory c) c = t.memory c :=
+    fun c hc => by simp [hc]
+  refine ⟨srep_frame h.rep ⟨hne _ ((S.fls _ (Or.inl rfl)).2.2 j hj), ?_, ?_, ?_⟩ rfl (fun k tier hk ht => ⟨fun m hm =>
+      hne _ ((S.dsc k tier m hk ht hm).2.2 j hj), fun c hc => hne c (fun e => S.kbo j k tier hj hk ht (e ▸ hc))⟩),
+    h.gdir, h.gfln, h.gfll, h.gfls, h.gfle, h.gkb, h.code, h.kbuf⟩
+  · exact hne _ ((S.fls _ (Or.inr (Or.inl rfl))).2.2 j hj)
+  · exact hne _ ((S.fls _ (Or.inr (Or.inr (Or.inl rfl)))).2.2 j hj)
+  · exact hne _ ((S.fls _ (Or.inr (Or.inr (Or.inr rfl)))).2.2 j hj)
+
+/-- `KB[j] := e; rest`: the twin sees nothing; afterwards the word is known (other memory facts dropped). -/
+theorem specR_storeKBI {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env} {M : Mem} {D : List MlS}
+    {rest : ProgHOL 64} {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop}
+    (j : Nat) (hj : j < 2) (e : ExpHOL 64) (w : BitVec 64) (he : sev Γ e = some w) (hkb : Γ.get lKb = some C.KB)
+    (h : SpecR (Inv C s Γ [(C.KB + BitVec.ofNat 64 (8 * j), w)] D) rest s m R) :
+    SpecR (Inv C s Γ M D) (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * j))]) e) rest) s m R := by
+  refine specR_seq (fun t ht => ?_) h
+  have hdom : t.memaddrs (C.KB + BitVec.ofNat 64 (8 * j)) := ht.sr.kbuf j (by omega)
+  rw [store_word t _ e _ w (eval_add2 t _ _ _ _ (eval_vv t lKb _ (ht.env _ _ hkb)) (eval_const t _))
+    (inv_ev ht he) hdom]
+  refine Or.inr ⟨rfl, sr_storeKB hok ht.sr j hj w, fun y v hy => ht.env y v hy, fun a v ha => ?_, ht.decl⟩
+  simp only [List.mem_cons, List.not_mem_nil, or_false, Prod.mk.injEq] at ha
+  obtain ⟨rfl, rfl⟩ := ha
+  exact ⟨hdom, by simp⟩
+
 end ConPanqueque.T
