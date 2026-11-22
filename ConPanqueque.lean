@@ -15,6 +15,7 @@ import ConPanqueque.Tail
 import ConPanqueque.LevelFns
 import ConPanqueque.LevelFold
 import ConPanqueque.Table
+import ConPanqueque.Fold
 import ConPanqueque.Translate.Exp
 import ConPanqueque.Translate.ConLecheWords
 import ConPanqueque.Translate.Fun
