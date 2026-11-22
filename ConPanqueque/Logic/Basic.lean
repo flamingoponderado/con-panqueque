@@ -25,4 +25,33 @@ theorem return_add {σ : Type} (s : PanSemStateFiniteExact 64 σ) (a b : MlS) (x
   simp [evalHOLExact, evalListHOLExact, ha, hb, wordOpHOL, wordOp, valueIsWord, valueWord,
     shapeOfHOLExact]
 
+/-! ## Structural rules -/
+
+/-- `p; q` after `p` finished normally is `q`. -/
+theorem seq_normal {σ : Type} {s s₁ : PanSemStateFiniteExact 64 σ} {p : ProgHOL 64} (q : ProgHOL 64)
+    (h : evaluateHOLFiniteState s p = (none, s₁)) :
+    evaluateHOLFiniteState s (.seq p q) = evaluateHOLFiniteState s₁ q := by
+  rw [evaluateHOLFiniteState_eq_evaluate_def s (.seq p q)]
+  simp only [h]
+
+/-- An assignment of an expression's value, when the value fits the variable. -/
+theorem assign_ok {σ : Type} (s : PanSemStateFiniteExact 64 σ) (k : VarKind) (n : MlS)
+    (e : ExpHOL 64) (v : ValueHOL 64)
+    (he : @evalHOLExact 64 σ _ s.toExact (fun a => Classical.propDecidable (s.memaddrs a)) e = some v)
+    (hv : isValidValueHOLFinite s k n v = true) :
+    evaluateHOLFiniteState s (.assign k n e) = (none, setKvarHOLFinite k n v s) := by
+  rw [evaluateHOLFiniteState_eq_evaluate_def]
+  simp only [he, hv, ite_true]
+
+/-! ## Locals -/
+
+@[simp] theorem lookup_setVar_same {σ : Type} (s : PanSemStateFiniteExact 64 σ) (n : MlS)
+    (v : ValueHOL 64) : (setVarHOLFinite n v s).locals.lookup n = some v := by
+  simp [setVarHOLFinite, FUPDATE]
+
+theorem lookup_setVar_other {σ : Type} (s : PanSemStateFiniteExact 64 σ) {n m : MlS}
+    (v : ValueHOL 64) (h : m ≠ n) :
+    (setVarHOLFinite n v s).locals.lookup m = s.locals.lookup m := by
+  simp [setVarHOLFinite, FUPDATE, Ne.symm h]
+
 end ConPanqueque.Logic
