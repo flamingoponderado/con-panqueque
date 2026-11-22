@@ -85,6 +85,10 @@ structure Ctx where
   /-- Each memo's descriptor and geometry. -/
   mG : Region → BitVec 64
   mg : Region → VGeo
+  /-- The value heap: base, capacity (words), and its image (the words allocated so far). -/
+  HB : BitVec 64
+  HN : Nat
+  H : List (BitVec 64)
 
 def gDir := ofString "Gdir"
 def gFln := ofString "Gfln"
@@ -92,6 +96,24 @@ def gFll := ofString "Gfll"
 def gFls := ofString "Gfls"
 def gFle := ofString "Gfle"
 def gKb := ofString "Gkb"
+def gHt := ofString "Ght"
+
+/-- The value heap at `HB` (capacity `HN` words) holds the image `H`, its top in `Ght`. Values are
+immutable once allocated, so facts about `H` survive every later step. -/
+structure HeapAt {σ : Type} (t : PanSemStateFiniteExact 64 σ) (HB : BitVec 64) (HN : Nat) (H : List (BitVec 64)) :
+    Prop where
+  top : t.globals.lookup gHt = some (.val (.word (HB + BitVec.ofNat 64 (8 * H.length))))
+  len : H.length ≤ HN
+  lay : HB.toNat + 8 * HN < 2 ^ 64
+  dom : ∀ i, i < HN → t.memaddrs (HB + BitVec.ofNat 64 (8 * i))
+  val : ∀ i (hi : i < H.length), t.memory (HB + BitVec.ofNat 64 (8 * i)) = .word H[i]
+
+theorem heapAt_frame {σ : Type} {t u : PanSemStateFiniteExact 64 σ} {HB : BitVec 64} {HN : Nat}
+    {H : List (BitVec 64)} (h : HeapAt t HB HN H)
+    (hm : ∀ i, i < HN → u.memory (HB + BitVec.ofNat 64 (8 * i)) = t.memory (HB + BitVec.ofNat 64 (8 * i)))
+    (hd : u.memaddrs = t.memaddrs) (hg : u.globals.lookup gHt = t.globals.lookup gHt) : HeapAt u HB HN H :=
+  ⟨by rw [hg]; exact h.top, h.len, h.lay, fun i hi => by rw [hd]; exact h.dom i hi,
+    fun i hi => by rw [hm i (Nat.lt_of_lt_of_le hi h.len)]; exact h.val i hi⟩
 
 variable {σ : Type}
 
@@ -110,6 +132,8 @@ structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   memo : ∀ k, MemoAt t (C.mG (.e k)) (C.mg (.e k)) (memoSel k s.memos)
   /-- The `EIdx → Nat` memos. -/
   memoN : ∀ k, MemoAtN t (C.mG (.n k)) (C.mg (.n k)) (memoSelN k s.memos)
+  /-- The value heap. -/
+  heap : HeapAt t C.HB C.HN C.H
 
 theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u.memory = t.memory)
     (hd : u.memaddrs = t.memaddrs) (hg : u.globals = t.globals) (hc : u.code = t.code) : SR C s u :=
@@ -118,7 +142,8 @@ theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u
     by rw [hg]; exact h.gdir, by rw [hg]; exact h.gfln, by rw [hg]; exact h.gfll, by rw [hg]; exact h.gfls,
     by rw [hg]; exact h.gfle, by rw [hg]; exact h.gkb, by rw [hc]; exact h.code,
     fun j hj => by rw [hd]; exact h.kbuf j hj, fun k => memoAt_of_eq (h.memo k) hm hd,
-    fun k => memoAtN_frame (h.memoN k) (fun _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd⟩
+    fun k => memoAtN_frame (h.memoN k) (fun _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd,
+    heapAt_frame h.heap (fun _ _ => by rw [hm]) hd (by rw [hg])⟩
 
 theorem eval_gv (t : PState σ) (g : MlS) (w : BitVec 64) (h : t.globals.lookup g = some (.val (.word w))) :
     EV t (.var .global g) = some (.val (.word w)) := by

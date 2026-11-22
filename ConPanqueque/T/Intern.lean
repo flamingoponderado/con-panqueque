@@ -503,6 +503,10 @@ structure CtxOK (C : Ctx) : Prop where
   /-- Every memo descriptor lies outside every memo region; distinct memo regions are disjoint. -/
   mdescMemo : ∀ r r' k, k < 8 → ¬ inR (C.mg r) (C.mG r' + BitVec.ofNat 64 (8 * k))
   memoDis : ∀ r r' c, r ≠ r' → inR (C.mg r) c → ¬ inR (C.mg r') c
+  /-- The value heap lies apart from the stores, the key buffer and the memos. -/
+  heapOut : ∀ i, i < C.HN → ¬ inAny C.L (C.HB + BitVec.ofNat 64 (8 * i))
+  kbHeap : ∀ i j, i < C.HN → j < 3 → C.HB + BitVec.ofNat 64 (8 * i) ≠ C.KB + BitVec.ofNat 64 (8 * j)
+  heapMemo : ∀ r i, i < C.HN → ¬ inR (C.mg r) (C.HB + BitVec.ofNat 64 (8 * i))
   sepLam : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 2 14
   b0Lam : C.L.base 14 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.lam.toUInt64.toBitVec * 67108864
   b1Lam : C.L.base 14 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.lam.toUInt64.toBitVec * 67108864
@@ -567,7 +571,9 @@ theorem internApp_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx
         (fun k hk => hm _ (hok.mdescOut (.e mk) k hk) (fun j hj => hok.kbMdesc (.e mk) k j hk (by omega))) hd,
       fun mk => memoAtN_frame (ht.sr.memoN mk)
         (fun c hc => hm c (hok.memoOut (.n mk) c hc) (fun j hj e => hok.kbMemo (.n mk) j (by omega) (e ▸ hc)))
-        (fun k hk => hm _ (hok.mdescOut (.n mk) k hk) (fun j hj => hok.kbMdesc (.n mk) k j hk (by omega))) hd⟩
+        (fun k hk => hm _ (hok.mdescOut (.n mk) k hk) (fun j hj => hok.kbMdesc (.n mk) k j hk (by omega))) hd,
+      heapAt_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
+        (by rw [hg])⟩
 
 /-- In a caller: `x := internApp(e₁, e₂); rest` against `internAppE f a >>= k`. -/
 theorem specR_internAppI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxOK C)
@@ -607,7 +613,8 @@ theorem sr_storeKB {C : Ctx} (hok : CtxOK C) {s : AState} {t : PState σ} (h : S
     fun mk => memoAt_frame (h.memo mk) (fun c hc => hne c (fun e => hok.kbMemo (.e mk) j (by omega) (e ▸ hc)))
       (fun k hk => hne _ (hok.kbMdesc (.e mk) k j hk (by omega))) rfl,
       fun mk => memoAtN_frame (h.memoN mk) (fun c hc => hne c (fun e => hok.kbMemo (.n mk) j (by omega) (e ▸ hc)))
-      (fun k hk => hne _ (hok.kbMdesc (.n mk) k j hk (by omega))) rfl⟩
+      (fun k hk => hne _ (hok.kbMdesc (.n mk) k j hk (by omega))) rfl,
+    heapAt_frame h.heap (fun i hi => hne _ (hok.kbHeap i j hi hj)) rfl rfl⟩
   · exact hne _ ((S.fls _ (Or.inr (Or.inl rfl))).2.2 j hj)
   · exact hne _ ((S.fls _ (Or.inr (Or.inr (Or.inl rfl)))).2.2 j hj)
   · exact hne _ ((S.fls _ (Or.inr (Or.inr (Or.inr rfl)))).2.2 j hj)
@@ -831,7 +838,9 @@ theorem bin2_body_spec (C : Ctx) (hok : CtxOK C) (E : ExpHOL 64) (k : Nat) (op :
         (fun k hk => hm _ (hok.mdescOut (.e mk) k hk) (fun j hj => hok.kbMdesc (.e mk) k j hk (by omega))) hd,
       fun mk => memoAtN_frame (ht.sr.memoN mk)
         (fun c hc => hm c (hok.memoOut (.n mk) c hc) (fun j hj e => hok.kbMemo (.n mk) j (by omega) (e ▸ hc)))
-        (fun k hk => hm _ (hok.mdescOut (.n mk) k hk) (fun j hj => hok.kbMdesc (.n mk) k j hk (by omega))) hd⟩
+        (fun k hk => hm _ (hok.mdescOut (.n mk) k hk) (fun j hj => hok.kbMdesc (.n mk) k j hk (by omega))) hd,
+      heapAt_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
+        (by rw [hg])⟩
 
 /-- In a caller: `x := fn(e₁, e₂); rest` against `op f a >>= k`, for a two-child intern function `fn`. -/
 theorem specR_bin2I {β : Type} {C : Ctx} (hok : CtxOK C) (fn : MlS) (E : ExpHOL 64) (kk : Nat)
@@ -942,7 +951,9 @@ theorem let_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok
         (fun k hk => hm _ (hok.mdescOut (.e mk) k hk) (fun j hj => hok.kbMdesc (.e mk) k j hk (by omega))) hd,
       fun mk => memoAtN_frame (ht.sr.memoN mk)
         (fun c hc => hm c (hok.memoOut (.n mk) c hc) (fun j hj e => hok.kbMemo (.n mk) j (by omega) (e ▸ hc)))
-        (fun k hk => hm _ (hok.mdescOut (.n mk) k hk) (fun j hj => hok.kbMdesc (.n mk) k j hk (by omega))) hd⟩
+        (fun k hk => hm _ (hok.mdescOut (.n mk) k hk) (fun j hj => hok.kbMdesc (.n mk) k j hk (by omega))) hd,
+      heapAt_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
+        (by rw [hg])⟩
 
 theorem specR_internLetI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxOK C)
     (hcode : C.code.lookup fInternLet = some ([(lEty, .one), (lEvl, .one), (lEbd, .one)], letBody, .one))
@@ -1034,7 +1045,9 @@ theorem bvar_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (ho
         (fun k hk => hm _ (hok.mdescOut (.e mk) k hk) (fun j hj => hok.kbMdesc (.e mk) k j hk (by omega))) hd,
       fun mk => memoAtN_frame (ht.sr.memoN mk)
         (fun c hc => hm c (hok.memoOut (.n mk) c hc) (fun j hj e => hok.kbMemo (.n mk) j (by omega) (e ▸ hc)))
-        (fun k hk => hm _ (hok.mdescOut (.n mk) k hk) (fun j hj => hok.kbMdesc (.n mk) k j hk (by omega))) hd⟩
+        (fun k hk => hm _ (hok.mdescOut (.n mk) k hk) (fun j hj => hok.kbMdesc (.n mk) k j hk (by omega))) hd,
+      heapAt_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
+        (by rw [hg])⟩
 
 theorem specR_internBVarI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxOK C)
     (hcode : C.code.lookup fInternBVar = some ([(lIw, .one)], bvarBody, .one))
@@ -1168,7 +1181,9 @@ theorem proj_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (ho
         (fun k hk => hm _ (hok.mdescOut (.e mk) k hk) (fun j hj => hok.kbMdesc (.e mk) k j hk (by omega))) hd,
       fun mk => memoAtN_frame (ht.sr.memoN mk)
         (fun c hc => hm c (hok.memoOut (.n mk) c hc) (fun j hj e => hok.kbMemo (.n mk) j (by omega) (e ▸ hc)))
-        (fun k hk => hm _ (hok.mdescOut (.n mk) k hk) (fun j hj => hok.kbMdesc (.n mk) k j hk (by omega))) hd⟩
+        (fun k hk => hm _ (hok.mdescOut (.n mk) k hk) (fun j hj => hok.kbMdesc (.n mk) k j hk (by omega))) hd,
+      heapAt_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
+        (by rw [hg])⟩
 
 theorem specR_internProjI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxOK C)
     (hcode : C.code.lookup fInternProj = some ([(lEp, .one), (lEe, .one), (lIw, .one)], projBody, .one))

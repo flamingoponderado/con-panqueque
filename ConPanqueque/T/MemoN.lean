@@ -107,7 +107,8 @@ theorem specR_memoSetNI {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoNK) (set
         fun c hc => hfr c (fun hin => hok.memoOut (.n mk) c hin ⟨kk, tier, hk1, hk2, hc⟩)⟩),
     by rw [hg]; exact hsr.gdir, by rw [hg]; exact hsr.gfln, by rw [hg]; exact hsr.gfll, by rw [hg]; exact hsr.gfls,
     by rw [hg]; exact hsr.gfle, by rw [hg]; exact hsr.gkb, by rw [hc]; exact hsr.code,
-    fun j hj => by rw [hd']; exact hsr.kbuf j hj, fun mk' => ?_, fun nk => ?_⟩⟩
+    fun j hj => by rw [hd']; exact hsr.kbuf j hj, fun mk' => ?_, fun nk => ?_,
+    heapAt_frame hsr.heap (fun i hi => hfr _ (hok.heapMemo (.n mk) i hi)) hd' (by rw [hg])⟩⟩
   · show MemoAt _ _ _ (memoSel mk' (memoUpdN mk s.memos _)); rw [memoSel_updN]
     exact memoAt_frame (hsr.memo mk') (fun c hc => hfr c (hok.memoDis (.e mk') (.n mk) c (by simp) hc))
       (fun kk hkk => hfr _ (hok.mdescMemo (.n mk) (.e mk') kk hkk)) hd'
