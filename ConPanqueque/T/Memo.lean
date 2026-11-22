@@ -133,4 +133,129 @@ theorem memo_value {t : PState σ} {g : VGeo} {m : Std.HashMap (EIdx × Nat) EId
       Array.getElem?_eq_getElem (show i < tb.der.size by omega), Option.getD_some]
   refine ⟨by omega, tb.derAt i, by rw [hrel k, hf]; rfl, a1, by rw [a3, hdi]; rfl⟩
 
+/-! ## `memoGet` -/
+
+def fMemoGet := ofString "memoGet"
+def lMx := ofString "mx"
+def lMd := ofString "mdd"
+
+/-- `memoGet(g, len)`: `1 +` the memo's answer for the key in the key buffer, or `0`. -/
+def memoGetBody : ProgHOL 64 :=
+  .dec lMx .one (.const 0) (.seq (.call (some (some (.local, lMx), none)) fMemoProbe [vv pG, vv pLen])
+    (.ite (vv lMx)
+      (.dec lMd .one (.load .one (.op .add [vv pG, .const 40]))
+        (.return (.op .add [.load .one (.op .add [vv lMd, .shift .lsl (.op .sub [vv lMx, .const 1]) (.const 4)]),
+          .const 1])))
+      (.return (.const 0))))
+
+/-- A memo answer as `memoGet` returns it. -/
+def optW : Option EIdx → BitVec 64
+  | some v => Enc.idxW v + 1
+  | none => 0
+
+theorem idxW_add_one_ne (v : EIdx) : Enc.idxW v + 1 ≠ 0 := by
+  intro h
+  have := congrArg BitVec.toNat h
+  have hl : (Enc.idxW v).toNat < 2 ^ 32 := by simp [Enc.idxW]; exact v.word.toNat_lt
+  simp [BitVec.toNat_add] at this; omega
+
+theorem one_add_ne (i : Nat) (hi : i < 2 ^ 30) : (1 : BitVec 64) + BitVec.ofNat 64 i ≠ 0 := by
+  intro h
+  have := congrArg BitVec.toNat h
+  simp [BitVec.toNat_add] at this; omega
+
+theorem memoGet_spec {α : Type} (G KB : BitVec 64) (g : VGeo) (m : Std.HashMap (EIdx × Nat) EIdx) (k : EIdx × Nat)
+    (s : AState) (u : PState σ)
+    (hm : MemoAt u G g m) (hK : Words u KB (encMemo k)) (hkl : (encMemo k).length < 2 ^ 61)
+    (hgk : u.globals.lookup gKb = some (.val (.word KB)))
+    (hpg : u.locals.lookup pG = some (.val (.word G)))
+    (hpl : u.locals.lookup pLen = some (.val (.word (BitVec.ofNat 64 (encMemo k).length))))
+    (hcode : u.code.lookup fMemoProbe = some ([(pG, .one), (pLen, .one)], memoProbeBody, .one)) :
+    SpecR (fun t => t = u) memoGetBody s (pure (m[k]?) : AM (Option EIdx))
+      (fun a w s' st => s' = s ∧ w = optW a ∧ st.memory = u.memory ∧ st.memaddrs = u.memaddrs ∧
+        st.globals = u.globals ∧ st.code = u.code) := by
+  obtain ⟨hdesc, hn, hb, hcap, tb, rows, ders, slots, hu, hT, hinv, hr, hder, hrel⟩ := hm
+  intro t ht
+  subst ht
+  unfold memoGetBody
+  rw [dec_word_eq t lMx _ 0 _ (eval_const t 0)]
+  let t1 := setVarHOLFinite lMx (.val (.word 0)) t
+  -- the probe
+  have hc := spec_call2 (P := (· = t1)) (s := s) (m := (pure () : AM Unit))
+    (Q := fun _ s' t' => s' = s ∧ t'.memory = t.memory ∧ t'.memaddrs = t.memaddrs ∧ t'.globals = t.globals ∧
+      t'.code = t.code ∧ (∀ y, y ≠ lMx → t'.locals.lookup y = t1.locals.lookup y) ∧
+      ((∃ i, tb.find? k = some i ∧ t'.locals.lookup lMx = some (.val (.word (1 + BitVec.ofNat 64 i)))) ∨
+       (tb.find? k = none ∧ t'.locals.lookup lMx = some (.val (.word 0)))))
+    lMx fMemoProbe pG pLen (by decide) (vv pG) (vv pLen) memoProbeBody (fun _ => G)
+    (fun _ => BitVec.ofNat 64 (encMemo k).length) (fun v hv => by rw [hv]; exact hcode)
+    (fun v hv => by rw [hv]; exact eval_vv _ pG _ (by lk [t1]; exact hpg))
+    (fun v hv => by rw [hv]; exact eval_vv _ pLen _ (by lk [t1]; exact hpl))
+    (fun v hv => ⟨0, by rw [hv]; exact lookup_setVar_same _ _ _⟩)
+    (fun _ _ w s' st => s' = s ∧ st.memory = t.memory ∧ st.memaddrs = t.memaddrs ∧ st.globals = t.globals ∧
+      st.code = t.code ∧
+      ((∃ i, tb.find? k = some i ∧ w = 1 + BitVec.ofNat 64 i) ∨ (tb.find? k = none ∧ w = 0)))
+    (fun v hv callee h1 h2 x hx => by
+      subst hv hx
+      have P := memoProbe_spec (callEntryStateHOLFinite t1 callee) encMemo dWE encMemo_inj tb rows ders slots hu g G KB
+        k hkl hn hb hcap (vt_frame hT (fun _ _ => rfl) rfl) hinv hr (fun j hj => hK j hj) hdesc hgk h1 h2
+      rcases P with hs | ⟨m1, d1, c1, g1, ⟨i, hf, hr'⟩ | ⟨hf, hr'⟩⟩
+      · exact Or.inl hs
+      · exact Or.inr ⟨_, hr', (), s, rfl, rfl, m1, d1, g1, c1, Or.inl ⟨i, hf, rfl⟩⟩
+      · exact Or.inr ⟨_, hr', (), s, rfl, rfl, m1, d1, g1, c1, Or.inr ⟨hf, rfl⟩⟩)
+    (fun v hv _ w s' st ⟨hs, m1, d1, g1, c1, hw⟩ => by
+      subst hv
+      refine ⟨hs, by simp [setKvarHOLFinite, setVarHOLFinite, m1], by simp [setKvarHOLFinite, setVarHOLFinite, d1],
+        by simp [setKvarHOLFinite, setVarHOLFinite, g1], by simp [setKvarHOLFinite, setVarHOLFinite, c1],
+        fun y hy => by simp only [setKvarHOLFinite]; rw [lookup_setVar_other _ _ hy], ?_⟩
+      rcases hw with ⟨i, hf, rfl⟩ | ⟨hf, rfl⟩
+      · exact Or.inl ⟨i, hf, by simp only [setKvarHOLFinite]; exact lookup_setVar_same _ _ _⟩
+      · exact Or.inr ⟨hf, by simp only [setKvarHOLFinite]; exact lookup_setVar_same _ _ _⟩)
+  rcases hc t1 rfl with hs | ⟨hn1, _, s1, _, hq⟩
+  · exact Or.inl (seq_stop _ _ _ hs)
+  obtain ⟨hs1, m2, d2, g2, c2, fr2, hres⟩ := hq
+  subst s1
+  have e := (show evaluateHOLFiniteState t1 (.call (some (some (.local, lMx), none)) fMemoProbe [vv pG, vv pLen]) =
+    (none, (evaluateHOLFiniteState t1 (.call (some (some (.local, lMx), none)) fMemoProbe [vv pG, vv pLen])).2) by
+      rw [← hn1])
+  rw [seq_normal _ e]
+  generalize (evaluateHOLFiniteState t1 (.call (some (some (.local, lMx), none)) fMemoProbe [vv pG, vv pLen])).2 = t2
+    at m2 d2 g2 c2 fr2 hres
+  have hpg2 : t2.locals.lookup pG = some (.val (.word G)) := by rw [fr2 _ (by decide)]; lk [t1]; exact hpg
+  rcases hres with ⟨i, hf, hx⟩ | ⟨hf, hx⟩
+  · obtain ⟨hic, v, hv, ha, hmv⟩ := memo_value hT hr hder hrel k i hf
+    have hle := hT.le
+    rw [ite_word t2 _ _ _ _ (eval_vv t2 lMx _ hx), if_pos (one_add_ne i (by omega))]
+    have hD : EV t2 (.load .one (.op .add [vv pG, .const 40])) = some (.val (.word g.D)) := by
+      have h5 := hdesc 5 (by decide)
+      unfold EV
+      rw [eval_load_word t2 _ _ (eval_add2 t2 _ _ _ _ (eval_vv t2 pG _ hpg2) (eval_const t2 _))
+        (by rw [d2]; exact h5.1), m2]
+      show some (ValueHOL.val (t.memory (G + BitVec.ofNat 64 (8 * 5)))) = _
+      rw [h5.2]; rfl
+    rw [dec_word_eq t2 lMd _ g.D _ hD]
+    let t3 := setVarHOLFinite lMd (.val (.word g.D)) t2
+    have hadr : (1 + BitVec.ofNat 64 i - 1) <<< (4 : BitVec 64).toNat = BitVec.ofNat 64 (16 * i) := by
+      rw [BitVec.add_comm, BitVec.add_sub_cancel, show (4 : BitVec 64).toNat = 4 from rfl, shl_ofNat _ _ (by omega)]
+    have hA : EV t3 (.op .add [vv lMd, .shift .lsl (.op .sub [vv lMx, .const 1]) (.const 4)]) =
+        some (.val (.word (g.D + BitVec.ofNat 64 (16 * i)))) := by
+      rw [← hadr]
+      exact eval_add2 t3 _ _ _ _ (eval_vv t3 lMd _ (lookup_setVar_same _ _ _))
+        (eval_shl t3 _ _ _ (eval_sub2 t3 _ _ _ _ (eval_vv t3 lMx _ (by lk [t3]; exact hx)) (eval_const t3 1))
+          (by decide))
+    have hl := eval_load_word t3 _ _ hA (by show t2.memaddrs _; rw [d2]; exact ha)
+    rw [show t3.memory (g.D + BitVec.ofNat 64 (16 * i)) = .word (Enc.idxW v) by
+      show t2.memory _ = _; rw [m2]; exact hmv] at hl
+    have hv3 : EV t3 (.op .add [.load .one (.op .add [vv lMd, .shift .lsl (.op .sub [vv lMx, .const 1]) (.const 4)]),
+        .const 1]) = some (.val (.word (Enc.idxW v + 1))) := eval_add2 t3 _ _ _ _ hl (eval_const t3 1)
+    right
+    refine ⟨Enc.idxW v + 1, by rw [return_word t3 _ _ hv3], some v, s, by rw [hv]; rfl, rfl, rfl, ?_⟩
+    rw [return_state t3 _ _ hv3]
+    exact ⟨m2, d2, g2, c2⟩
+  · have hnone : m[k]? = none := by rw [hrel k, hf]; rfl
+    rw [ite_word t2 _ _ _ _ (eval_vv t2 lMx _ hx), if_neg (by simp)]
+    right
+    refine ⟨0, by rw [return_word t2 _ _ (eval_const t2 0)], none, s, by rw [hnone]; rfl, rfl, rfl, ?_⟩
+    rw [return_state t2 _ _ (eval_const t2 0)]
+    exact ⟨m2, d2, g2, c2⟩
+
 end ConPanqueque.T
