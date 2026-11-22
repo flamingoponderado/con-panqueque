@@ -1,7 +1,7 @@
 import ConPanqueque.ExprFold
 import ConPanqueque.Table
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
-open ConPanqueque.Sep ConPanqueque.Rep ConPanqueque.Logic ConPanqueque.Fold ConPanqueque.Table
+open ConPanqueque.Sep ConPanqueque.Rep ConPanqueque.Logic ConPanqueque.Fold ConPanqueque.Table ConPanqueque.ExprFold
 
 /-!
 # Memoized folds over expressions
@@ -279,5 +279,122 @@ theorem memo_node {σ : Type} (fm fr : MlS) (Braw : ProgHOL 64) (h : Heap) (f : 
         (by simp [emptyLocalsHOLFinite, fr7.2.1, m6.2.2.1])
       exact ⟨g1, g2, slots, hlen, hsat, hent⟩
     · simp [emptyLocalsHOLFinite]; unfold memoCost; rw [m6.2.2.2.1] at clk7; omega
+
+/-! ## The memoized fold -/
+
+/-- One node of the memoized fold, given its raw case (children, result expression). -/
+theorem memo_case {σ : Type} (fm fr : MlS) (g : Fin 10 → ExpHOL 64) (h : Heap) (f : ConLeche.Expr → UInt64)
+    (tb : BitVec 64) (n : Nat) (hn : 16 * n < 2 ^ 64)
+    (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
+    (hCm : C.lookup fm = some ([(nU, .one)], memoBody fr, .one))
+    (hCr : C.lookup fr = some ([(nU, .one)], ExprFold.body fm g, .one))
+    (p c : BitVec 64) (e : ConLeche.Expr) (he : ExprAt h p e) (h0 : h p = some (.word c))
+    (ks : List Kid) (gc : ExpHOL 64)
+    (hpick : pick c (cases fm g) (.return (.const 0)) = callKids fm (ks.map fun k => (k.x, k.off)) (.return gc))
+    (hnd : (ks.map Kid.x).Nodup) (hnu : nU ∉ ks.map Kid.x) (htg : nTg ∉ ks.map Kid.x)
+    (hkids : ∀ k ∈ ks, h (p + k.off) = some (.word k.q) ∧
+        ∀ t' : PanSemStateFiniteExact 64 σ, t'.code = C → MemoInv h f tb n t' →
+          t'.locals.lookup nU = some (.val (.word k.q)) → k.c ≤ t'.clock →
+          ∃ st, evaluateHOLFiniteState t' (memoBody fr) = (some (.returned (.val (.word k.r.toBitVec))), st) ∧
+            PostJ (MemoInv h f tb n) t' st k.c)
+    (hg : ∀ t' : PanSemStateFiniteExact 64 σ, (∀ k ∈ ks, t'.locals.lookup k.x = some (.val (.word k.r.toBitVec))) →
+      @evalHOLExact 64 σ _ t'.toExact (fun x => Classical.propDecidable (t'.memaddrs x)) gc =
+        some (.val (.word (f e).toBitVec)))
+    (s : PanSemStateFiniteExact 64 σ) (hc : s.code = C) (hj : MemoInv h f tb n s)
+    (hu : s.locals.lookup nU = some (.val (.word p))) (hck : memoCost n (kidsCost ks) ≤ s.clock) :
+    ∃ st, evaluateHOLFiniteState s (memoBody fr) = (some (.returned (.val (.word (f e).toBitVec))), st) ∧
+      PostJ (MemoInv h f tb n) s st (memoCost n (kidsCost ks)) :=
+  memo_node fm fr (ExprFold.body fm g) h f tb n hn p e he (kidsCost ks) s
+    (fun t ht hj' hu' hck' => fold_caseJ fm (memoBody fr) g h p c (MemoInv h f tb n) (fun t ht => memoInv_inMem ht)
+      (memoInv_memDet h f tb n) C hCm ks gc (f e) hpick hnd hnu htg hkids hg t (ht.trans hc) hj' hu' h0 hck')
+    (by rw [hc]; exact hCr) hj hu hck
+
+/-- Clock used by the memoized fold (worst case: every node misses). -/
+def mcost (n : Nat) : ConLeche.Expr → Nat
+  | .bvar _ | .sort _ | .const _ _ | .lit _ => memoCost n 0
+  | .fvar _ ty | .proj _ _ ty => memoCost n (1 + mcost n ty)
+  | .app a b | .lam a b | .forallE a b => memoCost n (1 + mcost n a + (1 + mcost n b))
+  | .letE a b c => memoCost n (1 + mcost n a + (1 + mcost n b + (1 + mcost n c)))
+
+/-- The memoized expression fold computes `f`, and keeps the table invariant. -/
+theorem memo_fold_spec {σ : Type} (fm fr : MlS) (g : Fin 10 → ExpHOL 64) (f : ConLeche.Expr → UInt64)
+    (sp : ExprFoldSpec g f) (h : Heap) (tb : BitVec 64) (n : Nat) (hn : 16 * n < 2 ^ 64)
+    (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
+    (hCm : C.lookup fm = some ([(nU, .one)], memoBody fr, .one))
+    (hCr : C.lookup fr = some ([(nU, .one)], ExprFold.body fm g, .one))
+    {p : BitVec 64} {e : ConLeche.Expr} (he : ExprAt h p e) :
+    ∀ s : PanSemStateFiniteExact 64 σ, s.code = C → MemoInv h f tb n s →
+      s.locals.lookup nU = some (.val (.word p)) → mcost n e ≤ s.clock →
+      ∃ st, evaluateHOLFiniteState s (memoBody fr) = (some (.returned (.val (.word (f e).toBitVec))), st) ∧
+        PostJ (MemoInv h f tb n) s st (mcost n e) := by
+  induction he with
+  | bvar hp h0 hd h2 hi =>
+    intro s hc hj hu hck
+    exact memo_case fm fr g h f tb n hn C hCm hCr _ 0 _ (.bvar hp h0 hd h2 hi) h0 [] (g 0) rfl (by simp) (by simp) (by simp)
+      (by simp) (fun t _ => sp.bvar t _) s hc hj hu (by simpa [kidsCost, mcost] using hck)
+  | @fvar p v q i ty hp h0 hd h2 h3 hi hty ih =>
+    intro s hc hj hu hck
+    have := memo_case fm fr g h f tb n hn C hCm hCr p 1 _ (.fvar hp h0 hd h2 h3 hi hty) h0
+      [⟨nA, 24, q, f ty, mcost n ty⟩] (g 1) rfl (by simp) (by simp only [List.map_cons, List.map_nil]; decide)
+      (by simp only [List.map_cons, List.map_nil]; decide)
+      (by simpa using ⟨h3, ih⟩) (fun t hk => sp.fvar t i ty (by simp at hk; exact hk)) s hc hj hu
+      (by simpa [kidsCost, mcost] using hck)
+    simpa [kidsCost, mcost] using this
+  | sort hp h0 hd h2 hu' =>
+    intro s hc hj hu hck
+    exact memo_case fm fr g h f tb n hn C hCm hCr _ 2 _ (.sort hp h0 hd h2 hu') h0 [] (g 2) rfl (by simp) (by simp) (by simp)
+      (by simp) (fun t _ => sp.sort t _) s hc hj hu (by simpa [kidsCost, mcost] using hck)
+  | const hp h0 hd h2 h3 hn' hus =>
+    intro s hc hj hu hck
+    exact memo_case fm fr g h f tb n hn C hCm hCr _ 3 _ (.const hp h0 hd h2 h3 hn' hus) h0 [] (g 3) rfl (by simp) (by simp)
+      (by simp) (by simp) (fun t _ => sp.const t _ _) s hc hj hu (by simpa [kidsCost, mcost] using hck)
+  | @app p q r a b hp h0 hd h2 h3 ha hb iha ihb =>
+    intro s hc hj hu hck
+    have := memo_case fm fr g h f tb n hn C hCm hCr p 4 _ (.app hp h0 hd h2 h3 ha hb) h0
+      [⟨nA, 16, q, f a, mcost n a⟩, ⟨nB, 24, r, f b, mcost n b⟩] (g 4) rfl
+      (by simp only [List.map_cons, List.map_nil]; decide) (by simp only [List.map_cons, List.map_nil]; decide)
+      (by simp only [List.map_cons, List.map_nil]; decide)
+      (by simpa using ⟨⟨h2, iha⟩, ⟨h3, ihb⟩⟩) (fun t hk => sp.app t a b (by simp at hk; exact hk.1) (by simp at hk; exact hk.2))
+      s hc hj hu (by simpa [kidsCost, mcost] using hck)
+    simpa [kidsCost, mcost] using this
+  | @lam p q r a b hp h0 hd h2 h3 ha hb iha ihb =>
+    intro s hc hj hu hck
+    have := memo_case fm fr g h f tb n hn C hCm hCr p 5 _ (.lam hp h0 hd h2 h3 ha hb) h0
+      [⟨nA, 16, q, f a, mcost n a⟩, ⟨nB, 24, r, f b, mcost n b⟩] (g 5) rfl
+      (by simp only [List.map_cons, List.map_nil]; decide) (by simp only [List.map_cons, List.map_nil]; decide)
+      (by simp only [List.map_cons, List.map_nil]; decide)
+      (by simpa using ⟨⟨h2, iha⟩, ⟨h3, ihb⟩⟩) (fun t hk => sp.lam t a b (by simp at hk; exact hk.1) (by simp at hk; exact hk.2))
+      s hc hj hu (by simpa [kidsCost, mcost] using hck)
+    simpa [kidsCost, mcost] using this
+  | @forallE p q r a b hp h0 hd h2 h3 ha hb iha ihb =>
+    intro s hc hj hu hck
+    have := memo_case fm fr g h f tb n hn C hCm hCr p 6 _ (.forallE hp h0 hd h2 h3 ha hb) h0
+      [⟨nA, 16, q, f a, mcost n a⟩, ⟨nB, 24, r, f b, mcost n b⟩] (g 6) rfl
+      (by simp only [List.map_cons, List.map_nil]; decide) (by simp only [List.map_cons, List.map_nil]; decide)
+      (by simp only [List.map_cons, List.map_nil]; decide)
+      (by simpa using ⟨⟨h2, iha⟩, ⟨h3, ihb⟩⟩) (fun t hk => sp.forallE t a b (by simp at hk; exact hk.1) (by simp at hk; exact hk.2))
+      s hc hj hu (by simpa [kidsCost, mcost] using hck)
+    simpa [kidsCost, mcost] using this
+  | @letE p q r w a b c hp h0 hd h2 h3 h4 ha hb hc' iha ihb ihc =>
+    intro s hc hj hu hck
+    have := memo_case fm fr g h f tb n hn C hCm hCr p 7 _ (.letE hp h0 hd h2 h3 h4 ha hb hc') h0
+      [⟨nA, 16, q, f a, mcost n a⟩, ⟨nB, 24, r, f b, mcost n b⟩, ⟨nC, 32, w, f c, mcost n c⟩] (g 7) rfl
+      (by simp only [List.map_cons, List.map_nil]; decide) (by simp only [List.map_cons, List.map_nil]; decide)
+      (by simp only [List.map_cons, List.map_nil]; decide)
+      (by simpa using ⟨⟨h2, iha⟩, ⟨h3, ihb⟩, ⟨h4, ihc⟩⟩)
+      (fun t hk => sp.letE t a b c (by simp at hk; exact hk.1) (by simp at hk; exact hk.2.1) (by simp at hk; exact hk.2.2))
+      s hc hj hu (by simpa [kidsCost, mcost] using hck)
+    simpa [kidsCost, mcost] using this
+  | lit hp h0 hd h2 hl =>
+    intro s hc hj hu hck
+    exact memo_case fm fr g h f tb n hn C hCm hCr _ 8 _ (.lit hp h0 hd h2 hl) h0 [] (g 8) rfl (by simp) (by simp) (by simp)
+      (by simp) (fun t _ => sp.lit t _) s hc hj hu (by simpa [kidsCost, mcost] using hck)
+  | @proj p q v r n' i e hp h0 hd h2 h3 h4 hn' hi he ih =>
+    intro s hc hj hu hck
+    have := memo_case fm fr g h f tb n hn C hCm hCr p 9 _ (.proj hp h0 hd h2 h3 h4 hn' hi he) h0
+      [⟨nA, 32, r, f e, mcost n e⟩] (g 9) rfl (by simp) (by simp only [List.map_cons, List.map_nil]; decide)
+      (by simp only [List.map_cons, List.map_nil]; decide) (by simpa using ⟨h4, ih⟩)
+      (fun t hk => sp.proj t n' i e (by simp at hk; exact hk)) s hc hj hu (by simpa [kidsCost, mcost] using hck)
+    simpa [kidsCost, mcost] using this
 
 end ConPanqueque.MemoFold
