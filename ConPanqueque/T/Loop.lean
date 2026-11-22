@@ -71,13 +71,13 @@ theorem inv_decClock {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} 
 /-- A counted loop: iteration `i < n` moves the `i`-th invariant to the next; the test is nonzero
 exactly below `n`. -/
 theorem specR_forI {α : Type} {s : AState} {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop}
-    {D : List MlS} (c : ExpHOL 64) (body rest : ProgHOL 64) (n : Nat) (K : Nat → Ctx) (G : Nat → Env)
+    {D : List MlS} {M : Mem} (c : ExpHOL 64) (body rest : ProgHOL 64) (n : Nat) (K : Nat → Ctx) (G : Nat → Env)
     (hc : ∀ i, i ≤ n → ∃ w, sev (G i) c = some w ∧ (w ≠ 0 ↔ i < n))
-    (hb : ∀ i, i < n → Step (Inv (σ := σ) (K i) s (G i) [] D) body (Inv (K (i + 1)) s (G (i + 1)) [] D))
-    (hr : SpecR (Inv (K n) s (G n) [] D) rest s m R) :
-    SpecR (Inv (K 0) s (G 0) [] D) (.seq (.while c body) rest) s m R := by
+    (hb : ∀ i, i < n → Step (Inv (σ := σ) (K i) s (G i) M D) body (Inv (K (i + 1)) s (G (i + 1)) M D))
+    (hr : SpecR (Inv (K n) s (G n) M D) rest s m R) :
+    SpecR (Inv (K 0) s (G 0) M D) (.seq (.while c body) rest) s m R := by
   refine specR_seq (fun t ht => ?_) hr
-  have W := while_stop (σ := σ) c body (fun u => ∃ i, i ≤ n ∧ Inv (K i) s (G i) [] D u) (Inv (K n) s (G n) [] D)
+  have W := while_stop (σ := σ) c body (fun u => ∃ i, i ≤ n ∧ Inv (K i) s (G i) M D u) (Inv (K n) s (G n) M D)
     (by
       intro u hu
       obtain ⟨i, hi, hu⟩ := hu
