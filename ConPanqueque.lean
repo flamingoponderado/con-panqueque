@@ -12,4 +12,5 @@ import ConPanqueque.LevelCons
 import ConPanqueque.ExprCons
 import ConPanqueque.BinCons
 import ConPanqueque.Tail
+import ConPanqueque.LevelFns
 import ConPanqueque.Examples.ListLength
