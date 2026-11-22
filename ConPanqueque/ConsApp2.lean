@@ -131,14 +131,6 @@ theorem appIntern_miss (P Sc : ATbl) (x : AppNode) (d : UInt64) (hf : P.find? x 
     appIntern P Sc true false x d = (P, (tierApp Sc x d 1).1, (tierApp Sc x d 1).2) := by
   simp [appIntern, hf]
 
-theorem seq_abort {σ : Type} (s : PanSemStateFiniteExact 64 σ) (p q : ProgHOL 64) (res : PanSemResultExact 64)
-    (h : (evaluateHOLFiniteState s p).1 = some res) :
-    evaluateHOLFiniteState s (.seq p q) = evaluateHOLFiniteState s p := by
-  rw [evaluateHOLFiniteState_eq_evaluate_def s (.seq p q)]
-  generalize hr : evaluateHOLFiniteState s p = r at h
-  obtain ⟨r1, r2⟩ := r
-  simp only at h; subst h; simp [hr]
-
 theorem pres_mono {σ : Type} {A : List MlS} {y : MlS} {s : PanSemStateFiniteExact 64 σ} {tb : ATbl} {n : Nat}
     {x : AppNode} {r : Option (PanSemResultExact 64) × PanSemStateFiniteExact 64 σ}
     (h : PRes A s tb n x r) : PRes (y :: A) s tb n x r := by

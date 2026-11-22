@@ -119,4 +119,12 @@ theorem while_stop {σ : Type} (c : ExpHOL 64) (body : ProgHOL 64)
         simp only [hw, ne_eq, hw0, not_false_eq_true, ite_true, hck, ite_false, hb]
         exact ih _ hlt r2 hI rfl
 
+theorem seq_abort {σ : Type} (s : PanSemStateFiniteExact 64 σ) (p q : ProgHOL 64) (res : PanSemResultExact 64)
+    (h : (evaluateHOLFiniteState s p).1 = some res) :
+    evaluateHOLFiniteState s (.seq p q) = evaluateHOLFiniteState s p := by
+  rw [evaluateHOLFiniteState_eq_evaluate_def s (.seq p q)]
+  generalize hr : evaluateHOLFiniteState s p = r at h
+  obtain ⟨r1, r2⟩ := r
+  simp only at h; subst h; simp [hr]
+
 end ConPanqueque.Logic
