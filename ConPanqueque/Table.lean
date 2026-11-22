@@ -92,3 +92,31 @@ theorem slot_read {σ : Type} (s : PanSemStateFiniteExact 64 σ) (t : BitVec 64)
   exact ⟨r1, r2⟩
 
 end ConPanqueque.Table
+
+namespace ConPanqueque.Table
+
+theorem find?_at : ∀ (slots : List (BitVec 64 × BitVec 64)) (k : BitVec 64) (i : Nat) (hi : i < slots.length),
+    (∀ m (hm : m < i), (slots[m]'(by omega)).1 ≠ k) → slots[i].1 = k → find? slots k = some slots[i].2
+  | [], _, _, hi, _, _ => absurd hi (by simp)
+  | p :: rest, k, 0, _, _, hk => by
+    simp only [List.getElem_cons_zero] at hk ⊢; simp [find?, List.find?, hk]
+  | p :: rest, k, i + 1, hi, hb, hk => by
+    have h0 := hb 0 (by omega)
+    simp at h0
+    have := find?_at rest k i (by simpa using hi)
+      (fun m hm => by have := hb (m + 1) (by omega); rw [List.getElem_cons_succ] at this; exact this)
+      (by rw [List.getElem_cons_succ] at hk; exact hk)
+    rw [List.getElem_cons_succ]
+    simpa [find?, List.find?, h0] using this
+
+theorem find?_none : ∀ (slots : List (BitVec 64 × BitVec 64)) (k : BitVec 64),
+    (∀ m (hm : m < slots.length), slots[m].1 ≠ k) → find? slots k = none
+  | [], _, _ => rfl
+  | p :: rest, k, hb => by
+    have h0 := hb 0 (by simp)
+    simp at h0
+    have := find?_none rest k (fun m hm => by
+      have := hb (m + 1) (by simp; omega); rw [List.getElem_cons_succ] at this; exact this)
+    simpa [find?, List.find?, h0] using this
+
+end ConPanqueque.Table
