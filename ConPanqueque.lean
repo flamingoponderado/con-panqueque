@@ -80,6 +80,7 @@ import ConPanqueque.T.Intern
 import ConPanqueque.T.MemoModel
 import ConPanqueque.T.MemoRep
 import ConPanqueque.T.Memo
+import ConPanqueque.T.MemoClear
 import ConPanqueque.V.DerWrite
 import ConPanqueque.LevelFns
 import ConPanqueque.LevelFold
