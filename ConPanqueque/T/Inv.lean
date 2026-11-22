@@ -316,4 +316,141 @@ theorem specR_prologue {α : Type} {C : Ctx} {s : AState} {Γ : Env} {L : List M
     · exact ⟨C.KB, henv _ _ rfl⟩
   · exact ⟨0, z1 y hy⟩
 
+/-! ## The general expression view -/
+
+/-- The words `xs` at `P`, `P + 8`, … as known memory. -/
+def wordsAt (P : BitVec 64) (xs : List (BitVec 64)) : Mem :=
+  (List.range xs.length).zip xs |>.map fun (j, w) => (P + BitVec.ofNat 64 (8 * j), w)
+
+theorem wordsAt_mem {t : PState σ} {P : BitVec 64} {xs : List (BitVec 64)} (h : Words t P xs) :
+    ∀ a v, (a, v) ∈ wordsAt P xs → t.memaddrs a ∧ t.memory a = .word v := by
+  intro a v hm
+  simp only [wordsAt, List.mem_map, Prod.mk.injEq] at hm
+  obtain ⟨⟨j, w⟩, hj, rfl, rfl⟩ := hm
+  have hj' := List.mem_iff_getElem.mp hj
+  obtain ⟨i, hi, he⟩ := hj'
+  simp only [List.length_zip, List.length_range, Nat.min_self] at hi
+  simp only [List.getElem_zip, List.getElem_range, Prod.mk.injEq] at he
+  obtain ⟨rfl, rfl⟩ := he
+  exact h i hi
+
+theorem view_run (h : EIdx) (s : AState) :
+    ConRon.Arena.view h s = match s.store.view h with
+      | some v => .ok (v, s)
+      | none => .error (.internal "arena: dangling expression handle") := by
+  show (match s.store.view h with
+    | some v => (pure v : AM ENodeView)
+    | none => fail (.internal "arena: dangling expression handle")) s = _
+  cases s.store.view h <;> rfl
+
+theorem specR_viewI {β : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64}
+    {k : ENodeView → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    (h : EIdx)
+    (hdh : Γ.get lDh = some (Enc.idxW h)) (hfl : Γ.get lFl = some C.FLe) (hdir : Γ.get lDir = some C.L.DIR)
+    (hD : lDt ∈ D ∧ lDg ∈ D ∧ lDi ∈ D ∧ lRp ∈ D ∧ lRn ∈ D)
+    (hk : ∀ v P, v.tagN = h.tag.toNat → SpecR (Inv C s ((lRp, P) ::
+      (lRn, BitVec.ofNat 64 (encEView v).length) :: (lDt, BitVec.ofNat 64 h.tier.toNat) ::
+      (lDg, BitVec.ofNat 64 v.tagN) :: (lDi, BitVec.ofNat 64 h.idxNat) :: Γ)
+      (wordsAt P (encEView v) ++ M) D) rest s (k v) R) :
+    SpecR (Inv C s Γ M D) (.seq eViewP rest) s (ConRon.Arena.view h >>= k) R := by
+  intro t ht
+  rcases eView_spec t C.L C.FLe s.store ht.sr.rep.e h (ht.env _ _ hdh) (ht.env _ _ hdir) (ht.env _ _ hfl)
+      (ht.decl _ hD.1) (ht.decl _ hD.2.1) (ht.decl _ hD.2.2.1) (ht.decl _ hD.2.2.2.1) (ht.decl _ hD.2.2.2.2) with
+    hs | ⟨v, hv, htg, hr⟩
+  · exact Or.inl (seq_stop t _ _ hs)
+  obtain ⟨hn, hm, hd, hc, hg, _, ⟨P, hrp, hW⟩, hrn, _, hdt, hdg, hdi, hfr⟩ := hr
+  have e : evaluateHOLFiniteState t eViewP = (none, (evaluateHOLFiniteState t eViewP).2) := by rw [← hn]
+  rw [seq_normal rest e]
+  have hInv : Inv C s ((lRp, P) :: (lRn, BitVec.ofNat 64 (encEView v).length) ::
+      (lDt, BitVec.ofNat 64 h.tier.toNat) :: (lDg, BitVec.ofNat 64 v.tagN) :: (lDi, BitVec.ofNat 64 h.idxNat) :: Γ)
+      (wordsAt P (encEView v) ++ M) D (evaluateHOLFiniteState t eViewP).2 := by
+    refine ⟨sr_of_eq ht.sr hm hd hg hc, fun y w hy => ?_, fun b w hb => ?_, fun y hy => ?_⟩
+    · simp only [Env.get] at hy
+      split at hy
+      · rename_i e; subst e; simp at hy; subst hy; exact hrp
+      split at hy
+      · rename_i e; subst e; simp at hy; subst hy; exact hrn
+      split at hy
+      · rename_i e; subst e; simp at hy; subst hy; exact hdt
+      split at hy
+      · rename_i e; subst e; simp at hy; subst hy; rw [htg]; exact hdg
+      split at hy
+      · rename_i e; subst e; simp at hy; subst hy; exact hdi
+      rename_i e1 e2 e3 e4 e5
+      rw [hfr y e1 e2 e3 e4 e5]; exact ht.env y w hy
+    · simp only [List.mem_append] at hb
+      rcases hb with hb | hb
+      · rw [hm, hd]; exact wordsAt_mem hW b w hb
+      · rw [hm, hd]; exact ht.mem b w hb
+    · by_cases e1 : y = lRp
+      · subst e1; exact ⟨P, hrp⟩
+      by_cases e2 : y = lRn
+      · subst e2; exact ⟨_, hrn⟩
+      by_cases e3 : y = lDt
+      · subst e3; exact ⟨_, hdt⟩
+      by_cases e4 : y = lDg
+      · subst e4; exact ⟨_, hdg⟩
+      by_cases e5 : y = lDi
+      · subst e5; exact ⟨_, hdi⟩
+      obtain ⟨w, hw⟩ := ht.decl y hy; exact ⟨w, by rw [hfr y e1 e2 e3 e4 e5]; exact hw⟩
+  rcases hk v P htg _ hInv with hs | ⟨w, hr', a, s', hk', hR⟩
+  · exact Or.inl hs
+  refine Or.inr ⟨w, hr', a, s', ?_, hR⟩
+  show (do let r ← ConRon.Arena.view h s; match r with | (a, s) => k a s) = _
+  rw [view_run, hv]; exact hk'
+
+theorem specR_loadI' {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64}
+    {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop} (x : MlS) (e : ExpHOL 64) (a a' v : BitVec 64)
+    (hx : x ∈ D) (he : sev Γ e = some a) (ha : a = a') (hm : (a', v) ∈ M)
+    (h : SpecR (Inv C s ((x, v) :: Γ) M D) rest s m R) :
+    SpecR (Inv C s Γ M D) (.seq (.assign .local x (.load .one e)) rest) s m R := by
+  subst ha; exact specR_loadI x e a v hx he hm h
+
+theorem wordsAt_mem0 (P a : BitVec 64) (rest : List (BitVec 64)) (M : Mem) :
+    (P + BitVec.ofNat 64 0, a) ∈ wordsAt P (a :: rest) ++ M := by
+  simp [wordsAt, List.range_succ_eq_map]
+
+theorem wordsAt_mem1 (P a b : BitVec 64) (rest : List (BitVec 64)) (M : Mem) :
+    (P + BitVec.ofNat 64 8, b) ∈ wordsAt P (a :: b :: rest) ++ M := by
+  simp only [wordsAt, List.mem_append, List.mem_map, Prod.mk.injEq]
+  left
+  refine ⟨(1, b), ?_, rfl, rfl⟩
+  rw [List.mem_iff_getElem]
+  exact ⟨1, by simp, by simp⟩
+
+theorem wordsAt_mem2 (P a b c : BitVec 64) (rest : List (BitVec 64)) (M : Mem) :
+    (P + BitVec.ofNat 64 16, c) ∈ wordsAt P (a :: b :: c :: rest) ++ M := by
+  simp only [wordsAt, List.mem_append, List.mem_map, Prod.mk.injEq]
+  left
+  refine ⟨(2, c), ?_, rfl, rfl⟩
+  rw [List.mem_iff_getElem]
+  exact ⟨2, by simp, by simp⟩
+
+/-! ## Small naturals as words -/
+
+theorem nat_add_word (a b : Nat) : BitVec.ofNat 64 a + BitVec.ofNat 64 b = BitVec.ofNat 64 (a + b) :=
+  by rw [BitVec.ofNat_add_ofNat]
+
+theorem shr63_eq_zero (c : Nat) (hc : c < 2 ^ 64) : (BitVec.ofNat 64 c >>> (63 : BitVec 64).toNat = 0) ↔ c < 2 ^ 63 := by
+  rw [show (63 : BitVec 64).toNat = 63 from rfl]
+  constructor
+  · intro h; have := congrArg BitVec.toNat h
+    simp only [BitVec.toNat_ushiftRight, BitVec.toNat_ofNat, Nat.shiftRight_eq_div_pow] at this
+    rw [Nat.mod_eq_of_lt hc] at this
+    simp at this; omega
+  · intro h; apply BitVec.eq_of_toNat_eq
+    simp only [BitVec.toNat_ushiftRight, BitVec.toNat_ofNat, Nat.shiftRight_eq_div_pow]
+    rw [Nat.mod_eq_of_lt hc]; simp; omega
+
+@[simp] theorem sev_vv (Γ : Env) (x : MlS) : sev Γ (vv x) = Γ.get x := rfl
+@[simp] theorem Env.get_cons (Γ : Env) (x y : MlS) (v : BitVec 64) :
+    Env.get ((y, v) :: Γ) x = if x = y then some v else Env.get Γ x := rfl
+
+theorem word_add_eq (a b : Nat) (ha : a < 2 ^ 63) (hb : b < 2 ^ 63) :
+    BitVec.ofNat 64 a + BitVec.ofNat 64 b = BitVec.ofNat 64 (a + b) := by
+  rw [BitVec.ofNat_add_ofNat]
+
+theorem word_add1_eq (a : Nat) : BitVec.ofNat 64 a + 1#64 = BitVec.ofNat 64 (a + 1) := by
+  rw [show (1#64) = BitVec.ofNat 64 1 from rfl, BitVec.ofNat_add_ofNat]
+
 end ConPanqueque.T
