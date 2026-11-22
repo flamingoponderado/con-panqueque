@@ -288,3 +288,25 @@ The refinement judgement and its combinators are in `ConPanqueque/T/`:
 Next: memo clearing (the top-level `instantiate1Fast`), the other memos,
 caches and pins in `SR`, the level/name stores' views; then a tactic that
 applies the combinators by goal shape, and the bulk translation.
+
+### Roadmap from here (2026-11-23)
+
+The hand proofs (`getAppFn`, `sizeB`, `instantiate1Go`) fixed the shape of the
+primitives and combinators. The twin code still to translate on the path to
+the top-level theorem is about 18k lines (`Core` 4.6k, `ExprOps` 2.3k,
+`DeclCheck`, `Inductives/*`, the frontend, pins, the stream index), which is
+out of reach by hand. Two pieces come next:
+
+1. **Heap values.** Lists, options, products and records (the twin's
+   `List EIdx`, `IConstantInfo`, …) as immutable cells in an append-only heap
+   region with a bump pointer in a global; a representation predicate per type
+   that is monotone under allocation; `SR` gains the heap invariant.
+2. **The translator proper.** A command that, for a twin definition, builds
+   the Pancake body and its `SpecR` proof together: a tactic that walks the
+   twin term (`bind`, `match`, `if`, `pure`, `let`, calls) and applies the
+   combinators with the code as a metavariable, discharging side conditions by
+   `sev`/`decide`; calls to other translated functions and to primitives go
+   through a table of call specs.
+
+The memo, cache and pin tables of `AState` join `SR` as the functions that use
+them are translated (the `instantiate1` memo is the template).
