@@ -512,6 +512,9 @@ structure CtxOK (C : Ctx) : Prop where
   sepBVar : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 2 9
   b0BVar : C.L.base 9 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.bvar.toUInt64.toBitVec * 67108864
   b1BVar : C.L.base 9 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.bvar.toUInt64.toBitVec * 67108864
+  sepProj : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 3 18
+  b0Proj : C.L.base 18 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.proj.toUInt64.toBitVec * 67108864
+  b1Proj : C.L.base 18 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.proj.toUInt64.toBitVec * 67108864
 
 def fInternApp := ofString "internApp"
 
@@ -584,10 +587,10 @@ theorem specR_internAppI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions)
 /-! ## Writing the key buffer -/
 
 /-- A store into key-buffer word `j < 2` leaves the stores' representation alone. -/
-theorem sr_storeKB {C : Ctx} (hok : CtxOK C) {s : AState} {t : PState σ} (h : SR C s t) (j : Nat) (hj : j < 2)
+theorem sr_storeKB {C : Ctx} (hok : CtxOK C) {s : AState} {t : PState σ} (h : SR C s t) (j : Nat) (hj : j < 3)
     (w : BitVec 64) :
     SR C s { t with memory := fun c => if c = C.KB + BitVec.ofNat 64 (8 * j) then .word w else t.memory c } := by
-  have S := hok.sepApp
+  have S := hok.sepLet
   have hne : ∀ c, c ≠ C.KB + BitVec.ofNat 64 (8 * j) →
       (fun c => if c = C.KB + BitVec.ofNat 64 (8 * j) then HolWordLab.word w else t.memory c) c = t.memory c :=
     fun c hc => by simp [hc]
@@ -603,7 +606,7 @@ theorem sr_storeKB {C : Ctx} (hok : CtxOK C) {s : AState} {t : PState σ} (h : S
 /-- `KB[j] := e; rest`: the twin sees nothing; afterwards the word is known (other memory facts dropped). -/
 theorem specR_storeKBI {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env} {M : Mem} {D : List MlS}
     {rest : ProgHOL 64} {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop}
-    (j : Nat) (hj : j < 2) (e : ExpHOL 64) (w : BitVec 64) (he : sev Γ e = some w) (hkb : Γ.get lKb = some C.KB)
+    (j : Nat) (hj : j < 3) (e : ExpHOL 64) (w : BitVec 64) (he : sev Γ e = some w) (hkb : Γ.get lKb = some C.KB)
     (h : SpecR (Inv C s Γ [(C.KB + BitVec.ofNat 64 (8 * j), w)] D) rest s m R) :
     SpecR (Inv C s Γ M D) (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * j))]) e) rest) s m R := by
   refine specR_seq (fun t ht => ?_) h
@@ -1046,5 +1049,125 @@ theorem specR_internBVarI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions
         · rw [lookup_setVar_other _ _ e]; exact ht.decl y hy)
   exact specR_bind (Q1 := fun a s' t' => ∃ w st, PostE C a w s' st ∧ Inv C s' ((x, w) :: Γ) [] D t') hc
     (fun a s' u ⟨w, st, hp, hu⟩ => by obtain ⟨rfl, _⟩ := hp; exact hk a s' u hu) t rfl
+
+/-! ## Three key words, and the `proj` intern function -/
+
+theorem kb_word_ne (KB : BitVec 64) (i j : Nat) (hi : i < 3) (hj : j < 3) (hij : i ≠ j) :
+    KB + BitVec.ofNat 64 (8 * i) ≠ KB + BitVec.ofNat 64 (8 * j) := by
+  intro h
+  have := congrArg BitVec.toNat h
+  simp only [BitVec.toNat_add, BitVec.toNat_ofNat] at this
+  have hk := KB.isLt
+  rw [Nat.mod_eq_of_lt (a := 8 * i) (by omega), Nat.mod_eq_of_lt (a := 8 * j) (by omega)] at this
+  omega
+
+theorem specR_storeKB3I {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env} {M : Mem} {D : List MlS}
+    {rest : ProgHOL 64} {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop}
+    (e0 e1 e2 : ExpHOL 64) (w0 w1 w2 : BitVec 64) (he0 : sev Γ e0 = some w0) (he1 : sev Γ e1 = some w1)
+    (he2 : sev Γ e2 = some w2) (hkb : Γ.get lKb = some C.KB)
+    (h : SpecR (Inv C s Γ [(C.KB + BitVec.ofNat 64 (8 * 0), w0), (C.KB + BitVec.ofNat 64 (8 * 1), w1),
+      (C.KB + BitVec.ofNat 64 (8 * 2), w2)] D) rest s m R) :
+    SpecR (Inv C s Γ M D) (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 0))]) e0)
+      (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 1))]) e1)
+        (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 2))]) e2) rest))) s m R := by
+  refine specR_storeKB2I hok e0 e1 w0 w1 he0 he1 hkb ?_
+  refine specR_seq (fun t ht => ?_) h
+  have hdom : t.memaddrs (C.KB + BitVec.ofNat 64 (8 * 2)) := ht.sr.kbuf 2 (by decide)
+  rw [store_word t _ e2 _ w2 (eval_add2 t _ _ _ _ (eval_vv t lKb _ (ht.env _ _ hkb)) (eval_const t _))
+    (inv_ev ht he2) hdom]
+  refine Or.inr ⟨rfl, sr_storeKB hok ht.sr 2 (by decide) w2, fun y v hy => ht.env y v hy, fun a v ha => ?_, ht.decl⟩
+  simp only [List.mem_cons, List.not_mem_nil, or_false, Prod.mk.injEq] at ha
+  rcases ha with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
+  · obtain ⟨h1, h2⟩ := ht.mem _ _ (List.mem_cons_self ..)
+    exact ⟨h1, by simp only; rw [if_neg (kb_word_ne C.KB 0 2 (by decide) (by decide) (by decide))]; exact h2⟩
+  · obtain ⟨h1, h2⟩ := ht.mem _ _ (List.mem_cons_of_mem _ (List.mem_cons_self ..))
+    exact ⟨h1, by simp only; rw [if_neg (kb_word_ne C.KB 1 2 (by decide) (by decide) (by decide))]; exact h2⟩
+  · exact ⟨hdom, by simp⟩
+
+def fInternProj := ofString "internProj"
+def projLocals : List MlS := lEn :: projScratch
+
+def projBody : ProgHOL 64 :=
+  prologue projLocals (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 0))]) (vv lEp))
+    (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 1))]) (vv lEe))
+      (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 2))]) (vv lIw))
+        (.seq (.assign .local lEn (.op .add [.const 2, .cmp .notEqual (vv lIw) (.const 0)]))
+          (eProjWith (rRestE 18 (vv lEn) lFle))))))
+
+theorem proj_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (s : AState)
+    (n : NIdx) (i : Nat) (e : EIdx) (hi : i < 2 ^ 63) :
+    SpecR (Pre (σ := σ) C s [(lEp, Enc.idxW n), (lEe, Enc.idxW e), (lIw, BitVec.ofNat 64 i)]) projBody s
+      (internProjE n i e) (PostE C) := by
+  have hlimb := limbs_small i (by omega)
+  have hlen : (Enc.encProj ⟨n, i, e⟩).length ≤ 3 := by
+    simp only [Enc.encProj, List.length_cons, hlimb]; split <;> simp
+  have hlenW : (2 : BitVec 64) + (if Flapjack.Compiler.Encoders.Asm.wordCmpHOL .notEqual (BitVec.ofNat 64 i) 0 then
+      (1 : BitVec 64) else 0) = BitVec.ofNat 64 (Enc.encProj ⟨n, i, e⟩).length := by
+    simp only [Enc.encProj, List.length_cons, hlimb]
+    by_cases h0 : i = 0
+    · subst h0; simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+    · have : BitVec.ofNat 64 i ≠ 0#64 := by intro e; have := congrArg BitVec.toNat e; simp at this; omega
+      simp [h0, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, this]
+  refine specR_prologue (postE_locals C) (fun x hx => ?_) ?_
+  · simp only [projLocals, projScratch, List.mem_cons, List.not_mem_nil, or_false] at hx
+    rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> rfl
+  refine specR_storeKB3I hok (vv lEp) (vv lEe) (vv lIw) (Enc.idxW n) (Enc.idxW e) (BitVec.ofNat 64 i) rfl rfl rfl rfl ?_
+  refine specR_assignI lEn _ (BitVec.ofNat 64 (Enc.encProj ⟨n, i, e⟩).length) (by decide) (by rw [← hlenW]; rfl) ?_
+  intro t ht
+  have hw : ∀ y, y ∈ projScratch → ∃ w, t.locals.lookup y = some (.val (.word w)) :=
+    fun y hy => ht.decl y (List.mem_append_right _ (List.mem_cons_of_mem _ hy))
+  have hK : Words t C.KB (Enc.encProj ⟨n, i, e⟩) := by
+    intro j hj
+    rcases (by omega : j = 0 ∨ j = 1 ∨ j = 2) with rfl | rfl | rfl
+    · have e0 : (Enc.encProj ⟨n, i, e⟩)[0]'hj = Enc.idxW n := rfl
+      rw [e0]; exact ht.mem _ _ (List.mem_cons_self ..)
+    · have e1 : (Enc.encProj ⟨n, i, e⟩)[1]'hj = Enc.idxW e := rfl
+      rw [e1]; exact ht.mem _ _ (List.mem_cons_of_mem _ (List.mem_cons_self ..))
+    · have h0 : i ≠ 0 := by intro h0; subst h0; simp [Enc.encProj, Enc.limbs] at hj
+      have e2 : (Enc.encProj ⟨n, i, e⟩)[2]'hj = BitVec.ofNat 64 i := by
+        simp only [Enc.encProj, hlimb, h0, ite_false]; rfl
+      rw [e2]; exact ht.mem _ _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_self ..)))
+  rcases eInternProj_spec ra t C.L C.FLn C.FLl C.FLs C.FLe C.KB s.store n i e ht.sr.rep
+      (sepK_mono hok.sepProj hlen) hK (by omega) hok.b0Proj hok.b1Proj (ht.env _ _ rfl) (ht.env _ _ rfl)
+      (ht.env _ _ rfl) (ht.env _ _ rfl) (by rw [ht.env _ _ rfl]; rfl) (ht.env _ _ rfl) (ht.env _ _ rfl)
+      (ht.env _ _ rfl) hw with
+    hs | ⟨hr, hsr, hc, hg, hd, _, hm⟩
+  · exact Or.inl hs
+  right
+  refine ⟨_, hr, (s.store.intern (.proj n i e)).2, { s with store := (s.store.intern (.proj n i e)).1 }, ?_, rfl, ?_⟩
+  · show internNodeE (.proj n i e) s = _
+    exact internNodeE_proj s n i e
+      (Nat.le_trans (tabAt_size_le hsr.e.p9) (hok.sepProj.cap 0 (by decide)))
+      (Nat.le_trans (tabAt_size_le hsr.e.s9) (hok.sepProj.cap 1 (by decide)))
+  · exact ⟨hsr, by rw [hg]; exact ht.sr.gdir, by rw [hg]; exact ht.sr.gfln, by rw [hg]; exact ht.sr.gfll,
+      by rw [hg]; exact ht.sr.gfls, by rw [hg]; exact ht.sr.gfle, by rw [hg]; exact ht.sr.gkb,
+      by rw [hc]; exact ht.sr.code, fun j hj => by rw [hd]; exact ht.sr.kbuf j hj,
+      memoAt_frame ht.sr.inst1 (fun c hc => hm c (hok.memoOut c hc) (fun j hj e => hok.kbMemo j (by omega) (e ▸ hc)))
+        (fun k hk => hm _ (hok.mdescOut k hk) (fun j hj => hok.kbMdesc k j hk (by omega))) hd⟩
+
+theorem specR_internProjI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxOK C)
+    (hcode : C.code.lookup fInternProj = some ([(lEp, .one), (lEe, .one), (lIw, .one)], projBody, .one))
+    {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64} {k : EIdx → AM β}
+    {R : β → BitVec 64 → AState → PState σ → Prop} (x : MlS) (e1 e2 e3 : ExpHOL 64) (n : NIdx) (i : Nat) (e : EIdx)
+    (hi : i < 2 ^ 63) (hx : x ∈ D)
+    (he1 : sev Γ e1 = some (Enc.idxW n)) (he2 : sev Γ e2 = some (Enc.idxW e))
+    (he3 : sev Γ e3 = some (BitVec.ofNat 64 i))
+    (hk : ∀ h s', SpecR (Inv C s' ((x, Enc.idxW h) :: Γ) [] D) rest s' (k h) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, x), none)) fInternProj [e1, e2, e3]) rest) s
+      (internProjE n i e >>= k) R :=
+  specR_call3IM x fInternProj lEp lEe lIw (by decide) (by decide) (by decide) e1 e2 e3 projBody (Enc.idxW n)
+    (Enc.idxW e) (BitVec.ofNat 64 i) hx hcode he1 he2 he3 (PostE C) (fun _ _ _ _ hp => hp.2)
+    (fun u hu _ h1 h2 h3 w hw => by
+      subst hw
+      exact proj_body_spec ra C hok s n i e hi _ ⟨hu, fun y w hy => by
+        simp only [Env.get] at hy
+        split at hy
+        · rename_i e; subst e; simp at hy; subst hy; exact h1
+        · split at hy
+          · rename_i e; subst e; simp at hy; subst hy; exact h2
+          · split at hy
+            · rename_i e; subst e; simp at hy; subst hy; exact h3
+            · simp at hy⟩)
+    (fun h w s' st hp => by obtain ⟨rfl, _⟩ := hp; exact hk h s')
 
 end ConPanqueque.T
