@@ -96,4 +96,147 @@ theorem substBoth_spec {α : Type} (C : Ctx) (hok : CtxOK C)
 
 end
 
+theorem bc_eq (n : Nat) (pn : ConLeche.Name) (l r : ConLeche.Level) (d : Int) :
+    ConLeche.Level.byCases n pn l r d =
+      match ConLeche.Level.leqCore n (ConLeche.Level.simplify (ConLeche.Level.subst [pn] [.zero] l))
+          (ConLeche.Level.simplify (ConLeche.Level.subst [pn] [.zero] r)) d with
+      | none => none
+      | some false => some false
+      | some true => ConLeche.Level.leqCore n
+          (ConLeche.Level.simplify (ConLeche.Level.subst [pn] [.succ (.param pn)] l))
+          (ConLeche.Level.simplify (ConLeche.Level.subst [pn] [.succ (.param pn)] r)) d := by
+  rw [ConLeche.Level.byCases]
+  cases ConLeche.Level.leqCore n _ _ d with
+  | none => rfl
+  | some b => cases b <;> rfl
+
+section
+variable {σ : Type}
+
+/-- The `leqCore` spec at fuel `n`, for a given body. -/
+def RecLeq (C : Ctx) (B : ProgHOL 64) (n : Nat) : Prop :=
+  ∀ (H : List (BitVec 64)) (l r : ConLeche.Level) (wl wr : BitVec 64) (d : Int) (s : AState),
+    LRep C.HB H s.store.ls wl l → LRep C.HB H s.store.ls wr r → d.natAbs + n < 2 ^ 62 →
+    SpecR (Pre (σ := σ) (ctxH C H) s (leqParams.zip [BitVec.ofNat 64 n, wl, wr, iW d])) B s
+      (pure (ConLeche.Level.leqCore n l r d)) (PostOB (ctxH C H))
+
+theorem params_noneBC (vals : List (BitVec 64)) (C : Ctx) :
+    ∀ x, x ∈ leqLocals → (ctxEnv C ++ bcParams.zip vals).get x = none := by
+  intro x hx
+  have hnot : x ∉ bcParams := by
+    simp only [leqLocals, lvlLocals, inst1Locals, List.cons_append, List.nil_append, List.mem_cons,
+      List.not_mem_nil, or_false] at hx
+    rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> decide
+  have hc : (ctxEnv C).get x = none := by
+    simp only [leqLocals, lvlLocals, inst1Locals, List.cons_append, List.nil_append, List.mem_cons,
+      List.not_mem_nil, or_false] at hx
+    rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> rfl
+  have hz : ∀ (ps : List MlS) (vs : List (BitVec 64)), x ∉ ps → Env.get (ps.zip vs) x = none := by
+    intro ps vs hp
+    induction ps generalizing vs with
+    | nil => rfl
+    | cons p ps ih =>
+      cases vs with
+      | nil => rfl
+      | cons v vs =>
+        simp only [List.mem_cons, not_or] at hp
+        simp only [List.zip_cons_cons, Env.get, hp.1, ite_false]; exact ih vs hp.2
+  have happ : ∀ (A B : Env), A.get x = none → B.get x = none → (A ++ B).get x = none := by
+    intro A B hA hB
+    induction A with
+    | nil => exact hB
+    | cons p A ih =>
+      obtain ⟨y, v⟩ := p
+      simp only [List.cons_append, Env.get] at hA ⊢
+      split at hA
+      · simp at hA
+      · rename_i e; simp only [e, ite_false]; exact ih hA
+  exact happ _ _ hc (hz _ _ hnot)
+
+end
+
+section
+variable {σ : Type}
+
+theorem bc_spec (C : Ctx) (hok : CtxOK C)
+    (hcS : C.code.lookup fSubst = some (substParams.map (fun p => (p, ShapeHOL.one)), substBody C, .one))
+    (hcN : C.code.lookup fNeq = some ([(pNa, .one), (pNb, .one)], neqBody, .one))
+    (hcM : C.code.lookup fSimp = some ([(pLa, .one)], simpBody C, .one))
+    (hcC : C.code.lookup fComb = some ([(pLa, .one), (pLb, .one)], combBody C, .one))
+    (B : ProgHOL 64) (hcL : C.code.lookup fLeq = some (leqParams.map (fun p => (p, ShapeHOL.one)), B, .one))
+    (n : Nat) (hn : n < 2 ^ 64) (ih : RecLeq (σ := σ) C B n) :
+    ∀ (H : List (BitVec 64)) (nh : NIdx) (f : Nat) (pn : ConLeche.Name) (l r : ConLeche.Level)
+      (wl wr : BitVec 64) (d : Int) (s : AState),
+      denoteNAux s.store.ns f nh = some pn → LRep C.HB H s.store.ls wl l → LRep C.HB H s.store.ls wr r →
+      d.natAbs + n < 2 ^ 62 →
+      SpecR (Pre (σ := σ) (ctxH C H) s (bcParams.zip [BitVec.ofNat 64 n, Enc.idxW nh, wl, wr, iW d])) (bcBody C) s
+        (pure (ConLeche.Level.byCases n pn l r d)) (PostOB (ctxH C H)) := by
+  intro H nh f pn l r wl wr d s hnd hl hr hd
+  refine specR_prologue (postOB_locals _) (params_noneBC _ _) ?_
+  refine specR_alloc1I (C := ctxH C H) (ctxOK_H hok H) lW (.const 0) 0 (by decide) (fun _ => rfl)
+    (fun I1 ws hp1 hws => ?_)
+  have hz := lrep_mkZero (ctxH C H) s.store.ls I1 ws hws
+  refine substBoth_spec C hok hcS hcN hcM hcC (H := (I1 ++ ws).set I1.length (BitVec.ofNat 64 0)) lW (by decide)
+    l r .zero wl wr (cellA C I1.length) nh f pn
+    (lrep_mono (hp1.trans (img1_prefix I1 ws _ hws)) l wl hl) (lrep_mono (hp1.trans (img1_prefix I1 ws _ hws)) r wr hr)
+    hz hnd (by simp +decide [ctxEnv, bcParams]) (by simp +decide [ctxEnv, bcParams])
+    (by simp +decide [ctxEnv, bcParams]) (by simp +decide <;> rfl) (fun H2 c1 c2 Γ' hp2 hc1 hc2 g1 g2 gfr => ?_)
+  have gFu : Γ'.get pFu = some (BitVec.ofNat 64 n) := by rw [gfr _ (by decide) (by decide)]; simp +decide [ctxEnv, bcParams]
+  have gD : Γ'.get pD = some (iW d) := by rw [gfr _ (by decide) (by decide)]; simp +decide [ctxEnv, bcParams]
+  have gLa : Γ'.get pLa = some wl := by rw [gfr _ (by decide) (by decide)]; simp +decide [ctxEnv, bcParams]
+  have gLb : Γ'.get pLb = some wr := by rw [gfr _ (by decide) (by decide)]; simp +decide [ctxEnv, bcParams]
+  have gSp : Γ'.get pSp = some (Enc.idxW nh) := by
+    rw [gfr _ (by decide) (by decide)]; simp +decide [ctxEnv, bcParams]
+  rw [bc_eq]
+  generalize hl0 : ConLeche.Level.simplify (ConLeche.Level.subst [pn] [.zero] l) = l0 at hc1
+  generalize hr0 : ConLeche.Level.simplify (ConLeche.Level.subst [pn] [.zero] r) = r0 at hc2
+  refine specR_congr (m' := pure (ConLeche.Level.leqCore n l0 r0 d) >>= fun o => pure (match o with
+      | none => none
+      | some false => some false
+      | some true => ConLeche.Level.leqCore n
+          (ConLeche.Level.simplify (ConLeche.Level.subst [pn] [.succ (.param pn)] l))
+          (ConLeche.Level.simplify (ConLeche.Level.subst [pn] [.succ (.param pn)] r)) d)) (by simp) ?_
+  refine callOB_spec (C := ctxH C H2) lV fLeq leqParams [vv pFu, vv lA1, vv lZ, vv pD] B [BitVec.ofNat 64 n, c1, c2, iW d]
+    (by decide) rfl (by decide) hcL ⟨by simp [gFu], by simp [g1], by simp [g2], by simp [gD], trivial⟩ _
+    (ih H2 l0 r0 c1 c2 d s hc1 hc2 hd) ?_
+  rcases ho : ConLeche.Level.leqCore n l0 r0 d with _ | b
+  · refine specR_ifI _ 1 (by simp +decide [sev, obW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun hw => absurd hw (by decide))
+    exact specR_returnI (.const 0) 0 rfl (fun t ht => ⟨rfl, sr_weakenH (C := ctxH C H) (H := H2) (sr_of_eq ht.sr rfl rfl rfl rfl)
+      (hp1.trans ((img1_prefix I1 ws _ hws).trans hp2))⟩)
+  cases b
+  · refine specR_ifI _ 0 (by simp +decide [sev, obW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun hw => absurd rfl hw) (fun _ => ?_)
+    refine specR_ifI _ 1 (by simp +decide [sev, obW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun hw => absurd hw (by decide))
+    exact specR_returnI (.const 1) 1 rfl (fun t ht => ⟨rfl, sr_weakenH (C := ctxH C H) (H := H2) (sr_of_eq ht.sr rfl rfl rfl rfl)
+      (hp1.trans ((img1_prefix I1 ws _ hws).trans hp2))⟩)
+  refine specR_ifI _ 0 (by simp +decide [sev, obW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun hw => absurd rfl hw) (fun _ => ?_)
+  refine specR_ifI _ 0 (by simp +decide [sev, obW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun hw => absurd rfl hw) (fun _ => ?_)
+  refine specR_alloc2I (C := ctxH C H2) (ctxOK_H hok H2) lW (.const 4) (vv pSp) 4 (Enc.idxW nh) (by decide)
+    (fun _ => rfl) (fun _ => by simp +decide [gSp]) (fun I3 ws3 hp3 hws3 => ?_)
+  have hpar := lrep_mkParam (ctxH C H2) s.store.ls I3 ws3 nh f pn hws3 hnd
+  refine specR_alloc2I (C := ctxH C (((I3 ++ ws3).set I3.length (BitVec.ofNat 64 4)).set (I3.length + 1) (Enc.idxW nh)))
+    (ctxOK_H hok _) lE0 (.const 1) (vv lW) 1 (cellA C I3.length) (by decide) (fun _ => rfl)
+    (fun _ => by simp +decide <;> rfl) (fun I4 ws4 hp4 hws4 => ?_)
+  have hsuc := lrep_mkSucc (ctxH C (((I3 ++ ws3).set I3.length (BitVec.ofNat 64 4)).set (I3.length + 1) (Enc.idxW nh)))
+    s.store.ls I4 ws4 (cellA C I3.length) (.param pn) hws4 hp4 hpar
+  have hpre : H2 <+: ((I4 ++ ws4).set I4.length (BitVec.ofNat 64 1)).set (I4.length + 1) (cellA C I3.length) :=
+    hp3.trans ((img2_prefix I3 ws3 _ _ hws3).trans (hp4.trans (img2_prefix I4 ws4 _ _ hws4)))
+  have hpre0 : H <+: H2 := hp1.trans ((img1_prefix I1 ws _ hws).trans hp2)
+  refine substBoth_spec C hok hcS hcN hcM hcC lE0 (by decide) l r (.succ (.param pn)) wl wr (cellA C I4.length) nh f pn
+    (lrep_mono (hpre0.trans hpre) l wl hl) (lrep_mono (hpre0.trans hpre) r wr hr) hsuc hnd
+    (by simp +decide [gLa]) (by simp +decide [gLb]) (by simp +decide [gSp]) (by simp +decide <;> rfl)
+    (fun H5 c3 c4 Γ5 hp5 hc3 hc4 g3 g4 gfr5 => ?_)
+  refine specR_congr (m' := pure (ConLeche.Level.leqCore n
+      (ConLeche.Level.simplify (ConLeche.Level.subst [pn] [.succ (.param pn)] l))
+      (ConLeche.Level.simplify (ConLeche.Level.subst [pn] [.succ (.param pn)] r)) d) >>= fun o => pure o) (by simp) ?_
+  refine callOB_spec (C := ctxH C H5) lV fLeq leqParams [vv pFu, vv lA1, vv lZ, vv pD] B
+    [BitVec.ofNat 64 n, c3, c4, iW d] (by decide) rfl (by decide) hcL
+    ⟨by rw [show (vv pFu : ExpHOL 64) = vv pFu from rfl]; simp only [sev_vv]; rw [gfr5 _ (by decide) (by decide)]; simp +decide [gFu],
+      by simp [g3], by simp [g4],
+      by simp only [sev_vv]; rw [gfr5 _ (by decide) (by decide)]; simp +decide [gD], trivial⟩ _
+    (ih H5 _ _ c3 c4 d s hc3 hc4 hd) ?_
+  exact specR_returnI (vv lV) _ (by simp) (fun t ht => ⟨rfl, sr_weakenH (C := ctxH C H) (H := H5) (sr_of_eq ht.sr rfl rfl rfl rfl)
+    (hpre0.trans (hpre.trans hp5))⟩)
+
+end
+
 end ConPanqueque.T.LLeq

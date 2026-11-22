@@ -110,6 +110,7 @@ import ConPanqueque.T.LvlComb
 import ConPanqueque.T.LvlSimp
 import ConPanqueque.T.LvlSubst
 import ConPanqueque.T.LvlLeqBase
+import ConPanqueque.T.LvlLeq
 import ConPanqueque.T.CallN
 import ConPanqueque.V.DerWrite
 import ConPanqueque.LevelFns
