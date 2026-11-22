@@ -277,9 +277,14 @@ The refinement judgement and its combinators are in `ConPanqueque/T/`:
   (with the twin's probe/capacity wrapper), memo `inst1Get`/`inst1Set`
   (Pancake functions `memoProbe`/`memoGet`/`memoIns`/`memoSet` over a generic
   table, refining `Std.HashMap` lookups and inserts).
-- Translated so far, with refinement proofs: `getAppFn` (`T/Ex/GetAppFn2.lean`)
-  and `sizeB` (`T/Ex/SizeB.lean`).
+- Translated so far, with refinement proofs: `getAppFn` (`T/Ex/GetAppFn2.lean`),
+  `sizeB` (`T/Ex/SizeB.lean`) and `instantiate1Go` (`T/Ex/Inst1.lean`: the
+  derived-word cutoff, the tag dispatch, five memoized arms rebuilding through
+  the interns).
+- Intern functions for every expression constructor the rebuilding walks use
+  (`app`, `lam`, `forallE`, `letE`, `bvar`, `proj`), each refining the twin's
+  monadic wrapper (probe, capacity test, `EStore.intern`).
 
-Next: the remaining intern wrappers and projections, memo clearing, the other
-memos/caches/pins in `SR`, `instantiate1`; then a tactic that applies the
-combinators by goal shape, and the bulk translation.
+Next: memo clearing (the top-level `instantiate1Fast`), the other memos,
+caches and pins in `SR`, the level/name stores' views; then a tactic that
+applies the combinators by goal shape, and the bulk translation.
