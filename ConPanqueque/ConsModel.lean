@@ -177,4 +177,56 @@ theorem insert_inv (home : α → Nat) (rows : List α) (slots : List Nat) (n : 
     intro x hx y hy e
     simp at hy; subst hy; subst e; exact ha hx
 
+/-- Where the probe stops: at the row equal to the key, at an empty slot, or out of fuel. -/
+inductive PR where
+  | hit (i : Nat)
+  | empty (j : Nat)
+  | full
+  deriving DecidableEq
+
+def probeR (rows : List α) (slots : List Nat) (n : Nat) (a : α) : Nat → Nat → PR
+  | 0, _ => .full
+  | fuel + 1, j =>
+    match slots[j]? with
+    | none => .full
+    | some 0 => .empty j
+    | some (i + 1) => if rows[i]? = some a then .hit i else probeR rows slots n a fuel ((j + 1) % n)
+
+def PR.toOpt : PR → Option Nat
+  | .hit i => some i
+  | _ => none
+
+theorem probeR_toOpt (rows : List α) (slots : List Nat) (n : Nat) (a : α) :
+    ∀ fuel j, (probeR rows slots n a fuel j).toOpt = probe rows slots n a fuel j
+  | 0, _ => rfl
+  | fuel + 1, j => by
+    simp only [probeR, probe]
+    split
+    · rfl
+    · rfl
+    · split
+      · rfl
+      · exact probeR_toOpt rows slots n a fuel _
+
+/-- An `empty` stop from offset `k` is at the first empty offset (`firstEmpty`) along the path. -/
+theorem probeR_empty (rows : List α) (slots : List Nat) (n h : Nat) (a : α) (hpos : 0 < n) :
+    ∀ fuel k j, probeR rows slots n a fuel (at_ n h k) = .empty j →
+      ∃ d, firstEmpty slots n h fuel k = some d ∧ j = at_ n h d
+  | 0, _, _, e => by simp [probeR] at e
+  | fuel + 1, k, j, e => by
+    simp only [probeR] at e
+    split at e
+    · cases e
+    · rename_i h0; cases e
+      exact ⟨k, by simp [firstEmpty, h0], rfl⟩
+    · rename_i i hs
+      split at e
+      · cases e
+      · have hk : (at_ n h k + 1) % n = at_ n h (k + 1) := by
+          simp only [at_]; rw [Nat.add_mod, Nat.mod_mod, ← Nat.add_mod, Nat.add_assoc]
+        rw [hk] at e
+        obtain ⟨d, hd, rfl⟩ := probeR_empty rows slots n h a hpos fuel (k + 1) j e
+        refine ⟨d, ?_, rfl⟩
+        simp [firstEmpty, hs, hd]
+
 end ConPanqueque.ConsModel
