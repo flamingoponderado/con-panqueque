@@ -124,6 +124,21 @@ theorem viewBVar_bind (st : EStore) (h : EIdx) (h0 : h.tag = 0) :
       cases st.scr.bvars.node? h.idxNat <;> rfl
     · rfl
 
+def projFVarIdx : ENodeView → Option Nat
+  | .fvar idx _ => some idx
+  | _ => none
+
+theorem viewFVarIdx_bind (st : EStore) (h : EIdx) (h1 : h.tag = 1) :
+    st.viewFVarIdx h = (st.view h).bind projFVarIdx := by
+  simp only [EStore.view, EStore.viewFVarIdx, EStore.persGetFVarIdx]
+  split
+  · simp only [ETables.get, ETables.getFVarIdx, h1, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj]
+    cases st.pers.fvars.node? h.idxNat <;> rfl
+  · split
+    · simp only [ETables.get, ETables.getFVarIdx, h1, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj]
+      cases st.scr.fvars.node? h.idxNat <;> rfl
+    · rfl
+
 theorem viewX_run {α : Type} (viewX : EIdx → AM (Option α)) (f : EStore → EIdx → Option α)
     (hdef : ∀ h s, viewX h s = .ok (f s.store h, s)) (proj : ENodeView → Option α) (h : EIdx)
     (hb : ∀ st : EStore, f st h = (st.view h).bind proj) (s : AState) (v : ENodeView) (hv : s.store.view h = some v) :
