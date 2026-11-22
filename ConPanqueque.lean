@@ -83,6 +83,7 @@ import ConPanqueque.T.Ex.Abstract1
 import ConPanqueque.T.Ex.AbstractRange
 import ConPanqueque.T.Ex.Small
 import ConPanqueque.T.Ex.AppArgs
+import ConPanqueque.T.Ex.MkApp
 import ConPanqueque.V.EApp2
 import ConPanqueque.T.Intern
 import ConPanqueque.T.MemoModel
