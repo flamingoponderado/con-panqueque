@@ -70,6 +70,8 @@ import ConPanqueque.T.Spec
 import ConPanqueque.T.Call
 import ConPanqueque.T.Store
 import ConPanqueque.T.Ex.GetAppFn
+import ConPanqueque.T.Inv
+import ConPanqueque.T.Ex.GetAppFn2
 import ConPanqueque.LevelFns
 import ConPanqueque.LevelFold
 import ConPanqueque.Table
