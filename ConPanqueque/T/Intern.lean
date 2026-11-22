@@ -506,6 +506,9 @@ structure CtxOK (C : Ctx) : Prop where
   sepFor : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 2 15
   b0For : C.L.base 15 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.forallE.toUInt64.toBitVec * 67108864
   b1For : C.L.base 15 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.forallE.toUInt64.toBitVec * 67108864
+  sepLet : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 3 16
+  b0Let : C.L.base 16 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.letE.toUInt64.toBitVec * 67108864
+  b1Let : C.L.base 16 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.letE.toUInt64.toBitVec * 67108864
 
 def fInternApp := ofString "internApp"
 
@@ -876,5 +879,69 @@ theorem specR_internForallEI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumpti
     (fun s f a t hsr => internForallEE_eq s f a (Nat.le_trans (tabAt_size_le hsr.e.p6) (hok.sepFor.cap 0 (by decide)))
       (Nat.le_trans (tabAt_size_le hsr.e.s6) (hok.sepFor.cap 1 (by decide))))
     hcode x e1 e2 ty b hx he1 he2 hk
+
+/-! ## The `letE` intern function -/
+
+def fInternLet := ofString "internLet"
+def letBody : ProgHOL 64 := prologue letScratch (eLetWith (eRest 16 3))
+
+theorem kb3_ne (KB : BitVec 64) : KB ≠ KB + 8 ∧ KB ≠ KB + 16 ∧ KB + 8 ≠ KB + 16 := by
+  refine ⟨kb_ne_kb8 KB, fun h => ?_, fun h => ?_⟩
+  · have := congrArg BitVec.toNat h; simp only [BitVec.toNat_add] at this
+    have hk := KB.isLt; have e : (16 : BitVec 64).toNat = 16 := rfl; rw [e] at this; omega
+  · have := congrArg BitVec.toNat h; simp only [BitVec.toNat_add] at this
+    have hk := KB.isLt; have e8 : (8 : BitVec 64).toNat = 8 := rfl; have e : (16 : BitVec 64).toNat = 16 := rfl
+    rw [e8, e] at this; omega
+
+theorem let_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (s : AState)
+    (ty v b : EIdx) :
+    SpecR (Pre (σ := σ) C s [(lEty, Enc.idxW ty), (lEvl, Enc.idxW v), (lEbd, Enc.idxW b)]) letBody s
+      (internLetEE ty v b) (PostE C) := by
+  refine specR_prologue (postE_locals C) (fun x hx => ?_) ?_
+  · simp only [letScratch, List.mem_cons, List.not_mem_nil, or_false] at hx
+    rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> rfl
+  intro t ht
+  have hw : ∀ y, y ∈ letScratch → ∃ w, t.locals.lookup y = some (.val (.word w)) :=
+    fun y hy => ht.decl y (List.mem_append_right _ hy)
+  rcases eInternLet_spec ra t C.L C.FLn C.FLl C.FLs C.FLe C.KB s.store ty v b ht.sr.rep hok.sepLet
+      ⟨by simpa using ht.sr.kbuf 0 (by decide), by simpa using ht.sr.kbuf 1 (by decide),
+        by simpa using ht.sr.kbuf 2 (by decide)⟩ (kb3_ne C.KB) hok.b0Let hok.b1Let
+      (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) hw with
+    hs | ⟨hr, hsr, hc, hg, hd, _, hm⟩
+  · exact Or.inl hs
+  right
+  refine ⟨_, hr, (s.store.intern (.letE ty v b)).2, { s with store := (s.store.intern (.letE ty v b)).1 }, ?_, rfl, ?_⟩
+  · show internNodeE (.letE ty v b) s = _
+    exact internNodeE_letE s ty v b
+      (Nat.le_trans (tabAt_size_le hsr.e.p7) (hok.sepLet.cap 0 (by decide)))
+      (Nat.le_trans (tabAt_size_le hsr.e.s7) (hok.sepLet.cap 1 (by decide)))
+  · exact ⟨hsr, by rw [hg]; exact ht.sr.gdir, by rw [hg]; exact ht.sr.gfln, by rw [hg]; exact ht.sr.gfll,
+      by rw [hg]; exact ht.sr.gfls, by rw [hg]; exact ht.sr.gfle, by rw [hg]; exact ht.sr.gkb,
+      by rw [hc]; exact ht.sr.code, fun j hj => by rw [hd]; exact ht.sr.kbuf j hj,
+      memoAt_frame ht.sr.inst1 (fun c hc => hm c (hok.memoOut c hc) (fun j hj e => hok.kbMemo j (by omega) (e ▸ hc)))
+        (fun k hk => hm _ (hok.mdescOut k hk) (fun j hj => hok.kbMdesc k j hk (by omega))) hd⟩
+
+theorem specR_internLetI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxOK C)
+    (hcode : C.code.lookup fInternLet = some ([(lEty, .one), (lEvl, .one), (lEbd, .one)], letBody, .one))
+    {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64} {k : EIdx → AM β}
+    {R : β → BitVec 64 → AState → PState σ → Prop} (x : MlS) (e1 e2 e3 : ExpHOL 64) (ty v b : EIdx) (hx : x ∈ D)
+    (he1 : sev Γ e1 = some (Enc.idxW ty)) (he2 : sev Γ e2 = some (Enc.idxW v)) (he3 : sev Γ e3 = some (Enc.idxW b))
+    (hk : ∀ h s', SpecR (Inv C s' ((x, Enc.idxW h) :: Γ) [] D) rest s' (k h) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, x), none)) fInternLet [e1, e2, e3]) rest) s
+      (internLetEE ty v b >>= k) R :=
+  specR_call3IM x fInternLet lEty lEvl lEbd (by decide) (by decide) (by decide) e1 e2 e3 letBody (Enc.idxW ty)
+    (Enc.idxW v) (Enc.idxW b) hx hcode he1 he2 he3 (PostE C) (fun _ _ _ _ hp => hp.2)
+    (fun u hu _ h1 h2 h3 w hw => by
+      subst hw
+      exact let_body_spec ra C hok s ty v b _ ⟨hu, fun y w hy => by
+        simp only [Env.get] at hy
+        split at hy
+        · rename_i e; subst e; simp at hy; subst hy; exact h1
+        · split at hy
+          · rename_i e; subst e; simp at hy; subst hy; exact h2
+          · split at hy
+            · rename_i e; subst e; simp at hy; subst hy; exact h3
+            · simp at hy⟩)
+    (fun h w s' st hp => by obtain ⟨rfl, _⟩ := hp; exact hk h s')
 
 end ConPanqueque.T
