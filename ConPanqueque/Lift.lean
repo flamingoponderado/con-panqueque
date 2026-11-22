@@ -29,6 +29,10 @@ def bvarCase : ProgHOL 64 :=
 
 def shape (a : Nat) : Subst.Shape where
   F e c := e.liftLooseBVars a c
+  CP := Cut
+  ce := cutE
+  ceval t e k hk hd hkw := ⟨_, eval_cutE t e k hk hd hkw, by by_cases h : Cut e k <;> simp [h]⟩
+  leaf e k hb _ := ⟨by omega, by omega⟩
   cut e k h := ConLeche.Expr.liftLooseBVars_eq_self (by
     rw [ConLeche.Expr.looseBVarsBounded_iff, ← ConLeche.Expr.bvarBRaw_exact e (by simp [ConLeche.satRange]; exact h.1)]
     exact h.2)
@@ -47,10 +51,11 @@ theorem spec_bvar {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (fn : 
     (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
     (a : Nat) (ha : a < 2 ^ 63) (lo : BitVec 64) (h : Heap) (p vw : BitVec 64) (i : Nat)
     (he : ExprAt h p (.bvar i)) (h0 : h p = some (.word 0)) (h2 : h (p + 16) = some (.word vw)) (hi : NatAt h vw i) :
-    Spec (σ := σ) bvarCase fn C (shape a) (inv a) lo h p (.bvar i) := by
+    Spec (σ := σ) bvarCase idCase fn C (shape a) (inv a) lo h p (.bvar i) := by
   intro t k hp hcd hai hs hx hu hk hd hck
   obtain ⟨_, h8⟩ := exprAt_data he
-  apply entry (cases bvarCase fn) t lo hp p 0 (.bvar i) k (by omega) hai hu hk (hs _ _ h0) (hs _ _ h8)
+  apply entry cutE Cut (cases bvarCase idCase fn) t lo hp p 0 (.bvar i) k (by omega) hai hu hk (hs _ _ h0) (hs _ _ h8)
+    (fun t' x y => (shape a).ceval t' _ k (by omega) x y)
   · intro hct; rw [(shape a).cut _ _ hct]; exact exprAt_mono hs he
   intro hct t2 cd2 m2 d2 g2 ta2 ck2 hu2 hk2
   dsimp only [shape]
@@ -150,10 +155,12 @@ theorem spec_bvar {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (fn : 
 
 theorem lift_spec {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (fn : MlS)
     (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
-    (hC : C.lookup fn = some ([(iU, .one), (iK, .one)], body (cases bvarCase fn), .one)) (a : Nat) (ha : a < 2 ^ 63)
+    (hC : C.lookup fn = some ([(iU, .one), (iK, .one)], body cutE (cases bvarCase idCase fn), .one)) (a : Nat) (ha : a < 2 ^ 63)
     (lo : BitVec 64) {h : Heap} {p : BitVec 64} {e : ConLeche.Expr} (he : ExprAt h p e) :
-    Spec (σ := σ) bvarCase fn C (shape a) (inv a) lo h p e :=
-  subst_spec ra bvarCase fn C hC (shape a) (inv a) lo
-    (fun h p vw i he h0 h2 hi => spec_bvar ra fn C a ha lo h p vw i he h0 h2 hi) he
+    Spec (σ := σ) bvarCase idCase fn C (shape a) (inv a) lo h p e :=
+  subst_spec ra bvarCase idCase fn C (shape a) (inv a) hC lo
+    (fun h p vw i he h0 h2 hi => spec_bvar ra fn C a ha lo h p vw i he h0 h2 hi)
+    (fun h p vw q i ty he h0 h2 h3 hi hty => spec_leaf bvarCase idCase fn C (shape a) (inv a) lo h p 1 _ he h0
+      (fun k => ⟨by simp, by simp⟩)) he
 
 end ConPanqueque.Lift
