@@ -67,6 +67,28 @@ theorem blkAt_set {H : List (BitVec 64)} {o : Nat} {xs : List (BitVec 64)} (h : 
     (hj : j < o ∨ o + xs.length < j) (w : BitVec 64) : BlkAt (H.set j w) o xs :=
   ⟨by rw [List.getElem?_set_ne (by omega)]; exact h.1, fun i hi => by rw [List.getElem?_set_ne (by omega)]; exact h.2 i hi⟩
 
+theorem prefix_of_get? {H L : List (BitVec 64)} (hl : H.length ≤ L.length)
+    (hg : ∀ k, k < H.length → L[k]? = H[k]?) : H <+: L := by
+  rw [List.prefix_iff_eq_take]
+  apply List.ext_getElem?
+  intro k
+  rw [List.getElem?_take]
+  by_cases h : k < H.length
+  · rw [if_pos (by omega), hg k h]
+  · rw [List.getElem?_eq_none (by omega)]
+    by_cases h' : k < H.length
+    · omega
+    · simp [h']
+
+/-- A fact the state provides, used to build the rest of the proof. -/
+theorem specR_fact {α : Type} {P : PState σ → Prop} {c : ProgHOL 64} {s : AState} {m : AM α}
+    {R : α → BitVec 64 → AState → PState σ → Prop} {F : Prop} (hf : ∀ t, P t → F)
+    (h : F → SpecR P c s m R) : SpecR P c s m R := fun t ht => h (hf t ht) t ht
+
+theorem inv_heapLen {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {t : PState σ}
+    (h : Inv C s Γ M D t) : C.H.length ≤ C.HN :=
+  let ⟨_, hp, ha⟩ := h.sr.heap; Nat.le_trans hp.length_le ha.len
+
 /-- An `EIdx` list-returning function's post: the result is a block of a bigger image. -/
 def PostA (C : Ctx) (xs : List EIdx) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
   ∃ H' o, C.H <+: H' ∧ w = cellA C o ∧ BlkAt H' o (xs.map Enc.idxW) ∧ SR (ctxH C H') s' st
