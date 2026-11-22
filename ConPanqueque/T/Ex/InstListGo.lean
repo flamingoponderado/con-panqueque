@@ -440,4 +440,134 @@ theorem ilg_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
 
 end
 
+/-! ## `instantiateRevRange`, `instantiateListFast` -/
+
+def fIrr := ofString "instantiateRevRange"
+def pS := ofString "irs"
+def irrParams : List MlS := [pVs, pS, pVn, pFu, pH, pD]
+def irrLocals : List MlS := [lJ0, lW, lB, lY, lA3]
+
+/-- With the clamped end in `bb` and the range length in `ww`: clear, walk, clear. -/
+def irrTail (C : Ctx) : ProgHOL 64 :=
+  clearCode (C.mg (.e .instL))
+    (.seq (.call (some (some (.local, lY), none)) fIlg [vv pVs, vv lB, vv lW, vv pFu, vv pH, vv pD])
+      (clearCode (C.mg (.e .instL)) (.return (vv lY))))
+
+def irrK (C : Ctx) : ProgHOL 64 :=
+  .seq (.assign .local lW (.const 0))
+    (.ite (.cmp .lower (vv pS) (vv lB)) (.seq (.assign .local lW (.op .sub [vv lB, vv pS])) (irrTail C)) (irrTail C))
+
+def irrCore (C : Ctx) : ProgHOL 64 :=
+  .seq (.assign .local lA3 (.load .one (vv pVs)))
+    (.seq (.assign .local lB (vv pVn))
+      (.ite (.cmp .lower (vv lA3) (vv lB)) (.seq (.assign .local lB (vv lA3)) (irrK C)) (irrK C)))
+
+def irrBody (C : Ctx) : ProgHOL 64 := prologue irrLocals (irrCore C)
+
+abbrev DR : List MlS := ctxLocals ++ irrLocals
+
+section
+variable {σ : Type}
+
+theorem irrTail_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : CodesQ C)
+    (vs : Array EIdx) (o : Nat) (hblk : BlkAt C.H o (vs.toList.map Enc.idxW)) (hsz : vs.size < 2 ^ 59)
+    {s : AState} {Γ : Env} {M : Mem} (fuel n2 k d : Nat) (e : EIdx) (hf : fuel < 2 ^ 64) (hn2 : n2 < 2 ^ 59)
+    (hk : k < 2 ^ 63) (hd : d < 2 ^ 63)
+    (hvs : Γ.get pVs = some (cellA C o)) (hb : Γ.get lB = some (BitVec.ofNat 64 n2))
+    (hw : Γ.get lW = some (BitVec.ofNat 64 k)) (hfu : Γ.get pFu = some (BitVec.ofNat 64 fuel))
+    (hh : Γ.get pH = some (Enc.idxW e)) (hdd : Γ.get pD = some (BitVec.ofNat 64 d)) :
+    SpecR (Inv (σ := σ) C s Γ M DR) (irrTail C) s
+      (do instLClear; let r ← instantiateListGo vs n2 k fuel e d; instLClear; pure r) (PostE C) := by
+  unfold irrTail
+  refine specR_memoClearI hok .instL instLClear instLClear_run (by decide) ?_
+  refine specR_callNIM lY fIlg ilpParams _ (ilgBody C)
+    [cellA C o, BitVec.ofNat 64 n2, BitVec.ofNat 64 k, BitVec.ofNat 64 fuel, Enc.idxW e, BitVec.ofNat 64 d]
+    (by decide) rfl (by decide) hc.ilg
+    ⟨by simp +decide [Env.get_kill_of_not_mem, hvs], by simp +decide [Env.get_kill_of_not_mem, hb],
+      by simp +decide [Env.get_kill_of_not_mem, hw], by simp +decide [Env.get_kill_of_not_mem, hfu],
+      by simp +decide [Env.get_kill_of_not_mem, hh], by simp +decide [Env.get_kill_of_not_mem, hdd], trivial⟩
+    (PostE C) (fun _ _ _ _ hp => hp.2)
+    (fun u hu _ hl w hw' => by
+      subst hw'
+      exact ilg_spec ra C hok hc vs o n2 hblk hsz hn2 fuel hf k e d _ hk hd _ (pre_of_lookups hu _ _ rfl hl))
+    (fun r w s' st hp => ?_)
+  obtain ⟨rfl, _⟩ := hp
+  refine specR_memoClearI hok .instL instLClear instLClear_run (by decide) ?_
+  exact specR_returnI (vv lY) (Enc.idxW r) (by simp +decide [Env.get_kill_of_not_mem])
+    (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+theorem irr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : CodesQ C)
+    (vs : Array EIdx) (o : Nat) (hblk : BlkAt C.H o (vs.toList.map Enc.idxW)) (hsz : vs.size < 2 ^ 59)
+    (s : AState) (fuel st n d : Nat) (e : EIdx) (hf : fuel < 2 ^ 64) (hst : st < 2 ^ 63) (hn : n < 2 ^ 63)
+    (hd : d < 2 ^ 63) :
+    SpecR (Pre (σ := σ) C s (irrParams.zip [cellA C o, BitVec.ofNat 64 st, BitVec.ofNat 64 n, BitVec.ofNat 64 fuel,
+      Enc.idxW e, BitVec.ofNat 64 d])) (irrBody C) s (instantiateRevRange fuel e vs st n d) (PostE C) := by
+  refine specR_prologue (postE_locals C) (fun x hx => ?_) ?_
+  · simp only [irrLocals, List.mem_cons, List.not_mem_nil, or_false] at hx
+    rcases hx with rfl|rfl|rfl|rfl|rfl <;> rfl
+  unfold irrCore instantiateRevRange
+  obtain ⟨hol, hv0⟩ := blkAt_get0 hblk
+  refine specR_heapLoadI lA3 (vv pVs) o hol (by decide) (by simp +decide [ctxEnv, irrParams]) ?_
+  rw [show C.H[o]'hol = BitVec.ofNat 64 vs.size by rw [hv0]; simp]
+  refine specR_assignI lB (vv pVn) (BitVec.ofNat 64 n) (by decide) (by simp +decide [ctxEnv, irrParams]) ?_
+  have hK : ∀ (n2 : Nat), n2 = (if n < vs.size then n else vs.size) → ∀ (Γ : Env) (M : Mem),
+      Γ.get lB = some (BitVec.ofNat 64 n2) → Γ.get pS = some (BitVec.ofNat 64 st) →
+      Γ.get pVs = some (cellA C o) → Γ.get pFu = some (BitVec.ofNat 64 fuel) → Γ.get pH = some (Enc.idxW e) →
+      Γ.get pD = some (BitVec.ofNat 64 d) →
+      SpecR (Inv (σ := σ) C s Γ M DR) (irrK C) s
+        (do instLClear
+            let r ← instantiateListGo vs n2 (if st < n2 then n2 - st else 0) fuel e d
+            instLClear; pure r) (PostE C) := by
+    intro n2 hn2 Γ M hb hs hvs hfu hh hdd
+    have hn2' : n2 < 2 ^ 59 := by split at hn2 <;> omega
+    unfold irrK
+    refine specR_assignI lW (.const 0) 0 (by decide) rfl ?_
+    by_cases g : st < n2
+    · have hlt : BitVec.ofNat 64 st < BitVec.ofNat 64 n2 := (word_lt_iff st n2 (by omega) (by omega)).mpr g
+      refine specR_ifI _ 1 (by simp +decide [sev, hs, hb, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlt])
+        (fun _ => ?_) (fun hw => absurd hw (by decide))
+      refine specR_assignI lW _ (BitVec.ofNat 64 (n2 - st)) (by decide)
+        (by simp +decide [sev, hs, hb]; exact word_sub_eq n2 st (by omega) (by omega)) ?_
+      rw [if_pos g]
+      exact irrTail_spec ra C hok hc vs o hblk hsz fuel n2 (n2 - st) d e hf hn2' (by omega) hd
+        (by simp +decide [hvs]) (by simp +decide [hb]) (by simp +decide) (by simp +decide [hfu])
+        (by simp +decide [hh]) (by simp +decide [hdd])
+    · have hnlt : ¬ BitVec.ofNat 64 st < BitVec.ofNat 64 n2 := fun x => g ((word_lt_iff st n2 (by omega) (by omega)).mp x)
+      refine specR_ifI _ 0 (by simp +decide [sev, hs, hb, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hnlt])
+        (fun hw => absurd rfl hw) (fun _ => ?_)
+      rw [if_neg g]
+      exact irrTail_spec ra C hok hc vs o hblk hsz fuel n2 0 d e hf hn2' (by decide) hd
+        (by simp +decide [hvs]) (by simp +decide [hb]) (by simp +decide) (by simp +decide [hfu])
+        (by simp +decide [hh]) (by simp +decide [hdd])
+  by_cases g : vs.size < n
+  · have hl : BitVec.ofNat 64 vs.size < BitVec.ofNat 64 n := (word_lt_iff _ n (by omega) (by omega)).mpr g
+    refine specR_ifI _ 1 (by simp +decide [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hl])
+      (fun _ => ?_) (fun hw => absurd hw (by decide))
+    refine specR_assignI lB (vv lA3) (BitVec.ofNat 64 vs.size) (by decide) (by simp +decide) ?_
+    have e2 : (if n < vs.size then n else vs.size) = vs.size := by split <;> omega
+    refine specR_congr (m' := instLClear >>= fun _ =>
+        instantiateListGo vs vs.size (if st < vs.size then vs.size - st else 0) fuel e d >>= fun r =>
+        instLClear >>= fun _ => pure r) (by simp only [e2]) ?_
+    refine hK vs.size e2.symm _ _ ?_ ?_ ?_ ?_ ?_ ?_ <;> simp +decide [ctxEnv, irrParams]
+  · have hnl : ¬ BitVec.ofNat 64 vs.size < BitVec.ofNat 64 n :=
+      fun x => g ((word_lt_iff _ n (by omega) (by omega)).mp x)
+    refine specR_ifI _ 0 (by simp +decide [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hnl])
+      (fun hw => absurd rfl hw) (fun _ => ?_)
+    have e2 : (if n < vs.size then n else vs.size) = n := by split <;> omega
+    refine specR_congr (m' := instLClear >>= fun _ =>
+        instantiateListGo vs n (if st < n then n - st else 0) fuel e d >>= fun r =>
+        instLClear >>= fun _ => pure r) (by simp only [e2]) ?_
+    refine hK n e2.symm _ _ ?_ ?_ ?_ ?_ ?_ ?_ <;> simp +decide [ctxEnv, irrParams]
+
+/-- `instantiateListFast` is the whole range. -/
+theorem ilFast_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : CodesQ C)
+    (vs : Array EIdx) (o : Nat) (hblk : BlkAt C.H o (vs.toList.map Enc.idxW)) (hsz : vs.size < 2 ^ 59)
+    (s : AState) (fuel d : Nat) (e : EIdx) (hf : fuel < 2 ^ 64) (hd : d < 2 ^ 63) :
+    SpecR (Pre (σ := σ) C s (irrParams.zip [cellA C o, BitVec.ofNat 64 0, BitVec.ofNat 64 vs.size,
+      BitVec.ofNat 64 fuel, Enc.idxW e, BitVec.ofNat 64 d])) (irrBody C) s (instantiateListFast fuel e vs d)
+      (PostE C) :=
+  irr_spec ra C hok hc vs o hblk hsz s fuel 0 vs.size d e hf (by decide) (by omega) hd
+
+end
+
 end ConPanqueque.T.ExQ
