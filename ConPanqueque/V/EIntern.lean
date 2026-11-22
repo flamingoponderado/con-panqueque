@@ -133,6 +133,24 @@ theorem erep_apps {t u : PanSemStateFiniteExact 64 σ} {L : Layout} {FL : BitVec
     A 15 1 (by decide) (by decide) (by decide) (by decide) h.s6, A 16 1 (by decide) (by decide) (by decide) (by decide) h.s7,
     A 17 1 (by decide) (by decide) (by decide) (by decide) h.s8, A 18 1 (by decide) (by decide) (by decide) (by decide) h.s9⟩
 
+theorem idxW_mkN (tag r : UInt32) (htag : tag.toNat < 16) (hr : r ≤ 1) (i : Nat) (hi : i < 2 ^ 26) :
+    Enc.idxW (mkN (k := .expr) tag r i) =
+      r.toUInt64.toBitVec * 2147483648 + tag.toUInt64.toBitVec * 67108864 + BitVec.ofNat 64 i := by
+  have hr' : r.toNat ≤ 1 := by simpa [UInt32.le_iff_toNat_le] using hr
+  apply BitVec.eq_of_toNat_eq
+  have hw : (mkN (k := .expr) tag r i).word.toNat = r.toNat * 2147483648 + tag.toNat * 67108864 + i := by
+    show (r * 2147483648 + tag * 67108864 + UInt32.ofNat i).toNat = _
+    simp only [UInt32.toNat_add, UInt32.toNat_mul, UInt32.toNat_ofNat', UInt32.toNat_ofNat, Nat.reducePow, Nat.reduceMod]
+    rcases (by omega : r.toNat = 0 ∨ r.toNat = 1) with h | h <;> rw [h] <;> omega
+  have e1 : (Enc.idxW (mkN (k := .expr) tag r i)).toNat = (mkN (k := .expr) tag r i).word.toNat := by simp [Enc.idxW]
+  have l1 : (2147483648 : BitVec 64).toNat = 2147483648 := rfl
+  have l2 : (67108864 : BitVec 64).toNat = 67108864 := rfl
+  have l3 : (BitVec.ofNat 64 i).toNat = i := by simp; omega
+  rw [e1, hw, BitVec.toNat_add, BitVec.toNat_add, BitVec.toNat_mul, BitVec.toNat_mul, l1, l2, l3]
+  simp only [UInt32.toBitVec_toUInt64, BitVec.toNat_setWidth, UInt32.toNat_toBitVec]
+  rw [Nat.mod_eq_of_lt (a := r.toNat) (by omega), Nat.mod_eq_of_lt (a := tag.toNat) (by omega)]
+  rcases (by omega : r.toNat = 0 ∨ r.toNat = 1) with h | h <;> rw [h] <;> omega
+
 theorem idxW_mkW (r : UInt32) (hr : r ≤ 1) (i : Nat) (hi : i < 2 ^ 30) :
     Enc.idxW (mkW (k := .expr) r i) = r.toUInt64.toBitVec * 2147483648 + 1073741824 + BitVec.ofNat 64 i :=
   ConsIntern.mkWide_word r i hr hi
@@ -389,9 +407,10 @@ variable {σ : Type} {α ι δ : Type} [BEq α] [LawfulBEq α] [Hashable α] [De
 /-- The constructor-independent tail of an intern at kind `k`: with the key words at `KB` and the
 inputs in place, `internTwo` gives `twoTier`'s handle and both tiers' tables re-represented. -/
 theorem tail_spec (u : PanSemStateFiniteExact 64 σ) (L : Layout) (k : Nat) (enc : α → List (BitVec 64))
-    (dW : δ → BitVec 64 × BitVec 64) (hwd : ι → BitVec 64) (mkP mkS : Nat → ι)
-    (hmkP : ∀ i, i < 2 ^ 30 → hwd (mkP i) = L.base k 0 + BitVec.ofNat 64 i)
-    (hmkS : ∀ i, i < 2 ^ 30 → hwd (mkS i) = L.base k 1 + BitVec.ofNat 64 i) (hinj : ∀ x y, enc x = enc y → x = y)
+    (dW : δ → BitVec 64 × BitVec 64) (hwd : ι → BitVec 64) (mkP mkS : Nat → ι) (icap : Nat)
+    (hmkP : ∀ i, i < icap → hwd (mkP i) = L.base k 0 + BitVec.ofNat 64 i)
+    (hmkS : ∀ i, i < icap → hwd (mkS i) = L.base k 1 + BitVec.ofNat 64 i) (hinj : ∀ x y, enc x = enc y → x = y)
+    (hicap : ∀ tier, tier < 2 → (L.geo k tier).cap ≤ icap)
     (P Sc : Tbl α ι δ) (on sk : Bool) (x : α) (d : δ) (KB : BitVec 64)
     (hP : TabAt u L k 0 enc dW P mkP) (hS : TabAt u L k 1 enc dW Sc mkS)
     (hpow : ∀ tier, tier < 2 → (L.geo k tier).n = 2 ^ (L.geo k tier).b ∧ (L.geo k tier).b ≤ 56)
@@ -418,10 +437,10 @@ theorem tail_spec (u : PanSemStateFiniteExact 64 σ) (L : Layout) (k : Nat) (enc
         ∀ c, ¬ inR (L.geo k 0) c → ¬ inR (L.geo k 1) c → (evaluateHOLFiniteState u internTwo).2.memory c = u.memory c) := by
   obtain ⟨hD0, hc0, rp, dp, sp, hup, hP'⟩ := hP
   obtain ⟨hD1, hc1, rs, ds, ss, hus, hS'⟩ := hS
-  rcases internTwo_spec u enc dW hwd mkP mkS (L.base k 0) (L.base k 1) (2 ^ 30) hmkP hmkS hinj P Sc (L.geo k 0) (L.geo k 1)
+  rcases internTwo_spec u enc dW hwd mkP mkS (L.base k 0) (L.base k 1) icap hmkP hmkS hinj P Sc (L.geo k 0) (L.geo k 1)
       rp dp sp hup rs ds ss hus on sk x d KB (descAddr L k 0) (descAddr L k 1)
-      (hpow 0 (by decide)).1 (hpow 0 (by decide)).2 hc0 (Nat.le_of_lt hc0)
-      (hpow 1 (by decide)).1 (hpow 1 (by decide)).2 hc1 (Nat.le_of_lt hc1) hP' hS' hD0 hD1 hdis hK hKl hKout hin
+      (hpow 0 (by decide)).1 (hpow 0 (by decide)).2 hc0 (hicap 0 (by decide))
+      (hpow 1 (by decide)).1 (hpow 1 (by decide)).2 hc1 (hicap 1 (by decide)) hP' hS' hD0 hD1 hdis hK hKl hKout hin
       hpg hsg hon hsk with hs | ⟨hr, ⟨rp', dp', sp', hup', hP2⟩, ⟨rs', ds', ss', hus', hS2⟩, c3, g3, d3, ta3, fr3⟩
   · exact Or.inl hs
   have dsc : ∀ tier, tier < 2 → ∀ m, m < 8 →
