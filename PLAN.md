@@ -237,3 +237,19 @@ Steps:
    `pure_step`, `iteChain`, `Stop`);
 4. the twin's frontend, checker and driver loop, translated; the top-level
    theorem.
+
+### Parallelism (user's idea, 2026-11-22)
+
+Workers can be `fork()`ed processes: con-ron's frozen persistent tier (the
+parsed file, pins, stream index) is only read after the fork, and Pancake has
+no collector that would touch it, so its pages are never written and
+copy-on-write never copies them; each child appends only to its own scratch
+region and cache tables. Each child's run is one worker's job list in con-ron's
+`ParallelAll` premise; like con-ron's thread pool, the fork/wait driver is
+outside the verified core and enters the final theorem as that premise.
+
+Two executables (user, 2026-11-22): a **single-threaded** checker, whose
+theorem has only the core assumptions (FFI read/write, runtime hashing), and a
+**multi-process** one, whose theorem additionally assumes the `fork`/`wait`
+syscall shims behave as specified. Both share the verified per-worker job
+runner.
