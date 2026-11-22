@@ -1,5 +1,6 @@
 import ConPanqueque.T.Call
 import ConPanqueque.V.View
+import ConPanqueque.T.MemoRep
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena
@@ -24,6 +25,9 @@ structure Ctx where
   KB : BitVec 64
   /-- The program's functions. -/
   code : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL)
+  /-- The `instantiate1` memo's descriptor and geometry. -/
+  mG : BitVec 64
+  mg : VGeo
 
 def gDir := ofString "Gdir"
 def gFln := ofString "Gfln"
@@ -45,6 +49,8 @@ structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   code : t.code = C.code
   /-- The key buffer's words are addressable (keys of up to three words; longer ones later). -/
   kbuf : ∀ j, j < 3 → t.memaddrs (C.KB + BitVec.ofNat 64 (8 * j))
+  /-- The `instantiate1` memo. -/
+  inst1 : MemoAt t C.mG C.mg s.memos.inst1C
 
 theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u.memory = t.memory)
     (hd : u.memaddrs = t.memaddrs) (hg : u.globals = t.globals) (hc : u.code = t.code) : SR C s u :=
@@ -52,7 +58,7 @@ theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u
       (fun _ _ _ _ => ⟨fun _ _ => by rw [hm], fun _ _ => by rw [hm]⟩),
     by rw [hg]; exact h.gdir, by rw [hg]; exact h.gfln, by rw [hg]; exact h.gfll, by rw [hg]; exact h.gfls,
     by rw [hg]; exact h.gfle, by rw [hg]; exact h.gkb, by rw [hc]; exact h.code,
-    fun j hj => by rw [hd]; exact h.kbuf j hj⟩
+    fun j hj => by rw [hd]; exact h.kbuf j hj, memoAt_of_eq h.inst1 hm hd⟩
 
 theorem eval_gv (t : PState σ) (g : MlS) (w : BitVec 64) (h : t.globals.lookup g = some (.val (.word w))) :
     EV t (.var .global g) = some (.val (.word w)) := by

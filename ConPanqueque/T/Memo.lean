@@ -1,4 +1,5 @@
 import ConPanqueque.T.MemoModel
+import ConPanqueque.T.MemoRep
 import ConPanqueque.T.Intern
 import ConPanqueque.V.DerWrite
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
@@ -18,14 +19,6 @@ namespace ConPanqueque.T
 def pG := ofString "mg"
 def pLen := ofString "mlen"
 def fMemoProbe := ofString "memoProbe"
-
-/-- A memo's key: the handle, then the number's limbs (injective at every `Nat`). -/
-def encMemo (k : EIdx × Nat) : List (BitVec 64) := Enc.idxW k.1 :: Enc.limbs k.2
-
-theorem encMemo_inj : ∀ x y, encMemo x = encMemo y → x = y := by
-  intro ⟨h, d⟩ ⟨h', d'⟩ e
-  simp only [encMemo, List.cons.injEq] at e
-  rw [Enc.idxW_inj e.1, Enc.limbs_inj e.2]
 
 /-- `memoProbe(g, len)`: probe the memo described at `g` for the `len`-word key in the key buffer. -/
 def memoProbeBody : ProgHOL 64 :=
@@ -84,30 +77,6 @@ theorem memoProbe_spec {α δ : Type} [BEq α] [LawfulBEq α] [Hashable α] [Dec
     have es := return_state (evaluateHOLFiniteState u probeV).2 (.const 0) 0 (eval_const _ 0)
     refine Or.inr ⟨by rw [es]; exact m, by rw [es]; exact d, by rw [es]; exact c, by rw [es]; exact gl,
       Or.inr ⟨hf, er⟩⟩
-
-/-! ## The representation of a memo -/
-
-def dWE (v : EIdx) : BitVec 64 × BitVec 64 := (Enc.idxW v, 0)
-
-/-- The twin memo `m` is held at descriptor `G` with geometry `g`. -/
-def MemoAt (t : PState σ) (G : BitVec 64) (g : VGeo) (m : Std.HashMap (EIdx × Nat) EIdx) : Prop :=
-  DescV t G g 1 ∧ g.n = 2 ^ g.b ∧ g.b ≤ 56 ∧ g.cap < 2 ^ 30 ∧
-  ∃ (tb : Tbl (EIdx × Nat) Nat EIdx) (rows : List (EIdx × Nat)) (ders : List (BitVec 64 × BitVec 64))
-    (slots : List Nat) (hu : Nat),
-    VT t encMemo rows ders slots g hu ∧ ConsModel.Inv (homeV encMemo g.b) rows slots g.n ∧ TblRel tb rows id ∧
-      tb.der.toList.map dWE = ders ∧ MemoRel m tb
-
-theorem memoAt_frame {t u : PState σ} {G : BitVec 64} {g : VGeo} {m : Std.HashMap (EIdx × Nat) EIdx}
-    (h : MemoAt t G g m) (hm : ∀ c, inR g c → u.memory c = t.memory c)
-    (hdsc : ∀ k, k < 8 → u.memory (G + BitVec.ofNat 64 (8 * k)) = t.memory (G + BitVec.ofNat 64 (8 * k)))
-    (hd : u.memaddrs = t.memaddrs) : MemoAt u G g m := by
-  obtain ⟨hdesc, h1, h2, h3, tb, rows, ders, slots, hu, hT, hi, hr, hder, hrel⟩ := h
-  exact ⟨fun k hk => by rw [hdsc k hk, hd]; exact hdesc k hk, h1, h2, h3, tb, rows, ders, slots, hu,
-    vt_frame hT hm hd, hi, hr, hder, hrel⟩
-
-theorem memoAt_of_eq {t u : PState σ} {G : BitVec 64} {g : VGeo} {m : Std.HashMap (EIdx × Nat) EIdx}
-    (h : MemoAt t G g m) (hm : u.memory = t.memory) (hd : u.memaddrs = t.memaddrs) : MemoAt u G g m :=
-  memoAt_frame h (fun _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd
 
 /-- A hit's value word: row `i` of the key holds the memo's answer at `D + 16 i`. -/
 theorem memo_value {t : PState σ} {g : VGeo} {m : Std.HashMap (EIdx × Nat) EIdx} {tb : Tbl (EIdx × Nat) Nat EIdx}

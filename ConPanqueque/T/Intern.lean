@@ -121,6 +121,11 @@ structure CtxOK (C : Ctx) : Prop where
   sepApp : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 2 13
   b0App : C.L.base 13 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + 1073741824
   b1App : C.L.base 13 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + 1073741824
+  /-- The memo lies apart from the key buffer and the stores. -/
+  kbMemo : ∀ j, j < 3 → ¬ inR C.mg (C.KB + BitVec.ofNat 64 (8 * j))
+  kbMdesc : ∀ k j, k < 8 → j < 3 → C.mG + BitVec.ofNat 64 (8 * k) ≠ C.KB + BitVec.ofNat 64 (8 * j)
+  memoOut : ∀ c, inR C.mg c → ¬ inAny C.L c
+  mdescOut : ∀ k, k < 8 → ¬ inAny C.L (C.mG + BitVec.ofNat 64 (8 * k))
 
 def fInternApp := ofString "internApp"
 
@@ -154,7 +159,7 @@ theorem internApp_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx
   rcases eInternApp2_spec ra t C.L C.FLn C.FLl C.FLs C.FLe C.KB s.store f a ht.sr.rep hok.sepApp
       ⟨by simpa using ht.sr.kbuf 0 (by decide), by simpa using ht.sr.kbuf 1 (by decide)⟩ (kb_ne_kb8 C.KB)
       hok.b0App hok.b1App (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) hw with
-    hs | ⟨hr, hsr, hc, hg, hd, _, _⟩
+    hs | ⟨hr, hsr, hc, hg, hd, _, hm⟩
   · exact Or.inl hs
   right
   refine ⟨_, hr, (s.store.intern (.app f a)).2, { s with store := (s.store.intern (.app f a)).1 }, ?_, rfl, ?_⟩
@@ -164,7 +169,9 @@ theorem internApp_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx
       (Nat.le_trans (tabAt_size_le hsr.e.s4) (hok.sepApp.cap 1 (by decide)))
   · exact ⟨hsr, by rw [hg]; exact ht.sr.gdir, by rw [hg]; exact ht.sr.gfln, by rw [hg]; exact ht.sr.gfll,
       by rw [hg]; exact ht.sr.gfls, by rw [hg]; exact ht.sr.gfle, by rw [hg]; exact ht.sr.gkb,
-      by rw [hc]; exact ht.sr.code, fun j hj => by rw [hd]; exact ht.sr.kbuf j hj⟩
+      by rw [hc]; exact ht.sr.code, fun j hj => by rw [hd]; exact ht.sr.kbuf j hj,
+      memoAt_frame ht.sr.inst1 (fun c hc => hm c (hok.memoOut c hc) (fun j hj e => hok.kbMemo j (by omega) (e ▸ hc)))
+        (fun k hk => hm _ (hok.mdescOut k hk) (fun j hj => hok.kbMdesc k j hk (by omega))) hd⟩
 
 /-- In a caller: `x := internApp(e₁, e₂); rest` against `internAppE f a >>= k`. -/
 theorem specR_internAppI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxOK C)
@@ -200,7 +207,9 @@ theorem sr_storeKB {C : Ctx} (hok : CtxOK C) {s : AState} {t : PState σ} (h : S
     fun c hc => by simp [hc]
   refine ⟨srep_frame h.rep ⟨hne _ ((S.fls _ (Or.inl rfl)).2.2 j hj), ?_, ?_, ?_⟩ rfl (fun k tier hk ht => ⟨fun m hm =>
       hne _ ((S.dsc k tier m hk ht hm).2.2 j hj), fun c hc => hne c (fun e => S.kbo j k tier hj hk ht (e ▸ hc))⟩),
-    h.gdir, h.gfln, h.gfll, h.gfls, h.gfle, h.gkb, h.code, h.kbuf⟩
+    h.gdir, h.gfln, h.gfll, h.gfls, h.gfle, h.gkb, h.code, h.kbuf,
+    memoAt_frame h.inst1 (fun c hc => hne c (fun e => hok.kbMemo j (by omega) (e ▸ hc)))
+      (fun k hk => hne _ (hok.kbMdesc k j hk (by omega))) rfl⟩
   · exact hne _ ((S.fls _ (Or.inr (Or.inl rfl))).2.2 j hj)
   · exact hne _ ((S.fls _ (Or.inr (Or.inr (Or.inl rfl)))).2.2 j hj)
   · exact hne _ ((S.fls _ (Or.inr (Or.inr (Or.inr rfl)))).2.2 j hj)
