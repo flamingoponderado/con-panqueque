@@ -134,7 +134,7 @@ def LKids (HB : BitVec 64) (H : List (BitVec 64)) (ls : LStore) (Pc : BitVec 64)
   | .param n => ∃ (nh : NIdx) (f : Nat), (Pc + BitVec.ofNat 64 (8 * 0), Enc.idxW nh) ∈ M ∧
       denoteNAux ls.ns f nh = some n
 
-def lvViewP (rest : ProgHOL 64) : ProgHOL 64 :=
+def lvViewOld (rest : ProgHOL 64) : ProgHOL 64 :=
   .ite (.cmp .lower (vv lQ) (.const (BitVec.ofNat 64 (2 ^ 32))))
     (.seq (.assign .local lDh (vv lQ)) (.seq (.assign .local lFl (vv lFll)) (.seq lViewP
       (.seq (.assign .local lX (vv lDg)) (.seq (.assign .local lY (vv lRp)) rest)))))
@@ -252,21 +252,21 @@ theorem heapKids_mem (C : Ctx) (ls : LStore) (o : Nat) (l : ConLeche.Level) (M :
     · cases e; exact Or.inr ⟨o + 1, hj1, rfl, e1⟩
     · exact Or.inl e
 
-theorem specR_lvViewI {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env} {M : Mem} {D : List MlS}
+theorem specR_lvViewOld {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env} {M : Mem} {D : List MlS}
     {rest : ProgHOL 64} {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop}
     (w : BitVec 64) (l : ConLeche.Level) (hw : Γ.get lQ = some w) (hl : LRep C.HB C.H s.store.ls w l)
     (hfl : Γ.get lFll = some C.FLl) (hdir : Γ.get lDir = some C.L.DIR) (hD : ∀ z, z ∈ lvScratch → z ∈ D)
     (hk : ∀ (Γ' : Env) (M' : Mem) (Pc : BitVec 64), (∀ z, z ∉ lvScratch → Γ'.get z = Γ.get z) →
       Γ'.get lX = some (BitVec.ofNat 64 (ltag l)) → Γ'.get lY = some Pc → (∀ p, p ∈ M → p ∈ M') →
       LKids C.HB C.H s.store.ls Pc M' l → SpecR (Inv C s Γ' M' D) rest s m R) :
-    SpecR (Inv C s Γ M D) (lvViewP rest) s m R := by
+    SpecR (Inv C s Γ M D) (lvViewOld rest) s m R := by
   have hD' : lRp ∈ D ∧ lRn ∈ D ∧ lDt ∈ D ∧ lDg ∈ D ∧ lDi ∈ D ∧ lDh ∈ D ∧ lFl ∈ D ∧ lX ∈ D ∧ lY ∈ D :=
     ⟨hD _ (by decide), hD _ (by decide), hD _ (by decide), hD _ (by decide), hD _ (by decide), hD _ (by decide),
       hD _ (by decide), hD _ (by decide), hD _ (by decide)⟩
   refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN => ?_)
   have hlay := hok.heapLay
   have hhi := hok.heapHigh
-  unfold lvViewP
+  unfold lvViewOld
   rcases lrep_split hl with ⟨h, f, rfl, hd⟩ | ⟨o, rfl, htg, hkids⟩
   · have hlt : Enc.idxW h < BitVec.ofNat 64 (2 ^ 32) := by
       rw [BitVec.lt_def]; have := idxW_lt32 h; simp; omega
@@ -313,5 +313,44 @@ theorem denoteLAux_det (st : LStore) (f f' : Nat) (i : LIdx) (x y : ConLeche.Lev
   have a := denoteLAux_mono st f (max f f') i x (by omega) h1
   have b := denoteLAux_mono st f' (max f f') i y (by omega) h2
   rw [a] at b; exact Option.some.inj b
+
+/-- The view as one step: tag into `x`, children's address into `y`. -/
+def lvViewCode : ProgHOL 64 :=
+  .ite (.cmp .lower (vv lQ) (.const (BitVec.ofNat 64 (2 ^ 32))))
+    (.seq (.assign .local lDh (vv lQ)) (.seq (.assign .local lFl (vv lFll)) (.seq lViewP
+      (.seq (.assign .local lX (vv lDg)) (.assign .local lY (vv lRp))))))
+    (.seq (.assign .local lX (.load .one (vv lQ))) (.assign .local lY (.op .add [vv lQ, .const 8])))
+
+def lvViewP (rest : ProgHOL 64) : ProgHOL 64 := .seq lvViewCode rest
+
+theorem lvViewP_eval (rest : ProgHOL 64) (t : PState σ) (w : BitVec 64)
+    (hw : t.locals.lookup lQ = some (.val (.word w))) :
+    evaluateHOLFiniteState t (lvViewP rest) = evaluateHOLFiniteState t (lvViewOld rest) := by
+  unfold lvViewP lvViewCode lvViewOld
+  have hc := ConsLoop.eval_cmp_of t .lower (vv lQ) (.const (BitVec.ofNat 64 (2 ^ 32))) w _ (eval_vv t lQ _ hw)
+    (eval_const t _)
+  generalize (if Flapjack.Compiler.Encoders.Asm.wordCmpHOL .lower w (BitVec.ofNat 64 (2 ^ 32)) = true
+    then (1 : BitVec 64) else 0) = cw at hc
+  rw [seq_ite_distrib t _ _ _ _ _ hc]
+  rw [ite_word t _ _ _ _ hc, ite_word t _ _ _ _ hc]
+  by_cases hz : cw ≠ 0
+  · rw [if_pos hz, if_pos hz]
+    rw [seq_assoc]; apply seq_congr_right; intro t1
+    rw [seq_assoc]; apply seq_congr_right; intro t2
+    rw [seq_assoc]; apply seq_congr_right; intro t3
+    rw [seq_assoc]
+  · rw [if_neg hz, if_neg hz, seq_assoc]
+
+theorem specR_lvViewI {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env} {M : Mem} {D : List MlS}
+    {rest : ProgHOL 64} {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop}
+    (w : BitVec 64) (l : ConLeche.Level) (hw : Γ.get lQ = some w) (hl : LRep C.HB C.H s.store.ls w l)
+    (hfl : Γ.get lFll = some C.FLl) (hdir : Γ.get lDir = some C.L.DIR) (hD : ∀ z, z ∈ lvScratch → z ∈ D)
+    (hk : ∀ (Γ' : Env) (M' : Mem) (Pc : BitVec 64), (∀ z, z ∉ lvScratch → Γ'.get z = Γ.get z) →
+      Γ'.get lX = some (BitVec.ofNat 64 (ltag l)) → Γ'.get lY = some Pc → (∀ p, p ∈ M → p ∈ M') →
+      LKids C.HB C.H s.store.ls Pc M' l → SpecR (Inv C s Γ' M' D) rest s m R) :
+    SpecR (Inv C s Γ M D) (lvViewP rest) s m R := by
+  intro t ht
+  rw [lvViewP_eval rest t w (ht.env _ _ hw)]
+  exact specR_lvViewOld hok w l hw hl hfl hdir hD hk t ht
 
 end ConPanqueque.T

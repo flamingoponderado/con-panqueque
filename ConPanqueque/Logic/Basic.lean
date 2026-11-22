@@ -234,6 +234,34 @@ theorem ite_word {σ : Type} (s : PanSemStateFiniteExact 64 σ) (c : ExpHOL 64) 
   rw [hc]
   by_cases hw : w = 0 <;> simp [hw]
 
+theorem seq_congr_right {σ : Type} (a X Y : ProgHOL 64)
+    (h : ∀ t : PanSemStateFiniteExact 64 σ, evaluateHOLFiniteState t X = evaluateHOLFiniteState t Y)
+    (s : PanSemStateFiniteExact 64 σ) :
+    evaluateHOLFiniteState s (.seq a X) = evaluateHOLFiniteState s (.seq a Y) := by
+  rw [evaluateHOLFiniteState_eq_evaluate_def s (.seq a X), evaluateHOLFiniteState_eq_evaluate_def s (.seq a Y)]
+  simp only
+  generalize evaluateHOLFiniteState s a = r
+  obtain ⟨r1, r2⟩ := r
+  cases r1 with
+  | none => simp only; exact h r2
+  | some x => rfl
+
+/-- Sequencing after a conditional distributes into its branches (the test has no effect). -/
+theorem seq_ite_distrib {σ : Type} (s : PanSemStateFiniteExact 64 σ) (c : ExpHOL 64) (p q r : ProgHOL 64)
+    (w : BitVec 64)
+    (hc : @evalHOLExact 64 σ _ s.toExact (fun a => Classical.propDecidable (s.memaddrs a)) c =
+      some (.val (.word w))) :
+    evaluateHOLFiniteState s (.seq (.ite c p q) r) = evaluateHOLFiniteState s (.ite c (.seq p r) (.seq q r)) := by
+  rw [ite_word s c _ _ w hc]
+  rw [evaluateHOLFiniteState_eq_evaluate_def s (.seq (.ite c p q) r)]
+  simp only
+  rw [ite_word s c _ _ w hc]
+  by_cases hw : w = 0
+  · simp only [hw, ne_eq, not_true_eq_false, ite_false]
+    rw [evaluateHOLFiniteState_eq_evaluate_def s (.seq q r)]
+  · simp only [hw, ne_eq, not_false_eq_true, ite_true]
+    rw [evaluateHOLFiniteState_eq_evaluate_def s (.seq p r)]
+
 theorem dec_word' {σ : Type} (s : PanSemStateFiniteExact 64 σ) (x : MlS) (e : ExpHOL 64) (v : BitVec 64)
     (body : ProgHOL 64)
     (he : @evalHOLExact 64 σ _ s.toExact (fun a => Classical.propDecidable (s.memaddrs a)) e =
