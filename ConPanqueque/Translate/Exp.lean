@@ -6,7 +6,8 @@ open Flapjack Flapjack.Pancake.PanLang Flapjack.Basis.Pure.MlString
 # Translator, part 1: word expressions
 
 `pan_exp N := fun (x₁ … xₙ : UInt64) => t` compiles a Lean `UInt64` term (literals,
-`+ - * &&& ||| ^^^`, constant shifts, `let`) to a Pancake expression `N` over the
+`+ - * &&& ||| ^^^`, constant shifts, `/` and `%` by powers of two, `if` on
+`< ≤ = ≠` as `y + (x - y)·[c]`, `let`) to a Pancake expression `N` over the
 locals `x₁ … xₙ`, and proves `N.eval`: in any state where those locals hold the
 words, `N` evaluates to `t`. The proof is generated (evaluation by `simp`), so
 con-leche's word-level code (hashing, data-word arithmetic) translates without
@@ -41,6 +42,28 @@ partial def toPanSyntax (vars : Array (Expr × String)) (e : Expr) : MetaM (TSyn
   | (``HShiftLeft.hShiftLeft, #[_, _, _, _, a, .app (.app (.app (.const ``OfNat.ofNat _) _) (.lit (.natVal k))) _]) =>
       if k < 64 then do `(ExpHOL.shift .lsl $(← toPanSyntax vars a) (ExpHOL.const (BitVec.ofNat 64 $(quote k))))
       else throwError "toPanSyntax: shift by {k}"
+  | (``HDiv.hDiv, #[_, _, _, _, a, .app (.app (.app (.const ``OfNat.ofNat _) _) (.lit (.natVal n))) _]) =>
+      match (List.range 64).find? (fun k => 2 ^ k = n) with
+      | some k => do `(ExpHOL.shift .lsr $(← toPanSyntax vars a) (ExpHOL.const (BitVec.ofNat 64 $(quote k))))
+      | none => throwError "toPanSyntax: division by {n} (not a power of two)"
+  | (``HMod.hMod, #[_, _, _, _, a, .app (.app (.app (.const ``OfNat.ofNat _) _) (.lit (.natVal n))) _]) =>
+      match (List.range 64).find? (fun k => 2 ^ k = n) with
+      | some 0 => `(ExpHOL.const (BitVec.ofNat 64 0))
+      | some k => do
+          let j := 64 - k
+          `(ExpHOL.shift .lsr (ExpHOL.shift .lsl $(← toPanSyntax vars a) (ExpHOL.const (BitVec.ofNat 64 $(quote j))))
+              (ExpHOL.const (BitVec.ofNat 64 $(quote j))))
+      | none => throwError "toPanSyntax: modulo by {n} (not a power of two)"
+  | (``ite, #[_, c, _, x, y]) => do
+      let x' ← toPanSyntax vars x
+      let y' ← toPanSyntax vars y
+      let cmp ← match c.getAppFnArgs with
+        | (``LT.lt, #[_, _, a, b]) => do `(ExpHOL.cmp .lower $(← toPanSyntax vars a) $(← toPanSyntax vars b))
+        | (``LE.le, #[_, _, a, b]) => do `(ExpHOL.cmp .notLower $(← toPanSyntax vars b) $(← toPanSyntax vars a))
+        | (``Eq, #[_, a, b]) => do `(ExpHOL.cmp .equal $(← toPanSyntax vars a) $(← toPanSyntax vars b))
+        | (``Ne, #[_, a, b]) => do `(ExpHOL.cmp .notEqual $(← toPanSyntax vars a) $(← toPanSyntax vars b))
+        | _ => throwError "toPanSyntax: unsupported condition {c}"
+      `(ExpHOL.op .add [$y', ExpHOL.panop .mul [ExpHOL.op .sub [$x', $y'], $cmp]])
   | _ => throwError "toPanSyntax: unsupported term {e}"
 
 /-- `pan_exp N := fun (x₁ … xₙ : UInt64) => t` defines `N : ExpHOL 64` computing `t`
@@ -72,7 +95,11 @@ elab "pan_exp " nm:ident " := " t:term : command => do
         @evalHOLExact 64 σ _ s.toExact (fun a => Classical.propDecidable (s.memaddrs a)) $nm =
           some (.val (.word ($app).toBitVec)) := by
       simp [$nm:ident, evalHOLExact, evalListHOLExact, wordOpHOL, wordOp, valueIsWord, valueWord, panOpHOL,
-        wordShiftHOL, $simpArgs,*]))
+        wordShiftHOL, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, $simpArgs,*] <;>
+      (try split) <;> (try split) <;>
+      (try simp_all [UInt64.lt_iff_toBitVec_lt, UInt64.le_iff_toBitVec_le]) <;> (try bv_omega) <;>
+      (try (apply BitVec.eq_of_toNat_eq; simp [BitVec.toNat_ushiftRight, BitVec.toNat_shiftLeft,
+        Nat.shiftLeft_eq, Nat.shiftRight_eq_div_pow] <;> omega))))
 
 end ConPanqueque.Translate
 
@@ -85,3 +112,14 @@ pan_exp mixTest := fun (h k : UInt64) =>
   let k := k ^^^ m
   let h := h ^^^ k
   h * m
+
+/-! Examples: con-leche's data-word arithmetic, in its own style (division and
+modulo by powers of two, `max` as `if`), translated and proved. -/
+open ConPanqueque.Translate Flapjack.PanSemStateFiniteExact in
+pan_exp hashOfDataT := fun (w : UInt64) => w / 4294967296
+open ConPanqueque.Translate Flapjack.PanSemStateFiniteExact in
+pan_exp bvarOfDataT := fun (w : UInt64) => w / 65536 % 32768
+open ConPanqueque.Translate Flapjack.PanSemStateFiniteExact in
+pan_exp maxT := fun (x y : UInt64) => if x < y then y else x
+open ConPanqueque.Translate Flapjack.PanSemStateFiniteExact in
+pan_exp packDataT := fun (h b f : UInt64) => h * 4294967296 + b * 65536 + f * 2
