@@ -114,6 +114,377 @@ theorem internNodeE_app (s : AState) (f a : EIdx)
     simp only [hn, ite_true]
     rfl
 
+/-- The twin's `internNodeE` at a `bvar` view is `EStore.intern`, when the new store's `bvar` tables
+have at most `2^26` rows each. -/
+theorem internNodeE_bvar (s : AState) (i : Nat)
+    (hP : (s.store.intern (.bvar i)).1.pers.bvars.size ≤ 2 ^ 26)
+    (hS : (s.store.intern (.bvar i)).1.scr.bvars.size ≤ 2 ^ 26) :
+    internNodeE (.bvar i) s = .ok ((s.store.intern (.bvar i)).2, { s with store := (s.store.intern (.bvar i)).1 }) := by
+  show (match s.store.find? (.bvar i) with
+    | some h => (pure h : AM EIdx)
+    | none => do
+      let n := if s.store.scratchOn then s.store.scr.sizeOf (.bvar i) else s.store.pers.sizeOf (.bvar i)
+      if n < (ENodeView.bvar i).cap then do
+        let st := s.store
+        let s := { s with store := EStore.empty }
+        let (st, h) := st.intern (.bvar i)
+        set { s with store := st }
+        pure h
+      else
+        fail (.native "arena: expression constructor array full")) s = _
+  cases hf : s.store.find? (.bvar i) with
+  | some h =>
+    rw [intern_of_find hf]; rfl
+  | none =>
+    have hn : (if s.store.scratchOn then s.store.scr.sizeOf (.bvar i) else s.store.pers.sizeOf (.bvar i)) <
+        (ENodeView.bvar i).cap := by
+      have h1 : (if s.store.scratchOn && EStore.eViewHasScratchChild (.bvar i) then none
+          else s.store.pers.bvars.find? ⟨i⟩) = none := by
+        revert hf; simp only [EStore.find?, EStore.persFindMaybe, ETables.find?]
+        cases s.store.scratchOn <;> cases EStore.eViewHasScratchChild (.bvar i) <;> simp <;>
+          (cases s.store.pers.bvars.find? ⟨i⟩ <;> simp)
+      have h2 : s.store.scratchOn = true → s.store.scr.bvars.find? ⟨i⟩ = none := by
+        intro hon; revert hf; simp only [EStore.find?, EStore.persFindMaybe, ETables.find?, hon, ite_true]
+        cases EStore.eViewHasScratchChild (.bvar i) <;> simp <;>
+          (cases s.store.pers.bvars.find? ⟨i⟩ <;> simp)
+      have T := twoTier_miss_size s.store.pers.bvars s.store.scr.bvars s.store.scratchOn
+        (EStore.eViewHasScratchChild (.bvar i)) ⟨i⟩ (s.store.derOfView (.bvar i)) (mkN ETag.bvar 0) (mkN ETag.bvar 1) h1 h2
+      have hint := estore_bvar s.store i
+      simp only at hint
+      rw [hint] at hP hS
+      simp only at hP hS
+      show (if s.store.scratchOn then s.store.scr.bvars.nodes.size else s.store.pers.bvars.nodes.size) < 67108864
+      cases hon : s.store.scratchOn with
+      | true =>
+        have := T.1 hon
+        simp only [Tbl.size] at this hS
+        simp only [ite_true]; omega
+      | false =>
+        have := T.2 hon
+        simp only [Tbl.size] at this hP
+        simp only [Bool.false_eq_true, ite_false]; omega
+    simp only [hn, ite_true]
+    rfl
+
+
+/-- The twin's `internNodeE` at a `fvar` view is `EStore.intern`, when the new store's `fvar` tables
+have at most `2^26` rows each. -/
+theorem internNodeE_fvar (s : AState) (idx : Nat) (ty : EIdx)
+    (hP : (s.store.intern (.fvar idx ty)).1.pers.fvars.size ≤ 2 ^ 26)
+    (hS : (s.store.intern (.fvar idx ty)).1.scr.fvars.size ≤ 2 ^ 26) :
+    internNodeE (.fvar idx ty) s = .ok ((s.store.intern (.fvar idx ty)).2, { s with store := (s.store.intern (.fvar idx ty)).1 }) := by
+  show (match s.store.find? (.fvar idx ty) with
+    | some h => (pure h : AM EIdx)
+    | none => do
+      let n := if s.store.scratchOn then s.store.scr.sizeOf (.fvar idx ty) else s.store.pers.sizeOf (.fvar idx ty)
+      if n < (ENodeView.fvar idx ty).cap then do
+        let st := s.store
+        let s := { s with store := EStore.empty }
+        let (st, h) := st.intern (.fvar idx ty)
+        set { s with store := st }
+        pure h
+      else
+        fail (.native "arena: expression constructor array full")) s = _
+  cases hf : s.store.find? (.fvar idx ty) with
+  | some h =>
+    rw [intern_of_find hf]; rfl
+  | none =>
+    have hn : (if s.store.scratchOn then s.store.scr.sizeOf (.fvar idx ty) else s.store.pers.sizeOf (.fvar idx ty)) <
+        (ENodeView.fvar idx ty).cap := by
+      have h1 : (if s.store.scratchOn && EStore.eViewHasScratchChild (.fvar idx ty) then none
+          else s.store.pers.fvars.find? ⟨idx, ty⟩) = none := by
+        revert hf; simp only [EStore.find?, EStore.persFindMaybe, ETables.find?]
+        cases s.store.scratchOn <;> cases EStore.eViewHasScratchChild (.fvar idx ty) <;> simp <;>
+          (cases s.store.pers.fvars.find? ⟨idx, ty⟩ <;> simp)
+      have h2 : s.store.scratchOn = true → s.store.scr.fvars.find? ⟨idx, ty⟩ = none := by
+        intro hon; revert hf; simp only [EStore.find?, EStore.persFindMaybe, ETables.find?, hon, ite_true]
+        cases EStore.eViewHasScratchChild (.fvar idx ty) <;> simp <;>
+          (cases s.store.pers.fvars.find? ⟨idx, ty⟩ <;> simp)
+      have T := twoTier_miss_size s.store.pers.fvars s.store.scr.fvars s.store.scratchOn
+        (EStore.eViewHasScratchChild (.fvar idx ty)) ⟨idx, ty⟩ (s.store.derOfView (.fvar idx ty)) (mkN ETag.fvar 0) (mkN ETag.fvar 1) h1 h2
+      have hint := estore_fvar s.store idx ty
+      simp only at hint
+      rw [hint] at hP hS
+      simp only at hP hS
+      show (if s.store.scratchOn then s.store.scr.fvars.nodes.size else s.store.pers.fvars.nodes.size) < 67108864
+      cases hon : s.store.scratchOn with
+      | true =>
+        have := T.1 hon
+        simp only [Tbl.size] at this hS
+        simp only [ite_true]; omega
+      | false =>
+        have := T.2 hon
+        simp only [Tbl.size] at this hP
+        simp only [Bool.false_eq_true, ite_false]; omega
+    simp only [hn, ite_true]
+    rfl
+
+
+/-- The twin's `internNodeE` at a `sort` view is `EStore.intern`, when the new store's `sort` tables
+have at most `2^26` rows each. -/
+theorem internNodeE_sort (s : AState) (u : LIdx)
+    (hP : (s.store.intern (.sort u)).1.pers.sorts.size ≤ 2 ^ 26)
+    (hS : (s.store.intern (.sort u)).1.scr.sorts.size ≤ 2 ^ 26) :
+    internNodeE (.sort u) s = .ok ((s.store.intern (.sort u)).2, { s with store := (s.store.intern (.sort u)).1 }) := by
+  show (match s.store.find? (.sort u) with
+    | some h => (pure h : AM EIdx)
+    | none => do
+      let n := if s.store.scratchOn then s.store.scr.sizeOf (.sort u) else s.store.pers.sizeOf (.sort u)
+      if n < (ENodeView.sort u).cap then do
+        let st := s.store
+        let s := { s with store := EStore.empty }
+        let (st, h) := st.intern (.sort u)
+        set { s with store := st }
+        pure h
+      else
+        fail (.native "arena: expression constructor array full")) s = _
+  cases hf : s.store.find? (.sort u) with
+  | some h =>
+    rw [intern_of_find hf]; rfl
+  | none =>
+    have hn : (if s.store.scratchOn then s.store.scr.sizeOf (.sort u) else s.store.pers.sizeOf (.sort u)) <
+        (ENodeView.sort u).cap := by
+      have h1 : (if s.store.scratchOn && EStore.eViewHasScratchChild (.sort u) then none
+          else s.store.pers.sorts.find? ⟨u⟩) = none := by
+        revert hf; simp only [EStore.find?, EStore.persFindMaybe, ETables.find?]
+        cases s.store.scratchOn <;> cases EStore.eViewHasScratchChild (.sort u) <;> simp <;>
+          (cases s.store.pers.sorts.find? ⟨u⟩ <;> simp)
+      have h2 : s.store.scratchOn = true → s.store.scr.sorts.find? ⟨u⟩ = none := by
+        intro hon; revert hf; simp only [EStore.find?, EStore.persFindMaybe, ETables.find?, hon, ite_true]
+        cases EStore.eViewHasScratchChild (.sort u) <;> simp <;>
+          (cases s.store.pers.sorts.find? ⟨u⟩ <;> simp)
+      have T := twoTier_miss_size s.store.pers.sorts s.store.scr.sorts s.store.scratchOn
+        (EStore.eViewHasScratchChild (.sort u)) ⟨u⟩ (s.store.derOfView (.sort u)) (mkN ETag.sort 0) (mkN ETag.sort 1) h1 h2
+      have hint := estore_sort s.store u
+      simp only at hint
+      rw [hint] at hP hS
+      simp only at hP hS
+      show (if s.store.scratchOn then s.store.scr.sorts.nodes.size else s.store.pers.sorts.nodes.size) < 67108864
+      cases hon : s.store.scratchOn with
+      | true =>
+        have := T.1 hon
+        simp only [Tbl.size] at this hS
+        simp only [ite_true]; omega
+      | false =>
+        have := T.2 hon
+        simp only [Tbl.size] at this hP
+        simp only [Bool.false_eq_true, ite_false]; omega
+    simp only [hn, ite_true]
+    rfl
+
+
+/-- The twin's `internNodeE` at a `const` view is `EStore.intern`, when the new store's `const` tables
+have at most `2^26` rows each. -/
+theorem internNodeE_const (s : AState) (c : NIdx) (us : LsIdx)
+    (hP : (s.store.intern (.const c us)).1.pers.consts.size ≤ 2 ^ 26)
+    (hS : (s.store.intern (.const c us)).1.scr.consts.size ≤ 2 ^ 26) :
+    internNodeE (.const c us) s = .ok ((s.store.intern (.const c us)).2, { s with store := (s.store.intern (.const c us)).1 }) := by
+  show (match s.store.find? (.const c us) with
+    | some h => (pure h : AM EIdx)
+    | none => do
+      let n := if s.store.scratchOn then s.store.scr.sizeOf (.const c us) else s.store.pers.sizeOf (.const c us)
+      if n < (ENodeView.const c us).cap then do
+        let st := s.store
+        let s := { s with store := EStore.empty }
+        let (st, h) := st.intern (.const c us)
+        set { s with store := st }
+        pure h
+      else
+        fail (.native "arena: expression constructor array full")) s = _
+  cases hf : s.store.find? (.const c us) with
+  | some h =>
+    rw [intern_of_find hf]; rfl
+  | none =>
+    have hn : (if s.store.scratchOn then s.store.scr.sizeOf (.const c us) else s.store.pers.sizeOf (.const c us)) <
+        (ENodeView.const c us).cap := by
+      have h1 : (if s.store.scratchOn && EStore.eViewHasScratchChild (.const c us) then none
+          else s.store.pers.consts.find? ⟨c, us⟩) = none := by
+        revert hf; simp only [EStore.find?, EStore.persFindMaybe, ETables.find?]
+        cases s.store.scratchOn <;> cases EStore.eViewHasScratchChild (.const c us) <;> simp <;>
+          (cases s.store.pers.consts.find? ⟨c, us⟩ <;> simp)
+      have h2 : s.store.scratchOn = true → s.store.scr.consts.find? ⟨c, us⟩ = none := by
+        intro hon; revert hf; simp only [EStore.find?, EStore.persFindMaybe, ETables.find?, hon, ite_true]
+        cases EStore.eViewHasScratchChild (.const c us) <;> simp <;>
+          (cases s.store.pers.consts.find? ⟨c, us⟩ <;> simp)
+      have T := twoTier_miss_size s.store.pers.consts s.store.scr.consts s.store.scratchOn
+        (EStore.eViewHasScratchChild (.const c us)) ⟨c, us⟩ (s.store.derOfView (.const c us)) (mkN ETag.const 0) (mkN ETag.const 1) h1 h2
+      have hint := estore_const s.store c us
+      simp only at hint
+      rw [hint] at hP hS
+      simp only at hP hS
+      show (if s.store.scratchOn then s.store.scr.consts.nodes.size else s.store.pers.consts.nodes.size) < 67108864
+      cases hon : s.store.scratchOn with
+      | true =>
+        have := T.1 hon
+        simp only [Tbl.size] at this hS
+        simp only [ite_true]; omega
+      | false =>
+        have := T.2 hon
+        simp only [Tbl.size] at this hP
+        simp only [Bool.false_eq_true, ite_false]; omega
+    simp only [hn, ite_true]
+    rfl
+
+
+/-- The twin's `internNodeE` at a `letE` view is `EStore.intern`, when the new store's `letE` tables
+have at most `2^26` rows each. -/
+theorem internNodeE_letE (s : AState) (ty v b : EIdx)
+    (hP : (s.store.intern (.letE ty v b)).1.pers.lets.size ≤ 2 ^ 26)
+    (hS : (s.store.intern (.letE ty v b)).1.scr.lets.size ≤ 2 ^ 26) :
+    internNodeE (.letE ty v b) s = .ok ((s.store.intern (.letE ty v b)).2, { s with store := (s.store.intern (.letE ty v b)).1 }) := by
+  show (match s.store.find? (.letE ty v b) with
+    | some h => (pure h : AM EIdx)
+    | none => do
+      let n := if s.store.scratchOn then s.store.scr.sizeOf (.letE ty v b) else s.store.pers.sizeOf (.letE ty v b)
+      if n < (ENodeView.letE ty v b).cap then do
+        let st := s.store
+        let s := { s with store := EStore.empty }
+        let (st, h) := st.intern (.letE ty v b)
+        set { s with store := st }
+        pure h
+      else
+        fail (.native "arena: expression constructor array full")) s = _
+  cases hf : s.store.find? (.letE ty v b) with
+  | some h =>
+    rw [intern_of_find hf]; rfl
+  | none =>
+    have hn : (if s.store.scratchOn then s.store.scr.sizeOf (.letE ty v b) else s.store.pers.sizeOf (.letE ty v b)) <
+        (ENodeView.letE ty v b).cap := by
+      have h1 : (if s.store.scratchOn && EStore.eViewHasScratchChild (.letE ty v b) then none
+          else s.store.pers.lets.find? ⟨ty, v, b⟩) = none := by
+        revert hf; simp only [EStore.find?, EStore.persFindMaybe, ETables.find?]
+        cases s.store.scratchOn <;> cases EStore.eViewHasScratchChild (.letE ty v b) <;> simp <;>
+          (cases s.store.pers.lets.find? ⟨ty, v, b⟩ <;> simp)
+      have h2 : s.store.scratchOn = true → s.store.scr.lets.find? ⟨ty, v, b⟩ = none := by
+        intro hon; revert hf; simp only [EStore.find?, EStore.persFindMaybe, ETables.find?, hon, ite_true]
+        cases EStore.eViewHasScratchChild (.letE ty v b) <;> simp <;>
+          (cases s.store.pers.lets.find? ⟨ty, v, b⟩ <;> simp)
+      have T := twoTier_miss_size s.store.pers.lets s.store.scr.lets s.store.scratchOn
+        (EStore.eViewHasScratchChild (.letE ty v b)) ⟨ty, v, b⟩ (s.store.derOfView (.letE ty v b)) (mkN ETag.letE 0) (mkN ETag.letE 1) h1 h2
+      have hint := estore_letE s.store ty v b
+      simp only at hint
+      rw [hint] at hP hS
+      simp only at hP hS
+      show (if s.store.scratchOn then s.store.scr.lets.nodes.size else s.store.pers.lets.nodes.size) < 67108864
+      cases hon : s.store.scratchOn with
+      | true =>
+        have := T.1 hon
+        simp only [Tbl.size] at this hS
+        simp only [ite_true]; omega
+      | false =>
+        have := T.2 hon
+        simp only [Tbl.size] at this hP
+        simp only [Bool.false_eq_true, ite_false]; omega
+    simp only [hn, ite_true]
+    rfl
+
+
+/-- The twin's `internNodeE` at a `lit` view is `EStore.intern`, when the new store's `lit` tables
+have at most `2^26` rows each. -/
+theorem internNodeE_lit (s : AState) (l : ConLeche.Literal)
+    (hP : (s.store.intern (.lit l)).1.pers.lits.size ≤ 2 ^ 26)
+    (hS : (s.store.intern (.lit l)).1.scr.lits.size ≤ 2 ^ 26) :
+    internNodeE (.lit l) s = .ok ((s.store.intern (.lit l)).2, { s with store := (s.store.intern (.lit l)).1 }) := by
+  show (match s.store.find? (.lit l) with
+    | some h => (pure h : AM EIdx)
+    | none => do
+      let n := if s.store.scratchOn then s.store.scr.sizeOf (.lit l) else s.store.pers.sizeOf (.lit l)
+      if n < (ENodeView.lit l).cap then do
+        let st := s.store
+        let s := { s with store := EStore.empty }
+        let (st, h) := st.intern (.lit l)
+        set { s with store := st }
+        pure h
+      else
+        fail (.native "arena: expression constructor array full")) s = _
+  cases hf : s.store.find? (.lit l) with
+  | some h =>
+    rw [intern_of_find hf]; rfl
+  | none =>
+    have hn : (if s.store.scratchOn then s.store.scr.sizeOf (.lit l) else s.store.pers.sizeOf (.lit l)) <
+        (ENodeView.lit l).cap := by
+      have h1 : (if s.store.scratchOn && EStore.eViewHasScratchChild (.lit l) then none
+          else s.store.pers.lits.find? ⟨l⟩) = none := by
+        revert hf; simp only [EStore.find?, EStore.persFindMaybe, ETables.find?]
+        cases s.store.scratchOn <;> cases EStore.eViewHasScratchChild (.lit l) <;> simp <;>
+          (cases s.store.pers.lits.find? ⟨l⟩ <;> simp)
+      have h2 : s.store.scratchOn = true → s.store.scr.lits.find? ⟨l⟩ = none := by
+        intro hon; revert hf; simp only [EStore.find?, EStore.persFindMaybe, ETables.find?, hon, ite_true]
+        cases EStore.eViewHasScratchChild (.lit l) <;> simp <;>
+          (cases s.store.pers.lits.find? ⟨l⟩ <;> simp)
+      have T := twoTier_miss_size s.store.pers.lits s.store.scr.lits s.store.scratchOn
+        (EStore.eViewHasScratchChild (.lit l)) ⟨l⟩ (s.store.derOfView (.lit l)) (mkN ETag.lit 0) (mkN ETag.lit 1) h1 h2
+      have hint := estore_lit s.store l
+      simp only at hint
+      rw [hint] at hP hS
+      simp only at hP hS
+      show (if s.store.scratchOn then s.store.scr.lits.nodes.size else s.store.pers.lits.nodes.size) < 67108864
+      cases hon : s.store.scratchOn with
+      | true =>
+        have := T.1 hon
+        simp only [Tbl.size] at this hS
+        simp only [ite_true]; omega
+      | false =>
+        have := T.2 hon
+        simp only [Tbl.size] at this hP
+        simp only [Bool.false_eq_true, ite_false]; omega
+    simp only [hn, ite_true]
+    rfl
+
+
+/-- The twin's `internNodeE` at a `proj` view is `EStore.intern`, when the new store's `proj` tables
+have at most `2^26` rows each. -/
+theorem internNodeE_proj (s : AState) (c : NIdx) (i : Nat) (e : EIdx)
+    (hP : (s.store.intern (.proj c i e)).1.pers.projs.size ≤ 2 ^ 26)
+    (hS : (s.store.intern (.proj c i e)).1.scr.projs.size ≤ 2 ^ 26) :
+    internNodeE (.proj c i e) s = .ok ((s.store.intern (.proj c i e)).2, { s with store := (s.store.intern (.proj c i e)).1 }) := by
+  show (match s.store.find? (.proj c i e) with
+    | some h => (pure h : AM EIdx)
+    | none => do
+      let n := if s.store.scratchOn then s.store.scr.sizeOf (.proj c i e) else s.store.pers.sizeOf (.proj c i e)
+      if n < (ENodeView.proj c i e).cap then do
+        let st := s.store
+        let s := { s with store := EStore.empty }
+        let (st, h) := st.intern (.proj c i e)
+        set { s with store := st }
+        pure h
+      else
+        fail (.native "arena: expression constructor array full")) s = _
+  cases hf : s.store.find? (.proj c i e) with
+  | some h =>
+    rw [intern_of_find hf]; rfl
+  | none =>
+    have hn : (if s.store.scratchOn then s.store.scr.sizeOf (.proj c i e) else s.store.pers.sizeOf (.proj c i e)) <
+        (ENodeView.proj c i e).cap := by
+      have h1 : (if s.store.scratchOn && EStore.eViewHasScratchChild (.proj c i e) then none
+          else s.store.pers.projs.find? ⟨c, i, e⟩) = none := by
+        revert hf; simp only [EStore.find?, EStore.persFindMaybe, ETables.find?]
+        cases s.store.scratchOn <;> cases EStore.eViewHasScratchChild (.proj c i e) <;> simp <;>
+          (cases s.store.pers.projs.find? ⟨c, i, e⟩ <;> simp)
+      have h2 : s.store.scratchOn = true → s.store.scr.projs.find? ⟨c, i, e⟩ = none := by
+        intro hon; revert hf; simp only [EStore.find?, EStore.persFindMaybe, ETables.find?, hon, ite_true]
+        cases EStore.eViewHasScratchChild (.proj c i e) <;> simp <;>
+          (cases s.store.pers.projs.find? ⟨c, i, e⟩ <;> simp)
+      have T := twoTier_miss_size s.store.pers.projs s.store.scr.projs s.store.scratchOn
+        (EStore.eViewHasScratchChild (.proj c i e)) ⟨c, i, e⟩ (s.store.derOfView (.proj c i e)) (mkN ETag.proj 0) (mkN ETag.proj 1) h1 h2
+      have hint := estore_proj s.store c i e
+      simp only at hint
+      rw [hint] at hP hS
+      simp only at hP hS
+      show (if s.store.scratchOn then s.store.scr.projs.nodes.size else s.store.pers.projs.nodes.size) < 67108864
+      cases hon : s.store.scratchOn with
+      | true =>
+        have := T.1 hon
+        simp only [Tbl.size] at this hS
+        simp only [ite_true]; omega
+      | false =>
+        have := T.2 hon
+        simp only [Tbl.size] at this hP
+        simp only [Bool.false_eq_true, ite_false]; omega
+    simp only [hn, ite_true]
+    rfl
+
+
 /-! ## The `internApp` function -/
 
 /-- What the layout must satisfy for the interns (static facts about `C`). -/
