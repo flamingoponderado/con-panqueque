@@ -51,6 +51,12 @@ def shape (v : ConLeche.Expr) : Subst.Shape (inv v) where
   forallE _ _ _ := rfl
   letE _ _ _ _ := rfl
   proj _ _ _ _ := rfl
+  cost := ConPanqueque.ExprFold.cost
+  cost_app _ _ := by simp [ConPanqueque.ExprFold.cost]; omega
+  cost_lam _ _ := by simp [ConPanqueque.ExprFold.cost]; omega
+  cost_forallE _ _ := by simp [ConPanqueque.ExprFold.cost]; omega
+  cost_letE _ _ _ := by simp [ConPanqueque.ExprFold.cost]
+  cost_proj _ _ _ := by simp [ConPanqueque.ExprFold.cost]
 
 theorem spec_bvar {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (fn : MlS)
     (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))

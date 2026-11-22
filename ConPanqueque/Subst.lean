@@ -385,6 +385,13 @@ structure Shape (X : Inv) where
   /-- Literals are always past the cutoff. -/
   leaf : ∀ l k, CP (.lit l) k
   cut : ∀ e k, CP e k → F e k = e
+  /-- The clock a call uses (an upper bound on the calls it makes). -/
+  cost : ConLeche.Expr → Nat
+  cost_app : ∀ f a, cost (.app f a) = 2 + cost f + cost a
+  cost_lam : ∀ t b, cost (.lam t b) = 2 + cost t + cost b
+  cost_forallE : ∀ t b, cost (.forallE t b) = 2 + cost t + cost b
+  cost_letE : ∀ t v b, cost (.letE t v b) = 1 + cost t + (1 + cost v + (1 + cost b + 0))
+  cost_proj : ∀ n i e, cost (.proj n i e) = 1 + cost e + 0
   app : ∀ f a k, F (.app f a) k = .app (F f k) (F a k)
   lam : ∀ t b k, F (.lam t b) k = .lam (F t k) (F b (k + 1))
   forallE : ∀ t b k, F (.forallE t b) k = .forallE (F t k) (F b (k + 1))
@@ -397,9 +404,9 @@ def Spec {σ : Type} (bc fc sc cc : ProgHOL 64) (fn : MlS) (C : HolFiniteMapExac
   ∀ (t : PanSemStateFiniteExact 64 σ) (k : Nat) (hp : BitVec 64), t.code = C → AInv t lo hp →
     Sub h (hOf t lo hp) → X.P t.globals.lookup (hOf t lo hp) →
     t.locals.lookup iU = some (.val (.word p)) → t.locals.lookup iK = some (.val (.word (BitVec.ofNat 64 k))) →
-    k + bdepth e < 2 ^ 64 → ConPanqueque.ExprFold.cost e ≤ t.clock →
+    k + bdepth e < 2 ^ 64 → S.cost e ≤ t.clock →
     RRes t (evaluateHOLFiniteState t (body S.ce (cases bc fc sc cc fn))) lo hp (fun h q => ExprAt h q (S.F e k))
-      (ConPanqueque.ExprFold.cost e)
+      (S.cost e)
 
 /-- A two-child node of `inst1`, from its children's specs. -/
 theorem spec_bin {σ : Type} (bc fc sc cc : ProgHOL 64) (fn : MlS) (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
@@ -410,7 +417,7 @@ theorem spec_bin {σ : Type} (bc fc sc cc : ProgHOL 64) (fn : MlS) (C : HolFinit
     (hk2 : ∀ (k : Nat) (t' : PanSemStateFiniteExact 64 σ), t'.locals.lookup iK = some (.val (.word (BitVec.ofNat 64 k))) →
       @evalHOLExact 64 σ _ t'.toExact (fun a => Classical.propDecidable (t'.memaddrs a)) k2 =
         some (.val (.word (BitVec.ofNat 64 (k + bump)))))
-    (hcost : ConPanqueque.ExprFold.cost e = 2 + ConPanqueque.ExprFold.cost f + ConPanqueque.ExprFold.cost a)
+    (hcost : S.cost e = 2 + S.cost f + S.cost a)
     (hdep : ∀ k, k + bdepth e < 2 ^ 64 → k + bdepth f < 2 ^ 64 ∧ k + bump + bdepth a < 2 ^ 64)
     (hdata : ∀ (k : Nat) (t' : PanSemStateFiniteExact 64 σ) (h' : Heap) (q1 q2 : BitVec 64), InMem t' h' →
       ExprAt h' q1 (S.F f k) → ExprAt h' q2 (S.F a (k + bump)) →
@@ -436,7 +443,7 @@ theorem spec_bin {σ : Type} (bc fc sc cc : ProgHOL 64) (fn : MlS) (C : HolFinit
   have hO2 : hOf t2 lo hp = hOf t lo hp := hOf_of_eq lo hp m2
   obtain ⟨df, da⟩ := hdep k hd
   exact bin_case bc fc sc cc fn C _ hC tg dexp k2 (S.F f k) (S.F a (k + bump)) (S.F e k)
-    _ (ConPanqueque.ExprFold.cost f) (ConPanqueque.ExprFold.cost a) t2 lo hp p _ _ q r
+    _ (S.cost f) (S.cost a) t2 lo hp p _ _ q r
     (by rw [cd2]; exact hcd) (ainv_of_eq hi g2 d2 ta2) hu2 hk2' (hk2 k)
     (by rw [hO2]; exact hs _ _ h2) (by rw [hO2]; exact hs _ _ h3) (by rw [ck2]; omega)
     (fun s' hq cd' a' sub' gl' hu' hk' hc' => ihf s' k hq cd' a'
@@ -648,9 +655,9 @@ theorem hB_of_spec {σ : Type} {bc fc sc cc : ProgHOL 64} {fn : MlS} {C : HolFin
     (hsub : Sub h (hOf ti lo hq)) (hx : X.P ti.globals.lookup (hOf ti lo hq)) (hd : k + bdepth f < 2 ^ 64) :
     ∀ s' : PanSemStateFiniteExact 64 σ, s'.code = C → AInv s' lo hq → s'.memory = ti.memory →
       s'.globals = ti.globals → s'.locals.lookup iU = some (.val (.word q)) →
-      s'.locals.lookup iK = some (.val (.word (BitVec.ofNat 64 k))) → ConPanqueque.ExprFold.cost f ≤ s'.clock →
+      s'.locals.lookup iK = some (.val (.word (BitVec.ofNat 64 k))) → S.cost f ≤ s'.clock →
       RRes s' (evaluateHOLFiniteState s' (body S.ce (cases bc fc sc cc fn))) lo hq (fun h q => ExprAt h q (S.F f k))
-        (ConPanqueque.ExprFold.cost f) := by
+        (S.cost f) := by
   intro s' cd a m g hu hk hc
   exact ihs s' k hq cd a (by rw [hOf_of_eq lo hq m]; exact hsub)
     (X.mono _ _ _ _ hx (by rw [hOf_of_eq lo hq m]; exact fun a w h => h) (fun g' _ => by rw [g])) hu hk hd hc
@@ -680,9 +687,7 @@ theorem spec_letE {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (bc fc
   have da : k + bdepth a < 2 ^ 64 := by omega
   have db : k + bdepth b < 2 ^ 64 := by omega
   have dc : k + 1 + bdepth c < 2 ^ 64 := by omega
-  have hcost : ConPanqueque.ExprFold.cost (.letE a b c) =
-      1 + ConPanqueque.ExprFold.cost a + (1 + ConPanqueque.ExprFold.cost b + (1 + ConPanqueque.ExprFold.cost c + 0)) := by
-    simp [ConPanqueque.ExprFold.cost]
+  have hcost := S.cost_letE a b c
   rw [hcost] at hck ⊢
   rw [S.letE]
   have m16 := (ainv_arena hai2).1 _ _ (hs2 _ _ h2)
@@ -742,8 +747,7 @@ theorem spec_proj {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (bc fc
   have hx2 : X.P t2.globals.lookup (hOf t2 lo hp) :=
     X.mono _ _ _ _ hx (by rw [hO2]; exact fun a w h => h) (fun g _ => by rw [g2])
   simp only [bdepth] at hd
-  have hcost : ConPanqueque.ExprFold.cost (.proj n i e) = 1 + ConPanqueque.ExprFold.cost e + 0 := by
-    simp [ConPanqueque.ExprFold.cost]
+  have hcost := S.cost_proj n i e
   rw [hcost] at hck ⊢
   rw [S.proj]
   have m16 := (ainv_arena hai2).1 _ _ (hs2 _ _ h2)
@@ -791,7 +795,7 @@ theorem subst_spec {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (bc f
   induction he with
   | @app p q r f a hp0 h0 hd h2 h3 hf ha ihf iha =>
     exact spec_bin bc fc sc cc fn C X S hC lo _ p q r (.app f a) f a 4 _ (vv iK) 0 rfl
-      (fun k t' hk => by simpa [vv, evalHOLExact] using hk) (by simp [ConPanqueque.ExprFold.cost]; omega)
+      (fun k t' hk => by simpa [vv, evalHOLExact] using hk) (S.cost_app f a)
       (fun k hk => by simp [bdepth] at hk; omega)
       (fun k t' h' q1 q2 hm e1 e2 l1 l2 => by
         rw [S.app]; exact app_data ra _ _ t' h' q1 q2 hm e1 e2 l1 l2)
@@ -800,7 +804,7 @@ theorem subst_spec {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (bc f
       (.app hp0 h0 hd h2 h3 hf ha) h0 h2 h3 ihf iha
   | @lam p q r f a hp0 h0 hd h2 h3 hf ha ihf iha =>
     exact spec_bin bc fc sc cc fn C X S hC lo _ p q r (.lam f a) f a 5 _ kPlus1 1 rfl
-      (fun k t' hk => eval_kPlus1 k t' hk) (by simp [ConPanqueque.ExprFold.cost]; omega)
+      (fun k t' hk => eval_kPlus1 k t' hk) (S.cost_lam f a)
       (fun k hk => by simp [bdepth] at hk; omega)
       (fun k t' h' q1 q2 hm e1 e2 l1 l2 => by
         rw [S.lam]; exact lam_data ra _ _ t' h' q1 q2 hm e1 e2 l1 l2)
@@ -809,7 +813,7 @@ theorem subst_spec {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (bc f
       (.lam hp0 h0 hd h2 h3 hf ha) h0 h2 h3 ihf iha
   | @forallE p q r f a hp0 h0 hd h2 h3 hf ha ihf iha =>
     exact spec_bin bc fc sc cc fn C X S hC lo _ p q r (.forallE f a) f a 6 _ kPlus1 1 rfl
-      (fun k t' hk => eval_kPlus1 k t' hk) (by simp [ConPanqueque.ExprFold.cost]; omega)
+      (fun k t' hk => eval_kPlus1 k t' hk) (S.cost_forallE f a)
       (fun k hk => by simp [bdepth] at hk; omega)
       (fun k t' h' q1 q2 hm e1 e2 l1 l2 => by
         rw [S.forallE]; exact forallE_data ra _ _ t' h' q1 q2 hm e1 e2 l1 l2)
