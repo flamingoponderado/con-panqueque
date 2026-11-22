@@ -77,6 +77,7 @@ import ConPanqueque.T.Ex.SizeB
 import ConPanqueque.T.Ex.Inst1
 import ConPanqueque.T.Ex.Inst1Fast
 import ConPanqueque.T.Ex.Lift
+import ConPanqueque.T.Ex.FvarRange
 import ConPanqueque.V.EApp2
 import ConPanqueque.T.Intern
 import ConPanqueque.T.MemoModel
