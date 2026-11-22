@@ -9,4 +9,5 @@ import ConPanqueque.Hash
 import ConPanqueque.DataWord
 import ConPanqueque.AppData
 import ConPanqueque.LevelCons
+import ConPanqueque.ExprCons
 import ConPanqueque.Examples.ListLength

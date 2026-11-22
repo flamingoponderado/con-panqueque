@@ -73,9 +73,9 @@ theorem storeSeq_spec {σ : Type} (pn : MlS) (p0 : BitVec 64) :
       (∀ j k, j < xs.length → k < xs.length → j ≠ k → at8 p0 (i + j) ≠ at8 p0 (i + k)) →
       ∃ t', evaluateHOLFiniteState t (storeSeq pn xs i) = (none, t') ∧
         t'.locals = t.locals ∧ t'.memaddrs = t.memaddrs ∧ t'.topAddr = t.topAddr ∧
-        InMem t' (extSeq h p0 vs i) ∧ Sub h (extSeq h p0 vs i)
+        t'.globals = t.globals ∧ InMem t' (extSeq h p0 vs i) ∧ Sub h (extSeq h p0 vs i)
   | [], [], i, t, h, _, _, _, hm, _, _ => ⟨t, by simp [storeSeq, evaluateHOLFiniteState_eq_evaluate_def],
-      rfl, rfl, rfl, by simpa [extSeq] using hm, fun _ _ h => h⟩
+      rfl, rfl, rfl, rfl, by simpa [extSeq] using hm, fun _ _ h => h⟩
   | x :: xs, v :: vs, i, t, h, hlen, hp, hx, hm, hfresh, hdist => by
     have hx0 := hx 0 (by simp)
     obtain ⟨hd0, hn0⟩ := hfresh 0 (by simp)
@@ -86,7 +86,7 @@ theorem storeSeq_spec {σ : Type} (pn : MlS) (p0 : BitVec 64) :
       store_word t _ _ (at8 p0 i) v (by simp [evalHOLExact, evalListHOLExact, hp, at8, wordOpHOL, wordOp,
         valueIsWord, valueWord]) (by simp [evalHOLExact, hx0]) hd0
     have hm1 : InMem t1 (ext h (at8 p0 i) (.word v)) := inMem_store _ hm hn0 hd0
-    obtain ⟨t', ev, hl, hd, ht, hm', hs'⟩ := storeSeq_spec pn p0 xs vs (i + 1) t1 (ext h (at8 p0 i) (.word v))
+    obtain ⟨t', ev, hl, hd, ht, hg, hm', hs'⟩ := storeSeq_spec pn p0 xs vs (i + 1) t1 (ext h (at8 p0 i) (.word v))
       (by simpa using hlen) (by simpa [t1] using hp)
       (fun j hj => by
         have := hx (j + 1) (by simp; omega)
@@ -105,7 +105,8 @@ theorem storeSeq_spec {σ : Type} (pn : MlS) (p0 : BitVec 64) :
       (fun j k hj hk hjk => by
         have := hdist (j + 1) (k + 1) (by simp; omega) (by simp; omega) (by omega)
         simpa [Nat.add_assoc, Nat.add_comm 1] using this)
-    refine ⟨t', ?_, by simpa [t1] using hl, by simpa [t1] using hd, by simpa [t1] using ht, by simpa [extSeq] using hm',
+    refine ⟨t', ?_, by simpa [t1] using hl, by simpa [t1] using hd, by simpa [t1] using ht,
+      by simpa [t1] using hg, by simpa [extSeq] using hm',
       fun a w ha => hs' a w (sub_ext _ hn0 a w ha)⟩
     simp only [storeSeq]
     rw [seq_normal _ e1, ev]
