@@ -14,6 +14,8 @@ import ConPanqueque.ExprCons
 import ConPanqueque.BinCons
 import ConPanqueque.Tail
 import ConPanqueque.Node
+import ConPanqueque.StateHeap
+import ConPanqueque.Rebuild
 import ConPanqueque.LevelFns
 import ConPanqueque.LevelFold
 import ConPanqueque.Table

@@ -32,6 +32,7 @@ structure NodeOk {σ : Type} (t st : PanSemStateFiniteExact 64 σ) (h h' : Heap)
   code : st.code = t.code
   clock : st.clock = t.clock
   memaddrs : st.memaddrs = t.memaddrs
+  topAddr : st.topAddr = t.topAddr
   globals : ∀ g, g ≠ nHp → st.globals.lookup g = t.globals.lookup g
   memory : ∀ c, (∀ j, j < n → c ≠ at8 p0 j) → st.memory c = t.memory c
 
@@ -73,7 +74,7 @@ theorem mkNode_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (h : Heap) (p
     intro x hx'
     simp only [t2, t1]
     rw [lookup_setVar_other _ _ (by rintro rfl; exact hnT hx'), lookup_setVar_other _ _ (by rintro rfl; exact hnD hx')]
-  obtain ⟨h', r1, ⟨a1, a2, a3⟩, sub, cells, hp, cd, ck, ma, gl, mm⟩ :=
+  obtain ⟨h', r1, ⟨a1, a2, a3⟩, sub, cells, hp, cd, ck, ma, ta, gl, mm⟩ :=
     tailN_spec t2 h p0 (nTg :: nD :: fs) (tag :: dv :: ws) (by simp [hlen])
       (by simp only [List.mem_cons, not_or]; exact ⟨by decide, by decide, hnP⟩) (by simpa using hsmall)
       (fun j hj => by
@@ -92,6 +93,6 @@ theorem mkNode_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (h : Heap) (p
   obtain ⟨L1, e1⟩ := dec_word' t nD dexp dv (.dec nTg .one (.const tag) (tailN (nTg :: nD :: fs))) hd
   rw [e1, e2]
   refine ⟨h', r1, ⟨⟨inMem_of_eq rfl rfl a1, a2, a3⟩, sub, fun j hj => cells j (by simp [hlen] at hj ⊢; omega),
-    hp, cd, ck, ma, fun g hg' => gl g hg', fun c hc => mm c (by simpa using hc)⟩⟩
+    hp, cd, ck, ma, ta, fun g hg' => gl g hg', fun c hc => mm c (by simpa using hc)⟩⟩
 
 end ConPanqueque.Node
