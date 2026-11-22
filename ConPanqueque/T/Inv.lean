@@ -533,4 +533,77 @@ theorem specR_derivedEI {β : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} 
   show (do let r ← ConRon.Arena.derivedE h s; match r with | (a, s) => k a s) = _
   rw [derivedE_run]; exact hk'
 
+/-- `specR_call2I` whose callee spec may use the caller's known memory words. -/
+theorem specR_call2IM {α β : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64}
+    {m : AM α} {k : α → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    (x f p1 p2 : MlS) (hne : p1 ≠ p2) (e1 e2 : ExpHOL 64) (B : ProgHOL 64) (v1 v2 : BitVec 64)
+    (hx : x ∈ D) (hC : C.code.lookup f = some ([(p1, .one), (p2, .one)], B, .one))
+    (he1 : sev Γ e1 = some v1) (he2 : sev Γ e2 = some v2)
+    (Rf : α → BitVec 64 → AState → PState σ → Prop) (hRf : ∀ a w s' st, Rf a w s' st → SR C s' st)
+    (hB : ∀ u : PState σ, SR C s u → (∀ a v, (a, v) ∈ M → u.memaddrs a ∧ u.memory a = .word v) →
+      u.locals.lookup p1 = some (.val (.word v1)) →
+      u.locals.lookup p2 = some (.val (.word v2)) → SpecR (· = u) B s m Rf)
+    (hk : ∀ a w s' (st : PState σ), Rf a w s' st → SpecR (Inv C s' ((x, w) :: Γ) [] D) rest s' (k a) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, x), none)) f [e1, e2]) rest) s (m >>= k) R := by
+  intro t ht
+  have hc := spec_call2 (P := (· = t)) (s := s) (m := m)
+    (Q := fun a s' t' => ∃ w st, Rf a w s' st ∧ Inv C s' ((x, w) :: Γ) [] D t')
+    x f p1 p2 hne e1 e2 B (fun _ => v1) (fun _ => v2) (fun u hu => by rw [hu, ht.sr.code]; exact hC)
+    (fun u hu => by rw [hu]; exact inv_ev ht he1) (fun u hu => by rw [hu]; exact inv_ev ht he2)
+    (fun u hu => by rw [hu]; exact ht.decl x hx) (fun _ => Rf)
+    (fun u hu callee h1 h2 => by
+      subst hu; exact hB _ (sr_of_eq ht.sr rfl rfl rfl rfl) (fun a v ha => ht.mem a v ha) h1 h2)
+    (fun u hu a w s' st hr => by
+      subst hu
+      refine ⟨w, st, hr, ⟨sr_of_eq (hRf a w s' st hr) rfl rfl rfl rfl, fun y v hy => ?_, fun _ _ h => absurd h (by simp),
+        fun y hy => ?_⟩⟩
+      · simp only [setKvarHOLFinite, Env.get] at hy ⊢
+        split at hy
+        · rename_i e; subst e; simp at hy; subst hy; exact lookup_setVar_same _ _ _
+        · rename_i e; rw [lookup_setVar_other _ _ e]; exact ht.env y v hy
+      · simp only [setKvarHOLFinite]
+        by_cases e : y = x
+        · subst e; exact ⟨w, lookup_setVar_same _ _ _⟩
+        · rw [lookup_setVar_other _ _ e]; exact ht.decl y hy)
+  exact specR_bind (Q1 := fun a s' t' => ∃ w st, Rf a w s' st ∧ Inv C s' ((x, w) :: Γ) [] D t') hc
+    (fun a s' u ⟨w, st, hr, hu⟩ => hk a w s' st hr u hu) t rfl
+
+/-- Three parameters, the callee spec seeing the caller's known memory words. -/
+theorem specR_call3IM {α β : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64}
+    {m : AM α} {k : α → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    (x f p1 p2 p3 : MlS) (h12 : p1 ≠ p2) (h13 : p1 ≠ p3) (h23 : p2 ≠ p3) (e1 e2 e3 : ExpHOL 64) (B : ProgHOL 64)
+    (v1 v2 v3 : BitVec 64)
+    (hx : x ∈ D) (hC : C.code.lookup f = some ([(p1, .one), (p2, .one), (p3, .one)], B, .one))
+    (he1 : sev Γ e1 = some v1) (he2 : sev Γ e2 = some v2) (he3 : sev Γ e3 = some v3)
+    (Rf : α → BitVec 64 → AState → PState σ → Prop) (hRf : ∀ a w s' st, Rf a w s' st → SR C s' st)
+    (hB : ∀ u : PState σ, SR C s u → (∀ a v, (a, v) ∈ M → u.memaddrs a ∧ u.memory a = .word v) →
+      u.locals.lookup p1 = some (.val (.word v1)) → u.locals.lookup p2 = some (.val (.word v2)) →
+      u.locals.lookup p3 = some (.val (.word v3)) → SpecR (· = u) B s m Rf)
+    (hk : ∀ a w s' (st : PState σ), Rf a w s' st → SpecR (Inv C s' ((x, w) :: Γ) [] D) rest s' (k a) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, x), none)) f [e1, e2, e3]) rest) s (m >>= k) R := by
+  intro t ht
+  have hc := spec_call3 (P := (· = t)) (s := s) (m := m)
+    (Q := fun a s' t' => ∃ w st, Rf a w s' st ∧ Inv C s' ((x, w) :: Γ) [] D t')
+    x f p1 p2 p3 h12 h13 h23 e1 e2 e3 B (fun _ => v1) (fun _ => v2) (fun _ => v3)
+    (fun u hu => by rw [hu, ht.sr.code]; exact hC)
+    (fun u hu => by rw [hu]; exact inv_ev ht he1) (fun u hu => by rw [hu]; exact inv_ev ht he2)
+    (fun u hu => by rw [hu]; exact inv_ev ht he3)
+    (fun u hu => by rw [hu]; exact ht.decl x hx) (fun _ => Rf)
+    (fun u hu callee h1 h2 h3 => by
+      subst hu; exact hB _ (sr_of_eq ht.sr rfl rfl rfl rfl) (fun a v ha => ht.mem a v ha) h1 h2 h3)
+    (fun u hu a w s' st hr => by
+      subst hu
+      refine ⟨w, st, hr, ⟨sr_of_eq (hRf a w s' st hr) rfl rfl rfl rfl, fun y v hy => ?_, fun _ _ h => absurd h (by simp),
+        fun y hy => ?_⟩⟩
+      · simp only [setKvarHOLFinite, Env.get] at hy ⊢
+        split at hy
+        · rename_i e; subst e; simp at hy; subst hy; exact lookup_setVar_same _ _ _
+        · rename_i e; rw [lookup_setVar_other _ _ e]; exact ht.env y v hy
+      · simp only [setKvarHOLFinite]
+        by_cases e : y = x
+        · subst e; exact ⟨w, lookup_setVar_same _ _ _⟩
+        · rw [lookup_setVar_other _ _ e]; exact ht.decl y hy)
+  exact specR_bind (Q1 := fun a s' t' => ∃ w st, Rf a w s' st ∧ Inv C s' ((x, w) :: Γ) [] D t') hc
+    (fun a s' u ⟨w, st, hr, hu⟩ => hk a w s' st hr u hu) t rfl
+
 end ConPanqueque.T

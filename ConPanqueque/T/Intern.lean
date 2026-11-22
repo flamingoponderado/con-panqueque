@@ -229,4 +229,26 @@ theorem specR_storeKBI {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : 
   obtain ⟨rfl, rfl⟩ := ha
   exact ⟨hdom, by simp⟩
 
+/-- `KB[0] := e₀; KB[1] := e₁; rest`: both words become known memory. -/
+theorem specR_storeKB2I {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env} {M : Mem} {D : List MlS}
+    {rest : ProgHOL 64} {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop}
+    (e0 e1 : ExpHOL 64) (w0 w1 : BitVec 64) (he0 : sev Γ e0 = some w0) (he1 : sev Γ e1 = some w1)
+    (hkb : Γ.get lKb = some C.KB)
+    (h : SpecR (Inv C s Γ [(C.KB + BitVec.ofNat 64 (8 * 0), w0), (C.KB + BitVec.ofNat 64 (8 * 1), w1)] D) rest s m R) :
+    SpecR (Inv C s Γ M D) (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 0))]) e0)
+      (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 1))]) e1) rest)) s m R := by
+  refine specR_storeKBI hok 0 (by decide) e0 w0 he0 hkb ?_
+  refine specR_seq (fun t ht => ?_) h
+  have hdom : t.memaddrs (C.KB + BitVec.ofNat 64 (8 * 1)) := ht.sr.kbuf 1 (by decide)
+  rw [store_word t _ e1 _ w1 (eval_add2 t _ _ _ _ (eval_vv t lKb _ (ht.env _ _ hkb)) (eval_const t _))
+    (inv_ev ht he1) hdom]
+  have hne : C.KB + BitVec.ofNat 64 (8 * 0) ≠ C.KB + BitVec.ofNat 64 (8 * 1) := by
+    simpa using kb_ne_kb8 C.KB
+  refine Or.inr ⟨rfl, sr_storeKB hok ht.sr 1 (by decide) w1, fun y v hy => ht.env y v hy, fun a v ha => ?_, ht.decl⟩
+  simp only [List.mem_cons, List.not_mem_nil, or_false, Prod.mk.injEq] at ha
+  rcases ha with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
+  · obtain ⟨h1, h2⟩ := ht.mem _ _ (List.mem_singleton_self _)
+    exact ⟨h1, by simp only; rw [if_neg hne]; exact h2⟩
+  · exact ⟨hdom, by simp⟩
+
 end ConPanqueque.T
