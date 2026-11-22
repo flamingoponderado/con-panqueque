@@ -315,12 +315,13 @@ theorem idx_lt_of_find {α : Type} [BEq α] [LawfulBEq α] [Hashable α] [Decida
     rw [e] at this; simp at this; subst this
     exact (List.findIdx?_eq_some_iff_getElem.mp e).1
 
-theorem der_map_setDer (tb : Tbl (EIdx × Nat) Nat EIdx) (ders : List (BitVec 64 × BitVec 64))
-    (hd : tb.der.toList.map dWE = ders) (i : Nat) (hi : i < ders.length) (v : EIdx) :
-    (Tbl.setDer tb i v).der.toList.map dWE = ders.set i (Enc.idxW v, (ders[i]'hi).2) := by
+theorem der_map_setDer {K V : Type} [BEq K] [LawfulBEq K] [Hashable K] [DecidableEq K] [Inhabited V]
+    {valW : V → BitVec 64} (tb : Tbl K Nat V) (ders : List (BitVec 64 × BitVec 64))
+    (hd : tb.der.toList.map (dWG valW) = ders) (i : Nat) (hi : i < ders.length) (v : V) :
+    (Tbl.setDer tb i v).der.toList.map (dWG valW) = ders.set i (valW v, (ders[i]'hi).2) := by
   subst hd
   simp only [Tbl.setDer, Array.set!, Array.toList_setIfInBounds, List.map_set]
-  simp [dWE]
+  simp [dWG]
 
 theorem memoSet_spec (G KB : BitVec 64) (g : VGeo) (m : Std.HashMap (EIdx × Nat) EIdx) (k : EIdx × Nat) (v : EIdx)
     (s : AState) (u : PState σ)
