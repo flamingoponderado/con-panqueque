@@ -181,12 +181,14 @@ def MemDet {σ : Type} (J : PanSemStateFiniteExact 64 σ → Prop) : Prop :=
     J t → J t'
 
 theorem callKidsJ_spec {σ : Type} (fn : MlS) (B : ProgHOL 64) (h : Heap) (p : BitVec 64)
-    (J : PanSemStateFiniteExact 64 σ → Prop) (hJ : ∀ t, J t → InMem t h) (hJd : MemDet J) :
+    (J : PanSemStateFiniteExact 64 σ → Prop) (hJ : ∀ t, J t → InMem t h) (hJd : MemDet J)
+    (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
+    (hC : C.lookup fn = some ([(nU, .one)], B, .one)) :
     ∀ (ks : List Kid) (pre : List (MlS × UInt64)) (rest : ProgHOL 64) (W : UInt64) (cr : Nat)
       (t : PanSemStateFiniteExact 64 σ),
       (ks.map Kid.x).Nodup → nU ∉ ks.map Kid.x → (∀ y ∈ pre, y.1 ∉ ks.map Kid.x) →
       (∀ k ∈ ks, h (p + k.off) = some (.word k.q) ∧
-        ∀ t' : PanSemStateFiniteExact 64 σ, t'.code.lookup fn = some ([(nU, .one)], B, .one) → J t' →
+        ∀ t' : PanSemStateFiniteExact 64 σ, t'.code = C → J t' →
           t'.locals.lookup nU = some (.val (.word k.q)) → k.c ≤ t'.clock →
           ∃ st, evaluateHOLFiniteState t' B = (some (.returned (.val (.word k.r.toBitVec))), st) ∧ PostJ J t' st k.c) →
       (∀ t' : PanSemStateFiniteExact 64 σ, t'.code = t.code → t'.memaddrs = t.memaddrs → J t' →
@@ -194,7 +196,7 @@ theorem callKidsJ_spec {σ : Type} (fn : MlS) (B : ProgHOL 64) (h : Heap) (p : B
         (∀ y ∈ pre, t'.locals.lookup y.1 = some (.val (.word y.2.toBitVec))) →
         (∀ k ∈ ks, t'.locals.lookup k.x = some (.val (.word k.r.toBitVec))) → cr ≤ t'.clock →
         ∃ st, evaluateHOLFiniteState t' rest = (some (.returned (.val (.word W.toBitVec))), st) ∧ PostJ J t' st cr) →
-      t.code.lookup fn = some ([(nU, .one)], B, .one) → J t →
+      t.code = C → J t →
       t.locals.lookup nU = some (.val (.word p)) →
       (∀ y ∈ pre, t.locals.lookup y.1 = some (.val (.word y.2.toBitVec))) → kidsCost ks + cr ≤ t.clock →
       ∃ st, evaluateHOLFiniteState t (callKids fn (ks.map fun k => (k.x, k.off)) rest) =
@@ -216,7 +218,7 @@ theorem callKidsJ_spec {σ : Type} (fn : MlS) (B : ProgHOL 64) (h : Heap) (p : B
     obtain ⟨st, ⟨pc, pd, pj, pclk⟩, hcall⟩ := call1 t1 fn nU k.x B (.load .one (.op .add [vU, .const k.off])) k.q
       k.r.toBitVec
       (fun st => st.code = t.code ∧ st.memaddrs = t.memaddrs ∧ J st ∧ t.clock - 1 ≤ st.clock + k.c)
-      (by simpa [t1, setVarHOLFinite] using hc)
+      (by simp [t1, setVarHOLFinite, hc, hC])
       (by rw [eval_load_word t1 _ (p + k.off) (by simp [evalHOLExact, evalListHOLExact, vU, lu1, wordOpHOL, wordOp,
         valueIsWord, valueWord]) (by simpa [t1, setVarHOLFinite] using dq)]
           simp only [t1, setVarHOLFinite]; rw [mq])
@@ -224,7 +226,7 @@ theorem callKidsJ_spec {σ : Type} (fn : MlS) (B : ProgHOL 64) (h : Heap) (p : B
       ⟨0, by simp [t1]⟩
       (fun callee hcl => by
         obtain ⟨st, ev, a1, a2, a3, a4⟩ := hkspec (callEntryStateHOLFinite t1 callee)
-          (by simpa [callEntryStateHOLFinite, t1, setVarHOLFinite] using hc)
+          (by simp [callEntryStateHOLFinite, t1, setVarHOLFinite, hc])
           (hJd t _ (by simp [callEntryStateHOLFinite, t1, setVarHOLFinite]) (by simp [callEntryStateHOLFinite, t1,
             setVarHOLFinite]) (by simp [callEntryStateHOLFinite, t1, setVarHOLFinite]) hj)
           (by simpa [callEntryStateHOLFinite] using hcl)
@@ -241,7 +243,7 @@ theorem callKidsJ_spec {σ : Type} (fn : MlS) (B : ProgHOL 64) (h : Heap) (p : B
     have l2 : ∀ y, y ≠ k.x → t2.locals.lookup y = t.locals.lookup y := by
       intro y hy; simp only [t2, setKvarHOLFinite]; rw [lookup_setVar_other _ _ hy]
       simp only [t1]; rw [lookup_setVar_other _ _ hy]
-    obtain ⟨st2, ev2, post2⟩ := callKidsJ_spec fn B h p J hJ hJd ks ((k.x, k.r) :: pre) rest W cr t2 hnd.2 hnu.2
+    obtain ⟨st2, ev2, post2⟩ := callKidsJ_spec fn B h p J hJ hJd C hC ks ((k.x, k.r) :: pre) rest W cr t2 hnd.2 hnu.2
       (fun y hy => by
         simp only [List.mem_cons] at hy
         rcases hy with rfl | hy
@@ -255,7 +257,7 @@ theorem callKidsJ_spec {σ : Type} (fn : MlS) (B : ProgHOL 64) (h : Heap) (p : B
           rcases hk'' with rfl | hk''
           · exact pre' (k''.x, k''.r) (List.mem_cons_self ..)
           · exact kids' k'' hk'') clk')
-      (by simpa [t2c] using hc) t2j
+      (by rw [t2c, hc]) t2j
       (by rw [l2 _ (Ne.symm hxu)]; exact hu)
       (fun y hy => by
         simp only [List.mem_cons] at hy

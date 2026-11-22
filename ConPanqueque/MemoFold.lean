@@ -102,11 +102,12 @@ def memoCost (n craw : Nat) : Nat := (n + 1) + 1 + craw + (n + 1)
 theorem memo_node {σ : Type} (fm fr : MlS) (Braw : ProgHOL 64) (h : Heap) (f : ConLeche.Expr → UInt64)
     (tb : BitVec 64) (n : Nat) (hn : 16 * n < 2 ^ 64) (p : BitVec 64) (e : ConLeche.Expr) (he : ExprAt h p e)
     (craw : Nat)
-    (hraw : ∀ t : PanSemStateFiniteExact 64 σ, t.code.lookup fr = some ([(nU, .one)], Braw, .one) →
+    (s : PanSemStateFiniteExact 64 σ)
+    (hraw : ∀ t : PanSemStateFiniteExact 64 σ, t.code = s.code →
       MemoInv h f tb n t → t.locals.lookup nU = some (.val (.word p)) → craw ≤ t.clock →
       ∃ st, evaluateHOLFiniteState t Braw = (some (.returned (.val (.word (f e).toBitVec))), st) ∧
         PostJ (MemoInv h f tb n) t st craw)
-    (s : PanSemStateFiniteExact 64 σ) (hcr : s.code.lookup fr = some ([(nU, .one)], Braw, .one))
+    (hcr : s.code.lookup fr = some ([(nU, .one)], Braw, .one))
     (hj : MemoInv h f tb n s) (hu : s.locals.lookup nU = some (.val (.word p)))
     (hck : memoCost n craw ≤ s.clock) :
     ∃ st, evaluateHOLFiniteState s (memoBody fr) = (some (.returned (.val (.word (f e).toBitVec))), st) ∧
@@ -180,7 +181,7 @@ theorem memo_node {σ : Type} (fm fr : MlS) (Braw : ProgHOL 64) (h : Heap) (f : 
       (by rw [c8]; exact hcr) (by simp [evalHOLExact, lU8]) (by rw [ck8]; omega) ⟨0, by simp [s8]⟩
       (fun callee hcl => by
         obtain ⟨st, ev, a1, a2, a3, a4⟩ := hraw (callEntryStateHOLFinite s8 callee)
-          (by simpa [callEntryStateHOLFinite, c8] using hcr)
+          (by simp [callEntryStateHOLFinite, c8])
           (hjd s7 _ (by simp [callEntryStateHOLFinite, s8, setVarHOLFinite]) (by simp [callEntryStateHOLFinite, s8,
             setVarHOLFinite]) (by simp [callEntryStateHOLFinite, s8, setVarHOLFinite]) jd7)
           (by simpa [callEntryStateHOLFinite] using hcl)

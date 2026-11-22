@@ -217,17 +217,19 @@ theorem size_pancake {σ : Type} (fn : MlS) (h : Heap) {p : BitVec 64} {e : ConL
 whose body is `Bm` (e.g. a memoized version). -/
 theorem fold_caseJ {σ : Type} (fn : MlS) (Bm : ProgHOL 64) (g : Fin 10 → ExpHOL 64) (h : Heap) (p c : BitVec 64)
     (J : PanSemStateFiniteExact 64 σ → Prop) (hJ : ∀ t, J t → InMem t h) (hJd : MemDet J)
+    (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
+    (hC : C.lookup fn = some ([(nU, .one)], Bm, .one))
     (ks : List Kid) (gc : ExpHOL 64) (W : UInt64)
     (hpick : pick c (cases fn g) (.return (.const 0)) = callKids fn (ks.map fun k => (k.x, k.off)) (.return gc))
     (hnd : (ks.map Kid.x).Nodup) (hnu : nU ∉ ks.map Kid.x) (htg : nTg ∉ ks.map Kid.x)
     (hkids : ∀ k ∈ ks, h (p + k.off) = some (.word k.q) ∧
-        ∀ t' : PanSemStateFiniteExact 64 σ, t'.code.lookup fn = some ([(nU, .one)], Bm, .one) → J t' →
+        ∀ t' : PanSemStateFiniteExact 64 σ, t'.code = C → J t' →
           t'.locals.lookup nU = some (.val (.word k.q)) → k.c ≤ t'.clock →
           ∃ st, evaluateHOLFiniteState t' Bm = (some (.returned (.val (.word k.r.toBitVec))), st) ∧ PostJ J t' st k.c)
     (hg : ∀ t' : PanSemStateFiniteExact 64 σ, (∀ k ∈ ks, t'.locals.lookup k.x = some (.val (.word k.r.toBitVec))) →
       @evalHOLExact 64 σ _ t'.toExact (fun x => Classical.propDecidable (t'.memaddrs x)) gc =
         some (.val (.word W.toBitVec)))
-    (s : PanSemStateFiniteExact 64 σ) (hc : s.code.lookup fn = some ([(nU, .one)], Bm, .one))
+    (s : PanSemStateFiniteExact 64 σ) (hc : s.code = C)
     (hj : J s) (hu : s.locals.lookup nU = some (.val (.word p))) (h0 : h p = some (.word c))
     (hck : kidsCost ks ≤ s.clock) :
     ∃ st, evaluateHOLFiniteState s (body fn g) = (some (.returned (.val (.word W.toBitVec))), st) ∧
@@ -240,7 +242,7 @@ theorem fold_caseJ {σ : Type} (fn : MlS) (Bm : ProgHOL 64) (g : Fin 10 → ExpH
   have hun : nU ≠ nTg := by decide
   have lu : s1.locals.lookup nU = some (.val (.word p)) := by
     simp only [s1]; rw [lookup_setVar_other _ _ hun]; exact hu
-  obtain ⟨st, ev, post⟩ := callKidsJ_spec fn Bm h p J hJ hJd ks [] (.return gc) W 0 s1 hnd hnu (by simp) hkids
+  obtain ⟨st, ev, post⟩ := callKidsJ_spec fn Bm h p J hJ hJd C hC ks [] (.return gc) W 0 s1 hnd hnu (by simp) hkids
     (fun t' _ _ j' _ _ hk _ => by
       refine ⟨emptyLocalsHOLFinite t', ?_, ?_⟩
       · rw [evaluateHOLFiniteState_eq_evaluate_def]; simp only; rw [hg t' hk]
@@ -249,7 +251,7 @@ theorem fold_caseJ {σ : Type} (fn : MlS) (Bm : ProgHOL 64) (g : Fin 10 → ExpH
       · exact ⟨by simp [emptyLocalsHOLFinite], by simp [emptyLocalsHOLFinite],
           hJd t' _ (by simp [emptyLocalsHOLFinite]) (by simp [emptyLocalsHOLFinite]) (by simp [emptyLocalsHOLFinite]) j',
           by simp [emptyLocalsHOLFinite]⟩)
-    (by simpa [s1, setVarHOLFinite] using hc)
+    (by simp [s1, setVarHOLFinite, hc])
     (hJd s _ (by simp [s1, setVarHOLFinite]) (by simp [s1, setVarHOLFinite]) (by simp [s1, setVarHOLFinite]) hj)
     lu (by simp) (by simp [s1, setVarHOLFinite]; omega)
   unfold body
