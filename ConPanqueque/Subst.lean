@@ -362,6 +362,7 @@ def bdepth : ConLeche.Expr → Nat
   | .lam t b | .forallE t b => max (bdepth t) (bdepth b + 1)
   | .letE t v b => max (max (bdepth t) (bdepth v)) (bdepth b + 1)
   | .proj _ _ e => bdepth e
+  | .fvar _ ty => bdepth ty
   | _ => 0
 
 /-- An extra invariant over the globals and the arena that survives arena growth. -/
