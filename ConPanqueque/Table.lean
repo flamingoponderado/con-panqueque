@@ -185,6 +185,30 @@ theorem scanBody_step {σ : Type} (u : PanSemStateFiniteExact 64 σ) (t k : BitV
       apply BitVec.eq_of_toNat_eq; simp; omega
     · simp [isValidValueHOLFinite, lookupKvarHOLFinite, lj, shapeOfHOLExact, shapeEqHOL]
 
+/-- `u` agrees with `s` on code, globals and every local outside `xs`. -/
+def Frame {σ : Type} (s u : PanSemStateFiniteExact 64 σ) (xs : List MlS) : Prop :=
+  u.code = s.code ∧ u.globals = s.globals ∧ ∀ x, x ∉ xs → u.locals.lookup x = s.locals.lookup x
+
+theorem frame_refl {σ : Type} (s : PanSemStateFiniteExact 64 σ) (xs : List MlS) : Frame s s xs :=
+  ⟨rfl, rfl, fun _ _ => rfl⟩
+
+theorem frame_set {σ : Type} {s u : PanSemStateFiniteExact 64 σ} {xs : List MlS} {x : MlS} (v : ValueHOL 64)
+    (hf : Frame s u xs) (hx : x ∈ xs) : Frame s (setKvarHOLFinite .local x v u) xs := by
+  obtain ⟨a, b, c⟩ := hf
+  refine ⟨by simp [setKvarHOLFinite, setVarHOLFinite, a], by simp [setKvarHOLFinite, setVarHOLFinite, b], fun y hy => ?_⟩
+  have : y ≠ x := fun e => hy (e ▸ hx)
+  simp only [setKvarHOLFinite]; rw [lookup_setVar_other _ _ this]; exact c y hy
+
+theorem frame_dec {σ : Type} {s u : PanSemStateFiniteExact 64 σ} {xs : List MlS}
+    (hf : Frame s u xs) : Frame s (decClockHOLFinite u) xs := by
+  obtain ⟨a, b, c⟩ := hf
+  exact ⟨by simp [decClockHOLFinite, a], by simp [decClockHOLFinite, b], fun y hy => by simpa [decClockHOLFinite] using c y hy⟩
+
+theorem frame_mem {σ : Type} {s u : PanSemStateFiniteExact 64 σ} {xs : List MlS} (m : BitVec 64 → HolWordLab 64)
+    (hf : Frame s u xs) : Frame s { u with memory := m } xs := by
+  obtain ⟨a, b, c⟩ := hf
+  exact ⟨a, b, c⟩
+
 /-- A local's word value (`0` if absent). -/
 def wv {σ : Type} (u : PanSemStateFiniteExact 64 σ) (n : MlS) : BitVec 64 :=
   match u.locals.lookup n with
@@ -207,11 +231,11 @@ theorem scanLoop_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) (t k : BitV
     (hclk : slots.length + 1 ≤ s.clock) :
     ∃ s', evaluateHOLFiniteState s scanLoop = (none, s') ∧
       s'.locals.lookup nR = some (.val (.word ((find? slots k).getD 0))) ∧ s'.memory = s.memory ∧
-      ∃ i, i ≤ slots.length ∧ s'.locals.lookup nJ = some (.val (.word (BitVec.ofNat 64 (16 * i)))) ∧
+      Frame s s' [nJ, nR, nG] ∧ ∃ i, i ≤ slots.length ∧ s'.locals.lookup nJ = some (.val (.word (BitVec.ofNat 64 (16 * i)))) ∧
         ((find? slots k).isNone ↔ i = slots.length) ∧ s.clock ≤ s'.clock + (slots.length + 1) := by
   let n := slots.length
   let I : PanSemStateFiniteExact 64 σ → Prop := fun u =>
-    u.memory = s.memory ∧ u.memaddrs = s.memaddrs ∧
+    u.memory = s.memory ∧ u.memaddrs = s.memaddrs ∧ Frame s u [nJ, nR, nG] ∧
     u.locals.lookup nT = some (.val (.word t)) ∧ u.locals.lookup nK = some (.val (.word k)) ∧
     u.locals.lookup nL = some (.val (.word (BitVec.ofNat 64 (16 * n)))) ∧
     ∃ i, i ≤ n ∧ u.locals.lookup nJ = some (.val (.word (BitVec.ofNat 64 (16 * i)))) ∧
@@ -222,14 +246,14 @@ theorem scanLoop_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) (t k : BitV
           ((find? slots k).isNone ↔ i = n) ∧ s.clock ≤ u.clock + (i + 1)))
   let Q : PanSemStateFiniteExact 64 σ → Prop := fun u =>
     u.locals.lookup nR = some (.val (.word ((find? slots k).getD 0))) ∧ u.memory = s.memory ∧
-    ∃ i, i ≤ n ∧ u.locals.lookup nJ = some (.val (.word (BitVec.ofNat 64 (16 * i)))) ∧
+    Frame s u [nJ, nR, nG] ∧ ∃ i, i ≤ n ∧ u.locals.lookup nJ = some (.val (.word (BitVec.ofNat 64 (16 * i)))) ∧
       ((find? slots k).isNone ↔ i = n) ∧ s.clock ≤ u.clock + (n + 1)
   let m : PanSemStateFiniteExact 64 σ → Nat := fun u =>
     if wv u nG = 1 then n + 1 - (wv u nJ).toNat / 16 else 0
-  have hI0 : I s := ⟨rfl, rfl, lt, lk, ll, 0, Nat.zero_le _, by simpa using lj,
+  have hI0 : I s := ⟨rfl, rfl, frame_refl s _, lt, lk, ll, 0, Nat.zero_le _, by simpa using lj,
     .inl ⟨lg, lr, fun m _ hm => absurd hm (by omega), by omega, by omega⟩⟩
   refine while_rule (vv nG) scanBody I m Q ?_ s hI0
-  rintro u ⟨hm, hd, ut, uk, ul, i, hi, uj, hcase⟩
+  rintro u ⟨hm, hd, hF, ut, uk, ul, i, hi, uj, hcase⟩
   have hsu : Sat u (TableAt t slots ∗ R) := sat_of_eq hm hd hs
   have wj : (wv u nJ).toNat / 16 = i := by
     simp [wv, uj]; rw [Nat.mod_eq_of_lt (by omega)]; omega
@@ -250,7 +274,8 @@ theorem scanLoop_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) (t k : BitV
       have hres : (find? slots k).getD 0 = 0 := by
         rw [find?_none slots k (fun m hm => hnot m hm (by omega))]; rfl
       refine ⟨_, c1 hin, ⟨by simp [setKvarHOLFinite, setVarHOLFinite, u0, decClockHOLFinite, hm],
-        by simp [setKvarHOLFinite, setVarHOLFinite, u0, decClockHOLFinite, hd], ?_, ?_, ?_, i, hi, ?_,
+        by simp [setKvarHOLFinite, setVarHOLFinite, u0, decClockHOLFinite, hd],
+        frame_set _ (frame_dec hF) (by decide), ?_, ?_, ?_, i, hi, ?_,
         .inr ⟨?_, ?_, by rw [find?_none slots k (fun m hm => hnot m hm (by omega))]; simp [hin],
           by simp [setKvarHOLFinite, setVarHOLFinite, uc]; omega⟩⟩, ?_⟩
       · simp only [setKvarHOLFinite]; rw [lookup_setVar_other _ _ (Ne.symm dG.1)]; simpa [u0, decClockHOLFinite] using ut
@@ -268,7 +293,8 @@ theorem scanLoop_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) (t k : BitV
         have hres : (find? slots k).getD 0 = slots[i].2 := by
           rw [find?_at slots k i hlt (fun m hm => hnot m (by omega) hm) hk]; rfl
         refine ⟨_, c2 hlt hk, ⟨by simp [setKvarHOLFinite, setVarHOLFinite, u0, decClockHOLFinite, hm],
-          by simp [setKvarHOLFinite, setVarHOLFinite, u0, decClockHOLFinite, hd], ?_, ?_, ?_, i, hi, ?_,
+          by simp [setKvarHOLFinite, setVarHOLFinite, u0, decClockHOLFinite, hd],
+          frame_set _ (frame_set _ (frame_dec hF) (by decide)) (by decide), ?_, ?_, ?_, i, hi, ?_,
           .inr ⟨?_, ?_, by rw [find?_at slots k i hlt (fun m hm => hnot m (by omega) hm) hk]; simp; omega,
             by simp [setKvarHOLFinite, setVarHOLFinite, uc]; omega⟩⟩, ?_⟩
         · simp only [setKvarHOLFinite]; rw [lookup_setVar_other _ _ (Ne.symm dG.1), lookup_setVar_other _ _ (Ne.symm dR.1)]
@@ -287,7 +313,8 @@ theorem scanLoop_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) (t k : BitV
           rw [this, mu]; omega
       · -- move to the next slot
         refine ⟨_, c3 hlt hk, ⟨by simp [setKvarHOLFinite, setVarHOLFinite, u0, decClockHOLFinite, hm],
-          by simp [setKvarHOLFinite, setVarHOLFinite, u0, decClockHOLFinite, hd], ?_, ?_, ?_, i + 1, by omega, ?_,
+          by simp [setKvarHOLFinite, setVarHOLFinite, u0, decClockHOLFinite, hd],
+          frame_set _ (frame_dec hF) (by decide), ?_, ?_, ?_, i + 1, by omega, ?_,
           .inl ⟨?_, ?_, ?_, ?_, ?_⟩⟩, ?_⟩
         · simp only [setKvarHOLFinite]; rw [lookup_setVar_other _ _ (Ne.symm dJ.1)]; simpa [u0, decClockHOLFinite] using ut
         · simp only [setKvarHOLFinite]; rw [lookup_setVar_other _ _ (Ne.symm dJ.2.1)]; simpa [u0, decClockHOLFinite] using uk
@@ -311,7 +338,7 @@ theorem scanLoop_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) (t k : BitV
           have : m (setKvarHOLFinite .local nJ (.val (.word (BitVec.ofNat 64 (16 * (i + 1))))) u0) = n + 1 - (i + 1) := by
             simp only [m]; rw [if_pos g1', wj']
           rw [this, mu]; omega
-  · refine ⟨0, by simp [evalHOLFinite, evalHOLExact, vv, ug], fun _ => ⟨ur, hm, i, hi, uj, hiff, by omega⟩,
+  · refine ⟨0, by simp [evalHOLFinite, evalHOLExact, vv, ug], fun _ => ⟨ur, hm, hF, i, hi, uj, hiff, by omega⟩,
       fun h => absurd rfl h⟩
 
 /-! ## Insertion: meaning -/
@@ -435,7 +462,7 @@ theorem insBody_step {σ : Type} (u : PanSemStateFiniteExact 64 σ) (t k v : Bit
       (none, setKvarHOLFinite .local nG (.val (.word 0)) u)) ∧
     (∀ (h : i < slots.length), (slots[i].1 = k ∨ slots[i].1 = 0) →
       ∃ u2 : PanSemStateFiniteExact 64 σ, Sat u2 (TableAt t (slots.set i (k, v)) ∗ R) ∧ u2.locals = u.locals ∧
-        u2.memaddrs = u.memaddrs ∧ u2.clock = u.clock ∧
+        u2.memaddrs = u.memaddrs ∧ u2.clock = u.clock ∧ u2.code = u.code ∧ u2.globals = u.globals ∧
         evaluateHOLFiniteState u insBody =
           (none, setKvarHOLFinite .local nG (.val (.word 0)) (setKvarHOLFinite .local nO (.val (.word 1)) u2))) ∧
     (∀ (h : i < slots.length), slots[i].1 ≠ k → slots[i].1 ≠ 0 → evaluateHOLFiniteState u insBody =
@@ -455,7 +482,7 @@ theorem insBody_step {σ : Type} (u : PanSemStateFiniteExact 64 σ) (t k v : Bit
     let a0 := t + BitVec.ofNat 64 (16 * i)
     let u1 := { u with memory := fun c => if c = a0 then HolWordLab.word k else u.memory c }
     let u2 := { u1 with memory := fun c => if c = a0 + 8 then HolWordLab.word v else u1.memory c }
-    refine ⟨u2, table_write u t k v slots R i h hs, rfl, rfl, rfl, ?_⟩
+    refine ⟨u2, table_write u t k v slots R i h hs, rfl, rfl, rfl, rfl, rfl, ?_⟩
     have cw : OrOp.or (if slots[i].1 = k then (1#64 : BitVec 64) else 0#64)
         (OrOp.or (if slots[i].1 = 0#64 then 1#64 else 0#64) 0#64) ≠ 0 := by
       rcases hk with e | e
@@ -510,13 +537,13 @@ theorem insLoop_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) (t k v : Bit
     (lg : s.locals.lookup nG = some (.val (.word 1)))
     (hclk : slots.length + 1 ≤ s.clock) :
     ∃ s', evaluateHOLFiniteState s insLoop = (none, s') ∧ s'.memaddrs = s.memaddrs ∧
-      s.clock ≤ s'.clock + (slots.length + 1) ∧
+      s.clock ≤ s'.clock + (slots.length + 1) ∧ Frame s s' [nJ, nO, nG] ∧
       ((s'.locals.lookup nO = some (.val (.word 1)) ∧
           ∃ sl', insSlots k v slots = some sl' ∧ Sat s' (TableAt t sl' ∗ R)) ∨
        (s'.locals.lookup nO = some (.val (.word 0)) ∧ insSlots k v slots = none ∧ s'.memory = s.memory)) := by
   let n := slots.length
   let I : PanSemStateFiniteExact 64 σ → Prop := fun u =>
-    u.memaddrs = s.memaddrs ∧
+    u.memaddrs = s.memaddrs ∧ Frame s u [nJ, nO, nG] ∧
     u.locals.lookup nT = some (.val (.word t)) ∧ u.locals.lookup nK = some (.val (.word k)) ∧
     u.locals.lookup nV = some (.val (.word v)) ∧
     u.locals.lookup nL = some (.val (.word (BitVec.ofNat 64 (16 * n)))) ∧
@@ -529,17 +556,17 @@ theorem insLoop_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) (t k v : Bit
        (u.locals.lookup nG = some (.val (.word 0)) ∧ u.locals.lookup nO = some (.val (.word 1)) ∧
           (∃ sl', insSlots k v slots = some sl' ∧ Sat u (TableAt t sl' ∗ R)) ∧ s.clock ≤ u.clock + (i + 1)))
   let Q : PanSemStateFiniteExact 64 σ → Prop := fun u =>
-    u.memaddrs = s.memaddrs ∧ s.clock ≤ u.clock + (n + 1) ∧
+    u.memaddrs = s.memaddrs ∧ s.clock ≤ u.clock + (n + 1) ∧ Frame s u [nJ, nO, nG] ∧
     ((u.locals.lookup nO = some (.val (.word 1)) ∧ ∃ sl', insSlots k v slots = some sl' ∧ Sat u (TableAt t sl' ∗ R)) ∨
      (u.locals.lookup nO = some (.val (.word 0)) ∧ insSlots k v slots = none ∧ u.memory = s.memory))
   let m : PanSemStateFiniteExact 64 σ → Nat := fun u =>
     if wv u nG = 1 then n + 1 - (wv u nJ).toNat / 16 else 0
-  have hI0 : I s := ⟨rfl, lt, lk, lv, ll, 0, Nat.zero_le _, by simpa using lj,
+  have hI0 : I s := ⟨rfl, frame_refl s _, lt, lk, lv, ll, 0, Nat.zero_le _, by simpa using lj,
     .inl ⟨lg, lo, rfl, fun m _ hm => absurd hm (by omega), by omega, by omega⟩⟩
   have key := while_rule (vv nG) insBody I m Q ?_ s hI0
-  · obtain ⟨s', ev, hq1, hq2, hq3⟩ := key
-    exact ⟨s', ev, hq1, hq2, hq3⟩
-  rintro u ⟨hd, ut, uk, uv, ul, i, hi, uj, hcase⟩
+  · obtain ⟨s', ev, hq1, hq2, hq3, hq4⟩ := key
+    exact ⟨s', ev, hq1, hq2, hq3, hq4⟩
+  rintro u ⟨hd, hF, ut, uk, uv, ul, i, hi, uj, hcase⟩
   have wj : (wv u nJ).toNat / 16 = i := by
     simp [wv, uj]; rw [Nat.mod_eq_of_lt (by omega)]; omega
   rcases hcase with ⟨ug, uo, hm, hnot, uclk, ucon⟩ | ⟨ug, uo, hnone, hm, ucon⟩ | ⟨ug, uo, ⟨sl', hsl, hsat⟩, ucon⟩
@@ -558,7 +585,8 @@ theorem insLoop_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) (t k v : Bit
     by_cases hin : i = n
     · -- full
       have hnone : insSlots k v slots = none := insSlots_none k v slots (fun m' hm' => hnot m' hm' (by omega))
-      refine ⟨_, c1 hin, ⟨by simp [setKvarHOLFinite, setVarHOLFinite, u0, decClockHOLFinite, hd], ?_, ?_, ?_, ?_, i, hi,
+      refine ⟨_, c1 hin, ⟨by simp [setKvarHOLFinite, setVarHOLFinite, u0, decClockHOLFinite, hd],
+        frame_set _ (frame_dec hF) (by decide), ?_, ?_, ?_, ?_, i, hi,
         ?_, .inr (.inl ⟨?_, ?_, hnone, by simp [setKvarHOLFinite, setVarHOLFinite, u0, decClockHOLFinite, hm],
           by simp [setKvarHOLFinite, setVarHOLFinite, uc]; omega⟩)⟩, ?_⟩
       · simp only [setKvarHOLFinite]; rw [lookup_setVar_other _ _ (Ne.symm dG.1)]; simpa [u0, decClockHOLFinite] using ut
@@ -573,11 +601,15 @@ theorem insLoop_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) (t k v : Bit
     · have hlt : i < n := by omega
       by_cases hk : slots[i].1 = k ∨ slots[i].1 = 0
       · -- write slot i
-        obtain ⟨u2, hsat2, hl2, hd2, hc2, ev⟩ := c2 hlt hk
+        obtain ⟨u2, hsat2, hl2, hd2, hc2, hcode2, hglob2, ev⟩ := c2 hlt hk
+        have hF2 : Frame s u2 [nJ, nO, nG] := by
+          obtain ⟨a, b, c⟩ := frame_dec hF
+          exact ⟨by rw [hcode2]; exact a, by rw [hglob2]; exact b, fun y hy => by rw [hl2]; exact c y hy⟩
         have hins : insSlots k v slots = some (slots.set i (k, v)) :=
           insSlots_at k v slots i hlt (fun m' hm' hmi => hnot m' hm' hmi) hk
         have lk2 : ∀ x, u2.locals.lookup x = u0.locals.lookup x := by intro x; rw [hl2]
-        refine ⟨_, ev, ⟨by simp [setKvarHOLFinite, setVarHOLFinite, hd2, u0, decClockHOLFinite, hd], ?_, ?_, ?_, ?_, i, hi,
+        refine ⟨_, ev, ⟨by simp [setKvarHOLFinite, setVarHOLFinite, hd2, u0, decClockHOLFinite, hd],
+          frame_set _ (frame_set _ hF2 (by decide)) (by decide), ?_, ?_, ?_, ?_, i, hi,
           ?_, .inr (.inr ⟨?_, ?_, ⟨_, hins, ?_⟩, by simp [setKvarHOLFinite, setVarHOLFinite, hc2, uc]; omega⟩)⟩, ?_⟩
         · simp only [setKvarHOLFinite]
           rw [lookup_setVar_other _ _ (Ne.symm dG.1), lookup_setVar_other _ _ (Ne.symm dO.1), lk2]
@@ -602,7 +634,8 @@ theorem insLoop_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) (t k v : Bit
           rw [this, mu]; omega
       · -- next slot
         simp only [not_or] at hk
-        refine ⟨_, c3 hlt hk.1 hk.2, ⟨by simp [setKvarHOLFinite, setVarHOLFinite, u0, decClockHOLFinite, hd], ?_, ?_, ?_, ?_,
+        refine ⟨_, c3 hlt hk.1 hk.2, ⟨by simp [setKvarHOLFinite, setVarHOLFinite, u0, decClockHOLFinite, hd],
+          frame_set _ (frame_dec hF) (by decide), ?_, ?_, ?_, ?_,
           i + 1, by omega, ?_, .inl ⟨?_, ?_, by simp [setKvarHOLFinite, setVarHOLFinite, u0, decClockHOLFinite, hm], ?_, ?_, ?_⟩⟩, ?_⟩
         · simp only [setKvarHOLFinite]; rw [lookup_setVar_other _ _ (Ne.symm dJ.1)]; simpa [u0, decClockHOLFinite] using ut
         · simp only [setKvarHOLFinite]; rw [lookup_setVar_other _ _ (Ne.symm dJ.2.1)]; simpa [u0, decClockHOLFinite] using uk
@@ -627,9 +660,9 @@ theorem insLoop_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) (t k v : Bit
           have : m (setKvarHOLFinite .local nJ (.val (.word (BitVec.ofNat 64 (16 * (i + 1))))) u0) = n + 1 - (i + 1) := by
             simp only [m]; rw [if_pos g1', wj']
           rw [this, mu]; omega
-  · refine ⟨0, by simp [evalHOLFinite, evalHOLExact, vv, ug], fun _ => ⟨hd, by omega, .inr ⟨uo, hnone, hm⟩⟩,
+  · refine ⟨0, by simp [evalHOLFinite, evalHOLExact, vv, ug], fun _ => ⟨hd, by omega, hF, .inr ⟨uo, hnone, hm⟩⟩,
       fun h => absurd rfl h⟩
-  · refine ⟨0, by simp [evalHOLFinite, evalHOLExact, vv, ug], fun _ => ⟨hd, by omega, .inl ⟨uo, sl', hsl, hsat⟩⟩,
+  · refine ⟨0, by simp [evalHOLFinite, evalHOLExact, vv, ug], fun _ => ⟨hd, by omega, hF, .inl ⟨uo, sl', hsl, hsat⟩⟩,
       fun h => absurd rfl h⟩
 
 theorem insSlots_length (k v : BitVec 64) : ∀ (slots sl' : List (BitVec 64 × BitVec 64)),
