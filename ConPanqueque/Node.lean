@@ -95,4 +95,42 @@ theorem mkNode_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (h : Heap) (p
   refine ⟨h', r1, ⟨⟨inMem_of_eq rfl rfl a1, a2, a3⟩, sub, fun j hj => cells j (by simp [hlen] at hj ⊢; omega),
     hp, cd, ck, ma, ta, fun g hg' => gl g hg', fun c hc => mm c (by simpa using hc)⟩⟩
 
+/-- A raw block `[fs…]` (no tag or data word), guarded like `mkNode`. -/
+def mkCell (fs : List MlS) : ProgHOL 64 :=
+  .seq (guardN (BitVec.ofNat 64 (8 * fs.length))) (tailN fs)
+
+theorem mkCell_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (h : Heap) (p0 : BitVec 64)
+    (fs : List MlS) (ws : List (BitVec 64)) (hlen : fs.length = ws.length)
+    (hnP : nP ∉ fs) (hsmall : 8 * fs.length < 2 ^ 64)
+    (hx : ∀ j (hj : j < fs.length), t.locals.lookup fs[j] = some (.val (.word (ws[j]'(hlen ▸ hj)))))
+    (hhp : t.globals.lookup nHp = some (.val (.word p0))) (hi : ArenaInv t h p0) :
+    Stop (evaluateHOLFiniteState t (mkCell fs)).1 ∨
+      ∃ h', (evaluateHOLFiniteState t (mkCell fs)).1 = some (.returned (.val (.word p0))) ∧
+        NodeOk t (evaluateHOLFiniteState t (mkCell fs)).2 h h' p0 fs.length ws := by
+  let n8 := BitVec.ofNat 64 (8 * fs.length)
+  have hg : @evalHOLExact 64 σ _ t.toExact (fun a => Classical.propDecidable (t.memaddrs a))
+      (.cmp .lower (.op .sub [.topAddr, .var .global nHp]) (.const n8)) =
+      some (.val (.word (if t.topAddr - p0 < n8 then 1 else 0))) := by
+    simp [evalHOLExact, evalListHOLExact, hhp, wordOpHOL, wordOp, valueIsWord, valueWord,
+      Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+  unfold mkCell guardN
+  by_cases hfull : t.topAddr - p0 < n8
+  · left
+    apply seq_stop
+    rw [ite_word t _ _ _ _ hg]; simp only [hfull, ↓reduceIte]
+    split
+    · rw [hang_spec _ t rfl]; exact Or.inl rfl
+    · rename_i hh; exact absurd (by decide) hh
+  right
+  have eg : evaluateHOLFiniteState t (.ite (.cmp .lower (.op .sub [.topAddr, .var .global nHp]) (.const n8)) hang .skip)
+      = (none, t) := by
+    rw [ite_word t _ _ _ _ hg]; simp only [hfull, ↓reduceIte]
+    split
+    · rename_i hh; exact absurd rfl hh
+    · rw [evaluateHOLFiniteState_eq_evaluate_def]
+  rw [seq_normal _ eg]
+  obtain ⟨h', r1, ⟨a1, a2, a3⟩, sub, cells, hp, cd, ck, ma, ta, gl, mm⟩ :=
+    tailN_spec t h p0 fs ws hlen hnP hsmall hx hhp hi hfull
+  exact ⟨h', r1, ⟨⟨a1, a2, a3⟩, sub, fun j hj => cells j (by omega), hp, cd, ck, ma, ta, gl, mm⟩⟩
+
 end ConPanqueque.Node

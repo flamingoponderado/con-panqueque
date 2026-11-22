@@ -133,4 +133,55 @@ theorem mkNode_ainv {σ : Type} (t : PanSemStateFiniteExact 64 σ) (lo hp tag dv
     simp only [hOf, c1, (hj8 j hj).2, and_self, ↓reduceIte]
     exact congrArg some mj
 
+/-- `mkCell` in arena-state form. -/
+theorem mkCell_ainv {σ : Type} (t : PanSemStateFiniteExact 64 σ) (lo hp : BitVec 64)
+    (fs : List MlS) (ws : List (BitVec 64)) (hlen : fs.length = ws.length)
+    (hnP : nP ∉ fs) (hsmall : 8 * fs.length < 2 ^ 64) (hne : fs ≠ [])
+    (hx : ∀ j (hj : j < fs.length), t.locals.lookup fs[j] = some (.val (.word (ws[j]'(hlen ▸ hj)))))
+    (hi : AInv t lo hp) :
+    Stop (evaluateHOLFiniteState t (mkCell fs)).1 ∨
+      let st := (evaluateHOLFiniteState t (mkCell fs)).2
+      let hp' := hp + BitVec.ofNat 64 (8 * fs.length)
+      (evaluateHOLFiniteState t (mkCell fs)).1 = some (.returned (.val (.word hp))) ∧
+        AInv st lo hp' ∧ Grows t st lo hp hp' ∧ hp ≠ 0 ∧
+        (∀ j (hj : j < fs.length), hOf st lo hp' (at8 hp j) = some (.word (ws[j]'(by omega)))) ∧
+        st.code = t.code ∧ st.clock = t.clock ∧ (∀ g, g ≠ nHp → st.globals.lookup g = t.globals.lookup g) ∧
+        st.memaddrs = t.memaddrs ∧ st.topAddr = t.topAddr := by
+  rcases mkCell_spec t (hOf t lo hp) hp fs ws hlen hnP hsmall hx hi.hpv (ainv_arena hi) with
+    hs | ⟨h', hr, ok⟩
+  · exact Or.inl hs
+  right
+  intro st hp'
+  have n8 : (BitVec.ofNat 64 (8 * fs.length)).toNat = 8 * fs.length := by simp; omega
+  -- no wrap-around: the first cell is below the new heap pointer
+  have hfl : fs.length ≠ 0 := by simpa using hne
+  have c0 := ok.cells 0 (by omega)
+  have b0 := ok.arena.2.2 _ _ c0
+  have hnw : hp.toNat + 8 * fs.length < 2 ^ 64 := by
+    simp only [at8] at b0; bv_omega
+  have hle : hp ≤ hp' := by simp only [hp']; bv_omega
+  have hpos : hp ≠ 0 := by have := hi.le; have := hi.pos; bv_omega
+  have hj8 : ∀ j, j < fs.length → hp ≤ at8 hp j ∧ at8 hp j < hp' := by
+    intro j hj; simp only [at8, hp']
+    have : (BitVec.ofNat 64 (8 * j)).toNat = 8 * j := by simp; omega
+    constructor <;> bv_omega
+  refine ⟨hr, ⟨ok.hp, by have := hi.le; bv_omega, hi.pos, ?_, ok.arena.2.1⟩, ⟨hle, ?_⟩, hpos, ?_,
+    ok.code, ok.clock, ok.globals, ok.memaddrs, ok.topAddr⟩
+  · intro a h1 h2
+    rw [ok.memaddrs]
+    by_cases ha : a < hp
+    · exact hi.mem a h1 ha
+    · have := ok.arena.2.1.1
+      rw [ok.topAddr] at this
+      simp only [hp'] at h2
+      exact hi.free.2 a (by bv_omega) (by bv_omega)
+  · intro a h1 h2
+    exact ok.memory a (fun j hj e => by have := (hj8 j hj).1; subst e; bv_omega)
+  · intro j hj
+    have cj := ok.cells j (by omega)
+    have mj := (ok.arena.1 _ _ cj).2
+    have c1 : lo ≤ at8 hp j := by have := hi.le; have := (hj8 j hj).1; bv_omega
+    simp only [hOf, c1, (hj8 j hj).2, and_self, ↓reduceIte]
+    exact congrArg some mj
+
 end ConPanqueque.StateHeap
