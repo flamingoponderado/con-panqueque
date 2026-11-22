@@ -101,6 +101,46 @@ runtime. The pieces:
 
 Until milestone 6 works, development is on `main` directly.
 
+## Status (2026-11-22)
+
+Verified (Lean proofs over Flapjack's Pancake semantics; axioms `propext`,
+`Classical.choice`, `Quot.sound` only):
+
+- program logic, separation logic, arena allocation (`AInv`, `hOf`, `Grows`),
+  guarded node/cell constructors (out of space ⇒ the program stops: `Stop`);
+- node constructors with con-leche's hash-consed data words for every `Expr`
+  and `Level` constructor; translator `pan_exp` with compositional proofs;
+- memo tables and a memoized expression fold;
+- the substitution template (`Subst.lean`) and its six instances, i.e. every
+  substitution the cached checker calls: `instantiate1`, `liftLooseBVars`,
+  `abstract1`, `abstractRange`, `instantiateLevelParams`, `instantiateList`
+  (closed values); `Level.subst` with substitution lists and the level-list
+  functions (`levelsHash`, `levelsHaveParam`, mapping).
+
+Not yet ported: everything else of the cached checker
+(`deps/con-leche/ConLeche/Cached`), about 5,000 lines of monadic Lean:
+`CoreC.lean` (whnf/infer/defeq, iota/projection/eta, Nat-literal reduction,
+≈2,000 lines), the inductive-declaration checks (`IndBlock`, `IndRec`,
+`IndPositivity`, `IndTail`, ≈1,600 lines), the checker state and caches
+(`StateC`), declaration checking (`CheckerC`, `Decls`), and the ndjson reader
+(`ParsedC`, `StreamIndex`); plus a bignum library and memoization of the
+rebuilding functions (DAG sharing).
+
+### Assessment
+
+Porting the remainder by hand at the rate above (roughly one verified
+function per several hundred lines of proof) is a many-month effort. The
+realistic route is the one con-pastel took for CakeML: a translator from
+con-leche's (monadic, first-order) Lean definitions to Pancake that emits each
+function's refinement proof, built on the pieces above (data representation,
+allocation with `Stop`, `step_call`/`pure_step` composition, the template
+proofs). Its prerequisites: a memory representation and refinement predicate
+for every datatype the checker uses (`ConstantInfo`, `Option`/`Except`,
+`List`/`Array`, the cache maps as `Table`s), a translation of the `CheckCM`
+state monad (state in globals/tables, errors as a result word), and the
+generic recursion rules already proved here.
+
+
 ## Lean version
 
 con-leche and Flapjack's `lean-v4.35.0` branch both use Lean v4.35.0
