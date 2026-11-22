@@ -67,6 +67,7 @@ import ConPanqueque.V.EVar
 import ConPanqueque.V.RowRead
 import ConPanqueque.V.View
 import ConPanqueque.V.LView
+import ConPanqueque.V.NView
 import ConPanqueque.T.Spec
 import ConPanqueque.T.Call
 import ConPanqueque.T.Store
