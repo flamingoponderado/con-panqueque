@@ -1,4 +1,4 @@
-import ConPanqueque.Logic.Basic
+import ConPanqueque.Translate.Ev
 open Lean Meta Elab Command Term
 open Flapjack Flapjack.Pancake.PanLang Flapjack.Basis.Pure.MlString
 
@@ -17,73 +17,127 @@ hand-written proofs.
 namespace ConPanqueque.Translate
 
 /-- Compile a Lean `UInt64` term (variables `vars`, each named after its Pancake
-local) to surface syntax for an `ExpHOL 64`. -/
-partial def toPanSyntax (vars : Array (Expr × String)) (e : Expr) : StateT (Array Name) MetaM (TSyntax `term) := do
+local) to surface syntax for an `ExpHOL 64`, together with a proof term of
+`PEv s e t` built from the compositional lemmas of `Translate/Ev.lean` (the local
+`x` is assumed by the hypothesis `h_x`). -/
+partial def toPanPair (vars : Array (Expr × String)) (e : Expr) :
+    StateT (Array Name) MetaM (TSyntax `term × TSyntax `term) := do
   let e ← instantiateMVars e
   for (v, n) in vars do
-    if e == v then return ← `(ExpHOL.var .local (ofString $(quote n)))
+    if e == v then
+      let h := mkIdent (Name.mkSimple ("h_" ++ n))
+      return (← `(ExpHOL.var .local (ofString $(quote n))), ← `(ConPanqueque.Translate.ev_var $h))
+  let bin (op : TSyntax `term) (lem : Name) (a b : Expr) : StateT (Array Name) MetaM (TSyntax `term × TSyntax `term) := do
+    let (a', pa) ← toPanPair vars a
+    let (b', pb) ← toPanPair vars b
+    return (← `(ExpHOL.op $op [$a', $b']), ← `($(mkIdent lem) $pa $pb))
+  let litK (x : Expr) : Option Nat :=
+    match x with
+    | .app (.app (.app (.const ``OfNat.ofNat _) _) (.lit (.natVal k))) _ => some k
+    | _ => none
   match e.getAppFnArgs with
-  | (``OfNat.ofNat, #[_, .lit (.natVal n), _]) => `(ExpHOL.const (BitVec.ofNat 64 $(quote n)))
-  | (``HAdd.hAdd, #[_, _, _, _, a, b]) => do
-      `(ExpHOL.op .add [$(← toPanSyntax vars a), $(← toPanSyntax vars b)])
-  | (``HSub.hSub, #[_, _, _, _, a, b]) => do
-      `(ExpHOL.op .sub [$(← toPanSyntax vars a), $(← toPanSyntax vars b)])
+  | (``OfNat.ofNat, #[_, .lit (.natVal n), _]) =>
+      return (← `(ExpHOL.const (BitVec.ofNat 64 $(quote n))), ← `(ConPanqueque.Translate.ev_lit s $(quote n)))
+  | (``HAdd.hAdd, #[_, _, _, _, a, b]) => bin (← `(.add)) ``ConPanqueque.Translate.ev_add a b
+  | (``HSub.hSub, #[_, _, _, _, a, b]) => bin (← `(.sub)) ``ConPanqueque.Translate.ev_sub a b
+  | (``HXor.hXor, #[_, _, _, _, a, b]) => bin (← `(.xor)) ``ConPanqueque.Translate.ev_xor a b
+  | (``HAnd.hAnd, #[_, _, _, _, a, b]) => bin (← `(.and)) ``ConPanqueque.Translate.ev_and a b
+  | (``HOr.hOr, #[_, _, _, _, a, b]) => bin (← `(.or)) ``ConPanqueque.Translate.ev_or a b
   | (``HMul.hMul, #[_, _, _, _, a, b]) => do
-      `(ExpHOL.panop .mul [$(← toPanSyntax vars a), $(← toPanSyntax vars b)])
-  | (``HXor.hXor, #[_, _, _, _, a, b]) => do
-      `(ExpHOL.op .xor [$(← toPanSyntax vars a), $(← toPanSyntax vars b)])
-  | (``HAnd.hAnd, #[_, _, _, _, a, b]) => do
-      `(ExpHOL.op .and [$(← toPanSyntax vars a), $(← toPanSyntax vars b)])
-  | (``HOr.hOr, #[_, _, _, _, a, b]) => do
-      `(ExpHOL.op .or [$(← toPanSyntax vars a), $(← toPanSyntax vars b)])
-  | (``HShiftRight.hShiftRight, #[_, _, _, _, a, .app (.app (.app (.const ``OfNat.ofNat _) _) (.lit (.natVal k))) _]) =>
-      if k < 64 then do `(ExpHOL.shift .lsr $(← toPanSyntax vars a) (ExpHOL.const (BitVec.ofNat 64 $(quote k))))
-      else throwError "toPanSyntax: shift by {k}"
-  | (``HShiftLeft.hShiftLeft, #[_, _, _, _, a, .app (.app (.app (.const ``OfNat.ofNat _) _) (.lit (.natVal k))) _]) =>
-      if k < 64 then do `(ExpHOL.shift .lsl $(← toPanSyntax vars a) (ExpHOL.const (BitVec.ofNat 64 $(quote k))))
-      else throwError "toPanSyntax: shift by {k}"
-  | (``HDiv.hDiv, #[_, _, _, _, a, .app (.app (.app (.const ``OfNat.ofNat _) _) (.lit (.natVal n))) _]) =>
-      match (List.range 64).find? (fun k => 2 ^ k = n) with
-      | some k => do `(ExpHOL.shift .lsr $(← toPanSyntax vars a) (ExpHOL.const (BitVec.ofNat 64 $(quote k))))
-      | none => throwError "toPanSyntax: division by {n} (not a power of two)"
-  | (``HMod.hMod, #[_, _, _, _, a, .app (.app (.app (.const ``OfNat.ofNat _) _) (.lit (.natVal n))) _]) =>
-      match (List.range 64).find? (fun k => 2 ^ k = n) with
-      | some 0 => `(ExpHOL.const (BitVec.ofNat 64 0))
-      | some k => do
-          let j := 64 - k
-          `(ExpHOL.shift .lsr (ExpHOL.shift .lsl $(← toPanSyntax vars a) (ExpHOL.const (BitVec.ofNat 64 $(quote j))))
-              (ExpHOL.const (BitVec.ofNat 64 $(quote j))))
-      | none => throwError "toPanSyntax: modulo by {n} (not a power of two)"
+      let (a', pa) ← toPanPair vars a
+      let (b', pb) ← toPanPair vars b
+      return (← `(ExpHOL.panop .mul [$a', $b']), ← `(ConPanqueque.Translate.ev_mul $pa $pb))
+  | (``ConPanqueque.Hash.leanMixHash, #[a, b]) => do
+      let (a', pa) ← toPanPair vars a
+      let (b', pb) ← toPanPair vars b
+      return (← `(ConPanqueque.Hash.mixExp $a' $b'), ← `(ConPanqueque.Translate.ev_mix $pa $pb))
+  | (``HShiftRight.hShiftRight, #[_, _, _, _, a, kx]) =>
+      match litK kx with
+      | some k =>
+        if k < 64 then do
+          let (a', pa) ← toPanPair vars a
+          return (← `(ExpHOL.shift .lsr $a' (ExpHOL.const (BitVec.ofNat 64 $(quote k)))),
+            ← `(ConPanqueque.Translate.ev_shr $(quote k) (by decide) $pa))
+        else throwError "toPanSyntax: shift by {k}"
+      | none => throwError "toPanSyntax: shift by a non-literal"
+  | (``HShiftLeft.hShiftLeft, #[_, _, _, _, a, kx]) =>
+      match litK kx with
+      | some k =>
+        if k < 64 then do
+          let (a', pa) ← toPanPair vars a
+          return (← `(ExpHOL.shift .lsl $a' (ExpHOL.const (BitVec.ofNat 64 $(quote k)))),
+            ← `(ConPanqueque.Translate.ev_shl $(quote k) (by decide) $pa))
+        else throwError "toPanSyntax: shift by {k}"
+      | none => throwError "toPanSyntax: shift by a non-literal"
+  | (``HDiv.hDiv, #[_, _, _, _, a, nx]) =>
+      match litK nx with
+      | some n =>
+        match (List.range 64).find? (fun k => 2 ^ k = n) with
+        | some k => do
+            let (a', pa) ← toPanPair vars a
+            return (← `(ExpHOL.shift .lsr $a' (ExpHOL.const (BitVec.ofNat 64 $(quote k)))),
+              ← `(ConPanqueque.Translate.ev_div $(quote k) $(quote n) (by decide) (by decide) $pa))
+        | none => throwError "toPanSyntax: division by {n} (not a power of two)"
+      | none => throwError "toPanSyntax: division by a non-literal"
+  | (``HMod.hMod, #[_, _, _, _, a, nx]) =>
+      match litK nx with
+      | some n =>
+        match (List.range 64).find? (fun k => 2 ^ k = n) with
+        | some 0 => do
+            let (_, pa) ← toPanPair vars a
+            let _ := pa
+            return (← `(ExpHOL.const (BitVec.ofNat 64 0)), ← `(ConPanqueque.Translate.ev_mod1 s _))
+        | some k => do
+            let j := 64 - k
+            let (a', pa) ← toPanPair vars a
+            return (← `(ExpHOL.shift .lsr (ExpHOL.shift .lsl $a' (ExpHOL.const (BitVec.ofNat 64 $(quote j))))
+                (ExpHOL.const (BitVec.ofNat 64 $(quote j)))),
+              ← `(ConPanqueque.Translate.ev_mod $(quote k) $(quote n) $(quote j) (by decide) (by decide) (by decide)
+                (by decide) $pa))
+        | none => throwError "toPanSyntax: modulo by {n} (not a power of two)"
+      | none => throwError "toPanSyntax: modulo by a non-literal"
   | (``ite, #[_, c, _, x, y]) => do
-      let x' ← toPanSyntax vars x
-      let y' ← toPanSyntax vars y
-      let cmp ← match c.getAppFnArgs with
-        | (``LT.lt, #[_, _, a, b]) => do `(ExpHOL.cmp .lower $(← toPanSyntax vars a) $(← toPanSyntax vars b))
-        | (``LE.le, #[_, _, a, b]) => do `(ExpHOL.cmp .notLower $(← toPanSyntax vars b) $(← toPanSyntax vars a))
-        | (``Eq, #[_, a, b]) => do `(ExpHOL.cmp .equal $(← toPanSyntax vars a) $(← toPanSyntax vars b))
-        | (``Ne, #[_, a, b]) => do `(ExpHOL.cmp .notEqual $(← toPanSyntax vars a) $(← toPanSyntax vars b))
+      let (x', px) ← toPanPair vars x
+      let (y', py) ← toPanPair vars y
+      let (cmp, prf) ← match c.getAppFnArgs with
+        | (``LT.lt, #[_, _, a, b]) => do
+            let (a', pa) ← toPanPair vars a; let (b', pb) ← toPanPair vars b
+            pure (← `(ExpHOL.cmp .lower $a' $b'), ← `(ConPanqueque.Translate.ev_ite_lt $pa $pb $px $py))
+        | (``LE.le, #[_, _, a, b]) => do
+            let (a', pa) ← toPanPair vars a; let (b', pb) ← toPanPair vars b
+            pure (← `(ExpHOL.cmp .notLower $b' $a'), ← `(ConPanqueque.Translate.ev_ite_le $pa $pb $px $py))
+        | (``Eq, #[_, a, b]) => do
+            let (a', pa) ← toPanPair vars a; let (b', pb) ← toPanPair vars b
+            pure (← `(ExpHOL.cmp .equal $a' $b'), ← `(ConPanqueque.Translate.ev_ite_eq $pa $pb $px $py))
+        | (``Ne, #[_, a, b]) => do
+            let (a', pa) ← toPanPair vars a; let (b', pb) ← toPanPair vars b
+            pure (← `(ExpHOL.cmp .notEqual $a' $b'), ← `(ConPanqueque.Translate.ev_ite_ne $pa $pb $px $py))
         | _ => throwError "toPanSyntax: unsupported condition {c}"
-      `(ExpHOL.op .add [$y', ExpHOL.panop .mul [ExpHOL.op .sub [$x', $y'], $cmp]])
+      return (← `(ExpHOL.op .add [$y', ExpHOL.panop .mul [ExpHOL.op .sub [$x', $y'], $cmp]]), prf)
   | _ =>
     -- a non-recursive definition (e.g. one of con-leche's helpers): unfold it
     if e.getAppFn.isConst then
       if let some e' ← unfoldDefinition? e then
         modify (·.push e.getAppFn.constName!)
-        return ← toPanSyntax vars e'.headBeta
+        return ← toPanPair vars (← zetaReduce e'.headBeta)
     throwError "toPanSyntax: unsupported term {e}"
+
+/-- The expression part of `toPanPair`. -/
+def toPanSyntax (vars : Array (Expr × String)) (e : Expr) : StateT (Array Name) MetaM (TSyntax `term) := do
+  return (← toPanPair vars e).1
 
 /-- `pan_exp N := fun (x₁ … xₙ : UInt64) => t` defines `N : ExpHOL 64` computing `t`
 from the locals `x₁ … xₙ`, and `N_eval`, its correctness, proved by evaluation. -/
 elab "pan_exp " nm:ident " := " t:term : command => do
-  let (body, names, unfolded) ← liftTermElabM do
+  let (body, prf, names) ← liftTermElabM do
     let f ← elabTerm t none
     synthesizeSyntheticMVarsNoPostponing
     let f ← instantiateMVars f
     lambdaTelescope f fun xs b => do
       let names ← xs.mapM fun x => do return (← x.fvarId!.getUserName).toString
       let b ← zetaReduce b
-      let (s, unf) ← (toPanSyntax (xs.zip names) b).run #[]
-      return (s, names, unf)
+      let ((s, p), _) ← (toPanPair (xs.zip names) b).run #[]
+      return (s, p, names)
   let defName := nm.getId
   elabCommand (← `(def $nm : ExpHOL 64 := $body))
   let binders ← names.mapM fun n => `(Lean.Parser.Term.bracketedBinderF| ($(mkIdent n.toName) : UInt64))
@@ -91,21 +145,14 @@ elab "pan_exp " nm:ident " := " t:term : command => do
     let h := mkIdent (Name.mkSimple ("h_" ++ n))
     `(Lean.Parser.Term.bracketedBinderF|
       ($h : s.locals.lookup (ofString $(quote n)) = some (.val (.word $(mkIdent n.toName).toBitVec))))
-  let hnames := names.map fun n => mkIdent (Name.mkSimple ("h_" ++ n))
-  let simpArgs : Array (TSyntax ``Lean.Parser.Tactic.simpLemma) ←
-    (hnames ++ unfolded.map (fun c => mkIdent c)).mapM fun h => `(Lean.Parser.Tactic.simpLemma| $h:term)
   let app ← `($t $(names.map (fun n => (mkIdent n.toName : TSyntax `term)))*)
   let thm := mkIdent (defName ++ `eval)
   elabCommand (← `(
     theorem $thm {σ : Type} (s : PanSemStateFiniteExact 64 σ) $binders* $hyps* :
         @evalHOLExact 64 σ _ s.toExact (fun a => Classical.propDecidable (s.memaddrs a)) $nm =
           some (.val (.word ($app).toBitVec)) := by
-      simp [$nm:ident, evalHOLExact, evalListHOLExact, wordOpHOL, wordOp, valueIsWord, valueWord, panOpHOL,
-        wordShiftHOL, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, $simpArgs,*] <;>
-      (try split) <;> (try split) <;>
-      (try simp_all [UInt64.lt_iff_toBitVec_lt, UInt64.le_iff_toBitVec_le]) <;> (try bv_omega) <;>
-      (try (apply BitVec.eq_of_toNat_eq; simp [BitVec.toNat_ushiftRight, BitVec.toNat_shiftLeft,
-        Nat.shiftLeft_eq, Nat.shiftRight_eq_div_pow] <;> omega))))
+      have hp := $prf
+      exact hp))
 
 end ConPanqueque.Translate
 

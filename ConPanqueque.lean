@@ -22,5 +22,6 @@ import ConPanqueque.ExprFold
 import ConPanqueque.MemoFold
 import ConPanqueque.Translate.Exp
 import ConPanqueque.Translate.ConLecheWords
+import ConPanqueque.ExprData
 import ConPanqueque.Translate.Fun
 import ConPanqueque.Examples.ListLength
