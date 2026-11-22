@@ -44,6 +44,7 @@ import ConPanqueque.V.ProbeOnly
 import ConPanqueque.V.Two
 import ConPanqueque.V.StoreEq
 import ConPanqueque.V.Enc
+import ConPanqueque.V.StrHash
 import ConPanqueque.LevelFns
 import ConPanqueque.LevelFold
 import ConPanqueque.Table
