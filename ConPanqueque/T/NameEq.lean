@@ -104,4 +104,116 @@ theorem cmpLoop_spec {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {re
 
 end
 
+def neqTail : ProgHOL 64 :=
+  .ite (.cmp .notEqual (vv lA3) (vv lDg)) (.return (.const 0))
+  (.ite (.cmp .equal (vv lDg) (.const 0)) (.return (.const 1))
+  (.ite (.cmp .notEqual (vv lA2) (vv lRn)) (.return (.const 0))
+  (.seq (.assign .local lW (.const 1)) (.seq (.assign .local lB (.const 1))
+  (.seq cmpLoop
+  (.ite (.cmp .equal (vv lW) (.const 0)) (.return (.const 0))
+  (.seq (.assign .local lX (.load .one (vv lA1))) (.seq (.assign .local lY (.load .one (vv lRp)))
+  (.seq (.call (some (some (.local, lZ), none)) fNeq [vv lX, vv lY]) (.return (vv lZ)))))))))))
+
+def neqCore : ProgHOL 64 :=
+  .ite (.cmp .equal (vv pNa) (vv pNb)) (.return (.const 1))
+  (.seq (.assign .local lFl (vv lFln))
+  (.seq (.assign .local lDh (vv pNa)) (.seq nViewP
+  (.seq (.assign .local lA1 (vv lRp)) (.seq (.assign .local lA2 (vv lRn)) (.seq (.assign .local lA3 (vv lDg))
+  (.seq (.assign .local lDh (vv pNb)) (.seq nViewP neqTail))))))))
+
+def neqBody : ProgHOL 64 := prologue inst1Locals neqCore
+
+section
+variable {σ : Type}
+
+theorem flagW_zero (ws1 ws2 : List (BitVec 64)) : flagW ws1 ws2 0 = 1 := by simp [flagW]
+
+theorem flagW_full (ws1 ws2 : List (BitVec 64)) (hl : ws1.length = ws2.length) (hpos : 1 ≤ ws1.length) :
+    flagW ws1 ws2 (ws1.length - 1) ≠ 0 ↔ ws1.tail = ws2.tail := by
+  unfold flagW
+  constructor
+  · intro h
+    have hA : ∀ j, j < ws1.length - 1 → ws1[j + 1]? = ws2[j + 1]? := by
+      by_cases hc : ∀ j, j < ws1.length - 1 → ws1[j + 1]? = ws2[j + 1]?
+      · exact hc
+      · rw [if_neg hc] at h; exact absurd rfl h
+    apply List.ext_getElem?
+    intro j
+    rw [List.getElem?_tail, List.getElem?_tail]
+    rcases Nat.lt_or_ge j (ws1.length - 1) with hj | hj
+    · exact hA j hj
+    · rw [List.getElem?_eq_none (by omega), List.getElem?_eq_none (by omega)]
+  · intro h
+    have hA : ∀ j, j < ws1.length - 1 → ws1[j + 1]? = ws2[j + 1]? := by
+      intro j _; rw [← List.getElem?_tail, ← List.getElem?_tail, h]
+    rw [if_pos hA]; decide
+
+/-- After both views, the tags equal and nonzero: compare the tails, then the prefixes. -/
+theorem neqTail_spec (C : Ctx) (hcode : C.code.lookup fNeq = some ([(pNa, .one), (pNb, .one)], neqBody, .one))
+    {s : AState} {Γ : Env} {M : Mem} (tag : Nat) (htag : 0 < tag) (htag8 : tag < 8)
+    (pa pb : NIdx) (tl1 tl2 : List (BitVec 64)) (qa qb : ConLeche.Name) (P1 P2 : BitVec 64)
+    (hn1 : 1 + tl1.length < 2 ^ 60) (hn2 : 1 + tl2.length < 2 ^ 60)
+    (hm1 : ∀ i (hi : i < (Enc.idxW pa :: tl1).length), (P1 + BitVec.ofNat 64 (8 * i), (Enc.idxW pa :: tl1)[i]) ∈ M)
+    (hm2 : ∀ i (hi : i < (Enc.idxW pb :: tl2).length), (P2 + BitVec.ofNat 64 (8 * i), (Enc.idxW pb :: tl2)[i]) ∈ M)
+    (ha1 : Γ.get lA1 = some P1) (ha2 : Γ.get lA2 = some (BitVec.ofNat 64 (1 + tl1.length)))
+    (ha3 : Γ.get lA3 = some (BitVec.ofNat 64 tag)) (hdg : Γ.get lDg = some (BitVec.ofNat 64 tag))
+    (hrp : Γ.get lRp = some P2) (hrn : Γ.get lRn = some (BitVec.ofNat 64 (1 + tl2.length)))
+    (hx : Γ.get lX = none) (hy : Γ.get lY = none)
+    (hrec : SpecR (Pre (σ := σ) C s [(pNa, Enc.idxW pa), (pNb, Enc.idxW pb)]) neqBody s (pure (decide (qa = qb)))
+      (PostB C)) :
+    SpecR (Inv (σ := σ) C s Γ M DI) neqTail s (pure (decide (qa = qb ∧ tl1 = tl2))) (PostB C) := by
+  unfold neqTail
+  refine specR_ifI _ 0 (by simp +decide [sev, ha3, hdg, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+    (fun hw => absurd rfl hw) (fun _ => ?_)
+  have ht0 : BitVec.ofNat 64 tag ≠ 0#64 := ofNat_ne_zero tag (by omega) (by omega)
+  refine specR_ifI _ 0 (by simp +decide [sev, hdg, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, ht0])
+    (fun hw => absurd rfl hw) (fun _ => ?_)
+  by_cases hl : tl1.length = tl2.length
+  · have hlw : BitVec.ofNat 64 (1 + tl1.length) = BitVec.ofNat 64 (1 + tl2.length) := by rw [hl]
+    refine specR_ifI _ 0 (by simp only [sev, Env.get, sev_vv, ha2, hrn, Option.bind_some, hlw,
+        Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; simp)
+      (fun hw => absurd rfl hw) (fun _ => ?_)
+    refine specR_assignI lW (.const 1) 1 (by decide) rfl ?_
+    refine specR_assignI lB (.const 1) (BitVec.ofNat 64 (0 + 1)) (by decide) rfl ?_
+    rw [← flagW_zero (Enc.idxW pa :: tl1) (Enc.idxW pb :: tl2)]
+    refine cmpLoop_spec (Enc.idxW pa :: tl1) (Enc.idxW pb :: tl2) P1 P2 (by simp [hl]) (by simp) (by simp; omega)
+      hm1 hm2 (by simp +decide [ha1]) (by simp +decide [hrp]) (by simp +decide [hrn]; rw [hl, Nat.add_comm])
+      (by simp +decide [hx]) (by simp +decide [hy]) ?_
+    have hf := flagW_full (Enc.idxW pa :: tl1) (Enc.idxW pb :: tl2) (by simp [hl]) (by simp)
+    simp only [List.tail_cons] at hf
+    by_cases ht : tl1 = tl2
+    · have hfw : flagW (Enc.idxW pa :: tl1) (Enc.idxW pb :: tl2) ((Enc.idxW pa :: tl1).length - 1) ≠ 0 := hf.mpr ht
+      have hfw' : flagW (Enc.idxW pa :: tl1) (Enc.idxW pb :: tl2) tl1.length ≠ 0 := by simpa using hfw
+      refine specR_ifI _ 0 ?_ (fun hw => absurd rfl hw) (fun _ => ?_)
+      · simp +decide [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hfw'
+      refine specR_loadI' lX (vv lA1) P1 (P1 + BitVec.ofNat 64 (8 * 0)) (Enc.idxW pa) (by decide)
+        (by simp +decide [ha1]) (by simp) (hm1 0 (by simp)) ?_
+      refine specR_loadI' lY (vv lRp) P2 (P2 + BitVec.ofNat 64 (8 * 0)) (Enc.idxW pb) (by decide)
+        (by simp +decide [hrp]) (by simp) (hm2 0 (by simp)) ?_
+      refine specR_congr (m' := pure (decide (qa = qb)) >>= fun b => pure b) (by simp [ht]) ?_
+      refine specR_call2IM lZ fNeq pNa pNb (by decide) _ _ neqBody (Enc.idxW pa) (Enc.idxW pb) (by decide) hcode
+        (by simp +decide) (by simp +decide) (PostB C) (fun _ _ _ _ hp => hp.2)
+        (fun u hu _ h1 h2 w hw => by subst hw; exact hrec _ (pre2 hu _ _ _ _ h1 h2))
+        (fun r w s' st hp => ?_)
+      obtain ⟨rfl, _⟩ := hp
+      exact specR_returnI (vv lZ) _ (by simp +decide) (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    · have hfw : flagW (Enc.idxW pa :: tl1) (Enc.idxW pb :: tl2) ((Enc.idxW pa :: tl1).length - 1) = 0 := by
+        by_cases c : flagW (Enc.idxW pa :: tl1) (Enc.idxW pb :: tl2) ((Enc.idxW pa :: tl1).length - 1) = 0
+        · exact c
+        · exact absurd (hf.mp c) ht
+      have hfw' : flagW (Enc.idxW pa :: tl1) (Enc.idxW pb :: tl2) tl1.length = 0 := by simpa using hfw
+      refine specR_ifI _ 1 ?_ (fun _ => ?_) (fun hw => absurd hw (by decide))
+      · simp +decide [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hfw']
+      refine specR_congr (m' := pure false) (by simp [ht]) ?_
+      exact specR_returnI (.const 0) 0 rfl (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  · have hne : BitVec.ofNat 64 (1 + tl1.length) ≠ BitVec.ofNat 64 (1 + tl2.length) := fun e =>
+      hl (by have := (word_eq_iff _ _ (by omega) (by omega)).mp e; omega)
+    refine specR_ifI _ 1 (by simp +decide [sev, ha2, hrn, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne])
+      (fun _ => ?_) (fun hw => absurd hw (by decide))
+    refine specR_congr (m' := pure false)
+      (by simp only [show ¬(qa = qb ∧ tl1 = tl2) from fun h => hl (by rw [h.2]), decide_false]) ?_
+    exact specR_returnI (.const 0) 0 rfl (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+end
+
 end ConPanqueque.T.NEq
