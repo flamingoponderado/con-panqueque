@@ -182,6 +182,46 @@ theorem call1 {σ : Type} (s : PanSemStateFiniteExact 64 σ) (f x y : MlS) (body
   · simp [shapeOfHOLExact, shapeEqHOL]
   · simp [isValidValueHOLExact, lookupKvarHOLExact, hw0, shapeOfHOLExact, shapeEqHOL]
 
+theorem lookupCode2 {σ : Type} (s : PanSemStateFiniteExact 64 σ) (f x1 x2 : MlS) (body : ProgHOL 64)
+    (v1 v2 : BitVec 64) (hne : x1 ≠ x2) (hcode : s.code.lookup f = some ([(x1, .one), (x2, .one)], body, .one)) :
+    ∃ callee, lookupCodeHOLFinite s.code.lookup f [.val (.word v1), .val (.word v2)] = some (body, callee, .one) ∧
+      callee.lookup x1 = some (.val (.word v1)) ∧ callee.lookup x2 = some (.val (.word v2)) := by
+  unfold lookupCodeHOLFinite
+  split
+  · rename_i hh; simp [lookupCodeHOLExact, hcode, shapeOfHOLExact, shapeEqHOL] at hh; exact absurd hh hne
+  · rename_i b cl rs hh
+    simp [lookupCodeHOLExact, hcode, shapeOfHOLExact, shapeEqHOL] at hh
+    obtain ⟨_, rfl, rfl, rfl⟩ := hh
+    exact ⟨_, rfl, by simp [hne], by simp⟩
+
+/-- `y = f(arg1, arg2)` for a two-parameter word function. -/
+theorem call2 {σ : Type} (s : PanSemStateFiniteExact 64 σ) (f x1 x2 y : MlS) (body : ProgHOL 64)
+    (arg1 arg2 : ExpHOL 64) (v1 v2 w : BitVec 64) (Q : PanSemStateFiniteExact 64 σ → Prop) (hne : x1 ≠ x2)
+    (hcode : s.code.lookup f = some ([(x1, .one), (x2, .one)], body, .one))
+    (harg1 : @evalHOLExact 64 σ _ s.toExact (fun a => Classical.propDecidable (s.memaddrs a)) arg1 =
+      some (.val (.word v1)))
+    (harg2 : @evalHOLExact 64 σ _ s.toExact (fun a => Classical.propDecidable (s.memaddrs a)) arg2 =
+      some (.val (.word v2)))
+    (hclk : s.clock ≠ 0)
+    (hy : ∃ w0, s.locals.lookup y = some (.val (.word w0)))
+    (hbody : ∀ callee : HolFiniteMapExact MlS (ValueHOL 64), callee.lookup x1 = some (.val (.word v1)) →
+      callee.lookup x2 = some (.val (.word v2)) →
+      ∃ st, evaluateHOLFiniteState (callEntryStateHOLFinite s callee) body =
+        (some (.returned (.val (.word w))), st) ∧ Q st) :
+    ∃ st, Q st ∧ evaluateHOLFiniteState s (.call (some (some (.local, y), none)) f [arg1, arg2]) =
+        (none, setKvarHOLFinite .local y (.val (.word w)) { st with locals := s.locals }) := by
+  obtain ⟨hlk, hx1, hx2⟩ := Classical.choose_spec (lookupCode2 s f x1 x2 body v1 v2 hne hcode)
+  obtain ⟨st, hb, hq⟩ := hbody _ hx1 hx2
+  obtain ⟨w0, hw0⟩ := hy
+  refine ⟨st, hq, ?_⟩
+  apply call_assign s .local y f none [arg1, arg2] [.val (.word v1), .val (.word v2)] body _ .one _ st
+  · simp [evalListHOLFinite, evalListHOLExact, harg1, harg2]
+  · exact hlk
+  · exact hclk
+  · exact hb
+  · simp [shapeOfHOLExact, shapeEqHOL]
+  · simp [isValidValueHOLExact, lookupKvarHOLExact, hw0, shapeOfHOLExact, shapeEqHOL]
+
 /-! ## Conditionals and declarations (state-level) -/
 
 theorem ite_word {σ : Type} (s : PanSemStateFiniteExact 64 σ) (c : ExpHOL 64) (p q : ProgHOL 64) (w : BitVec 64)

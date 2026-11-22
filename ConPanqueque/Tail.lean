@@ -29,7 +29,12 @@ theorem tailN_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (h : Heap) (p0
       ArenaInv (evaluateHOLFiniteState t (tailN xs)).2 h' (p0 + BitVec.ofNat 64 (8 * xs.length)) ∧ Sub h h' ∧
       (∀ j (hj : j < xs.length), h' (at8 p0 j) = some (.word (vs[j]'(hlen ▸ hj)))) ∧
       (evaluateHOLFiniteState t (tailN xs)).2.globals.lookup nHp =
-        some (.val (.word (p0 + BitVec.ofNat 64 (8 * xs.length)))) := by
+        some (.val (.word (p0 + BitVec.ofNat 64 (8 * xs.length)))) ∧
+      (evaluateHOLFiniteState t (tailN xs)).2.code = t.code ∧
+      (evaluateHOLFiniteState t (tailN xs)).2.clock = t.clock ∧
+      (evaluateHOLFiniteState t (tailN xs)).2.memaddrs = t.memaddrs ∧
+      (∀ g, g ≠ nHp → (evaluateHOLFiniteState t (tailN xs)).2.globals.lookup g = t.globals.lookup g) ∧
+      (∀ c, (∀ j, j < xs.length → c ≠ at8 p0 j) → (evaluateHOLFiniteState t (tailN xs)).2.memory c = t.memory c) := by
   obtain ⟨hfresh, hdist, hfree, hb⟩ := blockN xs.length hi hfit hsmall
   let n8 := BitVec.ofNat 64 (8 * xs.length)
   let t0 := setVarHOLFinite nP (.val (.word p0)) t
@@ -43,7 +48,7 @@ theorem tailN_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (h : Heap) (p0
     intro n hn; simp only [t1, t0, setKvarHOLFinite, setGlobalHOLFinite]; exact lookup_setVar_other _ _ hn
   have lp1 : t1.locals.lookup nP = some (.val (.word p0)) := by
     simp [t1, t0, setKvarHOLFinite, setGlobalHOLFinite]
-  obtain ⟨t2, ev2, hl2, hd2, ht2, hg2, hm2, hs2⟩ :=
+  obtain ⟨t2, ev2, hl2, hd2, ht2, hg2, hm2, hs2, hcd2, hck2, hmf2⟩ :=
     storeSeq_spec nP p0 xs vs 0 t1 h hlen lp1
       (fun j hj => by
         have hne : xs[j] ≠ nP := fun e => hnp (e ▸ List.getElem_mem hj)
@@ -65,8 +70,21 @@ theorem tailN_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (h : Heap) (p0
     rw [seq_normal _ e1, seq_normal _ ev2, eret]
   obtain ⟨r1, rm, rd, rg, rt⟩ := dec_word t nP (.var .global nHp) p0 _ (by simp [evalHOLExact, hhp])
   rw [einner] at r1 rm rd rg rt
+  obtain ⟨L, hL⟩ := dec_word' t nP (.var .global nHp) p0 _ (by simp [evalHOLExact, hhp])
+  rw [einner] at hL
   unfold tailN
-  refine ⟨extSeq h p0 vs 0, ?_, ⟨?_, ?_, ?_⟩, hs2, ?_, ?_⟩
+  refine ⟨extSeq h p0 vs 0, ?_, ⟨?_, ?_, ?_⟩, hs2, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  rotate_left 6
+  · rw [hL]; simp [emptyLocalsHOLFinite, hcd2, t1, t0, setKvarHOLFinite, setGlobalHOLFinite, setVarHOLFinite]
+  · rw [hL]; simp [emptyLocalsHOLFinite, hck2, t1, t0, setKvarHOLFinite, setGlobalHOLFinite, setVarHOLFinite]
+  · rw [rd]; simp [emptyLocalsHOLFinite, hd2, t1, t0, setKvarHOLFinite, setGlobalHOLFinite, setVarHOLFinite]
+  · intro g hg; rw [rg]
+    simp [emptyLocalsHOLFinite, hg2, t1, t0, setKvarHOLFinite, setGlobalHOLFinite, setVarHOLFinite, FUPDATE]
+    intro e; exact absurd e.symm hg
+  · intro c hc; rw [rm]
+    simp only [emptyLocalsHOLFinite]
+    rw [hmf2 c (fun j hj => by simpa using hc j hj)]
+    simp [t1, t0, setKvarHOLFinite, setGlobalHOLFinite, setVarHOLFinite]
   · exact r1
   · exact inMem_of_eq (by rw [rm]; simp [emptyLocalsHOLFinite]) (by rw [rd]; simp [emptyLocalsHOLFinite]) hm2
   · have hfr : Free t2 (p0 + n8) := by

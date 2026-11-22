@@ -85,7 +85,7 @@ theorem tail4_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (h : Heap) (p0
     intro n hn; simp only [t1, t0, setKvarHOLFinite, setGlobalHOLFinite]; exact lookup_setVar_other _ _ hn
   have lp1 : t1.locals.lookup nP = some (.val (.word p0)) := by
     simp [t1, t0, setKvarHOLFinite, setGlobalHOLFinite]
-  obtain ⟨t2, ev2, hl2, hd2, ht2, hg2, hm2, hs2⟩ :=
+  obtain ⟨t2, ev2, hl2, hd2, ht2, hg2, hm2, hs2, -⟩ :=
     storeSeq_spec nP p0 [nTg, nD, nF, nA] [tv, dv, q, r] 0 t1 h rfl lp1
       (fun j hj => by
         match j, hj with

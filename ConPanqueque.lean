@@ -1,6 +1,7 @@
 import ConPanqueque.Basic
 import ConPanqueque.Logic.Basic
 import ConPanqueque.Logic.Sep
+import ConPanqueque.Logic.Stop
 import ConPanqueque.Alloc
 import ConPanqueque.Rep
 import ConPanqueque.ExprRep
@@ -12,6 +13,7 @@ import ConPanqueque.LevelCons
 import ConPanqueque.ExprCons
 import ConPanqueque.BinCons
 import ConPanqueque.Tail
+import ConPanqueque.Node
 import ConPanqueque.LevelFns
 import ConPanqueque.LevelFold
 import ConPanqueque.Table
