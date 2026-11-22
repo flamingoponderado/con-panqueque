@@ -13,6 +13,7 @@ import ConPanqueque.ExprCons
 import ConPanqueque.BinCons
 import ConPanqueque.Tail
 import ConPanqueque.LevelFns
+import ConPanqueque.LevelFold
 import ConPanqueque.Translate.Exp
 import ConPanqueque.Translate.ConLecheWords
 import ConPanqueque.Translate.Fun
