@@ -201,7 +201,7 @@ theorem arenaKids (ls : LStore) (HB : BitVec 64) (H : List (BitVec 64)) (h : LId
 theorem heapKids_mem (C : Ctx) (ls : LStore) (o : Nat) (l : ConLeche.Level) (M : Mem)
     (hk : HKids C.HB C.H ls o l) :
     ∃ M', (∀ a v, (a, v) ∈ M' → (a, v) ∈ M ∨ ∃ j, ∃ hj : j < C.H.length, a = cellA C j ∧ v = C.H[j]) ∧
-      LKids C.HB C.H ls (C.HB + BitVec.ofNat 64 (8 * o) + 8) M' l := by
+      (∀ p, p ∈ M → p ∈ M') ∧ LKids C.HB C.H ls (C.HB + BitVec.ofNat 64 (8 * o) + 8) M' l := by
   have get_of : ∀ j x, C.H[j]? = some x → ∃ hj : j < C.H.length, x = C.H[j] := by
     intro j x h
     have hj : j < C.H.length := by
@@ -210,11 +210,12 @@ theorem heapKids_mem (C : Ctx) (ls : LStore) (o : Nat) (l : ConLeche.Level) (M :
       · rw [List.getElem?_eq_none hl] at h; simp at h
     exact ⟨hj, by rw [List.getElem?_eq_getElem hj] at h; exact (Option.some.inj h).symm⟩
   cases l with
-  | zero => exact ⟨M, fun a v h => Or.inl h, trivial⟩
+  | zero => exact ⟨M, fun a v h => Or.inl h, fun _ h => h, trivial⟩
   | succ u =>
     obtain ⟨wu, h1, h2⟩ := hk
     obtain ⟨hj1, e1⟩ := get_of _ _ h1
-    refine ⟨(cellA C (o + 1 + 0), wu) :: M, fun a v h => ?_, wu, by rw [cellA_succ_add]; simp, h2⟩
+    refine ⟨(cellA C (o + 1 + 0), wu) :: M, fun a v h => ?_, fun _ h => List.mem_cons_of_mem _ h, wu,
+      by rw [cellA_succ_add]; simp, h2⟩
     rcases List.mem_cons.mp h with e | e
     · cases e; exact Or.inr ⟨o + 1, hj1, rfl, e1⟩
     · exact Or.inl e
@@ -222,7 +223,8 @@ theorem heapKids_mem (C : Ctx) (ls : LStore) (o : Nat) (l : ConLeche.Level) (M :
     obtain ⟨wu, wv, h1, h2, h3, h4⟩ := hk
     obtain ⟨hj1, e1⟩ := get_of _ _ h1
     obtain ⟨hj2, e2⟩ := get_of _ _ h2
-    refine ⟨(cellA C (o + 1 + 0), wu) :: (cellA C (o + 1 + 1), wv) :: M, fun a x h => ?_, wu, wv,
+    refine ⟨(cellA C (o + 1 + 0), wu) :: (cellA C (o + 1 + 1), wv) :: M, fun a x h => ?_,
+      fun _ h => List.mem_cons_of_mem _ (List.mem_cons_of_mem _ h), wu, wv,
       by rw [cellA_succ_add]; simp, by rw [cellA_succ_add]; simp, h3, h4⟩
     rcases List.mem_cons.mp h with e | e
     · cases e; exact Or.inr ⟨o + 1, hj1, rfl, e1⟩
@@ -233,7 +235,8 @@ theorem heapKids_mem (C : Ctx) (ls : LStore) (o : Nat) (l : ConLeche.Level) (M :
     obtain ⟨wu, wv, h1, h2, h3, h4⟩ := hk
     obtain ⟨hj1, e1⟩ := get_of _ _ h1
     obtain ⟨hj2, e2⟩ := get_of _ _ h2
-    refine ⟨(cellA C (o + 1 + 0), wu) :: (cellA C (o + 1 + 1), wv) :: M, fun a x h => ?_, wu, wv,
+    refine ⟨(cellA C (o + 1 + 0), wu) :: (cellA C (o + 1 + 1), wv) :: M, fun a x h => ?_,
+      fun _ h => List.mem_cons_of_mem _ (List.mem_cons_of_mem _ h), wu, wv,
       by rw [cellA_succ_add]; simp, by rw [cellA_succ_add]; simp, h3, h4⟩
     rcases List.mem_cons.mp h with e | e
     · cases e; exact Or.inr ⟨o + 1, hj1, rfl, e1⟩
@@ -243,7 +246,8 @@ theorem heapKids_mem (C : Ctx) (ls : LStore) (o : Nat) (l : ConLeche.Level) (M :
   | param n =>
     obtain ⟨nh, f, h1, h2⟩ := hk
     obtain ⟨hj1, e1⟩ := get_of _ _ h1
-    refine ⟨(cellA C (o + 1 + 0), Enc.idxW nh) :: M, fun a v h => ?_, nh, f, by rw [cellA_succ_add]; simp, h2⟩
+    refine ⟨(cellA C (o + 1 + 0), Enc.idxW nh) :: M, fun a v h => ?_, fun _ h => List.mem_cons_of_mem _ h, nh, f,
+      by rw [cellA_succ_add]; simp, h2⟩
     rcases List.mem_cons.mp h with e | e
     · cases e; exact Or.inr ⟨o + 1, hj1, rfl, e1⟩
     · exact Or.inl e
@@ -253,7 +257,7 @@ theorem specR_lvViewI {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : E
     (w : BitVec 64) (l : ConLeche.Level) (hw : Γ.get lQ = some w) (hl : LRep C.HB C.H s.store.ls w l)
     (hfl : Γ.get lFll = some C.FLl) (hdir : Γ.get lDir = some C.L.DIR) (hD : ∀ z, z ∈ lvScratch → z ∈ D)
     (hk : ∀ (Γ' : Env) (M' : Mem) (Pc : BitVec 64), (∀ z, z ∉ lvScratch → Γ'.get z = Γ.get z) →
-      Γ'.get lX = some (BitVec.ofNat 64 (ltag l)) → Γ'.get lY = some Pc →
+      Γ'.get lX = some (BitVec.ofNat 64 (ltag l)) → Γ'.get lY = some Pc → (∀ p, p ∈ M → p ∈ M') →
       LKids C.HB C.H s.store.ls Pc M' l → SpecR (Inv C s Γ' M' D) rest s m R) :
     SpecR (Inv C s Γ M D) (lvViewP rest) s m R := by
   have hD' : lRp ∈ D ∧ lRn ∈ D ∧ lDt ∈ D ∧ lDg ∈ D ∧ lDi ∈ D ∧ lDh ∈ D ∧ lFl ∈ D ∧ lX ∈ D ∧ lY ∈ D :=
@@ -275,7 +279,8 @@ theorem specR_lvViewI {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : E
     obtain ⟨htv, hkd⟩ := arenaKids s.store.ls C.HB C.H h f l v P M hd hv
     refine specR_assignI lX (vv lDg) (BitVec.ofNat 64 v.tagN) hD'.2.2.2.2.2.2.2.1 (by simp +decide) ?_
     refine specR_assignI lY (vv lRp) P hD'.2.2.2.2.2.2.2.2 (by simp +decide) ?_
-    refine hk _ _ P (fun z hz => ?_) (by simp +decide [htv]) (by simp +decide) hkd
+    refine hk _ _ P (fun z hz => ?_) (by simp +decide [htv]) (by simp +decide)
+      (fun _ h => List.mem_append_right _ h) hkd
     simp only [lvScratch, List.mem_cons, List.not_mem_nil, or_false, not_or] at hz
     obtain ⟨n1, n2, n3, n4, n5, n6, n7, n8, n9⟩ := hz
     simp [Env.get_cons, n1, n2, n3, n4, n5, n6, n7, n8, n9]
@@ -292,9 +297,9 @@ theorem specR_lvViewI {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : E
       rw [List.getElem?_eq_getElem hol] at htg; exact Option.some.inj htg]
     refine specR_assignI lY (.op .add [vv lQ, .const 8]) (C.HB + BitVec.ofNat 64 (8 * o) + 8)
       hD'.2.2.2.2.2.2.2.2 (by simp +decide [sev, hw]) ?_
-    obtain ⟨M', hM', hkd⟩ := heapKids_mem C s.store.ls o l M hkids
+    obtain ⟨M', hM', hMM, hkd⟩ := heapKids_mem C s.store.ls o l M hkids
     intro t ht
-    refine hk _ M' _ (fun z hz => ?_) (by simp +decide) (by simp +decide) hkd t
+    refine hk _ M' _ (fun z hz => ?_) (by simp +decide) (by simp +decide) hMM hkd t
       ⟨ht.sr, ht.env, fun a v hm => ?_, ht.decl⟩
     · simp only [lvScratch, List.mem_cons, List.not_mem_nil, or_false, not_or] at hz
       obtain ⟨n1, n2, n3, n4, n5, n6, n7, n8, n9⟩ := hz
@@ -302,5 +307,11 @@ theorem specR_lvViewI {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : E
     · rcases hM' a v hm with e | ⟨j, hj, rfl, rfl⟩
       · exact ht.mem a v e
       · exact heap_cell ht.sr j hj
+
+theorem denoteLAux_det (st : LStore) (f f' : Nat) (i : LIdx) (x y : ConLeche.Level)
+    (h1 : denoteLAux st f i = some x) (h2 : denoteLAux st f' i = some y) : x = y := by
+  have a := denoteLAux_mono st f (max f f') i x (by omega) h1
+  have b := denoteLAux_mono st f' (max f f') i y (by omega) h2
+  rw [a] at b; exact Option.some.inj b
 
 end ConPanqueque.T
