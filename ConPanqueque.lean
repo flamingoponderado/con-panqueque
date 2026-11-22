@@ -76,6 +76,7 @@ import ConPanqueque.T.Ex.SizeB
 import ConPanqueque.V.EApp2
 import ConPanqueque.T.Intern
 import ConPanqueque.T.MemoModel
+import ConPanqueque.T.Memo
 import ConPanqueque.LevelFns
 import ConPanqueque.LevelFold
 import ConPanqueque.Table
