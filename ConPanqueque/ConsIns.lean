@@ -122,4 +122,117 @@ theorem ins_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (C R D S kf ka d
   rw [es5]
   rfl
 
+section
+variable {σ : Type} {α : Type} [DecidableEq α]
+
+/-- A table in memory: count word at `C`, then `n` slots at `S`, `cap` two-word rows at `R`, and
+`cap` derived words at `D`, contiguous and in this order. -/
+structure TMem (t : PanSemStateFiniteExact 64 σ) (enc : α → BitVec 64 × BitVec 64) (rows : List α)
+    (ders : List (BitVec 64)) (slots : List Nat) (n cap : Nat) (C S R D : BitVec 64) : Prop where
+  mem : Mem t enc rows slots n S R
+  cnt : t.memaddrs C ∧ t.memory C = .word (BitVec.ofNat 64 rows.length)
+  dlen : ders.length = rows.length
+  der : ∀ i (hi : i < rows.length), t.memaddrs (D + BitVec.ofNat 64 (8 * i)) ∧
+    t.memory (D + BitVec.ofNat 64 (8 * i)) = .word (ders[i]'(by omega))
+  le : rows.length ≤ cap
+  room : ∀ i, i < cap → t.memaddrs (R + BitVec.ofNat 64 (16 * i)) ∧ t.memaddrs (R + BitVec.ofNat 64 (16 * i) + 8) ∧
+    t.memaddrs (D + BitVec.ofNat 64 (8 * i))
+  layC : C.toNat + 8 ≤ S.toNat
+  layS : S.toNat + 8 * n ≤ R.toNat
+  layR : R.toNat + 16 * cap ≤ D.toNat
+  layD : D.toNat + 8 * cap ≤ 2 ^ 64
+
+theorem off8 (B : BitVec 64) (k : Nat) (h : B.toNat + 8 * k < 2 ^ 64) :
+    (B + BitVec.ofNat 64 (8 * k)).toNat = B.toNat + 8 * k := by
+  rw [BitVec.toNat_add, BitVec.toNat_ofNat, Nat.mod_eq_of_lt (a := 8 * k) (by omega), Nat.mod_eq_of_lt h]
+
+theorem off16 (B : BitVec 64) (k : Nat) (h : B.toNat + 16 * k + 8 < 2 ^ 64) :
+    (B + BitVec.ofNat 64 (16 * k)).toNat = B.toNat + 16 * k ∧
+    (B + BitVec.ofNat 64 (16 * k) + 8).toNat = B.toNat + 16 * k + 8 := by
+  have h1 : (B + BitVec.ofNat 64 (16 * k)).toNat = B.toNat + 16 * k := by
+    rw [BitVec.toNat_add, BitVec.toNat_ofNat, Nat.mod_eq_of_lt (a := 16 * k) (by omega), Nat.mod_eq_of_lt (by omega)]
+  refine ⟨h1, ?_⟩
+  rw [BitVec.toNat_add, h1]; simp; omega
+
+
+theorem ins_rel (t t' : PanSemStateFiniteExact 64 σ) (enc : α → BitVec 64 × BitVec 64) (rows : List α)
+    (ders : List (BitVec 64)) (slots : List Nat) (n cap : Nat) (C S R D : BitVec 64) (home : α → Nat)
+    (hT : TMem t enc rows ders slots n cap C S R D) (hinv : Inv (α := α) home rows slots n)
+    (a : α) (ha : a ∉ rows) (dv : BitVec 64) (d : Nat) (hd : firstEmpty slots n (home a) n 0 = some d)
+    (hlt : rows.length < cap) (hn60 : n ≤ 2 ^ 56) (hcap : cap ≤ 2 ^ 56)
+    (hmem : t'.memory = insMem t.memory C R D S (enc a).1 (enc a).2 dv rows.length (at_ n (home a) d))
+    (hd' : t'.memaddrs = t.memaddrs) :
+    TMem t' enc (rows ++ [a]) (ders ++ [dv]) (slots.set (at_ n (home a) d) (rows.length + 1)) n cap C S R D ∧
+    Inv (α := α) home (rows ++ [a]) (slots.set (at_ n (home a) d) (rows.length + 1)) n := by
+  refine ⟨?_, insert_inv home rows slots n hinv a ha d hd⟩
+  have hjn : at_ n (home a) d < n := Nat.mod_lt _ hinv.pos
+  generalize at_ n (home a) d = j at hmem hjn ⊢
+  obtain ⟨hm, ⟨cd, cm⟩, hdl, hder, hle, hroom, lC, lS, lR, lD⟩ := hT
+  have hC := C.isLt
+  -- reading the new memory
+  have rd : ∀ x, t'.memory x = (if x = C then .word (BitVec.ofNat 64 (rows.length + 1)) else
+      if x = S + BitVec.ofNat 64 (8 * j) then .word (BitVec.ofNat 64 (rows.length + 1)) else
+      if x = D + BitVec.ofNat 64 (8 * rows.length) then .word dv else
+      if x = R + BitVec.ofNat 64 (16 * rows.length) + 8 then .word (enc a).2 else
+      if x = R + BitVec.ofNat 64 (16 * rows.length) then .word (enc a).1 else t.memory x) := by
+    intro x; rw [hmem]; rfl
+  have ne : ∀ x y : BitVec 64, x.toNat ≠ y.toNat → x ≠ y := fun x y h e => h (by rw [e])
+  have sj := off8 S j (by omega)
+  have dc := off8 D rows.length (by omega)
+  have rc := off16 R rows.length (by omega)
+  refine ⟨⟨?_, ?_⟩, ⟨by rw [hd']; exact cd, ?_⟩, by simp [hdl], ?_, by simp; omega, fun i hi => by rw [hd']; exact hroom i hi,
+    lC, lS, lR, lD⟩
+  · -- slots
+    intro k hk
+    obtain ⟨v, hv, hv60, sd, sm⟩ := hm.slot k hk
+    have sk := off8 S k (by omega)
+    by_cases hkj : k = j
+    · subst hkj
+      refine ⟨rows.length + 1, by rw [List.getElem?_set]; simp [hinv.len, hk], by omega, by rw [hd']; exact sd, ?_⟩
+      rw [rd, if_neg (ne _ _ (by rw [sk]; omega)), if_pos rfl]
+    · refine ⟨v, by rw [List.getElem?_set]; simp [Ne.symm hkj, hv], hv60, by rw [hd']; exact sd, ?_⟩
+      rw [rd, if_neg (ne _ _ (by rw [sk]; omega)),
+        if_neg (ne _ _ (by rw [sk, sj]; omega)), if_neg (ne _ _ (by rw [sk, dc]; omega)),
+        if_neg (ne _ _ (by rw [sk, rc.2]; omega)), if_neg (ne _ _ (by rw [sk, rc.1]; omega))]
+      exact sm
+  · -- rows
+    intro i hi
+    simp only [List.length_append, List.length_singleton] at hi
+    have ri := off16 R i (by omega)
+    by_cases hic : i = rows.length
+    · subst hic
+      refine ⟨by rw [hd']; exact (hroom _ hlt).1, by rw [hd']; exact (hroom _ hlt).2.1, ?_, ?_⟩
+      · rw [rd, if_neg (ne _ _ (by rw [rc.1]; omega)), if_neg (ne _ _ (by rw [rc.1, sj]; omega)),
+          if_neg (ne _ _ (by rw [rc.1, dc]; omega)), if_neg (ne _ _ (by rw [rc.1, rc.2]; omega)), if_pos rfl]
+        simp
+      · rw [rd, if_neg (ne _ _ (by rw [rc.2]; omega)), if_neg (ne _ _ (by rw [rc.2, sj]; omega)),
+          if_neg (ne _ _ (by rw [rc.2, dc]; omega)), if_pos rfl]
+        simp
+    · have hi' : i < rows.length := by omega
+      obtain ⟨d1, d2, m1, m2⟩ := hm.row i hi'
+      refine ⟨by rw [hd']; exact d1, by rw [hd']; exact d2, ?_, ?_⟩
+      · rw [rd, if_neg (ne _ _ (by rw [ri.1]; omega)), if_neg (ne _ _ (by rw [ri.1, sj]; omega)),
+          if_neg (ne _ _ (by rw [ri.1, dc]; omega)), if_neg (ne _ _ (by rw [ri.1, rc.2]; omega)),
+          if_neg (ne _ _ (by rw [ri.1, rc.1]; omega)), m1, List.getElem_append_left hi']
+      · rw [rd, if_neg (ne _ _ (by rw [ri.2]; omega)), if_neg (ne _ _ (by rw [ri.2, sj]; omega)),
+          if_neg (ne _ _ (by rw [ri.2, dc]; omega)), if_neg (ne _ _ (by rw [ri.2, rc.2]; omega)),
+          if_neg (ne _ _ (by rw [ri.2, rc.1]; omega)), m2, List.getElem_append_left hi']
+  · rw [rd, if_pos rfl]; simp
+  · -- derived words
+    intro i hi
+    simp only [List.length_append, List.length_singleton] at hi
+    have di := off8 D i (by omega)
+    by_cases hic : i = rows.length
+    · subst hic
+      refine ⟨by rw [hd']; exact (hroom _ hlt).2.2, ?_⟩
+      rw [rd, if_neg (ne _ _ (by rw [dc]; omega)), if_neg (ne _ _ (by rw [dc, sj]; omega)), if_pos rfl]
+      simp [hdl]
+    · have hi' : i < rows.length := by omega
+      obtain ⟨dd, dm⟩ := hder i hi'
+      refine ⟨by rw [hd']; exact dd, ?_⟩
+      rw [rd, if_neg (ne _ _ (by rw [di]; omega)), if_neg (ne _ _ (by rw [di, sj]; omega)),
+        if_neg (ne _ _ (by rw [di, dc]; omega)), if_neg (ne _ _ (by rw [di, rc.2]; omega)),
+        if_neg (ne _ _ (by rw [di, rc.1]; omega)), dm, List.getElem_append_left (by omega)]
+end
+
 end ConPanqueque.ConsIns
