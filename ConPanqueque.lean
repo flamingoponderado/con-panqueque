@@ -62,6 +62,7 @@ import ConPanqueque.V.LSucc
 import ConPanqueque.V.LBin
 import ConPanqueque.V.LParam
 import ConPanqueque.V.LsIntern
+import ConPanqueque.V.NIntern
 import ConPanqueque.LevelFns
 import ConPanqueque.LevelFold
 import ConPanqueque.Table
