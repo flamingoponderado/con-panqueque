@@ -43,13 +43,16 @@ structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   gfle : t.globals.lookup gFle = some (.val (.word C.FLe))
   gkb : t.globals.lookup gKb = some (.val (.word C.KB))
   code : t.code = C.code
+  /-- The key buffer's words are addressable (keys of up to three words; longer ones later). -/
+  kbuf : ∀ j, j < 3 → t.memaddrs (C.KB + BitVec.ofNat 64 (8 * j))
 
 theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u.memory = t.memory)
     (hd : u.memaddrs = t.memaddrs) (hg : u.globals = t.globals) (hc : u.code = t.code) : SR C s u :=
   ⟨srep_frame h.rep ⟨by rw [hm], by rw [hm], by rw [hm], by rw [hm]⟩ hd
       (fun _ _ _ _ => ⟨fun _ _ => by rw [hm], fun _ _ => by rw [hm]⟩),
     by rw [hg]; exact h.gdir, by rw [hg]; exact h.gfln, by rw [hg]; exact h.gfll, by rw [hg]; exact h.gfls,
-    by rw [hg]; exact h.gfle, by rw [hg]; exact h.gkb, by rw [hc]; exact h.code⟩
+    by rw [hg]; exact h.gfle, by rw [hg]; exact h.gkb, by rw [hc]; exact h.code,
+    fun j hj => by rw [hd]; exact h.kbuf j hj⟩
 
 theorem eval_gv (t : PState σ) (g : MlS) (w : BitVec 64) (h : t.globals.lookup g = some (.val (.word w))) :
     EV t (.var .global g) = some (.val (.word w)) := by
