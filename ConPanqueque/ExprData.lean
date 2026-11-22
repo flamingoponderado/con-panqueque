@@ -92,4 +92,33 @@ theorem proj_data (ra : RuntimeAssumptions) (n : ConLeche.Name) (i : Nat) (e : C
     (ConLeche.Expr.proj n i e).data = projDataW n.hashData (UInt64.ofNat i) e.data := by
   simp only [ConLeche.Expr.data, ConLeche.packData, ra.mixHash, projDataW, lp_bit]
   rfl
+/-- `Expr.sort u`'s data word, from the level's hash and has-parameter bit. -/
+def sortDataW (lh lp : UInt64) : UInt64 :=
+  ConLeche.hash32 (leanMixHash 7 lh) * 4294967296 + lp
+
+/-- `Expr.fvar i ty`'s data word, from the index as a word and the type's data word. -/
+def fvarDataW (iw dty : UInt64) : UInt64 :=
+  ConLeche.hash32 (leanMixHash 5 (leanMixHash iw (ConLeche.hashOfData dty))) * 4294967296 +
+    (if iw < 32766 then iw + 1 else 32767) * 2 + lpU dty
+
+pan_exp sortDataE := fun (lh lp : UInt64) => sortDataW lh lp
+pan_exp fvarDataE := fun (iw dty : UInt64) => fvarDataW iw dty
+
+theorem sort_data (ra : RuntimeAssumptions) (u : ConLeche.Level) :
+    (ConLeche.Expr.sort u).data = sortDataW u.hashData (if ConLeche.levelHasParam u then 1 else 0) := by
+  simp only [ConLeche.Expr.data, ConLeche.packData, ra.mixHash, sortDataW, ConLeche.levelHash]
+  simp
+
+theorem fvar_data (ra : RuntimeAssumptions) (i : Nat) (hi : i < 2 ^ 63) (ty : ConLeche.Expr) :
+    (ConLeche.Expr.fvar i ty).data = fvarDataW (UInt64.ofNat i) ty.data := by
+  have hs : UInt64.ofNat (min (i + 1) 32767) =
+      if UInt64.ofNat i < 32766 then UInt64.ofNat i + 1 else 32767 := by
+    have ht : (UInt64.ofNat i).toNat = i := by simp; omega
+    have h32 : (32766 : UInt64).toNat = 32766 := rfl
+    split <;> rename_i h <;> rw [UInt64.lt_iff_toNat_lt, ht, h32] at h <;> apply UInt64.toNat_inj.mp
+    · rw [UInt64.toNat_add, ht]; simp; omega
+    · simp; omega
+  simp only [ConLeche.Expr.data, ConLeche.packData, ra.mixHash, fvarDataW, ConLeche.satSucc, ConLeche.satRange, hs, lp_bit]
+  simp; rfl
+
 end ConPanqueque.ExprData
