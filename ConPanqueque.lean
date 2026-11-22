@@ -48,6 +48,7 @@ import ConPanqueque.V.StrHash
 import ConPanqueque.V.DerRead
 import ConPanqueque.V.Decode
 import ConPanqueque.V.Layout
+import ConPanqueque.V.Der
 import ConPanqueque.LevelFns
 import ConPanqueque.LevelFold
 import ConPanqueque.Table
