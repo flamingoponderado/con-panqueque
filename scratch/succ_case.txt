@@ -1,0 +1,65 @@
+  | @succ p q u hp h0 h1 h2 hu ih =>
+    intro s hc hm hpu hck
+    obtain ⟨d0, m0⟩ := hm _ _ h0
+    obtain ⟨d2, m2⟩ := hm _ _ h2
+    simp only [cost] at hck
+    obtain ⟨L1, hdec1⟩ := dec_word' s nT (.load .one vU) 1 _ (by
+      rw [eval_load_word s _ _ (by simp [evalHOLExact, vU, hpu]) d0, m0])
+    let s1 := setVarHOLFinite nT (.val (.word 1)) s
+    have lt1 : s1.locals.lookup nT = some (.val (.word 1)) := by simp [s1]
+    obtain ⟨L2, hdec2⟩ := dec_word' s1 nR (.const 0) 0 _ (by simp [evalHOLExact])
+    let s2 := setVarHOLFinite nR (.val (.word 0)) s1
+    have dRT : nR ≠ nT := by decide
+    have dUR : nU ≠ nR := by decide
+    have dUT : nU ≠ nT := by decide
+    have lt2 : s2.locals.lookup nT = some (.val (.word 1)) := by
+      simp only [s2]; rw [lookup_setVar_other _ _ (Ne.symm dRT)]; exact lt1
+    have lu2 : s2.locals.lookup nU = some (.val (.word p)) := by
+      simp only [s2, s1]; rw [lookup_setVar_other _ _ dUR, lookup_setVar_other _ _ dUT]; exact hpu
+    obtain ⟨st, ⟨pc, pm, pd, pclk⟩, hcall⟩ := call1 s2 nLhp nU nR lhpBody (.load .one (.op .add [vU, .const 16])) q
+      (bit (ConLeche.levelHasParam u))
+      (fun st => st.code = s.code ∧ st.memory = s.memory ∧ st.memaddrs = s.memaddrs ∧ s.clock - 1 ≤ st.clock + cost u)
+      (by simpa [s2, s1, setVarHOLFinite] using hc)
+      (by rw [eval_load_word s2 _ (p + 16) (by simp [evalHOLExact, evalListHOLExact, vU, lu2, wordOpHOL, wordOp,
+        valueIsWord, valueWord]) (by simpa [s2, s1, setVarHOLFinite] using d2)]
+          simp only [s2, s1, setVarHOLFinite]; rw [m2])
+      (by simp [s2, s1, setVarHOLFinite]; omega)
+      ⟨0, by simp [s2]⟩
+      (fun callee hcl => by
+        obtain ⟨st, ev, post⟩ := ih (callEntryStateHOLFinite s2 callee)
+          (by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using hc)
+          (fun a w ha => by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using hm a w ha)
+          (by simpa [callEntryStateHOLFinite] using hcl)
+          (by simp [callEntryStateHOLFinite, s2, s1, setVarHOLFinite]; omega)
+        obtain ⟨a1, a2, a3, a4⟩ := post
+        exact ⟨st, ev, by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using a1,
+          by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using a2,
+          by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using a3,
+          by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using a4⟩)
+    let s3 := setKvarHOLFinite .local nR (.val (.word (bit (ConLeche.levelHasParam u)))) { st with locals := s2.locals }
+    have lt3 : s3.locals.lookup nT = some (.val (.word 1)) := by
+      simp only [s3, setKvarHOLFinite]; rw [lookup_setVar_other _ _ (Ne.symm dRT)]; exact lt2
+    have lr3 : s3.locals.lookup nR = some (.val (.word (bit (ConLeche.levelHasParam u)))) := by
+      simp [s3, setKvarHOLFinite]
+    unfold lhpBody
+    rw [hdec1, ite_word s1 _ _ _ 0 (by simp [evalHOLExact, vT, lt1, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]),
+      ite_word s1 _ _ _ 0 (by simp [evalHOLExact, vT, lt1, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])]
+    simp only [ne_eq, not_true_eq_false, ite_false]
+    rw [hdec2]
+    simp only [callR]
+    rw [show setVarHOLFinite nR (.val (.word 0)) s1 = s2 from rfl]
+    rw [seq_normal _ hcall, ite_word s3 _ _ _ 1 (by simp [evalHOLExact, vT, lt3,
+      Flapjack.Compiler.Encoders.Asm.wordCmpHOL])]
+    rw [if_pos (by decide : (1 : BitVec 64) ≠ 0)]
+    have eret : evaluateHOLFiniteState s3 (.return vR) =
+        (some (.returned (.val (.word (bit (ConLeche.levelHasParam u))))), emptyLocalsHOLFinite s3) := by
+      rw [evaluateHOLFiniteState_eq_evaluate_def]; simp [evalHOLExact, vR, lr3, shapeOfHOLExact]
+    rw [eret]
+    have e : ConLeche.levelHasParam (.succ u) = ConLeche.levelHasParam u := by simp [ConLeche.levelHasParam]
+    rw [e]
+    refine ⟨_, rfl, ?_⟩
+    refine ⟨by simp [s3, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, pc],
+      by simp [s3, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, pm],
+      by simp [s3, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, pd], ?_⟩
+    simp [s3, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, cost]
+    omega

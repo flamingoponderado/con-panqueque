@@ -239,4 +239,63 @@ theorem bc_spec (C : Ctx) (hok : CtxOK C)
 
 end
 
+/-! ## `imaxRules` -/
+
+def lPb := ofString "kpb"
+def lA0 := ofString "ka"
+def lBx := ofString "kbx"
+def lBy := ofString "kby"
+def lRx := ofString "krx"
+def lPy := ofString "kpy"
+def lTb := ofString "ktb"
+def lW1 := ofString "kw1"
+def lW2 := ofString "kw2"
+
+def imLocals : List MlS := leqLocals ++ [lPb, lA0, lBx, lBy, lRx, lPy, lTb, lW1, lW2]
+abbrev DM : List MlS := ctxLocals ++ imLocals
+
+/-- `w := max (imax u₁ v₁) (imax u₂ v₂)`. -/
+def mkMI (C : Ctx) (u1 v1 u2 v2 : MlS) (rest : ProgHOL 64) : ProgHOL 64 :=
+  alloc3 C lW1 (.const 3) (vv u1) (vv v1) (alloc3 C lW2 (.const 3) (vv u2) (vv v2)
+    (alloc3 C lW (.const 2) (vv lW1) (vv lW2) rest))
+
+section
+variable {σ : Type}
+
+theorem mkMI_spec {α : Type} (C : Ctx) (hok : CtxOK C) {H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem}
+    {rest : ProgHOL 64} {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop}
+    (u1 v1 u2 v2 : MlS) (hn : u1 ≠ lW1 ∧ v1 ≠ lW1 ∧ u2 ≠ lW1 ∧ v2 ≠ lW1 ∧ u2 ≠ lW2 ∧ v2 ≠ lW2)
+    (a1 b1 a2 b2 : ConLeche.Level) (x1 y1 x2 y2 : BitVec 64)
+    (h1 : Γ.get u1 = some x1) (h2 : Γ.get v1 = some y1) (h3 : Γ.get u2 = some x2) (h4 : Γ.get v2 = some y2)
+    (r1 : LRep C.HB H s.store.ls x1 a1) (r2 : LRep C.HB H s.store.ls y1 b1)
+    (r3 : LRep C.HB H s.store.ls x2 a2) (r4 : LRep C.HB H s.store.ls y2 b2)
+    (hk : ∀ (H3 : List (BitVec 64)) (w : BitVec 64) (Γ' : Env), H <+: H3 →
+      LRep C.HB H3 s.store.ls w (.max (.imax a1 b1) (.imax a2 b2)) → Γ'.get lW = some w →
+      (∀ y, y ≠ lW → y ≠ lW1 → y ≠ lW2 → Γ'.get y = Γ.get y) →
+      SpecR (Inv (σ := σ) (ctxH C H3) s Γ' [] DM) rest s m R) :
+    SpecR (Inv (σ := σ) (ctxH C H) s Γ M DM) (mkMI C u1 v1 u2 v2 rest) s m R := by
+  unfold mkMI
+  refine specR_alloc3I (C := ctxH C H) (ctxOK_H hok H) lW1 (.const 3) (vv u1) (vv v1) 3 x1 y1 (by decide)
+    (fun _ => rfl) (fun _ => by simp [Env.get, hn.1, h1]) (fun _ => by simp [Env.get, hn.2.1, h2])
+    (fun I1 ws1 hp1 hws1 => ?_)
+  have hm1 := lrep_mkImax (ctxH C H) s.store.ls I1 ws1 x1 y1 a1 b1 hws1 hp1 r1 r2
+  have q1 : H <+: (((I1 ++ ws1).set I1.length (BitVec.ofNat 64 3)).set (I1.length + 1) x1).set (I1.length + 2) y1 :=
+    hp1.trans (img3_prefix I1 ws1 _ x1 y1 hws1)
+  refine specR_alloc3I (C := ctxH C _) (ctxOK_H hok _) lW2 (.const 3) (vv u2) (vv v2) 3 x2 y2 (by decide)
+    (fun _ => rfl) (fun _ => by simp [Env.get, show u2 ≠ lW2 from hn.2.2.2.2.1, show u2 ≠ lW1 from hn.2.2.1, h3])
+    (fun _ => by simp [Env.get, show v2 ≠ lW2 from hn.2.2.2.2.2, show v2 ≠ lW1 from hn.2.2.2.1, h4])
+    (fun I2 ws2 hp2 hws2 => ?_)
+  have hm2 := lrep_mkImax (ctxH C _) s.store.ls I2 ws2 x2 y2 a2 b2 hws2 hp2
+    (lrep_mono q1 a2 x2 r3) (lrep_mono q1 b2 y2 r4)
+  have q2 := hp2.trans (img3_prefix I2 ws2 (BitVec.ofNat 64 3) x2 y2 hws2)
+  refine specR_alloc3I (C := ctxH C _) (ctxOK_H hok _) lW (.const 2) (vv lW1) (vv lW2) 2 (cellA C I1.length)
+    (cellA C I2.length) (by decide) (fun _ => rfl) (fun _ => by simp +decide <;> rfl)
+    (fun _ => by simp +decide <;> rfl) (fun I3 ws3 hp3 hws3 => ?_)
+  have hm3 := lrep_mkMax (ctxH C _) s.store.ls I3 ws3 (cellA C I1.length) (cellA C I2.length) _ _ hws3 hp3
+    (lrep_mono q2 _ _ hm1) hm2 2 rfl
+  refine hk _ (cellA C I3.length) _ (q1.trans (q2.trans (hp3.trans (img3_prefix I3 ws3 (BitVec.ofNat 64 2) _ _ hws3)))) hm3
+    (by simp +decide <;> rfl) (fun y e1 e2 e3 => by simp [Env.get, e1, e2, e3])
+
+end
+
 end ConPanqueque.T.LLeq

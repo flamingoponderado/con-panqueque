@@ -1,0 +1,92 @@
+/-- `appTail` for any tag and data values: the four cells and the arena facts. -/
+theorem tail4_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (h : Heap) (p0 q r : BitVec 64)
+    (tv dv : BitVec 64)
+    (htg : t.locals.lookup nTg = some (.val (.word tv)))
+    (hd : t.locals.lookup nD = some (.val (.word dv)))
+    (hf : t.locals.lookup nF = some (.val (.word q)))
+    (ha : t.locals.lookup nA = some (.val (.word r)))
+    (hhp : t.globals.lookup nHp = some (.val (.word p0)))
+    (hi : ArenaInv t h p0) (hfit : ¬ t.topAddr - p0 < 32) :
+    ∃ h', (evaluateHOLFiniteState t appTail).1 = some (.returned (.val (.word p0))) ∧
+      ArenaInv (evaluateHOLFiniteState t appTail).2 h' (p0 + 32) ∧ Sub h h' ∧
+      (h' p0 = some (.word tv) ∧ h' (p0 + 8) = some (.word dv) ∧ h' (p0 + 16) = some (.word q) ∧
+        h' (p0 + 24) = some (.word r)) ∧
+      (evaluateHOLFiniteState t appTail).2.globals.lookup nHp = some (.val (.word (p0 + 32))) := by
+  have dPtg : nP ≠ nTg := by decide
+  have dPd : nP ≠ nD := by decide
+  have dPf : nP ≠ nF := by decide
+  have dPa : nP ≠ nA := by decide
+  obtain ⟨hfresh, hdist, hfree, hb⟩ := blockN 4 hi (by simpa using hfit) (by decide)
+  let t0 := setVarHOLFinite nP (.val (.word p0)) t
+  let t1 := setKvarHOLFinite .global nHp (.val (.word (p0 + 32))) t0
+  have e1 : evaluateHOLFiniteState t0 (.assign .global nHp (.op .add [.var .global nHp, .const 32])) =
+      (none, t1) := by
+    apply assign_ok
+    · simp [evalHOLExact, evalListHOLExact, t0, setVarHOLFinite, hhp, wordOpHOL, wordOp, valueIsWord, valueWord]
+    · simp [isValidValueHOLFinite, lookupKvarHOLFinite, t0, setVarHOLFinite, hhp, shapeOfHOLExact, shapeEqHOL]
+  have l1 : ∀ n, n ≠ nP → t1.locals.lookup n = t.locals.lookup n := by
+    intro n hn; simp only [t1, t0, setKvarHOLFinite, setGlobalHOLFinite]; exact lookup_setVar_other _ _ hn
+  have lp1 : t1.locals.lookup nP = some (.val (.word p0)) := by
+    simp [t1, t0, setKvarHOLFinite, setGlobalHOLFinite]
+  obtain ⟨t2, ev2, hl2, hd2, ht2, hg2, hm2, hs2⟩ :=
+    storeSeq_spec nP p0 [nTg, nD, nF, nA] [tv, dv, q, r] 0 t1 h rfl lp1
+      (fun j hj => by
+        match j, hj with
+        | 0, _ => simpa [l1 nTg (Ne.symm dPtg)] using htg
+        | 1, _ => simpa [l1 nD (Ne.symm dPd)] using hd
+        | 2, _ => simpa [l1 nF (Ne.symm dPf)] using hf
+        | 3, _ => simpa [l1 nA (Ne.symm dPa)] using ha)
+      (inMem_of_eq (by simp [t1, t0, setKvarHOLFinite, setGlobalHOLFinite, setVarHOLFinite])
+        (by simp [t1, t0, setKvarHOLFinite, setGlobalHOLFinite, setVarHOLFinite]) hi.1)
+      (fun j hj => by
+        obtain ⟨x, y⟩ := hfresh j (by simpa using hj)
+        exact ⟨by simpa [t1, t0, setKvarHOLFinite, setGlobalHOLFinite, setVarHOLFinite] using x, by simpa using y⟩)
+      (fun j k hj hk hjk => by simpa using hdist j k (by simpa using hj) (by simpa using hk) hjk)
+  have lp2 : t2.locals.lookup nP = some (.val (.word p0)) := by rw [hl2]; exact lp1
+  have eret : evaluateHOLFiniteState t2 (.return (.var .local nP)) =
+      (some (.returned (.val (.word p0))), emptyLocalsHOLFinite t2) := by
+    rw [evaluateHOLFiniteState_eq_evaluate_def]; simp [evalHOLExact, lp2, shapeOfHOLExact]
+  have einner : evaluateHOLFiniteState t0
+      (.seq (.assign .global nHp (.op .add [.var .global nHp, .const 32]))
+        (.seq (storeSeq nP [nTg, nD, nF, nA] 0) (.return (.var .local nP)))) =
+      (some (.returned (.val (.word p0))), emptyLocalsHOLFinite t2) := by
+    rw [seq_normal _ e1, seq_normal _ ev2, eret]
+  obtain ⟨r1, rm, rd, rg, rt⟩ := dec_word t nP (.var .global nHp) p0 _ (by simp [evalHOLExact, hhp])
+  simp only [t0] at einner
+  rw [einner] at r1 rm rd rg rt
+  let h' := extSeq h p0 [tv, dv, q, r] 0
+  have get : ∀ j (hj : j < 4), h' (at8 p0 j) =
+      some (.word ([tv, dv, q, r][j]'(by simpa using hj))) := by
+    intro j hj
+    have := extSeq_get p0 [tv, dv, q, r] 0 h j (by simpa using hj)
+      (fun j k hj hk hjk => by simpa using hdist j k (by simpa using hj) (by simpa using hk) hjk)
+    simp only [h']; simpa using this
+  refine ⟨h', ?_, ⟨?_, ?_, ?_⟩, hs2, ?_, ?_⟩
+  · unfold appTail; exact r1
+  · unfold appTail
+    exact inMem_of_eq (by rw [rm]; simp [emptyLocalsHOLFinite]) (by rw [rd]; simp [emptyLocalsHOLFinite]) hm2
+  · unfold appTail
+    have hfr : Free t2 (p0 + 32) := by
+      simp only [Free] at hfree ⊢
+      rw [hd2, ht2]; simpa [t1, t0, setKvarHOLFinite, setGlobalHOLFinite, setVarHOLFinite] using hfree
+    simp only [Free] at hfr ⊢
+    rw [rd, rt]; simpa [emptyLocalsHOLFinite] using hfr
+  · intro x w hx
+    by_cases hin : ∃ j, j < 4 ∧ x = at8 p0 j
+    · obtain ⟨j, hj, rfl⟩ := hin
+      simp only [at8]
+      have : j * 8 < 32 := by omega
+      bv_omega
+    · have hx' : h x = some w := by
+        rw [← extSeq_other p0 [tv, dv, q, r] 0 h x (fun j hj e =>
+          hin ⟨j, by simpa using hj, by simpa using e⟩)]
+        exact hx
+      have := hi.2.2 x w hx'
+      bv_omega
+  · have g0 := get 0 (by decide); have g1 := get 1 (by decide)
+    have g2 := get 2 (by decide); have g3 := get 3 (by decide)
+    simp [at8] at g0 g1 g2 g3
+    exact ⟨g0, g1, g2, g3⟩
+  · unfold appTail; rw [rg]; simp [emptyLocalsHOLFinite, hg2, t1, setKvarHOLFinite, setGlobalHOLFinite, FUPDATE]
+
+
