@@ -111,4 +111,70 @@ theorem probe_correct (home : α → Nat) (rows : List α) (slots : List Nat) (n
       have := probe_some rows slots n a n (home a) i e
       exact absurd (List.mem_of_getElem? this) hmem
 
+/-- The first offset `d ≥ k` (below `n`) on the probe path from `h` whose slot is empty. -/
+def firstEmpty (slots : List Nat) (n h : Nat) : Nat → Nat → Option Nat
+  | 0, _ => none
+  | fuel + 1, k => if slots[at_ n h k]? = some 0 then some k else firstEmpty slots n h fuel (k + 1)
+
+theorem firstEmpty_spec (slots : List Nat) (n h : Nat) :
+    ∀ fuel k d, firstEmpty slots n h fuel k = some d →
+      k ≤ d ∧ d < k + fuel ∧ slots[at_ n h d]? = some 0 ∧ ∀ d', k ≤ d' → d' < d → slots[at_ n h d']? ≠ some 0
+  | 0, _, _, e => by simp [firstEmpty] at e
+  | fuel + 1, k, d, e => by
+    simp only [firstEmpty] at e
+    split at e
+    · rename_i h0; cases e; exact ⟨Nat.le_refl _, by omega, h0, fun d' h1 h2 => by omega⟩
+    · rename_i h0
+      obtain ⟨a1, a2, a3, a4⟩ := firstEmpty_spec slots n h fuel (k + 1) d e
+      refine ⟨by omega, by omega, a3, fun d' h1 h2 => ?_⟩
+      by_cases hk : d' = k
+      · subst hk; exact h0
+      · exact a4 d' (by omega) h2
+
+/-- Inserting a key that is not a row, at the first empty slot of its probe path, keeps `Inv`. -/
+theorem insert_inv (home : α → Nat) (rows : List α) (slots : List Nat) (n : Nat)
+    (hinv : Inv (α := α) home rows slots n) (a : α) (ha : a ∉ rows) (d : Nat)
+    (hd : firstEmpty slots n (home a) n 0 = some d) :
+    Inv (α := α) home (rows ++ [a]) (slots.set (at_ n (home a) d) (rows.length + 1)) n := by
+  obtain ⟨-, hdn, hd0, hprev⟩ := firstEmpty_spec slots n (home a) n 0 d hd
+  simp only [Nat.zero_add] at hdn
+  generalize hj : at_ n (home a) d = j at hd0 ⊢
+  have hjlt : j < slots.length := by rw [hinv.len, ← hj]; exact Nat.mod_lt _ hinv.pos
+  -- slot lookups after the set
+  have get_set : ∀ x, (slots.set j (rows.length + 1))[x]? = if j = x then some (rows.length + 1) else slots[x]? := by
+    intro x; rw [List.getElem?_set]; by_cases e : j = x
+    · subst e; simp [hjlt]
+    · simp [e]
+  refine ⟨by simp [hinv.len], hinv.pos, hinv.home_lt, ?_, ?_, ?_⟩
+  · intro x i hx
+    rw [get_set] at hx
+    split at hx
+    · cases hx; simp
+    · have := hinv.named x i hx; simp; omega
+  · intro i hi
+    by_cases hold : i < rows.length
+    · obtain ⟨d1, hd1, hs1, hne1⟩ := hinv.reach i hold
+      have hri : (rows ++ [a])[i] = rows[i] := List.getElem_append_left hold
+      refine ⟨d1, hd1, ?_, fun d' h' => ?_⟩
+      · rw [hri, get_set]
+        split
+        · rename_i e; rw [← e] at hs1; rw [hd0] at hs1; cases hs1
+        · exact hs1
+      · rw [hri, get_set]
+        split
+        · simp
+        · exact hne1 d' h'
+    · have hi' : i = rows.length := by simp at hi; omega
+      subst hi'
+      have hra : (rows ++ [a])[rows.length] = a := by simp
+      refine ⟨d, hdn, ?_, fun d' h' => ?_⟩
+      · rw [hra, get_set, hj]; simp
+      · rw [hra, get_set]
+        split
+        · simp
+        · exact hprev d' (Nat.zero_le _) h'
+  · refine List.nodup_append.mpr ⟨hinv.rows_nodup, by simp, ?_⟩
+    intro x hx y hy e
+    simp at hy; subst hy; subst e; exact ha hx
+
 end ConPanqueque.ConsModel
