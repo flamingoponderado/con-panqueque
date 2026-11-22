@@ -145,3 +145,26 @@ generic recursion rules already proved here.
 
 con-leche and Flapjack's `lean-v4.35.0` branch both use Lean v4.35.0
 (`lean-toolchain`); they are submodules under `deps/`.
+
+## Translator design (started)
+
+- **Values.** `ArenaRep α` (`ConPanqueque/ArenaRep.lean`) gives each datatype
+  a representation predicate over the arena, monotone under growth; results of
+  translated functions are stated as `RResA` (stop, or a representing word).
+- **The monad.** con-leche's `CheckCM = StateT CState (Except CheckError)`.
+  - *Errors*: a translated function returns a tagged word (or uses a reserved
+    result global); the checker's verdict only depends on whether an error
+    occurred and which, so the error payload is a small enumeration.
+  - *State*: `CState` is a record of memo maps (`whnfC`, `inferC`, `defeqC`,
+    …) plus `maxNatSize`. Every map is a pure memo of a function con-leche
+    proves correct (`CSOK`), so a lookup miss never changes a result. In
+    Pancake each becomes a pointer-keyed `Table` (`Table.lean`, as in
+    `MemoFold.lean`) with an entry-correctness invariant
+    (`key ↦ val ⇒ ExprAt key e ∧ ExprAt val (f e)`); structurally equal
+    expressions at different addresses just miss. The refinement relation
+    for `CheckCM` is then: on success, the result represents con-leche's
+    result and the tables satisfy their invariants; misses cost only time.
+  - *Fuel* (`peelFuel` and friends) is transparent and maps to clock.
+- **Control.** First-order recursion through `step_call` / `pure_step`
+  (`Rebuild.lean`), node and cell allocation through `mkNode` / `mkCell`
+  with `Stop` on exhaustion, case analysis on tags through `iteChain`.
