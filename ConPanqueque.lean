@@ -10,4 +10,5 @@ import ConPanqueque.DataWord
 import ConPanqueque.AppData
 import ConPanqueque.LevelCons
 import ConPanqueque.ExprCons
+import ConPanqueque.BinCons
 import ConPanqueque.Examples.ListLength
