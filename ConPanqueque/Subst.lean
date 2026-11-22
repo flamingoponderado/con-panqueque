@@ -12,7 +12,7 @@ open ConPanqueque.Node ConPanqueque.StateHeap ConPanqueque.Rebuild
 con-leche's substitutions (`instantiate1P`, `liftLooseBVarsP`, `instantiateLiftP`,
 …) share one shape: the cutoff on the stored loose-bvar bound, then a descent
 that rebuilds `app`/`lam`/`forallE`/`letE`/`proj` nodes (depth `k + 1` under
-binders) and does something specific at `bvar`. `body S.ce (cases bc fc fn)` is that
+binders) and does something specific at `bvar`. `body S.ce (cases bc fc sc cc fn)` is that
 descent in Pancake with the `bvar` case `bc` a parameter; `subst_spec` proves it
 computes any `F` with the shape's equations (`Shape`), given the `bvar` case's
 spec, under an extra invariant `X` (e.g. a value held in a global) that only
@@ -49,7 +49,7 @@ theorem arena_read {σ : Type} {t t' : PanSemStateFiniteExact 64 σ} {lo hp hp' 
   have := grows_sub g a _ ha
   exact (ainv_arena hi).1 a _ this
 
-theorem bin_case {σ : Type} (bc fc : ProgHOL 64) (fn : MlS) (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
+theorem bin_case {σ : Type} (bc fc sc cc : ProgHOL 64) (fn : MlS) (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
     (B : ProgHOL 64) (hC : C.lookup fn = some ([(iU, .one), (iK, .one)], B, .one))
     (tag : BitVec 64) (dexp k2 : ExpHOL 64) (v1 v2 vn : ConLeche.Expr) (dv : BitVec 64) (c1 c2 : Nat)
     (t : PanSemStateFiniteExact 64 σ) (lo hp p kw k2w cp1 cp2 : BitVec 64)
@@ -348,8 +348,8 @@ def projCase (fn : MlS) : ProgHOL 64 :=
 /-- A leaf case that returns the node. -/
 def idCase : ProgHOL 64 := .return (vv iU)
 
-def cases (bc fc : ProgHOL 64) (fn : MlS) : List (BitVec 64 × ProgHOL 64) :=
-  [(0, bc), (1, fc),
+def cases (bc fc sc cc : ProgHOL 64) (fn : MlS) : List (BitVec 64 × ProgHOL 64) :=
+  [(0, bc), (1, fc), (2, sc), (3, cc),
    (4, binCase fn 4 (ConPanqueque.AppData.appDataExp (ldo iRa 8) (ldo iRb 8)) (vv iK)),
    (5, binCase fn 5 (ConPanqueque.BinCons.binDataExp (19 : UInt64).toBitVec (ldo iRa 8) (ldo iRb 8)) kPlus1),
    (6, binCase fn 6 (ConPanqueque.BinCons.binDataExp (23 : UInt64).toBitVec (ldo iRa 8) (ldo iRb 8)) kPlus1),
@@ -382,8 +382,8 @@ structure Shape (X : Inv) where
     t.locals.lookup iK = some (.val (.word (BitVec.ofNat 64 k))) → ∀ h, X.P t.globals.lookup h →
     ∃ w, @evalHOLExact 64 σ _ t.toExact (fun a => Classical.propDecidable (t.memaddrs a)) ce =
       some (.val (.word w)) ∧ (w ≠ 0 ↔ CP e k)
-  /-- Nodes without variables are always past the cutoff. -/
-  leaf : ∀ e k, e.bvarBRaw = 0 → e.fvarBRaw = 0 → CP e k
+  /-- Literals are always past the cutoff. -/
+  leaf : ∀ l k, CP (.lit l) k
   cut : ∀ e k, CP e k → F e k = e
   app : ∀ f a k, F (.app f a) k = .app (F f k) (F a k)
   lam : ∀ t b k, F (.lam t b) k = .lam (F t k) (F b (k + 1))
@@ -392,21 +392,21 @@ structure Shape (X : Inv) where
   proj : ∀ n i e k, F (.proj n i e) k = .proj n i (F e k)
 
 /-- What a call on `e` at depth `k` does. -/
-def Spec {σ : Type} (bc fc : ProgHOL 64) (fn : MlS) (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
+def Spec {σ : Type} (bc fc sc cc : ProgHOL 64) (fn : MlS) (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
     (X : Inv) (S : Shape X) (lo : BitVec 64) (h : Heap) (p : BitVec 64) (e : ConLeche.Expr) : Prop :=
   ∀ (t : PanSemStateFiniteExact 64 σ) (k : Nat) (hp : BitVec 64), t.code = C → AInv t lo hp →
     Sub h (hOf t lo hp) → X.P t.globals.lookup (hOf t lo hp) →
     t.locals.lookup iU = some (.val (.word p)) → t.locals.lookup iK = some (.val (.word (BitVec.ofNat 64 k))) →
     k + bdepth e < 2 ^ 64 → ConPanqueque.ExprFold.cost e ≤ t.clock →
-    RRes t (evaluateHOLFiniteState t (body S.ce (cases bc fc fn))) lo hp (fun h q => ExprAt h q (S.F e k))
+    RRes t (evaluateHOLFiniteState t (body S.ce (cases bc fc sc cc fn))) lo hp (fun h q => ExprAt h q (S.F e k))
       (ConPanqueque.ExprFold.cost e)
 
 /-- A two-child node of `inst1`, from its children's specs. -/
-theorem spec_bin {σ : Type} (bc fc : ProgHOL 64) (fn : MlS) (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
+theorem spec_bin {σ : Type} (bc fc sc cc : ProgHOL 64) (fn : MlS) (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
     (X : Inv) (S : Shape X)
-    (hC : C.lookup fn = some ([(iU, .one), (iK, .one)], body S.ce (cases bc fc fn), .one)) (lo : BitVec 64)
+    (hC : C.lookup fn = some ([(iU, .one), (iK, .one)], body S.ce (cases bc fc sc cc fn), .one)) (lo : BitVec 64)
     (h : Heap) (p q r : BitVec 64) (e f a : ConLeche.Expr) (tg : BitVec 64) (dexp k2 : ExpHOL 64) (bump : Nat)
-    (hpick : ConPanqueque.Fold.pick tg (cases bc fc fn) (.return (vv iU)) = binCase fn tg dexp k2)
+    (hpick : ConPanqueque.Fold.pick tg (cases bc fc sc cc fn) (.return (vv iU)) = binCase fn tg dexp k2)
     (hk2 : ∀ (k : Nat) (t' : PanSemStateFiniteExact 64 σ), t'.locals.lookup iK = some (.val (.word (BitVec.ofNat 64 k))) →
       @evalHOLExact 64 σ _ t'.toExact (fun a => Classical.propDecidable (t'.memaddrs a)) k2 =
         some (.val (.word (BitVec.ofNat 64 (k + bump)))))
@@ -423,19 +423,19 @@ theorem spec_bin {σ : Type} (bc fc : ProgHOL 64) (fn : MlS) (C : HolFiniteMapEx
       ExprAt h' q2 (S.F a (k + bump)) → ExprAt h' p0 (S.F e k))
     (he : ExprAt h p e) (h0 : h p = some (.word tg)) (h2 : h (p + 16) = some (.word q))
     (h3 : h (p + 24) = some (.word r))
-    (ihf : Spec (σ := σ) bc fc fn C X S lo h q f) (iha : Spec (σ := σ) bc fc fn C X S lo h r a) :
-    Spec (σ := σ) bc fc fn C X S lo h p e := by
+    (ihf : Spec (σ := σ) bc fc sc cc fn C X S lo h q f) (iha : Spec (σ := σ) bc fc sc cc fn C X S lo h r a) :
+    Spec (σ := σ) bc fc sc cc fn C X S lo h p e := by
   intro t k hp hcd hi hs hx hu hk hd hck
   have hk64 : k < 2 ^ 64 := by omega
   obtain ⟨_, h8⟩ := exprAt_data he
-  apply entry S.ce S.CP (cases bc fc fn) t lo hp p tg e k hk64 hi hu hk (hs _ _ h0) (hs _ _ h8)
+  apply entry S.ce S.CP (cases bc fc sc cc fn) t lo hp p tg e k hk64 hi hu hk (hs _ _ h0) (hs _ _ h8)
     (fun t' a b g => S.ceval t' _ k (by omega) a b _ (by rw [g]; exact hx))
   · intro hct; rw [S.cut _ _ hct]; exact exprAt_mono hs he
   intro hct t2 cd2 m2 d2 g2 ta2 ck2 hu2 hk2'
   rw [hpick, hcost]
   have hO2 : hOf t2 lo hp = hOf t lo hp := hOf_of_eq lo hp m2
   obtain ⟨df, da⟩ := hdep k hd
-  exact bin_case bc fc fn C _ hC tg dexp k2 (S.F f k) (S.F a (k + bump)) (S.F e k)
+  exact bin_case bc fc sc cc fn C _ hC tg dexp k2 (S.F f k) (S.F a (k + bump)) (S.F e k)
     _ (ConPanqueque.ExprFold.cost f) (ConPanqueque.ExprFold.cost a) t2 lo hp p _ _ q r
     (by rw [cd2]; exact hcd) (ainv_of_eq hi g2 d2 ta2) hu2 hk2' (hk2 k)
     (by rw [hO2]; exact hs _ _ h2) (by rw [hO2]; exact hs _ _ h3) (by rw [ck2]; omega)
@@ -450,12 +450,12 @@ theorem spec_bin {σ : Type} (bc fc : ProgHOL 64) (fn : MlS) (C : HolFiniteMapEx
     (hdata k) (hbuild k)
 
 /-- A node whose loose-bvar bound is `0`: always past the cutoff. -/
-theorem spec_leaf {σ : Type} (bc fc : ProgHOL 64) (fn : MlS) (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
+theorem spec_leaf {σ : Type} (bc fc sc cc : ProgHOL 64) (fn : MlS) (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
     (X : Inv) (S : Shape X) (lo : BitVec 64) (h : Heap) (p tg : BitVec 64) (e : ConLeche.Expr)
-    (he : ExprAt h p e) (h0 : h p = some (.word tg)) (hz : ∀ k, S.CP e k) : Spec (σ := σ) bc fc fn C X S lo h p e := by
+    (he : ExprAt h p e) (h0 : h p = some (.word tg)) (hz : ∀ k, S.CP e k) : Spec (σ := σ) bc fc sc cc fn C X S lo h p e := by
   intro t k hp hcd hi hs hx hu hk hd hck
   obtain ⟨_, h8⟩ := exprAt_data he
-  apply entry S.ce S.CP (cases bc fc fn) t lo hp p tg e k (by omega) hi hu hk (hs _ _ h0) (hs _ _ h8)
+  apply entry S.ce S.CP (cases bc fc sc cc fn) t lo hp p tg e k (by omega) hi hu hk (hs _ _ h0) (hs _ _ h8)
     (fun t' a b g => S.ceval t' _ k (by omega) a b _ (by rw [g]; exact hx))
   · intro hct; rw [S.cut _ _ hct]; exact exprAt_mono hs he
   · intro hct; exact absurd (hz k) hct
@@ -642,31 +642,31 @@ theorem fin_proj {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : Pa
     fun g hg => by rw [gl5 g hg]; show t'.globals.lookup g = _; rw [gl],
     by rw [md5]; exact md, by rw [ta5]; exact ta⟩
 
-theorem hB_of_spec {σ : Type} {bc fc : ProgHOL 64} {fn : MlS} {C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL)}
+theorem hB_of_spec {σ : Type} {bc fc sc cc : ProgHOL 64} {fn : MlS} {C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL)}
     {X : Inv} {S : Shape X} {lo : BitVec 64} {h : Heap} {q : BitVec 64} {f : ConLeche.Expr}
-    (ihs : Spec (σ := σ) bc fc fn C X S lo h q f) (k : Nat) (ti : PanSemStateFiniteExact 64 σ) (hq : BitVec 64)
+    (ihs : Spec (σ := σ) bc fc sc cc fn C X S lo h q f) (k : Nat) (ti : PanSemStateFiniteExact 64 σ) (hq : BitVec 64)
     (hsub : Sub h (hOf ti lo hq)) (hx : X.P ti.globals.lookup (hOf ti lo hq)) (hd : k + bdepth f < 2 ^ 64) :
     ∀ s' : PanSemStateFiniteExact 64 σ, s'.code = C → AInv s' lo hq → s'.memory = ti.memory →
       s'.globals = ti.globals → s'.locals.lookup iU = some (.val (.word q)) →
       s'.locals.lookup iK = some (.val (.word (BitVec.ofNat 64 k))) → ConPanqueque.ExprFold.cost f ≤ s'.clock →
-      RRes s' (evaluateHOLFiniteState s' (body S.ce (cases bc fc fn))) lo hq (fun h q => ExprAt h q (S.F f k))
+      RRes s' (evaluateHOLFiniteState s' (body S.ce (cases bc fc sc cc fn))) lo hq (fun h q => ExprAt h q (S.F f k))
         (ConPanqueque.ExprFold.cost f) := by
   intro s' cd a m g hu hk hc
   exact ihs s' k hq cd a (by rw [hOf_of_eq lo hq m]; exact hsub)
     (X.mono _ _ _ _ hx (by rw [hOf_of_eq lo hq m]; exact fun a w h => h) (fun g' _ => by rw [g])) hu hk hd hc
 
-theorem spec_letE {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (bc fc : ProgHOL 64) (fn : MlS)
+theorem spec_letE {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (bc fc sc cc : ProgHOL 64) (fn : MlS)
     (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
     (X : Inv) (S : Shape X)
-    (hC : C.lookup fn = some ([(iU, .one), (iK, .one)], body S.ce (cases bc fc fn), .one)) (lo : BitVec 64)
+    (hC : C.lookup fn = some ([(iU, .one), (iK, .one)], body S.ce (cases bc fc sc cc fn), .one)) (lo : BitVec 64)
     (h : Heap) (p q r w : BitVec 64) (a b c : ConLeche.Expr) (he : ExprAt h p (.letE a b c))
     (h0 : h p = some (.word 7)) (h2 : h (p + 16) = some (.word q)) (h3 : h (p + 24) = some (.word r))
     (h4 : h (p + 32) = some (.word w))
-    (iha : Spec (σ := σ) bc fc fn C X S lo h q a) (ihb : Spec (σ := σ) bc fc fn C X S lo h r b) (ihc : Spec (σ := σ) bc fc fn C X S lo h w c) :
-    Spec (σ := σ) bc fc fn C X S lo h p (.letE a b c) := by
+    (iha : Spec (σ := σ) bc fc sc cc fn C X S lo h q a) (ihb : Spec (σ := σ) bc fc sc cc fn C X S lo h r b) (ihc : Spec (σ := σ) bc fc sc cc fn C X S lo h w c) :
+    Spec (σ := σ) bc fc sc cc fn C X S lo h p (.letE a b c) := by
   intro t k hp hcd hai hs hx hu hk hd hck
   obtain ⟨_, h8⟩ := exprAt_data he
-  apply entry S.ce S.CP (cases bc fc fn) t lo hp p 7 _ k (by omega) hai hu hk (hs _ _ h0) (hs _ _ h8)
+  apply entry S.ce S.CP (cases bc fc sc cc fn) t lo hp p 7 _ k (by omega) hai hu hk (hs _ _ h0) (hs _ _ h8)
     (fun t' a b g => S.ceval t' _ k (by omega) a b _ (by rw [g]; exact hx))
   · intro hct; rw [S.cut _ _ hct]; exact exprAt_mono hs he
   intro hct t2 cd2 m2 d2 g2 ta2 ck2 hu2 hk2
@@ -719,18 +719,18 @@ theorem spec_letE {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (bc fc
     (exprAt_mono (grows_sub (grows_trans g4 g5)) r1) (exprAt_mono (grows_sub g5) r2) r3
     (by rw [l5o _ (by decide), l4o _ (by decide)]; exact l3a) (by rw [l5o _ (by decide)]; exact l4b) l5c
 
-theorem spec_proj {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (bc fc : ProgHOL 64) (fn : MlS)
+theorem spec_proj {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (bc fc sc cc : ProgHOL 64) (fn : MlS)
     (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
     (X : Inv) (S : Shape X)
-    (hC : C.lookup fn = some ([(iU, .one), (iK, .one)], body S.ce (cases bc fc fn), .one)) (lo : BitVec 64)
+    (hC : C.lookup fn = some ([(iU, .one), (iK, .one)], body S.ce (cases bc fc sc cc fn), .one)) (lo : BitVec 64)
     (h : Heap) (p q vix r : BitVec 64) (n : ConLeche.Name) (i : Nat) (e : ConLeche.Expr)
     (he : ExprAt h p (.proj n i e)) (h0 : h p = some (.word 9)) (h2 : h (p + 16) = some (.word q))
     (h3 : h (p + 24) = some (.word vix)) (h4 : h (p + 32) = some (.word r)) (hn : NameAt h q n) (hi : NatAt h vix i)
-    (ihe : Spec (σ := σ) bc fc fn C X S lo h r e) :
-    Spec (σ := σ) bc fc fn C X S lo h p (.proj n i e) := by
+    (ihe : Spec (σ := σ) bc fc sc cc fn C X S lo h r e) :
+    Spec (σ := σ) bc fc sc cc fn C X S lo h p (.proj n i e) := by
   intro t k hp hcd hai hs hx hu hk hd hck
   obtain ⟨_, h8⟩ := exprAt_data he
-  apply entry S.ce S.CP (cases bc fc fn) t lo hp p 9 _ k (by omega) hai hu hk (hs _ _ h0) (hs _ _ h8)
+  apply entry S.ce S.CP (cases bc fc sc cc fn) t lo hp p 9 _ k (by omega) hai hu hk (hs _ _ h0) (hs _ _ h8)
     (fun t' a b g => S.ceval t' _ k (by omega) a b _ (by rw [g]; exact hx))
   · intro hct; rw [S.cut _ _ hct]; exact exprAt_mono hs he
   intro hct t2 cd2 m2 d2 g2 ta2 ck2 hu2 hk2
@@ -772,20 +772,25 @@ theorem spec_proj {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (bc fc
       l5a)
   exact rres_of_eq rr rfl rfl rfl rfl rfl rfl
 
-theorem subst_spec {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (bc fc : ProgHOL 64) (fn : MlS)
+theorem subst_spec {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (bc fc sc cc : ProgHOL 64) (fn : MlS)
     (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
     (X : Inv) (S : Shape X)
-    (hC : C.lookup fn = some ([(iU, .one), (iK, .one)], body S.ce (cases bc fc fn), .one))
+    (hC : C.lookup fn = some ([(iU, .one), (iK, .one)], body S.ce (cases bc fc sc cc fn), .one))
     (lo : BitVec 64)
     (hbv : ∀ (h : Heap) (p vw : BitVec 64) (i : Nat), ExprAt h p (.bvar i) → h p = some (.word 0) →
-      h (p + 16) = some (.word vw) → NatAt h vw i → Spec (σ := σ) bc fc fn C X S lo h p (.bvar i))
+      h (p + 16) = some (.word vw) → NatAt h vw i → Spec (σ := σ) bc fc sc cc fn C X S lo h p (.bvar i))
     (hfv : ∀ (h : Heap) (p vw q : BitVec 64) (i : Nat) (ty : ConLeche.Expr), ExprAt h p (.fvar i ty) →
       h p = some (.word 1) → h (p + 16) = some (.word vw) → h (p + 24) = some (.word q) → NatAt h vw i →
-      ExprAt h q ty → Spec (σ := σ) bc fc fn C X S lo h p (.fvar i ty))
-    {h : Heap} {p : BitVec 64} {e : ConLeche.Expr} (he : ExprAt h p e) : Spec (σ := σ) bc fc fn C X S lo h p e := by
+      ExprAt h q ty → Spec (σ := σ) bc fc sc cc fn C X S lo h q ty → Spec (σ := σ) bc fc sc cc fn C X S lo h p (.fvar i ty))
+    (hsort : ∀ (h : Heap) (p q : BitVec 64) (u : ConLeche.Level), ExprAt h p (.sort u) → h p = some (.word 2) →
+      h (p + 16) = some (.word q) → LevelAt h q u → Spec (σ := σ) bc fc sc cc fn C X S lo h p (.sort u))
+    (hconst : ∀ (h : Heap) (p q r : BitVec 64) (n : ConLeche.Name) (us : List ConLeche.Level),
+      ExprAt h p (.const n us) → h p = some (.word 3) → h (p + 16) = some (.word q) → h (p + 24) = some (.word r) →
+      NameAt h q n → LevelsAt h r us → Spec (σ := σ) bc fc sc cc fn C X S lo h p (.const n us))
+    {h : Heap} {p : BitVec 64} {e : ConLeche.Expr} (he : ExprAt h p e) : Spec (σ := σ) bc fc sc cc fn C X S lo h p e := by
   induction he with
   | @app p q r f a hp0 h0 hd h2 h3 hf ha ihf iha =>
-    exact spec_bin bc fc fn C X S hC lo _ p q r (.app f a) f a 4 _ (vv iK) 0 rfl
+    exact spec_bin bc fc sc cc fn C X S hC lo _ p q r (.app f a) f a 4 _ (vv iK) 0 rfl
       (fun k t' hk => by simpa [vv, evalHOLExact] using hk) (by simp [ConPanqueque.ExprFold.cost]; omega)
       (fun k hk => by simp [bdepth] at hk; omega)
       (fun k t' h' q1 q2 hm e1 e2 l1 l2 => by
@@ -794,7 +799,7 @@ theorem subst_spec {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (bc f
         rw [S.app] at c8 ⊢; exact .app hp c0 c8 c16 c24 e1 e2)
       (.app hp0 h0 hd h2 h3 hf ha) h0 h2 h3 ihf iha
   | @lam p q r f a hp0 h0 hd h2 h3 hf ha ihf iha =>
-    exact spec_bin bc fc fn C X S hC lo _ p q r (.lam f a) f a 5 _ kPlus1 1 rfl
+    exact spec_bin bc fc sc cc fn C X S hC lo _ p q r (.lam f a) f a 5 _ kPlus1 1 rfl
       (fun k t' hk => eval_kPlus1 k t' hk) (by simp [ConPanqueque.ExprFold.cost]; omega)
       (fun k hk => by simp [bdepth] at hk; omega)
       (fun k t' h' q1 q2 hm e1 e2 l1 l2 => by
@@ -803,7 +808,7 @@ theorem subst_spec {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (bc f
         rw [S.lam] at c8 ⊢; exact .lam hp c0 c8 c16 c24 e1 e2)
       (.lam hp0 h0 hd h2 h3 hf ha) h0 h2 h3 ihf iha
   | @forallE p q r f a hp0 h0 hd h2 h3 hf ha ihf iha =>
-    exact spec_bin bc fc fn C X S hC lo _ p q r (.forallE f a) f a 6 _ kPlus1 1 rfl
+    exact spec_bin bc fc sc cc fn C X S hC lo _ p q r (.forallE f a) f a 6 _ kPlus1 1 rfl
       (fun k t' hk => eval_kPlus1 k t' hk) (by simp [ConPanqueque.ExprFold.cost]; omega)
       (fun k hk => by simp [bdepth] at hk; omega)
       (fun k t' h' q1 q2 hm e1 e2 l1 l2 => by
@@ -811,14 +816,14 @@ theorem subst_spec {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (bc f
       (fun k h' p0 q1 q2 hp c0 c8 c16 c24 e1 e2 => by
         rw [S.forallE] at c8 ⊢; exact .forallE hp c0 c8 c16 c24 e1 e2)
       (.forallE hp0 h0 hd h2 h3 hf ha) h0 h2 h3 ihf iha
-  | fvar hp h0 hd h2 h3 hi hty _ => exact hfv _ _ _ _ _ _ (.fvar hp h0 hd h2 h3 hi hty) h0 h2 h3 hi hty
-  | sort hp h0 hd h2 hu => exact spec_leaf bc fc fn C X S lo _ _ _ _ (.sort hp h0 hd h2 hu) h0 (fun k => S.leaf _ k (by simp) (by simp))
-  | const hp h0 hd h2 h3 hn hus => exact spec_leaf bc fc fn C X S lo _ _ _ _ (.const hp h0 hd h2 h3 hn hus) h0 (fun k => S.leaf _ k (by simp) (by simp))
-  | lit hp h0 hd h2 hl => exact spec_leaf bc fc fn C X S lo _ _ _ _ (.lit hp h0 hd h2 hl) h0 (fun k => S.leaf _ k (by simp) (by simp))
+  | fvar hp h0 hd h2 h3 hi hty ih => exact hfv _ _ _ _ _ _ (.fvar hp h0 hd h2 h3 hi hty) h0 h2 h3 hi hty ih
+  | sort hp h0 hd h2 hu => exact hsort _ _ _ _ (.sort hp h0 hd h2 hu) h0 h2 hu
+  | const hp h0 hd h2 h3 hn hus => exact hconst _ _ _ _ _ _ (.const hp h0 hd h2 h3 hn hus) h0 h2 h3 hn hus
+  | lit hp h0 hd h2 hl => exact spec_leaf bc fc sc cc fn C X S lo _ _ _ _ (.lit hp h0 hd h2 hl) h0 (fun k => S.leaf _ k)
   | bvar hp h0 hd h2 hi => exact hbv _ _ _ _ (.bvar hp h0 hd h2 hi) h0 h2 hi
   | letE hp h0 hd h2 h3 h4 ha hb hc iha ihb ihc =>
-    exact spec_letE ra bc fc fn C X S hC lo _ _ _ _ _ _ _ _ (.letE hp h0 hd h2 h3 h4 ha hb hc) h0 h2 h3 h4 iha ihb ihc
+    exact spec_letE ra bc fc sc cc fn C X S hC lo _ _ _ _ _ _ _ _ (.letE hp h0 hd h2 h3 h4 ha hb hc) h0 h2 h3 h4 iha ihb ihc
   | proj hp h0 hd h2 h3 h4 hn hi he ih =>
-    exact spec_proj ra bc fc fn C X S hC lo _ _ _ _ _ _ _ _ (.proj hp h0 hd h2 h3 h4 hn hi he) h0 h2 h3 h4 hn hi ih
+    exact spec_proj ra bc fc sc cc fn C X S hC lo _ _ _ _ _ _ _ _ (.proj hp h0 hd h2 h3 h4 hn hi he) h0 h2 h3 h4 hn hi ih
 
 end ConPanqueque.Subst
