@@ -127,4 +127,15 @@ theorem seq_abort {σ : Type} (s : PanSemStateFiniteExact 64 σ) (p q : ProgHOL 
   obtain ⟨r1, r2⟩ := r
   simp only at h; subst h; simp [hr]
 
+theorem seq_assoc {σ : Type} (s : PanSemStateFiniteExact 64 σ) (p q r : ProgHOL 64) :
+    evaluateHOLFiniteState s (.seq (.seq p q) r) = evaluateHOLFiniteState s (.seq p (.seq q r)) := by
+  rw [evaluateHOLFiniteState_eq_evaluate_def s (.seq (.seq p q) r)]; simp only
+  rw [evaluateHOLFiniteState_eq_evaluate_def s (.seq p q)]; simp only
+  rw [evaluateHOLFiniteState_eq_evaluate_def s (.seq p (.seq q r))]; simp only
+  generalize evaluateHOLFiniteState s p = a
+  obtain ⟨a1, a2⟩ := a
+  cases a1 with
+  | none => simp only; rw [evaluateHOLFiniteState_eq_evaluate_def a2 (.seq q r)]
+  | some v => simp
+
 end ConPanqueque.Logic

@@ -25,6 +25,43 @@ def eRest (k w : Nat) : ProgHOL 64 :=
   (.seq (.assign .local lL (.const (BitVec.ofNat 64 w)))
     internTwo)))))
 
+theorem persist_iff {k : IdxKind} (i : Idx k) : i.isPersistent = true ↔ Enc.idxW i >>> (31 : Nat) = 0 := by
+  have hw : (Enc.idxW i).toNat = i.word.toNat := by simp [Enc.idxW]
+  have e1 : (Enc.idxW i >>> (31 : Nat) = 0) ↔ i.word.toNat / 2147483648 = 0 := by
+    constructor
+    · intro h; have := congrArg BitVec.toNat h
+      simp only [BitVec.toNat_ushiftRight, hw, Nat.shiftRight_eq_div_pow] at this; simpa using this
+    · intro h; apply BitVec.eq_of_toNat_eq
+      simp only [BitVec.toNat_ushiftRight, hw, Nat.shiftRight_eq_div_pow]; simpa using h
+  rw [e1]
+  simp only [Idx.isPersistent, Idx.tier, beq_iff_eq]
+  constructor
+  · intro h; have := congrArg UInt32.toNat h; simpa [UInt32.toNat_div] using this
+  · intro h; apply UInt32.toNat_inj.mp; simpa [UInt32.toNat_div] using h
+
+/-- The scratch-child bit of a two-child node, as Pancake computes it. -/
+theorem eval_sk2 {σ : Type} {k1 k2 : IdxKind} (s : PanSemStateFiniteExact 64 σ) (x y : MlS) (a : Idx k1) (b : Idx k2)
+    (ha : s.locals.lookup x = some (.val (.word (Enc.idxW a))))
+    (hb : s.locals.lookup y = some (.val (.word (Enc.idxW b)))) :
+    @evalHOLExact 64 σ _ s.toExact (fun c => Classical.propDecidable (s.memaddrs c))
+      (.cmp .notEqual (.op .or [.shift .lsr (vv x) (.const 31), .shift .lsr (vv y) (.const 31)]) (.const 0)) =
+      some (.val (.word (if (if a.isPersistent then !b.isPersistent else true) then 1 else 0))) := by
+  rw [ConsLoop.eval_cmp_of s .notEqual _ _ _ 0 (eval_or2 s _ _ _ _ (eval_shr s _ _ _ (eval_vv s x _ ha) (by decide))
+    (eval_shr s _ _ _ (eval_vv s y _ hb) (by decide))) (eval_const s 0)]
+  simp only [show (31 : BitVec 64).toNat = 31 from rfl]
+  have ea := persist_iff a; have eb := persist_iff b
+  by_cases pa : a.isPersistent = true <;> by_cases pb : b.isPersistent = true
+  · have h0 : (Enc.idxW a >>> (31 : Nat) ||| Enc.idxW b >>> (31 : Nat)) = 0 := by rw [ea.mp pa, eb.mp pb]; rfl
+    have hb' : ((Enc.idxW a >>> (31 : Nat) ||| Enc.idxW b >>> (31 : Nat)) == 0) = true := beq_iff_eq.mpr h0
+    simp only [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hb', pa, pb, Bool.not_true, ↓reduceIte, Bool.false_eq_true]
+  all_goals
+    have h0 : ¬ (Enc.idxW a >>> (31 : Nat) ||| Enc.idxW b >>> (31 : Nat)) = 0 := fun e => by
+      rw [show (0 : BitVec 64) = 0#64 from rfl, BitVec.or_eq_zero_iff] at e
+      first | exact pa (ea.mpr e.1) | exact pb (eb.mpr e.2)
+    have hb' : ((Enc.idxW a >>> (31 : Nat) ||| Enc.idxW b >>> (31 : Nat)) == 0) = false := by simpa using h0
+    simp only [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hb', Bool.not_false, ↓reduceIte]
+    simp_all
+
 section
 variable {σ : Type} {α : Type} [BEq α] [LawfulBEq α] [Hashable α] [DecidableEq α]
 
