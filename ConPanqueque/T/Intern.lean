@@ -507,6 +507,10 @@ structure CtxOK (C : Ctx) : Prop where
   heapOut : ∀ i, i < C.HN → ¬ inAny C.L (C.HB + BitVec.ofNat 64 (8 * i))
   kbHeap : ∀ i j, i < C.HN → j < 3 → C.HB + BitVec.ofNat 64 (8 * i) ≠ C.KB + BitVec.ofNat 64 (8 * j)
   heapMemo : ∀ r i, i < C.HN → ¬ inR (C.mg r) (C.HB + BitVec.ofNat 64 (8 * i))
+  flHeap : ∀ i F, i < C.HN → (F = C.FLn ∨ F = C.FLl ∨ F = C.FLs ∨ F = C.FLe) → C.HB + BitVec.ofNat 64 (8 * i) ≠ F
+  dirHeap : ∀ i k tier m, i < C.HN → k < 19 → tier < 2 → m < 8 →
+    C.HB + BitVec.ofNat 64 (8 * i) ≠ descAddr C.L k tier + BitVec.ofNat 64 (8 * m)
+  mdescHeap : ∀ r i k, i < C.HN → k < 8 → C.HB + BitVec.ofNat 64 (8 * i) ≠ C.mG r + BitVec.ofNat 64 (8 * k)
   sepLam : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 2 14
   b0Lam : C.L.base 14 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.lam.toUInt64.toBitVec * 67108864
   b1Lam : C.L.base 14 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.lam.toUInt64.toBitVec * 67108864

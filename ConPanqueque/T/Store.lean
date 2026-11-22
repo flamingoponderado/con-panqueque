@@ -107,6 +107,8 @@ structure HeapAt {σ : Type} (t : PanSemStateFiniteExact 64 σ) (HB : BitVec 64)
   lay : HB.toNat + 8 * HN < 2 ^ 64
   dom : ∀ i, i < HN → t.memaddrs (HB + BitVec.ofNat 64 (8 * i))
   val : ∀ i (hi : i < H.length), t.memory (HB + BitVec.ofNat 64 (8 * i)) = .word H[i]
+  /-- Every heap cell holds a word (the free ones too), so allocation can adopt them into the image. -/
+  words : ∀ i, i < HN → ∃ w, t.memory (HB + BitVec.ofNat 64 (8 * i)) = .word w
 
 /-- The heap holds some extension of the image `H` (later allocations are invisible to a context that
 fixed `H`). -/
@@ -118,7 +120,8 @@ theorem heapAt_frame {σ : Type} {t u : PanSemStateFiniteExact 64 σ} {HB : BitV
     (hm : ∀ i, i < HN → u.memory (HB + BitVec.ofNat 64 (8 * i)) = t.memory (HB + BitVec.ofNat 64 (8 * i)))
     (hd : u.memaddrs = t.memaddrs) (hg : u.globals.lookup gHt = t.globals.lookup gHt) : HeapAt u HB HN H :=
   ⟨by rw [hg]; exact h.top, h.len, h.lay, fun i hi => by rw [hd]; exact h.dom i hi,
-    fun i hi => by rw [hm i (Nat.lt_of_lt_of_le hi h.len)]; exact h.val i hi⟩
+    fun i hi => by rw [hm i (Nat.lt_of_lt_of_le hi h.len)]; exact h.val i hi,
+    fun i hi => by rw [hm i hi]; exact h.words i hi⟩
 
 theorem heapEx_frame {σ : Type} {t u : PanSemStateFiniteExact 64 σ} {HB : BitVec 64} {HN : Nat}
     {H : List (BitVec 64)} (h : HeapEx t HB HN H)
