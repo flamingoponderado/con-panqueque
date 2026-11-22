@@ -245,4 +245,120 @@ theorem lvlTail_imax (C : Ctx) (hcL : C.code.lookup fLvlEq = some ([(pLa, .one),
 
 end
 
+section
+variable {σ : Type}
+
+theorem params_noneLE (va vb : BitVec 64) (C : Ctx) :
+    ∀ x, x ∈ lvlLocals → (ctxEnv C ++ [(pLa, va), (pLb, vb)]).get x = none := by
+  intro x hx
+  simp only [lvlLocals, inst1Locals, List.cons_append, List.nil_append, List.mem_cons, List.not_mem_nil,
+    or_false] at hx
+  rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> rfl
+
+theorem lvScratch_DL : ∀ z, z ∈ lvScratch → z ∈ DL := by
+  intro z hz
+  simp only [lvScratch, List.mem_cons, List.not_mem_nil, or_false] at hz
+  rcases hz with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> decide
+
+theorem lvlEq_views (C : Ctx) (hok : CtxOK C) (la lb : ConLeche.Level) (a b : BitVec 64) (s : AState)
+    (ha : LRep C.HB C.H s.store.ls a la) (hb : LRep C.HB C.H s.store.ls b lb)
+    (hk : ∀ (Γ : Env) (M : Mem) (Pa Pb : BitVec 64), Γ.get lA2 = some (BitVec.ofNat 64 (ltag la)) →
+      Γ.get lA3 = some Pa → Γ.get lX = some (BitVec.ofNat 64 (ltag lb)) → Γ.get lY = some Pb →
+      LKids C.HB C.H s.store.ls Pa M la → LKids C.HB C.H s.store.ls Pb M lb →
+      SpecR (Inv (σ := σ) C s Γ M DL) lvlTail s (pure (decide (la = lb))) (PostB C)) :
+    SpecR (Pre (σ := σ) C s [(pLa, a), (pLb, b)]) lvlEqBody s (pure (decide (la = lb))) (PostB C) := by
+  refine specR_prologue (postB_locals C) (params_noneLE _ _ C) ?_
+  unfold lvlEqCore
+  refine specR_assignI lQ (vv pLa) a (by decide) (by simp +decide [ctxEnv]) ?_
+  refine specR_lvViewI hok a la (by simp) ha (by simp +decide [ctxEnv]) (by simp +decide [ctxEnv]) lvScratch_DL
+    (fun Γ1 M1 Pa hp1 hx1 hy1 _ hk1 => ?_)
+  refine specR_assignI lA2 (vv lX) (BitVec.ofNat 64 (ltag la)) (by decide) (by simp [hx1]) ?_
+  refine specR_assignI lA3 (vv lY) Pa (by decide) (by simp +decide [hy1]) ?_
+  refine specR_assignI lQ (vv pLb) b (by decide)
+    (by simp +decide; rw [hp1 _ (by decide)]; simp +decide [ctxEnv]) ?_
+  refine specR_lvViewI hok b lb (by simp) hb (by simp +decide; rw [hp1 _ (by decide)]; simp +decide [ctxEnv])
+    (by simp +decide; rw [hp1 _ (by decide)]; simp +decide [ctxEnv]) lvScratch_DL
+    (fun Γ2 M2 Pb hp2 hx2 hy2 hmm2 hk2 => ?_)
+  refine hk Γ2 M2 Pa Pb (by rw [hp2 _ (by decide)]; simp +decide) (by rw [hp2 _ (by decide)]; simp +decide)
+    hx2 hy2 ?_ hk2
+  cases la with
+  | zero => trivial
+  | succ u => obtain ⟨wu, h1, h2⟩ := hk1; exact ⟨wu, hmm2 _ h1, h2⟩
+  | max u v => obtain ⟨wu, wv, h1, h2, h3, h4⟩ := hk1; exact ⟨wu, wv, hmm2 _ h1, hmm2 _ h2, h3, h4⟩
+  | imax u v => obtain ⟨wu, wv, h1, h2, h3, h4⟩ := hk1; exact ⟨wu, wv, hmm2 _ h1, hmm2 _ h2, h3, h4⟩
+  | param n => obtain ⟨nh, f, h1, h2⟩ := hk1; exact ⟨nh, f, hmm2 _ h1, h2⟩
+
+end
+
+section
+variable {σ : Type}
+
+/-- `levelEq` decides the equality of the represented trees. -/
+theorem lvlEq_spec (C : Ctx) (hok : CtxOK C)
+    (hcN : C.code.lookup fNeq = some ([(pNa, .one), (pNb, .one)], neqBody, .one))
+    (hcL : C.code.lookup fLvlEq = some ([(pLa, .one), (pLb, .one)], lvlEqBody, .one)) :
+    ∀ (la : ConLeche.Level) (a b : BitVec 64) (lb : ConLeche.Level) (s : AState),
+      LRep C.HB C.H s.store.ls a la → LRep C.HB C.H s.store.ls b lb →
+      SpecR (Pre (σ := σ) C s [(pLa, a), (pLb, b)]) lvlEqBody s (pure (decide (la = lb))) (PostB C) := by
+  intro la
+  induction la with
+  | zero =>
+    intro a b lb s ha hb
+    refine lvlEq_views C hok _ lb a b s ha hb (fun Γ M Pa Pb h1 h2 h3 h4 hka hkb => ?_)
+    by_cases ht : ltag .zero = ltag lb
+    · cases lb <;> simp [ltag] at ht
+      exact lvlTail_zero C h1 h3
+    · exact lvlTail_diff C _ lb ht h1 h3
+  | succ u ih =>
+    intro a b lb s ha hb
+    refine lvlEq_views C hok _ lb a b s ha hb (fun Γ M Pa Pb h1 h2 h3 h4 hka hkb => ?_)
+    by_cases ht : ltag (.succ u) = ltag lb
+    · cases lb <;> simp [ltag] at ht
+      rename_i u'
+      obtain ⟨wu, m1, r1⟩ := hka
+      obtain ⟨wu', m3, r3⟩ := hkb
+      exact lvlTail_succ C hcL u u' wu wu' Pa Pb h1 h2 h3 h4 m1 m3 r1 r3
+        (fun u0 w0 u1 w1 hk r r' => by cases hk; exact ih w0 w1 u1 s r r')
+    · exact lvlTail_diff C _ lb ht h1 h3
+  | max u v ihu ihv =>
+    intro a b lb s ha hb
+    refine lvlEq_views C hok _ lb a b s ha hb (fun Γ M Pa Pb h1 h2 h3 h4 hka hkb => ?_)
+    by_cases ht : ltag (.max u v) = ltag lb
+    · cases lb <;> simp [ltag] at ht
+      rename_i u' v'
+      obtain ⟨wu, wv, m1, m2, r1, r2⟩ := hka
+      obtain ⟨wu', wv', m3, m4, r3, r4⟩ := hkb
+      exact lvlTail_max C hcL u v u' v' wu wv wu' wv' Pa Pb h1 h2 h3 h4 m1 m2 m3 m4 r1 r2 r3 r4
+        (fun u0 w0 u1 w1 hk r r' => by
+          rcases hk with rfl | rfl
+          · exact ihu w0 w1 u1 s r r'
+          · exact ihv w0 w1 u1 s r r')
+    · exact lvlTail_diff C _ lb ht h1 h3
+  | imax u v ihu ihv =>
+    intro a b lb s ha hb
+    refine lvlEq_views C hok _ lb a b s ha hb (fun Γ M Pa Pb h1 h2 h3 h4 hka hkb => ?_)
+    by_cases ht : ltag (.imax u v) = ltag lb
+    · cases lb <;> simp [ltag] at ht
+      rename_i u' v'
+      obtain ⟨wu, wv, m1, m2, r1, r2⟩ := hka
+      obtain ⟨wu', wv', m3, m4, r3, r4⟩ := hkb
+      exact lvlTail_imax C hcL u v u' v' wu wv wu' wv' Pa Pb h1 h2 h3 h4 m1 m2 m3 m4 r1 r2 r3 r4
+        (fun u0 w0 u1 w1 hk r r' => by
+          rcases hk with rfl | rfl
+          · exact ihu w0 w1 u1 s r r'
+          · exact ihv w0 w1 u1 s r r')
+    · exact lvlTail_diff C _ lb ht h1 h3
+  | param n =>
+    intro a b lb s ha hb
+    refine lvlEq_views C hok _ lb a b s ha hb (fun Γ M Pa Pb h1 h2 h3 h4 hka hkb => ?_)
+    by_cases ht : ltag (.param n) = ltag lb
+    · cases lb <;> simp [ltag] at ht
+      rename_i n'
+      obtain ⟨nha, fa, m1, d1⟩ := hka
+      obtain ⟨nhb, fb, m3, d3⟩ := hkb
+      exact lvlTail_param C hcN n n' nha nhb fa fb Pa Pb h1 h2 h3 h4 m1 m3 d1 d3
+    · exact lvlTail_diff C _ lb ht h1 h3
+
+end
+
 end ConPanqueque.T.LEq
