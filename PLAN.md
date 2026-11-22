@@ -1,5 +1,8 @@
 # con-panqueque: plan
 
+**Goal:** port con-leche to Pancake and prove that the port gives the same
+verdict as con-leche.
+
 A port of [con-leche](https://github.com/leanprover/con-leche) (a Lean 4
 kernel checker written and verified in Lean) to
 [Pancake](https://cakeml.org/pancake), CakeML's low-level language, using
@@ -69,9 +72,14 @@ runtime. The pieces:
 
 0. **Toolchain** (done): repository, licence, a Pancake program compiled
    with `cake --pancake` and linked with a C FFI harness (`pancake/`).
-1. **Memory model:** block layout, the bump allocator and the
-   representation relation in Lean; a Pancake allocator with its proof
-   against Flapjack's semantics.
+1. **Memory model** (in progress): a program logic over Flapjack's
+   semantics (`ConPanqueque/Logic/Basic.lean`: sequencing, assignment,
+   `while` with a clock-bounded measure, one-word loads/stores, calls), a
+   separation logic over Pancake memory (`Logic/Sep.lean`: `↦`, `∗`, frame
+   rule, word blocks, `ListRep`), the bump allocator with its bounds check
+   and freshness (`Alloc.lean`), and a first data-structure refinement: a
+   Pancake loop computing `List.length` over `ListRep`
+   (`Examples/ListLength.lean`).
 2. **Words and naturals:** the bignum library, specified by Lean's `Nat`.
 3. **First translated functions:** a translator for a first-order fragment
    (words, naturals, structures, lists) emitting Pancake and refinement
