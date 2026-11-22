@@ -244,6 +244,23 @@ theorem dec_word' {σ : Type} (s : PanSemStateFiniteExact 64 σ) (x : MlS) (e : 
   rw [evaluateHOLFiniteState_eq_evaluate_def]
   simp [he, shapeOfHOLExact, shapeEqHOL]
 
+/-- `dec_word'` with the restored locals named: the body's locals with `x` reset. -/
+theorem dec_word_eq {σ : Type} (s : PanSemStateFiniteExact 64 σ) (x : MlS) (e : ExpHOL 64) (v : BitVec 64)
+    (body : ProgHOL 64)
+    (he : @evalHOLExact 64 σ _ s.toExact (fun a => Classical.propDecidable (s.memaddrs a)) e =
+      some (.val (.word v))) :
+    evaluateHOLFiniteState s (.dec x .one e body) =
+      ((evaluateHOLFiniteState (setVarHOLFinite x (.val (.word v)) s) body).1,
+       { (evaluateHOLFiniteState (setVarHOLFinite x (.val (.word v)) s) body).2 with
+         locals := HolFiniteMapExact.resVarEq
+           (evaluateHOLFiniteState (setVarHOLFinite x (.val (.word v)) s) body).2.locals (x, s.locals.lookup x) }) := by
+  rw [evaluateHOLFiniteState_eq_evaluate_def]
+  simp [he, shapeOfHOLExact, shapeEqHOL]
+
+theorem lookup_resVar_other (m : HolFiniteMapExact MlS (ValueHOL 64)) (x y : MlS) (o : Option (ValueHOL 64))
+    (h : y ≠ x) : (HolFiniteMapExact.resVarEq m (x, o)).lookup y = m.lookup y := by
+  cases o <;> simp [FDOMSUB_HOL, FUPDATE_HOL, h]
+
 /-- `y = f(arg)` where `f(a) = return e`: the caller continues with `y = w` and one
 clock tick less, nothing else changed. -/
 theorem call_pure {σ : Type} (s : PanSemStateFiniteExact 64 σ) (f a y : MlS) (e arg : ExpHOL 64)

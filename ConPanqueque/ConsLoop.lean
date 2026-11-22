@@ -66,6 +66,7 @@ def LInv (t0 : PanSemStateFiniteExact 64 σ) (enc : α → BitVec 64 × BitVec 6
   u.locals.lookup lS = some (.val (.word S)) ∧ u.locals.lookup lR = some (.val (.word R)) ∧
   u.locals.lookup lM = some (.val (.word (BitVec.ofNat 64 (n - 1)))) ∧
   u.locals.lookup lKf = some (.val (.word (enc a).1)) ∧ u.locals.lookup lKa = some (.val (.word (enc a).2)) ∧
+  (∀ y, y ≠ lJ → y ≠ lC → y ≠ lG → y ≠ lRes → y ≠ lV → u.locals.lookup y = t0.locals.lookup y) ∧
   ∃ f j, j < n ∧ u.locals.lookup lC = some (.val (.word (BitVec.ofNat 64 f))) ∧
     u.locals.lookup lJ = some (.val (.word (BitVec.ofNat 64 j))) ∧ (∃ w, u.locals.lookup lV = some (.val (.word w))) ∧
     ((u.locals.lookup lG = some (.val (.word 1)) ∧ u.locals.lookup lRes = some (.val (.word 0)) ∧
@@ -121,7 +122,7 @@ theorem step (t0 : PanSemStateFiniteExact 64 σ) (enc : α → BitVec 64 × BitV
     (hgo : u.locals.lookup lG = some (.val (.word 1))) :
     ∃ u', evaluateHOLFiniteState (decClockHOLFinite u) probeBody = (none, u') ∧
       LInv t0 enc rows slots n S R a ans u' ∧ wv u' lC + wv u' lG < wv u lC + wv u lG := by
-  obtain ⟨m0, d0, c0, g0, ta0, hlS, hlR, hlM, hlKf, hlKa, f, j, hj, hlC, hlJ, ⟨w, hlV⟩, br⟩ := hI
+  obtain ⟨m0, d0, c0, g0, ta0, hlS, hlR, hlM, hlKf, hlKa, hfr, f, j, hj, hlC, hlJ, ⟨w, hlV⟩, br⟩ := hI
   obtain ⟨_, hlRes, hprobe, hfn, hclk, hclk0⟩ :=
     br.resolve_right (fun ⟨hlG0, _⟩ => by rw [hgo] at hlG0; cases hlG0)
   have hn60 : n ≤ 2 ^ 60 := by rw [hn]; exact Nat.pow_le_pow_right (by decide) hb
@@ -152,7 +153,9 @@ theorem step (t0 : PanSemStateFiniteExact 64 σ) (enc : α → BitVec 64 × BitV
     refine ⟨_, rfl, ?_, ?_⟩
     · refine ⟨m0, d0, c0, g0, ta0, by rw [setG _ _ (by decide)]; exact hlS, by rw [setG _ _ (by decide)]; exact hlR,
         by rw [setG _ _ (by decide)]; exact hlM, by rw [setG _ _ (by decide)]; exact hlKf,
-        by rw [setG _ _ (by decide)]; exact hlKa, 0, j, hj, by rw [setG _ _ (by decide)]; exact hlC,
+        by rw [setG _ _ (by decide)]; exact hlKa,
+        fun y a1 a2 a3 a4 a5 => by rw [setG _ _ a3]; exact hfr y a1 a2 a3 a4 a5,
+        0, j, hj, by rw [setG _ _ (by decide)]; exact hlC,
         by rw [setG _ _ (by decide)]; exact hlJ, ⟨w, by rw [setG _ _ (by decide)]; exact hlV⟩,
         Or.inr ⟨lookup_setVar_same _ _ _, ?_, ?_, ?_, ?_⟩⟩
       · rw [setG _ _ (by decide), hlRes, ← hprobe]; simp [probeR, PR.toOpt]
@@ -197,7 +200,8 @@ theorem step (t0 : PanSemStateFiniteExact 64 σ) (enc : α → BitVec 64 × BitV
     refine ⟨⟨by rw [xm, m0], by rw [xd, d0], by rw [xc, c0], by rw [xg, g0], by rw [xt, ta0],
       by rw [lk _ (by decide) (by decide) (by decide)]; exact hlS, by rw [lk _ (by decide) (by decide) (by decide)]; exact hlR,
       by rw [lk _ (by decide) (by decide) (by decide)]; exact hlM, by rw [lk _ (by decide) (by decide) (by decide)]; exact hlKf,
-      by rw [lk _ (by decide) (by decide) (by decide)]; exact hlKa, f' + 1, j, hj,
+      by rw [lk _ (by decide) (by decide) (by decide)]; exact hlKa,
+      fun y a1 a2 a3 a4 a5 => by rw [lk _ a3 a4 a5]; exact hfr y a1 a2 a3 a4 a5, f' + 1, j, hj,
       by rw [lk _ (by decide) (by decide) (by decide)]; exact hlC, by rw [lk _ (by decide) (by decide) (by decide)]; exact hlJ,
       xv, Or.inr ⟨xg0, by rw [xr, hr], hemp, ⟨fun e => absurd e hfull', fun e => by omega⟩,
         by rw [xk]; omega⟩⟩, ?_⟩
@@ -275,6 +279,7 @@ theorem step (t0 : PanSemStateFiniteExact 64 σ) (enc : α → BitVec 64 × BitV
     refine ⟨u', rfl, ⟨m0, d0, c0, g0, ta0, by rw [lk _ (by decide) (by decide) (by decide)]; exact hlS,
       by rw [lk _ (by decide) (by decide) (by decide)]; exact hlR, by rw [lk _ (by decide) (by decide) (by decide)]; exact hlM,
       by rw [lk _ (by decide) (by decide) (by decide)]; exact hlKf, by rw [lk _ (by decide) (by decide) (by decide)]; exact hlKa,
+      fun y a1 a2 a3 a4 a5 => by rw [lk _ a2 a1 a5]; exact hfr y a1 a2 a3 a4 a5,
       f', (j + 1) % n, Nat.mod_lt _ (by omega), lookup_setVar_same _ _ _,
       by simp only [u']; rw [lookup_setVar_other _ _ (by decide)]; exact lookup_setVar_same _ _ _,
       ⟨_, by simp only [u', v2]; rw [lookup_setVar_other _ _ (by decide), lookup_setVar_other _ _ (by decide)]; exact hv1V⟩,
@@ -331,7 +336,7 @@ theorem probeLoop_spec (t0 : PanSemStateFiniteExact 64 σ) (enc : α → BitVec 
   have := while_rule (vv lG) probeBody (LInv t0 enc rows slots n S R a ans) (fun u => wv u lC + wv u lG)
     (fun u => LInv t0 enc rows slots n S R a ans u ∧ u.locals.lookup lG = some (.val (.word 0)))
     (fun u hu => by
-      obtain ⟨_, _, _, _, _, _, _, _, _, _, f, j, hj, hlC, hlJ, hlV, br⟩ := id hu
+      obtain ⟨_, _, _, _, _, _, _, _, _, _, _, f, j, hj, hlC, hlJ, hlV, br⟩ := id hu
       rcases br with ⟨hgo, hres, hpr, hfn, hclk, hclk0⟩ | ⟨hg0, hres, hemp, hfu, hclk0⟩
       · refine ⟨1, by simp [evalHOLFinite, vv, evalHOLExact, hgo], fun h => absurd h (by decide), fun _ => ?_⟩
         have hn60 : n ≤ 2 ^ 60 := by rw [hn]; exact Nat.pow_le_pow_right (by decide) hb

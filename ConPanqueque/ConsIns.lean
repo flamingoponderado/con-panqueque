@@ -54,10 +54,12 @@ theorem ins_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (C R D S kf ka d
       t.memaddrs (D + BitVec.ofNat 64 (8 * cnt)) ∧ t.memaddrs (S + BitVec.ofNat 64 (8 * j))) :
     Stop (evaluateHOLFiniteState t insBody).1 ∨
       (cnt < cap ∧ ∃ L, evaluateHOLFiniteState t insBody =
-        (none, { t with locals := L, memory := insMem t.memory C R D S kf ka dv cnt j })) := by
+        (none, { t with locals := L, memory := insMem t.memory C R D S kf ka dv cnt j }) ∧
+        ∀ y, y ≠ lN → L.lookup y = t.locals.lookup y) := by
   let t1 := setVarHOLFinite lN (.val (.word (BitVec.ofNat 64 cnt))) t
-  obtain ⟨L1, e1⟩ := dec_word' t lN (.load .one (vv lC0)) _ _
-    (by rw [eval_load_word t _ C (by simp [vv, evalHOLExact, lc]) mc.1, mc.2])
+  have hload : @evalHOLExact 64 σ _ t.toExact (fun a => Classical.propDecidable (t.memaddrs a))
+      (.load .one (vv lC0)) = some (.val (.word (BitVec.ofNat 64 cnt))) := by
+    rw [eval_load_word t _ C (by simp [vv, evalHOLExact, lc]) mc.1, mc.2]
   have l1 : ∀ x, x ≠ lN → t1.locals.lookup x = t.locals.lookup x := fun x hx => lookup_setVar_other _ _ hx
   have hN : t1.locals.lookup lN = some (.val (.word (BitVec.ofNat 64 cnt))) := lookup_setVar_same _ _ _
   have hc56 : (2 : Nat) ^ 56 < 2 ^ 64 := by decide
@@ -69,7 +71,7 @@ theorem ins_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (C R D S kf ka d
     · have : ¬ BitVec.ofNat 64 cnt = BitVec.ofNat 64 cap := by
         intro e; have := congrArg BitVec.toNat e; simp at this; omega
       simp [h]; exact this
-  unfold insBody; rw [e1]
+  unfold insBody; rw [dec_word_eq t lN _ _ _ hload]
   rw [ite_word t1 _ _ _ _ hcmp]
   by_cases hfull : cnt = cap
   · left
@@ -77,7 +79,8 @@ theorem ins_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (C R D S kf ka d
     rw [hang_spec _ t1 rfl]; exact Or.inl rfl
   right
   have hlt : cnt < cap := by omega
-  refine ⟨hlt, L1, ?_⟩
+  refine ⟨hlt, HolFiniteMapExact.resVarEq t1.locals (lN, t.locals.lookup lN), ?_,
+    fun y hy => by rw [lookup_resVar_other _ _ _ _ hy]; exact l1 y hy⟩
   simp only [hfull, ↓reduceIte, ne_eq, not_true_eq_false]
   obtain ⟨d1, d2, d3, d4⟩ := dom hlt
   have sh4 : BitVec.ofNat 64 cnt <<< (4 : Nat) = BitVec.ofNat 64 (16 * cnt) := by
