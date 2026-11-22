@@ -231,7 +231,7 @@ theorem scanLoop_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) (t k : BitV
     (hclk : slots.length + 1 ≤ s.clock) :
     ∃ s', evaluateHOLFiniteState s scanLoop = (none, s') ∧
       s'.locals.lookup nR = some (.val (.word ((find? slots k).getD 0))) ∧ s'.memory = s.memory ∧
-      Frame s s' [nJ, nR, nG] ∧ ∃ i, i ≤ slots.length ∧ s'.locals.lookup nJ = some (.val (.word (BitVec.ofNat 64 (16 * i)))) ∧
+      s'.memaddrs = s.memaddrs ∧ Frame s s' [nJ, nR, nG] ∧ ∃ i, i ≤ slots.length ∧ s'.locals.lookup nJ = some (.val (.word (BitVec.ofNat 64 (16 * i)))) ∧
         ((find? slots k).isNone ↔ i = slots.length) ∧ s.clock ≤ s'.clock + (slots.length + 1) := by
   let n := slots.length
   let I : PanSemStateFiniteExact 64 σ → Prop := fun u =>
@@ -246,7 +246,7 @@ theorem scanLoop_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) (t k : BitV
           ((find? slots k).isNone ↔ i = n) ∧ s.clock ≤ u.clock + (i + 1)))
   let Q : PanSemStateFiniteExact 64 σ → Prop := fun u =>
     u.locals.lookup nR = some (.val (.word ((find? slots k).getD 0))) ∧ u.memory = s.memory ∧
-    Frame s u [nJ, nR, nG] ∧ ∃ i, i ≤ n ∧ u.locals.lookup nJ = some (.val (.word (BitVec.ofNat 64 (16 * i)))) ∧
+    u.memaddrs = s.memaddrs ∧ Frame s u [nJ, nR, nG] ∧ ∃ i, i ≤ n ∧ u.locals.lookup nJ = some (.val (.word (BitVec.ofNat 64 (16 * i)))) ∧
       ((find? slots k).isNone ↔ i = n) ∧ s.clock ≤ u.clock + (n + 1)
   let m : PanSemStateFiniteExact 64 σ → Nat := fun u =>
     if wv u nG = 1 then n + 1 - (wv u nJ).toNat / 16 else 0
@@ -338,7 +338,7 @@ theorem scanLoop_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) (t k : BitV
           have : m (setKvarHOLFinite .local nJ (.val (.word (BitVec.ofNat 64 (16 * (i + 1))))) u0) = n + 1 - (i + 1) := by
             simp only [m]; rw [if_pos g1', wj']
           rw [this, mu]; omega
-  · refine ⟨0, by simp [evalHOLFinite, evalHOLExact, vv, ug], fun _ => ⟨ur, hm, hF, i, hi, uj, hiff, by omega⟩,
+  · refine ⟨0, by simp [evalHOLFinite, evalHOLExact, vv, ug], fun _ => ⟨ur, hm, hd, hF, i, hi, uj, hiff, by omega⟩,
       fun h => absurd rfl h⟩
 
 /-! ## Insertion: meaning -/
