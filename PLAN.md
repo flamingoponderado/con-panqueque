@@ -289,6 +289,31 @@ Next: memo clearing (the top-level `instantiate1Fast`), the other memos,
 caches and pins in `SR`, the level/name stores' views; then a tactic that
 applies the combinators by goal shape, and the bulk translation.
 
+### Progress (2026-11-23, later)
+
+Translated with refinement proofs since (all over the standard axioms only):
+
+- **Memos.** The six `(EIdx × Nat) → EIdx` memos and the two `EIdx → Nat`
+  memos (`bvarBC`, `fvarBC`) in `SR`, by region; generic get/set/clear
+  combinators (`T/Memo.lean`, `T/MemoN.lean`, `T/MemoClear.lean`).
+- **Walks over expressions.** `instantiate1` (`T/Ex/Inst1*.lean`),
+  `liftLooseBVars` (`T/Ex/Lift.lean`), `fvarRangeGo`/`fvarB`
+  (`T/Ex/FvarRange.lean`), `bvarBoundGo`/`bvarB` (`T/Ex/BvarBound.lean`),
+  `abstract1` (`T/Ex/Abstract1.lean`), `abstractRange`
+  (`T/Ex/AbstractRange.lean`), `hasFvarFast`, `looseBVarsBoundedFast`,
+  `piResult`, `lamBody`, `fvarTypeD` (`T/Ex/Small.lean`).
+- **Heap values (roadmap item 1).** An append-only value heap: `Ctx.H` is an
+  image the heap extends (`SR.heap`), so callees' allocations stay invisible;
+  a caller that needs a returned value continues at a bigger image
+  (`T/Heap.lean`: allocation, loads, owned-cell stores). Lists and arrays of
+  handles are blocks `[n, x₀, …]` (`T/Blk.lean`), with a verified copy loop
+  (`T/Copy.lean`) and a counted-loop rule (`T/Loop.lean`).
+- **Functions over lists and arrays.** `getAppArgs` (returns a block),
+  `mkAppN`/`mkAppNFrom` (`T/Ex/AppArgs.lean`, `T/Ex/MkApp.lean`), and the
+  bulk instantiation family `instantiateList`, `instantiateListGo`,
+  `instantiateRevRange`, `instantiateListFast` (`T/Ex/InstList*.lean`).
+- Calls of any arity (`T/CallN.lean`).
+
 ### Roadmap from here (2026-11-23)
 
 The hand proofs (`getAppFn`, `sizeB`, `instantiate1Go`) fixed the shape of the
