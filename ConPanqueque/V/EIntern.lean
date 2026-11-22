@@ -383,4 +383,55 @@ theorem eInternApp_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSemS
 
 end
 
+section
+variable {σ : Type} {α ι δ : Type} [BEq α] [LawfulBEq α] [Hashable α] [DecidableEq α]
+
+/-- The constructor-independent tail of an intern at kind `k`: with the key words at `KB` and the
+inputs in place, `internTwo` gives `twoTier`'s handle and both tiers' tables re-represented. -/
+theorem tail_spec (u : PanSemStateFiniteExact 64 σ) (L : Layout) (k : Nat) (enc : α → List (BitVec 64))
+    (dW : δ → BitVec 64 × BitVec 64) (hwd : ι → BitVec 64) (mkP mkS : Nat → ι)
+    (hmkP : ∀ i, i < 2 ^ 30 → hwd (mkP i) = L.base k 0 + BitVec.ofNat 64 i)
+    (hmkS : ∀ i, i < 2 ^ 30 → hwd (mkS i) = L.base k 1 + BitVec.ofNat 64 i) (hinj : ∀ x y, enc x = enc y → x = y)
+    (P Sc : Tbl α ι δ) (on sk : Bool) (x : α) (d : δ) (KB : BitVec 64)
+    (hP : TabAt u L k 0 enc dW P mkP) (hS : TabAt u L k 1 enc dW Sc mkS)
+    (hpow : ∀ tier, tier < 2 → (L.geo k tier).n = 2 ^ (L.geo k tier).b ∧ (L.geo k tier).b ≤ 56)
+    (hdis : ∀ c, inR (L.geo k 0) c → ¬ inR (L.geo k 1) c)
+    (hdsc : ∀ tier m, tier < 2 → m < 8 → ¬ inR (L.geo k 0) (descAddr L k tier + BitVec.ofNat 64 (8 * m)) ∧
+      ¬ inR (L.geo k 1) (descAddr L k tier + BitVec.ofNat 64 (8 * m)))
+    (hK : Words u KB (enc x)) (hKl : (enc x).length < 2 ^ 61)
+    (hKout : ∀ i, i < (enc x).length → ¬ inR (L.geo k 0) (KB + BitVec.ofNat 64 (8 * i)) ∧
+      ¬ inR (L.geo k 1) (KB + BitVec.ofNat 64 (8 * i)))
+    (hin : Inputs u KB (enc x).length (dW d))
+    (hpg : u.locals.lookup lPg = some (.val (.word (descAddr L k 0))))
+    (hsg : u.locals.lookup lSg = some (.val (.word (descAddr L k 1))))
+    (hon : u.locals.lookup lOn = some (.val (.word (if on then 1 else 0))))
+    (hsk : u.locals.lookup lSk = some (.val (.word (if sk then 1 else 0)))) :
+    Stop (evaluateHOLFiniteState u internTwo).1 ∨
+      ((evaluateHOLFiniteState u internTwo).1 =
+          some (.returned (.val (.word (hwd (twoTier P Sc on sk x d mkP mkS).2.2)))) ∧
+        TabAt (evaluateHOLFiniteState u internTwo).2 L k 0 enc dW (twoTier P Sc on sk x d mkP mkS).1 mkP ∧
+        TabAt (evaluateHOLFiniteState u internTwo).2 L k 1 enc dW (twoTier P Sc on sk x d mkP mkS).2.1 mkS ∧
+        (evaluateHOLFiniteState u internTwo).2.code = u.code ∧
+        (evaluateHOLFiniteState u internTwo).2.globals = u.globals ∧
+        (evaluateHOLFiniteState u internTwo).2.memaddrs = u.memaddrs ∧
+        (evaluateHOLFiniteState u internTwo).2.topAddr = u.topAddr ∧
+        ∀ c, ¬ inR (L.geo k 0) c → ¬ inR (L.geo k 1) c → (evaluateHOLFiniteState u internTwo).2.memory c = u.memory c) := by
+  obtain ⟨hD0, hc0, rp, dp, sp, hup, hP'⟩ := hP
+  obtain ⟨hD1, hc1, rs, ds, ss, hus, hS'⟩ := hS
+  rcases internTwo_spec u enc dW hwd mkP mkS (L.base k 0) (L.base k 1) (2 ^ 30) hmkP hmkS hinj P Sc (L.geo k 0) (L.geo k 1)
+      rp dp sp hup rs ds ss hus on sk x d KB (descAddr L k 0) (descAddr L k 1)
+      (hpow 0 (by decide)).1 (hpow 0 (by decide)).2 hc0 (Nat.le_of_lt hc0)
+      (hpow 1 (by decide)).1 (hpow 1 (by decide)).2 hc1 (Nat.le_of_lt hc1) hP' hS' hD0 hD1 hdis hK hKl hKout hin
+      hpg hsg hon hsk with hs | ⟨hr, ⟨rp', dp', sp', hup', hP2⟩, ⟨rs', ds', ss', hus', hS2⟩, c3, g3, d3, ta3, fr3⟩
+  · exact Or.inl hs
+  have dsc : ∀ tier, tier < 2 → ∀ m, m < 8 →
+      (evaluateHOLFiniteState u internTwo).2.memory (descAddr L k tier + BitVec.ofNat 64 (8 * m)) =
+        u.memory (descAddr L k tier + BitVec.ofNat 64 (8 * m)) := fun tier ht m hm =>
+    fr3 _ (hdsc tier m ht hm).1 (hdsc tier m ht hm).2
+  exact Or.inr ⟨hr, ⟨fun m hm => by rw [d3, dsc 0 (by decide) m hm]; exact hD0 m hm, hc0, rp', dp', sp', hup', hP2⟩,
+    ⟨fun m hm => by rw [d3, dsc 1 (by decide) m hm]; exact hD1 m hm, hc1, rs', ds', ss', hus', hS2⟩,
+    c3, g3, d3, ta3, fr3⟩
+
+end
+
 end ConPanqueque.V
