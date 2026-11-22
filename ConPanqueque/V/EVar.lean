@@ -1,4 +1,5 @@
 import ConPanqueque.V.NIntern
+import ConPanqueque.V.ELet
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.ConsModel ConPanqueque.ConsTbl
 open ConRon.Arena
@@ -264,6 +265,150 @@ theorem eInternBVar_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSem
       · obtain ⟨w, hw⟩ := W lK (by decide); exact ⟨w, by lk [t3, t2, t1]; exact hw⟩
       · obtain ⟨w, hw⟩ := W lL (by decide); exact ⟨w, by lk [t3, t2, t1]; exact hw⟩)
     (fun x hx => eval_vv x lEn _ (by rw [hx _ (by decide)]; lk [t3, t2, t1]; exact len))
+
+end
+
+/-- The scratch-child bit of a one-child node, as Pancake computes it. -/
+theorem eval_sk1 {σ : Type} {k : IdxKind} (s : PanSemStateFiniteExact 64 σ) (x : MlS) (a : Idx k)
+    (ha : s.locals.lookup x = some (.val (.word (Enc.idxW a)))) :
+    @evalHOLExact 64 σ _ s.toExact (fun c => Classical.propDecidable (s.memaddrs c))
+      (.cmp .notEqual (.shift .lsr (vv x) (.const 31)) (.const 0)) =
+      some (.val (.word (if !a.isPersistent then 1 else 0))) := by
+  rw [ConsLoop.eval_cmp_of s .notEqual _ _ _ 0 (eval_shr s _ _ _ (eval_vv s x _ ha) (by decide)) (eval_const s 0)]
+  simp only [show (31 : BitVec 64).toNat = 31 from rfl]
+  have ea := persist_iff a
+  by_cases pa : a.isPersistent = true
+  · have hb : ((Enc.idxW a >>> (31 : Nat)) == 0) = true := beq_iff_eq.mpr (ea.mp pa)
+    simp only [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hb, pa, Bool.not_true, ↓reduceIte, Bool.false_eq_true]
+  · have h0 : ¬ (Enc.idxW a >>> (31 : Nat) = 0) := fun e => pa (ea.mpr e)
+    have hb : ((Enc.idxW a >>> (31 : Nat)) == 0) = false := by simpa using h0
+    have pa' : a.isPersistent = false := by simpa using pa
+    simp only [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hb, pa', Bool.not_false, ↓reduceIte]
+
+/-- `fvar idx ty`: the caller has put the key `idxW ty :: limbs idx` at `ekb`, its length in `en`, the
+type's handle in `ety` and `idx`'s low word in `iw`. -/
+def eFVarWith (rest : ProgHOL 64) : ProgHOL 64 :=
+  .seq (.assign .local lFl (vv lFle))
+  (.seq (.assign .local lDh (vv lEty))
+  (.seq (storeDerived 9 10)
+  (.seq (.assign .local lDty (vv lDo1))
+  (.seq (.assign .local lDv ExprData.fvarDataE)
+  (.seq (.assign .local lDv2 (.const 0))
+  (.seq (.assign .local lSk (.cmp .notEqual (.shift .lsr (vv lEty) (.const 31)) (.const 0))) rest))))))
+
+def fvarScratch : List MlS := [lDh, lDt, lDg, lDi, lDo1, lDo2, lDty, lDv, lDv2, lSk, lOn, lPg, lSg, lK, lL, lFl]
+
+section
+variable {σ : Type}
+
+theorem eInternFVar_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSemStateFiniteExact 64 σ)
+    (L : Layout) (FLn FLl FLs FLe KB : BitVec 64) (st : EStore) (idx : Nat) (ty : EIdx) (hi : idx < 2 ^ 63)
+    (hR : SRep t L FLn FLl FLs FLe st) (hS : SepK L FLn FLl FLs FLe KB (Enc.encFVar ⟨idx, ty⟩).length 10)
+    (hK : Words t KB (Enc.encFVar ⟨idx, ty⟩)) (hwl : (Enc.encFVar ⟨idx, ty⟩).length < 2 ^ 61)
+    (hb0 : L.base 10 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.fvar.toUInt64.toBitVec * 67108864)
+    (hb1 : L.base 10 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.fvar.toUInt64.toBitVec * 67108864)
+    (lkb : t.locals.lookup lKb = some (.val (.word KB)))
+    (len : t.locals.lookup lEn = some (.val (.word (BitVec.ofNat 64 (Enc.encFVar ⟨idx, ty⟩).length))))
+    (lety : t.locals.lookup lEty = some (.val (.word (Enc.idxW ty))))
+    (liw : t.locals.lookup lIw = some (.val (.word (UInt64.ofNat idx).toBitVec)))
+    (ldir : t.locals.lookup lDir = some (.val (.word L.DIR)))
+    (lfle : t.locals.lookup lFle = some (.val (.word FLe)))
+    (hw : ∀ y, y ∈ fvarScratch → ∃ w, t.locals.lookup y = some (.val (.word w))) :
+    ERes t L FLn FLl FLs FLe KB (Enc.encFVar ⟨idx, ty⟩).length st (st.intern (.fvar idx ty))
+      (evaluateHOLFiniteState t (eFVarWith (rRestE 10 (vv lEn) lFle))) := by
+  have W : ∀ y, y ∈ fvarScratch → ∃ w, t.locals.lookup y = some (.val (.word w)) := hw
+  unfold eFVarWith
+  obtain ⟨wf, hwf⟩ := W lFl (by decide)
+  rw [seq_normal _ (ConsLoop.assign_local t lFl _ FLe wf (eval_vv t lFle _ lfle) hwf)]
+  let t2 := setVarHOLFinite lFl (.val (.word FLe)) t
+  obtain ⟨wh, hwh⟩ := W lDh (by decide)
+  rw [seq_normal _ (ConsLoop.assign_local t2 lDh _ (Enc.idxW ty) wh (eval_vv t2 lEty _ (by lk [t2]; exact lety))
+    (by lk [t2]; exact hwh))]
+  let t3 := setVarHOLFinite lDh (.val (.word (Enc.idxW ty))) t2
+  have W3 : ∀ y, y ∈ fvarScratch → y ≠ lFl → y ≠ lDh → ∃ w, t3.locals.lookup y = some (.val (.word w)) := by
+    intro y hy a1 a2; obtain ⟨w, hw⟩ := W y hy; exact ⟨w, by lk [t3, t2]; exact hw⟩
+  have hR3 : SRep t3 L FLn FLl FLs FLe st := srep_frame hR ⟨rfl, rfl, rfl, rfl⟩ rfl
+    (fun _ _ _ _ => ⟨fun _ _ => rfl, fun _ _ => rfl⟩)
+  have D := eDerived_spec t3 L FLe st hR3.e ty (lookup_setVar_same _ _ _) (by lk [t3, t2]; exact ldir)
+    (by lk [t3, t2]) (W3 lDt (by decide) (by decide) (by decide)) (W3 lDg (by decide) (by decide) (by decide))
+    (W3 lDi (by decide) (by decide) (by decide)) (W3 lDo1 (by decide) (by decide) (by decide))
+    (W3 lDo2 (by decide) (by decide) (by decide))
+  obtain ⟨n1, m1', d1, c1, g1, ta1, ck1, o1, o2, fr1, wd1⟩ := D
+  generalize hs1 : evaluateHOLFiniteState t3 (storeDerived 9 10) = q1 at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1
+  obtain ⟨q1r, u4⟩ := q1
+  simp only at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1; subst n1
+  rw [seq_normal _ hs1]
+  have back : ∀ y, y ≠ lDo1 → y ≠ lDo2 → y ≠ lDt → y ≠ lDg → y ≠ lDi → y ≠ lDh → y ≠ lFl →
+      u4.locals.lookup y = t.locals.lookup y := by
+    intro y a1 a2 a3 a4 a5 a6 a7; rw [fr1 y a1 a2 a3 a4 a5]; lk [t3, t2]
+  have wv : ∀ y, y ≠ lDo1 → y ≠ lDo2 → y ≠ lDt → y ≠ lDg → y ≠ lDi → y ≠ lDh → y ≠ lFl → y ∈ fvarScratch →
+      ∃ w, u4.locals.lookup y = some (.val (.word w)) := fun y a1 a2 a3 a4 a5 a6 a7 hy => by
+    obtain ⟨w, hw⟩ := hw y hy; exact ⟨w, by rw [back y a1 a2 a3 a4 a5 a6 a7]; exact hw⟩
+  let dtd := st.derived ty
+  obtain ⟨wdp, hwdp⟩ := wv lDty (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)
+  rw [seq_normal _ (ConsLoop.assign_local u4 lDty _ _ wdp (eval_vv u4 lDo1 _ o1) hwdp)]
+  let u5 := setVarHOLFinite lDty (.val (.word (dWN dtd).1)) u4
+  let dd := st.derOfView (.fvar idx ty)
+  have hdd : dd = ExprData.fvarDataW (UInt64.ofNat idx) dtd := Der.derOfFVar_eq ra st idx hi ty
+  have iw5 : u5.locals.lookup lIw = some (.val (.word (UInt64.ofNat idx).toBitVec)) := by
+    lk [u5]; rw [back _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)]; exact liw
+  obtain ⟨wv1, hwv1⟩ := wv lDv (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)
+  rw [seq_normal _ (ConsLoop.assign_local u5 lDv _ (dWN dd).1 wv1
+    (by rw [hdd]; exact ExprData.fvarDataE.eval u5 _ dtd iw5 (by show u5.locals.lookup lDty = _; lk [u5]; rfl))
+    (by lk [u5]; exact hwv1))]
+  let u6 := setVarHOLFinite lDv (.val (.word (dWN dd).1)) u5
+  obtain ⟨wv2, hwv2⟩ := wv lDv2 (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)
+  rw [seq_normal _ (ConsLoop.assign_local u6 lDv2 (.const 0) (dWN dd).2 wv2 (eval_const u6 0) (by lk [u6, u5]; exact hwv2))]
+  let u7 := setVarHOLFinite lDv2 (.val (.word (dWN dd).2)) u6
+  have ety7 : u7.locals.lookup lEty = some (.val (.word (Enc.idxW ty))) := by
+    lk [u7, u6, u5]; rw [back _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)]; exact lety
+  obtain ⟨wsk, hwsk⟩ := wv lSk (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)
+  rw [seq_normal _ (ConsLoop.assign_local u7 lSk _ (if EStore.eViewHasScratchChild (.fvar idx ty) then 1 else 0) wsk
+    (eval_sk1 u7 lEty ty ety7) (by lk [u7, u6, u5]; exact hwsk))]
+  let u8 := setVarHOLFinite lSk (.val (.word (if EStore.eViewHasScratchChild (.fvar idx ty) then 1 else 0))) u7
+  have mem8 : u8.memory = t.memory := by show u4.memory = _; rw [m1']; rfl
+  have md8 : u8.memaddrs = t.memaddrs := by show u4.memaddrs = _; rw [d1]; rfl
+  have hc8 : u8.code = t.code := by show u4.code = _; rw [c1]; rfl
+  have hg8 : u8.globals = t.globals := by show u4.globals = _; rw [g1]; rfl
+  have ht8 : u8.topAddr = t.topAddr := by show u4.topAddr = _; rw [ta1]; rfl
+  have hR8 : SRep u8 L FLn FLl FLs FLe st := srep_frame hR ⟨by rw [mem8], by rw [mem8], by rw [mem8], by rw [mem8]⟩ md8
+    (fun _ _ _ _ => ⟨fun _ _ => by rw [mem8], fun _ _ => by rw [mem8]⟩)
+  have g : ∀ y, y ≠ lDo1 → y ≠ lDo2 → y ≠ lDt → y ≠ lDg → y ≠ lDi → y ≠ lDh → y ≠ lFl → y ≠ lDty → y ≠ lDv →
+      y ≠ lDv2 → y ≠ lSk → y ∈ fvarScratch → ∃ w, u8.locals.lookup y = some (.val (.word w)) := by
+    intro y a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 hy
+    obtain ⟨w, hw⟩ := wv y a1 a2 a3 a4 a5 a6 a7 hy; exact ⟨w, by lk [u8, u7, u6, u5]; exact hw⟩
+  have b8 : ∀ y, y ≠ lDo1 → y ≠ lDo2 → y ≠ lDt → y ≠ lDg → y ≠ lDi → y ≠ lDh → y ≠ lFl → y ≠ lDty → y ≠ lDv →
+      y ≠ lDv2 → y ≠ lSk → u8.locals.lookup y = t.locals.lookup y := by
+    intro y a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11; lk [u8, u7, u6, u5]; exact back y a1 a2 a3 a4 a5 a6 a7
+  have hint := estore_fvar st idx ty
+  simp only at hint
+  exact eRestE_spec t u8 L FLn FLl FLs FLe KB _ 10 (vv lEn) st Enc.encFVar Enc.encFVar_inj (mkN ETag.fvar 0)
+    (mkN ETag.fvar 1) (2 ^ 26) (fun i hi => by rw [hb0]; exact idxW_mkN ETag.fvar 0 (by decide) (by decide) i hi)
+    (fun i hi => by rw [hb1]; exact idxW_mkN ETag.fvar 1 (by decide) (by decide) i hi) hS.cap
+    st.pers.fvars st.scr.fvars (EStore.eViewHasScratchChild (.fvar idx ty)) ⟨idx, ty⟩ dd _
+    (fun P' S' => { st with pers := { st.pers with fvars := P' }, scr := { st.scr with fvars := S' } })
+    hint (fun _ _ => rfl) (fun v v' P' S' h1 h2 h3 h4 h5 h6 => erep_fvars h1 P' S' h2 h3 h4 h5 h6)
+    hS (by decide) (by decide) rfl hwl hR8 hR8.e.p1 hR8.e.s1 (fun j hj => by rw [md8, mem8]; exact hK j hj)
+    (fun c _ => by rw [mem8]) md8 hc8 hg8 ht8
+    (by lk [u8, u7, u6]) (by lk [u8, u7]) (by lk [u8])
+    (by rw [b8 _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)
+      (by decide) (by decide)]; exact lfle)
+    (by rw [b8 _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)
+      (by decide) (by decide)]; exact ldir)
+    (by rw [b8 _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)
+      (by decide) (by decide)]; exact lkb)
+    (fun y hy => by
+      simp only [List.mem_cons, List.not_mem_nil, or_false] at hy
+      rcases hy with rfl | rfl | rfl | rfl | rfl | rfl
+      · exact ⟨FLe, by lk [u8, u7, u6, u5]; rw [fr1 _ (by decide) (by decide) (by decide) (by decide) (by decide)]; lk [t3, t2]⟩
+      · exact g lOn (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)
+      · exact g lPg (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)
+      · exact g lSg (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)
+      · exact g lK (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)
+      · exact g lL (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide))
+    (fun x hx => eval_vv x lEn _ (by
+      rw [hx _ (by decide), b8 _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)
+        (by decide) (by decide) (by decide) (by decide)]; exact len))
 
 end
 
