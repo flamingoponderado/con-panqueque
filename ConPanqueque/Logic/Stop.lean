@@ -79,4 +79,44 @@ theorem call2_stop {σ : Type} (s : PanSemStateFiniteExact 64 σ) (f x1 x2 : MlS
   exact call_stop s info f [arg1, arg2] _ body _ .one (by simp [evalListHOLFinite, evalListHOLExact, harg1, harg2])
     hlk (hbody _ hx1 hx2)
 
+
+/-- A loop rule up to stops, with no clock or measure premises: a run out of clock is a
+timeout, which is a `Stop`. When the condition holds, the body (from the ticked state) stops
+or ends normally in `I`; when it fails, `Q` holds. -/
+theorem while_stop {σ : Type} (c : ExpHOL 64) (body : ProgHOL 64)
+    (I Q : PanSemStateFiniteExact 64 σ → Prop)
+    (hc : ∀ s, I s → ∃ w : BitVec 64,
+      @evalHOLFinite 64 σ _ s (fun a => Classical.propDecidable (s.memaddrs a)) c = some (.val (.word w)) ∧
+      (w = 0 → Q s) ∧
+      (w ≠ 0 → s.clock ≠ 0 → Stop (evaluateHOLFiniteState (decClockHOLFinite s) body).1 ∨
+        ((evaluateHOLFiniteState (decClockHOLFinite s) body).1 = none ∧
+          I (evaluateHOLFiniteState (decClockHOLFinite s) body).2))) :
+    ∀ s, I s → Stop (evaluateHOLFiniteState s (.while c body)).1 ∨
+      ((evaluateHOLFiniteState s (.while c body)).1 = none ∧ Q (evaluateHOLFiniteState s (.while c body)).2) := by
+  intro s hs
+  induction h : s.clock using Nat.strongRecOn generalizing s with
+  | _ n ih =>
+    obtain ⟨w, hw, h0, h1⟩ := hc s hs
+    rw [evaluateHOLFiniteState_eq_evaluate_def s (.while c body)]
+    by_cases hw0 : w = 0
+    · subst hw0; simp only [hw, ne_eq, not_true_eq_false, ↓reduceIte]; exact Or.inr ⟨trivial, h0 rfl⟩
+    · by_cases hck : s.clock = 0
+      · simp only [hw, ne_eq, hw0, not_false_eq_true, ite_true, hck, ite_true]
+        exact Or.inl (Or.inl (by simp))
+      have hlt : (evaluateHOLFiniteState (decClockHOLFinite s) body).2.clock < n := by
+        have := evaluateHOLFiniteState_clock_le (decClockHOLFinite s) body
+        have e : (decClockHOLFinite s).clock = s.clock - 1 := rfl
+        omega
+      rcases h1 hw0 hck with hst | ⟨hn, hI⟩
+      · generalize hb : evaluateHOLFiniteState (decClockHOLFinite s) body = r at hst hlt
+        obtain ⟨r1, r2⟩ := r
+        simp only [hw, ne_eq, hw0, not_false_eq_true, ite_true, hck, ite_false, hb]
+        rcases hst with e | ⟨ev, e⟩ <;> (simp only at e; subst e; simp) <;>
+          first | exact Or.inl rfl | exact Or.inr ⟨ev, rfl⟩
+      · generalize hb : evaluateHOLFiniteState (decClockHOLFinite s) body = r at hn hI hlt
+        obtain ⟨r1, r2⟩ := r
+        simp only at hn; subst hn
+        simp only [hw, ne_eq, hw0, not_false_eq_true, ite_true, hck, ite_false, hb]
+        exact ih _ hlt r2 hI rfl
+
 end ConPanqueque.Logic
