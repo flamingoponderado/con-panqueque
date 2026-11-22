@@ -5,4 +5,5 @@ import ConPanqueque.Alloc
 import ConPanqueque.Rep
 import ConPanqueque.Arena
 import ConPanqueque.Hash
+import ConPanqueque.LevelCons
 import ConPanqueque.Examples.ListLength
