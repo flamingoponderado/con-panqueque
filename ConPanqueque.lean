@@ -24,6 +24,7 @@ import ConPanqueque.AbstractRange
 import ConPanqueque.LevelSubst
 import ConPanqueque.LevelsFns
 import ConPanqueque.ILP
+import ConPanqueque.InstList
 import ConPanqueque.LevelFns
 import ConPanqueque.LevelFold
 import ConPanqueque.Table
