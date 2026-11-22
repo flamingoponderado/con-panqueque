@@ -505,4 +505,49 @@ theorem liftGo_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
 
 end
 
+theorem liftClear_run (s : AState) : liftClear s = .ok ((), { s with memos := memoUpd .lift s.memos ∅ }) := rfl
+
+def fLiftF := ofString "liftLooseBVars"
+
+def fastBodyL (C : Ctx) : ProgHOL 64 :=
+  prologue fastLocals (clearCode (C.mg .lift)
+    (.seq (.call (some (some (.local, lW), none)) fLift [vv pA, vv pFu, vv pH, vv pD])
+      (clearCode (C.mg .lift) (.return (vv lW)))))
+
+section
+variable {σ : Type}
+
+theorem fastL_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : CodesL C (bodyL C))
+    (s : AState) (fuel am c : Nat) (e : EIdx) (hf : fuel < 2 ^ 64) (ham : am < 2 ^ 63) (hc63 : c < 2 ^ 63) :
+    SpecR (Pre (σ := σ) C s [(pFu, BitVec.ofNat 64 fuel), (pA, BitVec.ofNat 64 am), (pD, BitVec.ofNat 64 c),
+      (pH, Enc.idxW e)]) (fastBodyL C) s (liftLooseBVarsFast fuel am c e) (PostE C) := by
+  refine specR_prologue (postE_locals C) (fun x hx => ?_) ?_
+  · simp only [fastLocals, List.mem_cons, List.not_mem_nil, or_false] at hx
+    rcases hx with rfl | rfl <;> rfl
+  refine specR_memoClearI hok .lift liftClear liftClear_run (by decide) ?_
+  refine specR_call4IM lW fLift pA pFu pH pD (by decide) _ _ _ _ (bodyL C) (BitVec.ofNat 64 am)
+    (BitVec.ofNat 64 fuel) (Enc.idxW e) (BitVec.ofNat 64 c) (by decide) hc.lift (by simp +decide [Env.kill, ctxEnv])
+    (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv])
+    (PostE C) (fun _ _ _ _ hp => hp.2)
+    (fun u hu _ h1 h2 h3 h4 w hw => by
+      subst hw
+      exact liftGo_spec ra C hok hc fuel hf am e c _ ham hc63 _ ⟨hu, fun y z hy => by
+        simp only [Env.get] at hy
+        split at hy
+        · rename_i e; subst e; simp at hy; subst hy; exact h1
+        · split at hy
+          · rename_i e; subst e; simp at hy; subst hy; exact h2
+          · split at hy
+            · rename_i e; subst e; simp at hy; subst hy; exact h3
+            · split at hy
+              · rename_i e; subst e; simp at hy; subst hy; exact h4
+              · simp at hy⟩)
+    (fun r w s' st hp => ?_)
+  obtain ⟨rfl, _⟩ := hp
+  refine specR_memoClearI hok .lift liftClear liftClear_run (by decide) ?_
+  exact specR_returnI (vv lW) (Enc.idxW r) (by simp +decide [Env.kill])
+    (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+end
+
 end ConPanqueque.T.ExL
