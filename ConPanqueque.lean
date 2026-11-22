@@ -66,6 +66,7 @@ import ConPanqueque.V.NIntern
 import ConPanqueque.V.EVar
 import ConPanqueque.V.RowRead
 import ConPanqueque.V.View
+import ConPanqueque.V.LView
 import ConPanqueque.T.Spec
 import ConPanqueque.T.Call
 import ConPanqueque.T.Store
@@ -97,6 +98,7 @@ import ConPanqueque.T.Heap
 import ConPanqueque.T.Loop
 import ConPanqueque.T.Blk
 import ConPanqueque.T.Copy
+import ConPanqueque.T.LView
 import ConPanqueque.T.CallN
 import ConPanqueque.V.DerWrite
 import ConPanqueque.LevelFns
