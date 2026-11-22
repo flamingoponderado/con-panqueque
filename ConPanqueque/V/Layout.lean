@@ -78,7 +78,8 @@ def DRes (t : PanSemStateFiniteExact 64 σ) (p : BitVec 64 × BitVec 64)
   r.1 = none ∧ r.2.memory = t.memory ∧ r.2.memaddrs = t.memaddrs ∧ r.2.code = t.code ∧ r.2.globals = t.globals ∧
     r.2.topAddr = t.topAddr ∧ r.2.clock = t.clock ∧
     r.2.locals.lookup lDo1 = some (.val (.word p.1)) ∧ r.2.locals.lookup lDo2 = some (.val (.word p.2)) ∧
-    ∀ y, y ≠ lDo1 → y ≠ lDo2 → y ≠ lDt → y ≠ lDg → y ≠ lDi → r.2.locals.lookup y = t.locals.lookup y
+    (∀ y, y ≠ lDo1 → y ≠ lDo2 → y ≠ lDt → y ≠ lDg → y ≠ lDi → r.2.locals.lookup y = t.locals.lookup y) ∧
+    (∀ y, y = lDt ∨ y = lDg ∨ y = lDi → ∃ w, r.2.locals.lookup y = some (.val (.word w)))
 
 theorem readAt (t u : PanSemStateFiniteExact 64 σ) (L : Layout) (kb tag tier idx : Nat) (enc : α → List (BitVec 64))
     (dW : δ → BitVec 64 × BitVec 64) (hdef : dW default = (0, 0)) (tb : Tbl α ι δ) (mkI : Nat → ι)
@@ -109,12 +110,16 @@ theorem readAt (t u : PanSemStateFiniteExact 64 σ) (L : Layout) (kb tag tier id
     ⟨by decide, by decide⟩ (by lk [u1]; exact hdi) (by omega)
     (by obtain ⟨w, hw⟩ := h1; exact ⟨w, by lk [u1]; exact hw⟩) (by obtain ⟨w, hw⟩ := h2; exact ⟨w, by lk [u1]; exact hw⟩)
   rw [e]
-  refine ⟨rfl, hm, hd, hc, hg, hta, hck, ?_, ?_, fun y y1 y2 y3 y4 y5 => ?_⟩
+  refine ⟨rfl, hm, hd, hc, hg, hta, hck, ?_, ?_, fun y y1 y2 y3 y4 y5 => ?_, fun y hy => ?_⟩
   · rw [lookup_resVar_other _ _ _ _ (by decide)]; exact l1
   · rw [lookup_resVar_other _ _ _ _ (by decide)]; exact l2
   · by_cases eg : y = lDG
     · subst eg; rw [lookup_resVar_same]; exact hfr _ (by decide) (by decide) (by decide) (by decide) (by decide)
     · rw [lookup_resVar_other _ _ _ _ eg, lfr y y1 y2]; lk [u1]; exact hfr y y1 y2 y3 y4 y5
+  · rcases hy with rfl | rfl | rfl
+    · exact ⟨_, by rw [lookup_resVar_other _ _ _ _ (by decide), lfr _ (by decide) (by decide)]; lk [u1]; exact hdt⟩
+    · exact ⟨_, by rw [lookup_resVar_other _ _ _ _ (by decide), lfr _ (by decide) (by decide)]; lk [u1]; exact hdg⟩
+    · exact ⟨_, by rw [lookup_resVar_other _ _ _ _ (by decide), lfr _ (by decide) (by decide)]; lk [u1]; exact hdi⟩
 
 end
 
@@ -136,14 +141,18 @@ theorem zeros_spec (t u : PanSemStateFiniteExact 64 σ)
     (h1 : ∃ w, u.locals.lookup lDo1 = some (.val (.word w))) (h2 : ∃ w, u.locals.lookup lDo2 = some (.val (.word w)))
     (hm : u.memory = t.memory) (hd : u.memaddrs = t.memaddrs) (hc : u.code = t.code) (hg : u.globals = t.globals)
     (hta : u.topAddr = t.topAddr) (hck : u.clock = t.clock)
-    (hfr : ∀ y, y ≠ lDo1 → y ≠ lDo2 → y ≠ lDt → y ≠ lDg → y ≠ lDi → u.locals.lookup y = t.locals.lookup y) :
+    (hfr : ∀ y, y ≠ lDo1 → y ≠ lDo2 → y ≠ lDt → y ≠ lDg → y ≠ lDi → u.locals.lookup y = t.locals.lookup y)
+    (hw3 : ∀ y, y = lDt ∨ y = lDg ∨ y = lDi → ∃ w, u.locals.lookup y = some (.val (.word w))) :
     DRes t (0, 0) (evaluateHOLFiniteState u zeros) := by
   obtain ⟨w1, hw1⟩ := h1; obtain ⟨w2, hw2⟩ := h2
   unfold zeros
   rw [seq_normal _ (ConsLoop.assign_local u lDo1 (.const 0) 0 w1 (eval_const u 0) hw1)]
   let u1 := setVarHOLFinite lDo1 (.val (.word 0)) u
   rw [ConsLoop.assign_local u1 lDo2 (.const 0) 0 w2 (eval_const u1 0) (by lk [u1]; exact hw2)]
-  exact ⟨rfl, hm, hd, hc, hg, hta, hck, by lk [u1], by lk, fun y y1 y2 y3 y4 y5 => by lk [u1]; exact hfr y y1 y2 y3 y4 y5⟩
+  refine ⟨rfl, hm, hd, hc, hg, hta, hck, by lk [u1], by lk, fun y y1 y2 y3 y4 y5 => by lk [u1]; exact hfr y y1 y2 y3 y4 y5,
+    fun y hy => ?_⟩
+  obtain ⟨w, hw⟩ := hw3 y hy
+  rcases hy with rfl | rfl | rfl <;> exact ⟨w, by lk [u1]; exact hw⟩
 
 theorem tag_cases {k : IdxKind} (i : Idx k) (n : Nat) (h : i.tag.toNat < n) : ∃ m, m < n ∧ i.tag = UInt32.ofNat m :=
   ⟨i.tag.toNat, h, by simp⟩
@@ -241,7 +250,7 @@ theorem nDerived_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitV
       · simp only [Bool.false_eq_true, ↓reduceIte, ne_eq, not_true_eq_false]
         have hz0 : st.derived i = 0 := by simp only [NStore.derived]; rw [if_neg hnp, hon]; rfl
         rw [hz0]
-        exact zeros_spec t u uo1 uo2 rfl rfl rfl rfl rfl rfl ufr
+        exact zeros_spec t u uo1 uo2 rfl rfl rfl rfl rfl rfl ufr (fun y hy => by rcases hy with rfl | rfl | rfl <;> first | exact ⟨_, lt⟩ | exact ⟨_, lg⟩ | exact ⟨_, li⟩)
       · simp only [↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
         have hs : st.derived i = st.scr.derAt i := by simp only [NStore.derived]; rw [if_neg hnp, hon]; rfl
         rw [hs]
@@ -255,7 +264,7 @@ theorem nDerived_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitV
         · exact hz _ htag
         · rfl
     rw [hz0]
-    exact zeros_spec t u uo1 uo2 rfl rfl rfl rfl rfl rfl ufr
+    exact zeros_spec t u uo1 uo2 rfl rfl rfl rfl rfl rfl ufr (fun y hy => by rcases hy with rfl | rfl | rfl <;> first | exact ⟨_, lt⟩ | exact ⟨_, lg⟩ | exact ⟨_, li⟩)
 
 end
 
@@ -324,12 +333,12 @@ theorem storeDerived_gen (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : B
       cases hon : on
       · simp only [Bool.false_eq_true, ↓reduceIte, ne_eq, not_true_eq_false]
         rw [hdead (Or.inr ⟨h0, hon⟩)]
-        exact zeros_spec t u uo1 uo2 rfl rfl rfl rfl rfl rfl ufr
+        exact zeros_spec t u uo1 uo2 rfl rfl rfl rfl rfl rfl ufr (fun y hy => by rcases hy with rfl | rfl | rfl <;> first | exact ⟨_, lt⟩ | exact ⟨_, lg⟩ | exact ⟨_, li⟩)
       · simp only [↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
         exact harm htag (Or.inr hon) u rfl rfl rfl rfl rfl rfl udir (by rw [h0] at lt; rw [h0]; exact lt) lg li uo1 uo2 ufr
   · simp only [bw, htag, ↓reduceIte, ne_eq, not_true_eq_false]
     rw [hdead (Or.inl (by omega))]
-    exact zeros_spec t u uo1 uo2 rfl rfl rfl rfl rfl rfl ufr
+    exact zeros_spec t u uo1 uo2 rfl rfl rfl rfl rfl rfl ufr (fun y hy => by rcases hy with rfl | rfl | rfl <;> first | exact ⟨_, lt⟩ | exact ⟨_, lg⟩ | exact ⟨_, li⟩)
 
 end
 
