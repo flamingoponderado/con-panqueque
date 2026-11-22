@@ -40,6 +40,7 @@ import ConPanqueque.V.Key
 import ConPanqueque.V.Probe
 import ConPanqueque.V.Ins
 import ConPanqueque.V.Intern
+import ConPanqueque.V.ProbeOnly
 import ConPanqueque.LevelFns
 import ConPanqueque.LevelFold
 import ConPanqueque.Table
