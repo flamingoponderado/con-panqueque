@@ -81,6 +81,7 @@ import ConPanqueque.T.Ex.FvarRange
 import ConPanqueque.T.Ex.BvarBound
 import ConPanqueque.T.Ex.Abstract1
 import ConPanqueque.T.Ex.AbstractRange
+import ConPanqueque.T.Ex.Small
 import ConPanqueque.V.EApp2
 import ConPanqueque.T.Intern
 import ConPanqueque.T.MemoModel
