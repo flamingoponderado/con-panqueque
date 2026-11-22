@@ -201,4 +201,84 @@ theorem specR_ite {α : Type} {P : PState σ → Prop} {c1 c2 : ProgHOL 64} {s :
       · exact absurd ((hb t ht).mpr hc) hw
     rw [if_neg hw]; subst hb'; exact h2 t ⟨ht, rfl⟩
 
+/-! ## Pancake-side branching (the twin computation is the same in both branches) -/
+
+theorem spec_if {α : Type} {P : PState σ → Prop} {c1 c2 : ProgHOL 64} {s : AState} {m : AM α}
+    {Q : α → AState → PState σ → Prop} (e : ExpHOL 64) (w : PState σ → BitVec 64)
+    (he : ∀ t, P t → EV t e = some (.val (.word (w t))))
+    (h1 : Spec (fun t => P t ∧ w t ≠ 0) c1 s m Q) (h2 : Spec (fun t => P t ∧ w t = 0) c2 s m Q) :
+    Spec P (.ite e c1 c2) s m Q := by
+  intro t ht
+  rw [ite_word t e c1 c2 (w t) (he t ht)]
+  by_cases hw : w t ≠ 0
+  · rw [if_pos hw]; exact h1 t ⟨ht, hw⟩
+  · rw [if_neg hw]; exact h2 t ⟨ht, by simpa using hw⟩
+
+theorem specR_if {α : Type} {P : PState σ → Prop} {c1 c2 : ProgHOL 64} {s : AState} {m : AM α}
+    {R : α → BitVec 64 → AState → PState σ → Prop} (e : ExpHOL 64) (w : PState σ → BitVec 64)
+    (he : ∀ t, P t → EV t e = some (.val (.word (w t))))
+    (h1 : SpecR (fun t => P t ∧ w t ≠ 0) c1 s m R) (h2 : SpecR (fun t => P t ∧ w t = 0) c2 s m R) :
+    SpecR P (.ite e c1 c2) s m R := by
+  intro t ht
+  rw [ite_word t e c1 c2 (w t) (he t ht)]
+  by_cases hw : w t ≠ 0
+  · rw [if_pos hw]; exact h1 t ⟨ht, hw⟩
+  · rw [if_neg hw]; exact h2 t ⟨ht, by simpa using hw⟩
+
+theorem spec_false {α : Type} {P : PState σ → Prop} {c : ProgHOL 64} {s : AState} {m : AM α}
+    {Q : α → AState → PState σ → Prop} (h : ∀ t, P t → False) : Spec P c s m Q :=
+  fun t ht => absurd (h t ht) id
+
+theorem specR_false {α : Type} {P : PState σ → Prop} {c : ProgHOL 64} {s : AState} {m : AM α}
+    {R : α → BitVec 64 → AState → PState σ → Prop} (h : ∀ t, P t → False) : SpecR P c s m R :=
+  fun t ht => absurd (h t ht) id
+
+theorem specR_hang {α : Type} {P : PState σ → Prop} {s : AState} {m : AM α}
+    {R : α → BitVec 64 → AState → PState σ → Prop} : SpecR P hang s m R := by
+  intro t _
+  exact Or.inl (Or.inl (hang_spec t.clock t rfl))
+
+theorem spec_congr {α : Type} {P : PState σ → Prop} {c : ProgHOL 64} {s : AState} {m m' : AM α}
+    {Q : α → AState → PState σ → Prop} (e : m s = m' s) (h : Spec P c s m' Q) : Spec P c s m Q := by
+  intro t ht
+  rcases h t ht with hs | ⟨hn, a, s', hm, hq⟩
+  · exact Or.inl hs
+  · exact Or.inr ⟨hn, a, s', by rw [e]; exact hm, hq⟩
+
+theorem specR_congr {α : Type} {P : PState σ → Prop} {c : ProgHOL 64} {s : AState} {m m' : AM α}
+    {R : α → BitVec 64 → AState → PState σ → Prop} (e : m s = m' s) (h : SpecR P c s m' R) : SpecR P c s m R := by
+  intro t ht
+  rcases h t ht with hs | ⟨w, hr, a, s', hm, hq⟩
+  · exact Or.inl hs
+  · exact Or.inr ⟨w, hr, a, s', by rw [e]; exact hm, hq⟩
+
+/-- A Pancake-only step before a twin computation, as an assignment. -/
+theorem spec_pre_assign {β : Type} {P P1 : PState σ → Prop} {c2 : ProgHOL 64} {s : AState} {m : AM β}
+    {Q : β → AState → PState σ → Prop} (x : MlS) (e : ExpHOL 64) (w : PState σ → BitVec 64)
+    (he : ∀ t, P t → EV t e = some (.val (.word (w t))))
+    (hx : ∀ t, P t → ∃ w0, t.locals.lookup x = some (.val (.word w0)))
+    (hP : ∀ t, P t → P1 (setVarHOLFinite x (.val (.word (w t))) t))
+    (h2 : Spec P1 c2 s m Q) : Spec P (.seq (.assign .local x e) c2) s m Q := by
+  refine spec_seq (fun t ht => ?_) h2
+  obtain ⟨w0, h0⟩ := hx t ht
+  rw [ConsLoop.assign_local t x e (w t) w0 (he t ht) h0]
+  exact Or.inr ⟨rfl, hP t ht⟩
+
+theorem specR_pre_assign {β : Type} {P P1 : PState σ → Prop} {c2 : ProgHOL 64} {s : AState} {m : AM β}
+    {R : β → BitVec 64 → AState → PState σ → Prop} (x : MlS) (e : ExpHOL 64) (w : PState σ → BitVec 64)
+    (he : ∀ t, P t → EV t e = some (.val (.word (w t))))
+    (hx : ∀ t, P t → ∃ w0, t.locals.lookup x = some (.val (.word w0)))
+    (hP : ∀ t, P t → P1 (setVarHOLFinite x (.val (.word (w t))) t))
+    (h2 : SpecR P1 c2 s m R) : SpecR P (.seq (.assign .local x e) c2) s m R := by
+  refine specR_seq (fun t ht => ?_) h2
+  obtain ⟨w0, h0⟩ := hx t ht
+  rw [ConsLoop.assign_local t x e (w t) w0 (he t ht) h0]
+  exact Or.inr ⟨rfl, hP t ht⟩
+
+theorem return_state (t : PState σ) (e : ExpHOL 64) (w : BitVec 64) (he : EV t e = some (.val (.word w))) :
+    (evaluateHOLFiniteState t (.return e)).2 = emptyLocalsHOLFinite t := by
+  rw [evaluateHOLFiniteState_eq_evaluate_def]
+  simp only [EV] at he
+  simp [he, shapeOfHOLExact]
+
 end ConPanqueque.T

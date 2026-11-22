@@ -67,6 +67,9 @@ import ConPanqueque.V.EVar
 import ConPanqueque.V.RowRead
 import ConPanqueque.V.View
 import ConPanqueque.T.Spec
+import ConPanqueque.T.Call
+import ConPanqueque.T.Store
+import ConPanqueque.T.Ex.GetAppFn
 import ConPanqueque.LevelFns
 import ConPanqueque.LevelFold
 import ConPanqueque.Table
