@@ -47,6 +47,7 @@ theorem block_get {σ : Type} (s : PanSemStateFiniteExact 64 σ) :
 
 /-- A string in an immutable arena `h`: `[len, byte₀, …]`, one byte per word. -/
 def StrAt (h : Heap) (v : BitVec 64) (s : String) : Prop :=
+  s.toUTF8.size < 2 ^ 64 ∧
   ∀ i (hi : i < s.toUTF8.size + 1),
     h (v + BitVec.ofNat 64 (8 * i)) =
       some (.word (if i = 0 then BitVec.ofNat 64 s.toUTF8.size
@@ -77,7 +78,7 @@ theorem nameAt_mono {h h' : Heap} (hs : Sub h h') {p : BitVec 64} {n : ConLeche.
   induction hn with
   | anonymous => exact .anonymous
   | str hp h0 h1 h2 h3 _ hstr ih =>
-    exact .str hp (hs _ _ h0) (hs _ _ h1) (hs _ _ h2) (hs _ _ h3) ih (fun i hi => hs _ _ (hstr i hi))
+    exact .str hp (hs _ _ h0) (hs _ _ h1) (hs _ _ h2) (hs _ _ h3) ih ⟨hstr.1, fun i hi => hs _ _ (hstr.2 i hi)⟩
   | num hp h0 h1 h2 h3 _ hk ih => exact .num hp (hs _ _ h0) (hs _ _ h1) (hs _ _ h2) (hs _ _ h3) ih hk
 
 /-- What the memory of a state holds of an arena fragment `h`. -/
