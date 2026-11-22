@@ -625,4 +625,147 @@ theorem specR_storeKB2I {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ :
     exact ⟨h1, by simp only; rw [if_neg hne]; exact h2⟩
   · exact ⟨hdom, by simp⟩
 
+/-! ## The binder wrappers -/
+
+theorem twoTier_hitP {α ι δ : Type} [BEq α] [Hashable α] (P Sc : Tbl α ι δ) (on sk : Bool) (x : α) (d : δ)
+    (mkP mkS : Nat → ι) (h : ι) (hf : (if on && sk then none else P.find? x) = some h) :
+    twoTier P Sc on sk x d mkP mkS = (P, Sc, h) := by
+  unfold twoTier; rw [hf]
+
+theorem twoTier_hitS {α ι δ : Type} [BEq α] [Hashable α] (P Sc : Tbl α ι δ) (on sk : Bool) (hon : on = true) (x : α)
+    (d : δ) (mkP mkS : Nat → ι) (h : ι) (hf : (if on && sk then none else P.find? x) = none) (hs : Sc.find? x = some h) :
+    twoTier P Sc on sk x d mkP mkS = (P, Sc, h) := by
+  unfold twoTier; rw [hf]; subst hon; simp [tierInt, hs]
+
+/-- The twin's `internLamE` is `EStore.internLam` when the new store's `lam` tables have at most `2^26` rows. -/
+theorem internLamE_eq (s : AState) (ty b : EIdx)
+    (hP : (s.store.internLam ty b).1.pers.lams.size ≤ 2 ^ 26)
+    (hS : (s.store.internLam ty b).1.scr.lams.size ≤ 2 ^ 26) :
+    internLamE ty b s = .ok ((s.store.internLam ty b).2, { s with store := (s.store.internLam ty b).1 }) := by
+  have hint := estore_internLam s.store ty b
+  simp only at hint
+  show (match s.store.findBind ETag.lam ty b with
+    | some h => (pure h : AM EIdx)
+    | none => do
+      let n := if s.store.scratchOn then s.store.scr.bindSizeOf ETag.lam else s.store.pers.bindSizeOf ETag.lam
+      if n < Idx.idxCap then do
+        let st := s.store
+        let s := { s with store := EStore.empty }
+        let (st, h) := st.internLam ty b
+        set { s with store := st }
+        pure h
+      else
+        fail (.native "arena: expression constructor array full")) s = _
+  have e1 : (if s.store.scratchOn && EStore.bindHasScratchChild ty b then none else s.store.pers.lams.find? ⟨ty, b⟩) =
+      s.store.persFindBindMaybe ETag.lam ⟨ty, b⟩ := by
+    simp only [EStore.persFindBindMaybe, ETables.findBind, show (ETag.lam == ETag.lam) = true from rfl, ite_true]
+    cases s.store.scratchOn <;> simp
+  cases hf : s.store.findBind ETag.lam ty b with
+  | some h =>
+    rw [hint]
+    simp only [EStore.findBind] at hf
+    cases hpm : s.store.persFindBindMaybe ETag.lam ⟨ty, b⟩ with
+    | some h' =>
+      rw [hpm] at hf; simp at hf; subst hf
+      rw [twoTier_hitP _ _ _ _ _ _ _ _ _ (by rw [e1, hpm])]; rfl
+    | none =>
+      rw [hpm] at hf; simp only at hf
+      by_cases hon : s.store.scratchOn = true
+      · rw [hon] at hf; simp only [ite_true, ETables.findBind, show (ETag.lam == ETag.lam) = true from rfl] at hf
+        rw [twoTier_hitS _ _ _ _ hon _ _ _ _ _ (by rw [e1, hpm]) hf]; rfl
+      · rw [show s.store.scratchOn = false by simpa using hon] at hf; simp at hf
+  | none =>
+    have hn : (if s.store.scratchOn then s.store.scr.bindSizeOf ETag.lam else s.store.pers.bindSizeOf ETag.lam) <
+        Idx.idxCap := by
+      simp only [EStore.findBind] at hf
+      cases hpm : s.store.persFindBindMaybe ETag.lam ⟨ty, b⟩ with
+      | some _ => rw [hpm] at hf; simp at hf
+      | none =>
+        rw [hpm] at hf; simp only at hf
+        have h2 : s.store.scratchOn = true → s.store.scr.lams.find? ⟨ty, b⟩ = none := by
+          intro hon; rw [hon] at hf; simpa [ETables.findBind] using hf
+        have T := twoTier_miss_size s.store.pers.lams s.store.scr.lams s.store.scratchOn
+          (EStore.bindHasScratchChild ty b) ⟨ty, b⟩ (s.store.derOfBindAt 19 ty b) (mkN ETag.lam 0) (mkN ETag.lam 1)
+          (by rw [e1, hpm]) h2
+        rw [hint] at hP hS
+        simp only at hP hS
+        show (if s.store.scratchOn then s.store.scr.lams.nodes.size else s.store.pers.lams.nodes.size) < 67108864
+        cases hon : s.store.scratchOn with
+        | true =>
+          have := T.1 hon
+          simp only [Tbl.size] at this hS
+          simp only [ite_true]; omega
+        | false =>
+          have := T.2 hon
+          simp only [Tbl.size] at this hP
+          simp only [Bool.false_eq_true, ite_false]; omega
+    simp only [hn, ite_true]
+    rfl
+
+/-- The twin's `internForallEE` is `EStore.internLam` when the new store's `forallE` tables have at most `2^26` rows. -/
+theorem internForallEE_eq (s : AState) (ty b : EIdx)
+    (hP : (s.store.internForallE ty b).1.pers.foralls.size ≤ 2 ^ 26)
+    (hS : (s.store.internForallE ty b).1.scr.foralls.size ≤ 2 ^ 26) :
+    internForallEE ty b s = .ok ((s.store.internForallE ty b).2, { s with store := (s.store.internForallE ty b).1 }) := by
+  have hint := estore_internForallE s.store ty b
+  simp only at hint
+  show (match s.store.findBind ETag.forallE ty b with
+    | some h => (pure h : AM EIdx)
+    | none => do
+      let n := if s.store.scratchOn then s.store.scr.bindSizeOf ETag.forallE else s.store.pers.bindSizeOf ETag.forallE
+      if n < Idx.idxCap then do
+        let st := s.store
+        let s := { s with store := EStore.empty }
+        let (st, h) := st.internForallE ty b
+        set { s with store := st }
+        pure h
+      else
+        fail (.native "arena: expression constructor array full")) s = _
+  have e1 : (if s.store.scratchOn && EStore.bindHasScratchChild ty b then none else s.store.pers.foralls.find? ⟨ty, b⟩) =
+      s.store.persFindBindMaybe ETag.forallE ⟨ty, b⟩ := by
+    simp only [EStore.persFindBindMaybe, ETables.findBind, show (ETag.forallE == ETag.lam) = false from rfl, show (ETag.forallE == ETag.forallE) = true from rfl, Bool.false_eq_true, ite_false, ite_true]
+    cases s.store.scratchOn <;> simp
+  cases hf : s.store.findBind ETag.forallE ty b with
+  | some h =>
+    rw [hint]
+    simp only [EStore.findBind] at hf
+    cases hpm : s.store.persFindBindMaybe ETag.forallE ⟨ty, b⟩ with
+    | some h' =>
+      rw [hpm] at hf; simp at hf; subst hf
+      rw [twoTier_hitP _ _ _ _ _ _ _ _ _ (by rw [e1, hpm])]; rfl
+    | none =>
+      rw [hpm] at hf; simp only at hf
+      by_cases hon : s.store.scratchOn = true
+      · rw [hon] at hf; simp only [ite_true, ETables.findBind, show (ETag.forallE == ETag.lam) = false from rfl, show (ETag.forallE == ETag.forallE) = true from rfl, Bool.false_eq_true, ite_false] at hf
+        rw [twoTier_hitS _ _ _ _ hon _ _ _ _ _ (by rw [e1, hpm]) hf]; rfl
+      · rw [show s.store.scratchOn = false by simpa using hon] at hf; simp at hf
+  | none =>
+    have hn : (if s.store.scratchOn then s.store.scr.bindSizeOf ETag.forallE else s.store.pers.bindSizeOf ETag.forallE) <
+        Idx.idxCap := by
+      simp only [EStore.findBind] at hf
+      cases hpm : s.store.persFindBindMaybe ETag.forallE ⟨ty, b⟩ with
+      | some _ => rw [hpm] at hf; simp at hf
+      | none =>
+        rw [hpm] at hf; simp only at hf
+        have h2 : s.store.scratchOn = true → s.store.scr.foralls.find? ⟨ty, b⟩ = none := by
+          intro hon; rw [hon] at hf; simpa [ETables.findBind, show (ETag.forallE == ETag.lam) = false from rfl, show (ETag.forallE == ETag.forallE) = true from rfl] using hf
+        have T := twoTier_miss_size s.store.pers.foralls s.store.scr.foralls s.store.scratchOn
+          (EStore.bindHasScratchChild ty b) ⟨ty, b⟩ (s.store.derOfBindAt 23 ty b) (mkN ETag.forallE 0) (mkN ETag.forallE 1)
+          (by rw [e1, hpm]) h2
+        rw [hint] at hP hS
+        simp only at hP hS
+        show (if s.store.scratchOn then s.store.scr.foralls.nodes.size else s.store.pers.foralls.nodes.size) < 67108864
+        cases hon : s.store.scratchOn with
+        | true =>
+          have := T.1 hon
+          simp only [Tbl.size] at this hS
+          simp only [ite_true]; omega
+        | false =>
+          have := T.2 hon
+          simp only [Tbl.size] at this hP
+          simp only [Bool.false_eq_true, ite_false]; omega
+    simp only [hn, ite_true]
+    rfl
+
+
 end ConPanqueque.T
