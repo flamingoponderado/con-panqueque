@@ -1,0 +1,14 @@
+name = "con-panqueque"
+version = "0.1.0"
+defaultTargets = ["ConPanqueque"]
+
+[[require]]
+name = "con-leche"
+path = "deps/con-leche"
+
+[[require]]
+name = "Flapjack"
+path = "deps/flapjack"
+
+[[lean_lib]]
+name = "ConPanqueque"

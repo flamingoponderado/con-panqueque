@@ -1,0 +1,15 @@
+// Milestone 0: read the whole input (one byte per `read`), print 3 * its length.
+// Checks the toolchain end to end: Pancake -> cake --pancake -> x86-64 + ffi.c.
+fun 1 main() {
+  var 1 n = 0;
+  var 1 go = 1;
+  while (go == 1) {
+    @read(0, 0, @base, 2);
+    var 1 ok = ld8 @base;
+    if (ok == 0) { go = 0; } else { n = n + 1; }
+  }
+  var 1 m = n * 3;
+  st @base, m;
+  @write(0, 0, @base, 8);
+  return 0;
+}
