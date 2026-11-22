@@ -1,8 +1,10 @@
 import ConPanqueque.V.NIntern
 import ConPanqueque.V.ELet
+import ConPanqueque.V.NatHash
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.ConsModel ConPanqueque.ConsTbl
 open ConRon.Arena
+open ConPanqueque.Hash (leanStringHash leanNatHash natWords)
 
 /-!
 # Expression interns with variable-length keys
@@ -409,6 +411,209 @@ theorem eInternFVar_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSem
     (fun x hx => eval_vv x lEn _ (by
       rw [hx _ (by decide), b8 _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)
         (by decide) (by decide) (by decide) (by decide)]; exact len))
+
+end
+
+/-- Moving an `ERes` back over a prefix that changed only locals. -/
+theorem eres_back {σ : Type} {t u : PanSemStateFiniteExact 64 σ} {L : Layout} {FLn FLl FLs FLe KB : BitVec 64} {w : Nat}
+    {st : EStore} {res : EStore × EIdx} {r : Option (PanSemResultExact 64) × PanSemStateFiniteExact 64 σ}
+    (h : ERes u L FLn FLl FLs FLe KB w st res r) (hm : u.memory = t.memory) (hd : u.memaddrs = t.memaddrs)
+    (hc : u.code = t.code) (hg : u.globals = t.globals) (ht : u.topAddr = t.topAddr) :
+    ERes t L FLn FLl FLs FLe KB w st res r := by
+  rcases h with hs | ⟨a, b, c, d, e, f, g⟩
+  · exact Or.inl hs
+  exact Or.inr ⟨a, b, c.trans hc, d.trans hg, e.trans hd, f.trans ht, fun c h1 h2 => by rw [g c h1 h2, hm]⟩
+
+/-- The part of a `lit` intern after the literal's hash (in `h`). -/
+def eLitTail (rest : ProgHOL 64) : ProgHOL 64 :=
+  .seq (.assign .local lDv Der.litDataE) (.seq (.assign .local lDv2 (.const 0)) (.seq (.assign .local lSk (.const 0)) rest))
+
+section
+variable {σ : Type}
+
+theorem eLitTail_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSemStateFiniteExact 64 σ)
+    (L : Layout) (FLn FLl FLs FLe KB : BitVec 64) (st : EStore) (l : ConLeche.Literal)
+    (hR : SRep t L FLn FLl FLs FLe st) (hS : SepK L FLn FLl FLs FLe KB (Enc.encLit ⟨l⟩).length 17)
+    (hK : Words t KB (Enc.encLit ⟨l⟩)) (hwl : (Enc.encLit ⟨l⟩).length < 2 ^ 61)
+    (hb0 : L.base 17 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.lit.toUInt64.toBitVec * 67108864)
+    (hb1 : L.base 17 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.lit.toUInt64.toBitVec * 67108864)
+    (lkb : t.locals.lookup lKb = some (.val (.word KB)))
+    (len : t.locals.lookup lEn = some (.val (.word (BitVec.ofNat 64 (Enc.encLit ⟨l⟩).length))))
+    (lhv : t.locals.lookup lHv = some (.val (.word (ConLeche.Literal.hash l).toBitVec)))
+    (ldir : t.locals.lookup lDir = some (.val (.word L.DIR)))
+    (lfle : t.locals.lookup lFle = some (.val (.word FLe)))
+    (hw : ∀ y, y ∈ bvarScratch → ∃ w, t.locals.lookup y = some (.val (.word w))) :
+    ERes t L FLn FLl FLs FLe KB (Enc.encLit ⟨l⟩).length st (st.intern (.lit l))
+      (evaluateHOLFiniteState t (eLitTail (rRestE 17 (vv lEn) lFle))) := by
+  have W : ∀ y, y ∈ bvarScratch → ∃ w, t.locals.lookup y = some (.val (.word w)) := hw
+  let dd := st.derOfView (.lit l)
+  have hdd : dd = Der.litDataW (ConLeche.Literal.hash l) := Der.derOfLit_eq ra st l
+  unfold eLitTail
+  obtain ⟨w1, hw1⟩ := W lDv (by decide)
+  rw [seq_normal _ (ConsLoop.assign_local t lDv _ (dWN dd).1 w1
+    (by rw [hdd]; exact Der.litDataE.eval t _ lhv) hw1)]
+  let t1 := setVarHOLFinite lDv (.val (.word (dWN dd).1)) t
+  obtain ⟨w2, hw2⟩ := W lDv2 (by decide)
+  rw [seq_normal _ (ConsLoop.assign_local t1 lDv2 (.const 0) (dWN dd).2 w2 (eval_const t1 0) (by lk [t1]; exact hw2))]
+  let t2 := setVarHOLFinite lDv2 (.val (.word (dWN dd).2)) t1
+  obtain ⟨w3, hw3⟩ := W lSk (by decide)
+  rw [seq_normal _ (ConsLoop.assign_local t2 lSk (.const 0) (if false then 1 else 0) w3 (eval_const t2 0)
+    (by lk [t2, t1]; exact hw3))]
+  let t3 := setVarHOLFinite lSk (.val (.word (if false then 1 else 0))) t2
+  have hR3 : SRep t3 L FLn FLl FLs FLe st := srep_frame hR ⟨rfl, rfl, rfl, rfl⟩ rfl
+    (fun _ _ _ _ => ⟨fun _ _ => rfl, fun _ _ => rfl⟩)
+  have hint := estore_lit st l
+  simp only at hint
+  exact eRestE_spec t t3 L FLn FLl FLs FLe KB _ 17 (vv lEn) st Enc.encLit Enc.encLit_inj (mkN ETag.lit 0)
+    (mkN ETag.lit 1) (2 ^ 26) (fun i hi => by rw [hb0]; exact idxW_mkN ETag.lit 0 (by decide) (by decide) i hi)
+    (fun i hi => by rw [hb1]; exact idxW_mkN ETag.lit 1 (by decide) (by decide) i hi) hS.cap
+    st.pers.lits st.scr.lits false ⟨l⟩ dd _
+    (fun P' S' => { st with pers := { st.pers with lits := P' }, scr := { st.scr with lits := S' } })
+    hint (fun _ _ => rfl) (fun v v' P' S' h1 h2 h3 h4 h5 h6 => erep_lits h1 P' S' h2 h3 h4 h5 h6)
+    hS (by decide) (by decide) rfl hwl hR3 hR3.e.p8 hR3.e.s8 hK (fun _ _ => rfl) rfl rfl rfl rfl
+    (by lk [t3, t2, t1]) (by lk [t3, t2]) (by lk [t3]) (by lk [t3, t2, t1]; exact lfle) (by lk [t3, t2, t1]; exact ldir)
+    (by lk [t3, t2, t1]; exact lkb)
+    (fun y hy => by
+      simp only [List.mem_cons, List.not_mem_nil, or_false] at hy
+      rcases hy with rfl | rfl | rfl | rfl | rfl | rfl
+      · obtain ⟨w, hw⟩ := W lFl (by decide); exact ⟨w, by lk [t3, t2, t1]; exact hw⟩
+      · obtain ⟨w, hw⟩ := W lOn (by decide); exact ⟨w, by lk [t3, t2, t1]; exact hw⟩
+      · obtain ⟨w, hw⟩ := W lPg (by decide); exact ⟨w, by lk [t3, t2, t1]; exact hw⟩
+      · obtain ⟨w, hw⟩ := W lSg (by decide); exact ⟨w, by lk [t3, t2, t1]; exact hw⟩
+      · obtain ⟨w, hw⟩ := W lK (by decide); exact ⟨w, by lk [t3, t2, t1]; exact hw⟩
+      · obtain ⟨w, hw⟩ := W lL (by decide); exact ⟨w, by lk [t3, t2, t1]; exact hw⟩)
+    (fun x hx => eval_vv x lEn _ (by rw [hx _ (by decide)]; lk [t3, t2, t1]; exact len))
+
+end
+
+/-- `lit (natVal n)`: the caller has put the key `0 :: limbs n` at `ekb`, its length in `en`, the limb
+count in `nn` and the limbs' address `ekb + 8` in `na`. -/
+def eLitNatWith (rest : ProgHOL 64) : ProgHOL 64 :=
+  .seq natHashP (.seq (.assign .local lHv (vv lNh)) (eLitTail rest))
+
+/-- `lit (strVal s)`: the key `1 :: strW s` at `ekb`, its length in `en`, the byte count in `hn` and the
+bytes' address `ekb + 8` in `ha`. -/
+def eLitStrWith (rest : ProgHOL 64) : ProgHOL 64 :=
+  .seq strHash (.seq (.assign .local lHv (vv lHh)) (eLitTail rest))
+
+def litNatScratch : List MlS := lNh :: lNi :: lHv :: bvarScratch
+def litStrScratch : List MlS := lHh :: lHk :: lHv :: bvarScratch
+
+section
+variable {σ : Type}
+
+theorem eInternLitNat_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSemStateFiniteExact 64 σ)
+    (L : Layout) (FLn FLl FLs FLe KB : BitVec 64) (st : EStore) (n : Nat)
+    (hR : SRep t L FLn FLl FLs FLe st) (hS : SepK L FLn FLl FLs FLe KB (Enc.encLit ⟨.natVal n⟩).length 17)
+    (hK : Words t KB (Enc.encLit ⟨.natVal n⟩)) (hwl : (Enc.encLit ⟨.natVal n⟩).length < 2 ^ 60)
+    (hb0 : L.base 17 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.lit.toUInt64.toBitVec * 67108864)
+    (hb1 : L.base 17 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.lit.toUInt64.toBitVec * 67108864)
+    (lkb : t.locals.lookup lKb = some (.val (.word KB)))
+    (len : t.locals.lookup lEn = some (.val (.word (BitVec.ofNat 64 (Enc.encLit ⟨.natVal n⟩).length))))
+    (lna : t.locals.lookup lNa = some (.val (.word (KB + 8))))
+    (lnn : t.locals.lookup lNn = some (.val (.word (BitVec.ofNat 64 (Enc.limbs n).length))))
+    (ldir : t.locals.lookup lDir = some (.val (.word L.DIR)))
+    (lfle : t.locals.lookup lFle = some (.val (.word FLe)))
+    (hw : ∀ y, y ∈ litNatScratch → ∃ w, t.locals.lookup y = some (.val (.word w))) :
+    ERes t L FLn FLl FLs FLe KB (Enc.encLit ⟨.natVal n⟩).length st (st.intern (.lit (.natVal n)))
+      (evaluateHOLFiniteState t (eLitNatWith (rRestE 17 (vv lEn) lFle))) := by
+  have W : ∀ y, y ∈ litNatScratch → ∃ w, t.locals.lookup y = some (.val (.word w)) := hw
+  have hlw : (natWords n).map UInt64.toBitVec = Enc.limbs n := natWords_limbs n
+  have hln : (natWords n).length = (Enc.limbs n).length := by rw [← hlw, List.length_map]
+  have hkl : (Enc.encLit ⟨.natVal n⟩).length = (Enc.limbs n).length + 1 := by simp [Enc.encLit]
+  have hK' : Words t KB (0 :: (natWords n).map UInt64.toBitVec) := by rw [hlw]; exact hK
+  unfold eLitNatWith
+  have H := natHashP_spec t (KB + 8) (natWords n) (by omega) (words_tail hK') lna (by rw [hln]; exact lnn)
+    (W lNh (by decide)) (W lNi (by decide))
+  rcases H with hs | ⟨hn, ym, yd, yc, yg, yt, yfr, yh⟩
+  · have ⟨res, hres⟩ : ∃ res, (evaluateHOLFiniteState t natHashP).1 = some res := by
+      rcases hs with h | ⟨ev, h⟩
+      · exact ⟨_, h⟩
+      · exact ⟨_, h⟩
+    rw [seq_abort _ _ _ _ hres]; exact Or.inl hs
+  generalize hy : evaluateHOLFiniteState t natHashP = q at hn ym yd yc yg yt yfr yh
+  obtain ⟨qr, y⟩ := q
+  simp only at hn ym yd yc yg yt yfr yh; subst hn
+  rw [seq_normal _ hy]
+  obtain ⟨wh, hwh⟩ := W lHv (by decide)
+  have hh : (foldW (natWords n)) = ConLeche.Literal.hash (.natVal n) := by
+    show _ = ConLeche.natHash n; rw [natHash_eq ra, leanNatHash_foldW]
+  rw [seq_normal _ (ConsLoop.assign_local y lHv _ _ wh (eval_vv y lNh _ yh)
+    (by rw [yfr _ (by decide) (by decide)]; exact hwh))]
+  let y1 := setVarHOLFinite lHv (.val (.word (foldW (natWords n)).toBitVec)) y
+  have yb : ∀ z, z ≠ lNh → z ≠ lNi → z ≠ lHv → y1.locals.lookup z = t.locals.lookup z := by
+    intro z a b c; lk [y1]; exact yfr z a b
+  have nd : ∀ z ∈ bvarScratch, z ≠ lNh ∧ z ≠ lNi ∧ z ≠ lHv := by decide
+  have m1 : y1.memory = t.memory := ym
+  have hR1 : SRep y1 L FLn FLl FLs FLe st := srep_frame hR ⟨by rw [m1], by rw [m1], by rw [m1], by rw [m1]⟩ yd
+    (fun _ _ _ _ => ⟨fun _ _ => by rw [m1], fun _ _ => by rw [m1]⟩)
+  refine eres_back (eLitTail_spec ra y1 L FLn FLl FLs FLe KB st (.natVal n) hR1 hS
+    (fun j hj => by rw [m1]; exact ⟨yd ▸ (hK j hj).1, (hK j hj).2⟩) (by omega) hb0 hb1
+    (by rw [yb _ (by decide) (by decide) (by decide)]; exact lkb)
+    (by rw [yb _ (by decide) (by decide) (by decide)]; exact len)
+    (by rw [← hh]; exact lookup_setVar_same _ _ _)
+    (by rw [yb _ (by decide) (by decide) (by decide)]; exact ldir)
+    (by rw [yb _ (by decide) (by decide) (by decide)]; exact lfle)
+    (fun z hz => by
+      obtain ⟨a, b, c⟩ := nd z hz
+      obtain ⟨w, hw⟩ := W z (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ hz)))
+      exact ⟨w, by rw [yb z a b c]; exact hw⟩)) ym yd yc yg yt
+
+theorem eInternLitStr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSemStateFiniteExact 64 σ)
+    (L : Layout) (FLn FLl FLs FLe KB : BitVec 64) (st : EStore) (s : String)
+    (hR : SRep t L FLn FLl FLs FLe st) (hS : SepK L FLn FLl FLs FLe KB (Enc.encLit ⟨.strVal s⟩).length 17)
+    (hK : Words t KB (Enc.encLit ⟨.strVal s⟩)) (hwl : (Enc.encLit ⟨.strVal s⟩).length < 2 ^ 61)
+    (hb0 : L.base 17 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.lit.toUInt64.toBitVec * 67108864)
+    (hb1 : L.base 17 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.lit.toUInt64.toBitVec * 67108864)
+    (lkb : t.locals.lookup lKb = some (.val (.word KB)))
+    (len : t.locals.lookup lEn = some (.val (.word (BitVec.ofNat 64 (Enc.encLit ⟨.strVal s⟩).length))))
+    (lha : t.locals.lookup lHa = some (.val (.word (KB + 8))))
+    (lhn : t.locals.lookup lHn = some (.val (.word (BitVec.ofNat 64 s.toByteArray.data.toList.length))))
+    (ldir : t.locals.lookup lDir = some (.val (.word L.DIR)))
+    (lfle : t.locals.lookup lFle = some (.val (.word FLe)))
+    (hw : ∀ y, y ∈ litStrScratch → ∃ w, t.locals.lookup y = some (.val (.word w))) :
+    ERes t L FLn FLl FLs FLe KB (Enc.encLit ⟨.strVal s⟩).length st (st.intern (.lit (.strVal s)))
+      (evaluateHOLFiniteState t (eLitStrWith (rRestE 17 (vv lEn) lFle))) := by
+  have W : ∀ y, y ∈ litStrScratch → ∃ w, t.locals.lookup y = some (.val (.word w)) := hw
+  let bs := s.toByteArray.data.toList
+  have hbl : (Enc.encLit ⟨.strVal s⟩).length = bs.length + 1 := by simp [Enc.encLit, Enc.strW, bs]
+  unfold eLitStrWith
+  have H := strHash_spec t (KB + 8) bs (by omega) (words_tail (w := 1) hK) lha lhn (W lHh (by decide)) (W lHk (by decide))
+  simp only at H
+  rcases H with hs | ⟨hn, yp⟩
+  · have ⟨res, hres⟩ : ∃ res, (evaluateHOLFiniteState t strHash).1 = some res := by
+      rcases hs with h | ⟨ev, h⟩
+      · exact ⟨_, h⟩
+      · exact ⟨_, h⟩
+    rw [seq_abort _ _ _ _ hres]; exact Or.inl hs
+  generalize hy : evaluateHOLFiniteState t strHash = q at hn yp
+  obtain ⟨qr, y⟩ := q
+  simp only at hn yp; subst hn
+  rw [seq_normal _ hy]
+  obtain ⟨ym, yd, yc, yg, yt, yfr, yh⟩ := yp
+  obtain ⟨wh, hwh⟩ := W lHv (by decide)
+  have hh : leanStringHash bs = ConLeche.Literal.hash (.strVal s) := by
+    show _ = hash s; rw [show hash s = String.hash s from rfl, ra.stringHash]
+  rw [seq_normal _ (ConsLoop.assign_local y lHv _ _ wh (eval_vv y lHh _ yh)
+    (by rw [yfr _ (by decide) (by decide) (by decide) (by decide)]; exact hwh))]
+  let y1 := setVarHOLFinite lHv (.val (.word (leanStringHash bs).toBitVec)) y
+  have yb : ∀ z, z ≠ lHa → z ≠ lHn → z ≠ lHh → z ≠ lHk → z ≠ lHv → y1.locals.lookup z = t.locals.lookup z := by
+    intro z a b c d e; lk [y1]; exact yfr z a b c d
+  have nd : ∀ z ∈ bvarScratch, z ≠ lHa ∧ z ≠ lHn ∧ z ≠ lHh ∧ z ≠ lHk ∧ z ≠ lHv := by decide
+  have m1 : y1.memory = t.memory := ym
+  have hR1 : SRep y1 L FLn FLl FLs FLe st := srep_frame hR ⟨by rw [m1], by rw [m1], by rw [m1], by rw [m1]⟩ yd
+    (fun _ _ _ _ => ⟨fun _ _ => by rw [m1], fun _ _ => by rw [m1]⟩)
+  refine eres_back (eLitTail_spec ra y1 L FLn FLl FLs FLe KB st (.strVal s) hR1 hS
+    (fun j hj => by rw [m1]; exact ⟨yd ▸ (hK j hj).1, (hK j hj).2⟩) hwl hb0 hb1
+    (by rw [yb _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact lkb)
+    (by rw [yb _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact len)
+    (by rw [← hh]; exact lookup_setVar_same _ _ _)
+    (by rw [yb _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact ldir)
+    (by rw [yb _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact lfle)
+    (fun z hz => by
+      obtain ⟨a, b, c, d, e⟩ := nd z hz
+      obtain ⟨w, hw⟩ := W z (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ hz)))
+      exact ⟨w, by rw [yb z a b c d e]; exact hw⟩)) ym yd yc yg yt
 
 end
 
