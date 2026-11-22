@@ -500,6 +500,12 @@ structure CtxOK (C : Ctx) : Prop where
   flMemo : ∀ F, (F = C.FLn ∨ F = C.FLl ∨ F = C.FLs ∨ F = C.FLe) → ¬ inR C.mg F
   dirMemo : ∀ k tier m, k < 19 → tier < 2 → m < 8 → ¬ inR C.mg (descAddr C.L k tier + BitVec.ofNat 64 (8 * m))
   mdescMemo : ∀ k, k < 8 → ¬ inR C.mg (C.mG + BitVec.ofNat 64 (8 * k))
+  sepLam : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 2 14
+  b0Lam : C.L.base 14 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.lam.toUInt64.toBitVec * 67108864
+  b1Lam : C.L.base 14 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.lam.toUInt64.toBitVec * 67108864
+  sepFor : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 2 15
+  b0For : C.L.base 15 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.forallE.toUInt64.toBitVec * 67108864
+  b1For : C.L.base 15 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.forallE.toUInt64.toBitVec * 67108864
 
 def fInternApp := ofString "internApp"
 
@@ -767,5 +773,108 @@ theorem internForallEE_eq (s : AState) (ty b : EIdx)
     simp only [hn, ite_true]
     rfl
 
+
+/-! ## Two-child intern functions, generically -/
+
+/-- A two-child intern function's body: the prologue, then the shared intern program at kind `k`. -/
+def bin2Body (E : ExpHOL 64) (k : Nat) : ProgHOL 64 := prologue bin2Scratch (eBin2With E (eRest k 2))
+
+theorem bin2_body_spec (C : Ctx) (hok : CtxOK C) (E : ExpHOL 64) (k : Nat) (op : EIdx → EIdx → AM EIdx)
+    (res : EStore → EIdx → EIdx → EStore × EIdx)
+    (hspec : ∀ (t : PState σ) (st : EStore) (f a : EIdx), SRep t C.L C.FLn C.FLl C.FLs C.FLe st →
+      t.memaddrs C.KB ∧ t.memaddrs (C.KB + 8) →
+      t.locals.lookup lKb = some (.val (.word C.KB)) → t.locals.lookup lEf = some (.val (.word (Enc.idxW f))) →
+      t.locals.lookup lEa = some (.val (.word (Enc.idxW a))) → t.locals.lookup lDir = some (.val (.word C.L.DIR)) →
+      t.locals.lookup lFle = some (.val (.word C.FLe)) →
+      (∀ y, y ∈ bin2Scratch → ∃ w, t.locals.lookup y = some (.val (.word w))) →
+      ERes t C.L C.FLn C.FLl C.FLs C.FLe C.KB 2 st (res st f a) (evaluateHOLFiniteState t (eBin2With E (eRest k 2))))
+    (hwrap : ∀ (s : AState) (f a : EIdx) (t : PState σ), SRep t C.L C.FLn C.FLl C.FLs C.FLe (res s.store f a).1 →
+      op f a s = .ok ((res s.store f a).2, { s with store := (res s.store f a).1 }))
+    (s : AState) (f a : EIdx) :
+    SpecR (Pre (σ := σ) C s [(lEf, Enc.idxW f), (lEa, Enc.idxW a)]) (bin2Body E k) s (op f a) (PostE C) := by
+  refine specR_prologue (postE_locals C) (fun x hx => ?_) ?_
+  · simp only [bin2Scratch, List.mem_cons, List.not_mem_nil, or_false] at hx
+    rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> rfl
+  intro t ht
+  have hw : ∀ y, y ∈ bin2Scratch → ∃ w, t.locals.lookup y = some (.val (.word w)) :=
+    fun y hy => ht.decl y (List.mem_append_right _ hy)
+  rcases hspec t s.store f a ht.sr.rep
+      ⟨by simpa using ht.sr.kbuf 0 (by decide), by simpa using ht.sr.kbuf 1 (by decide)⟩
+      (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) hw with
+    hs | ⟨hr, hsr, hc, hg, hd, _, hm⟩
+  · exact Or.inl hs
+  right
+  refine ⟨_, hr, (res s.store f a).2, { s with store := (res s.store f a).1 }, hwrap s f a _ hsr, rfl, ?_⟩
+  exact ⟨hsr, by rw [hg]; exact ht.sr.gdir, by rw [hg]; exact ht.sr.gfln, by rw [hg]; exact ht.sr.gfll,
+    by rw [hg]; exact ht.sr.gfls, by rw [hg]; exact ht.sr.gfle, by rw [hg]; exact ht.sr.gkb,
+    by rw [hc]; exact ht.sr.code, fun j hj => by rw [hd]; exact ht.sr.kbuf j hj,
+    memoAt_frame ht.sr.inst1 (fun c hc => hm c (hok.memoOut c hc) (fun j hj e => hok.kbMemo j (by omega) (e ▸ hc)))
+      (fun k hk => hm _ (hok.mdescOut k hk) (fun j hj => hok.kbMdesc k j hk (by omega))) hd⟩
+
+/-- In a caller: `x := fn(e₁, e₂); rest` against `op f a >>= k`, for a two-child intern function `fn`. -/
+theorem specR_bin2I {β : Type} {C : Ctx} (hok : CtxOK C) (fn : MlS) (E : ExpHOL 64) (kk : Nat)
+    (op : EIdx → EIdx → AM EIdx) (res : EStore → EIdx → EIdx → EStore × EIdx)
+    (hspec : ∀ (t : PState σ) (st : EStore) (f a : EIdx), SRep t C.L C.FLn C.FLl C.FLs C.FLe st →
+      t.memaddrs C.KB ∧ t.memaddrs (C.KB + 8) →
+      t.locals.lookup lKb = some (.val (.word C.KB)) → t.locals.lookup lEf = some (.val (.word (Enc.idxW f))) →
+      t.locals.lookup lEa = some (.val (.word (Enc.idxW a))) → t.locals.lookup lDir = some (.val (.word C.L.DIR)) →
+      t.locals.lookup lFle = some (.val (.word C.FLe)) →
+      (∀ y, y ∈ bin2Scratch → ∃ w, t.locals.lookup y = some (.val (.word w))) →
+      ERes t C.L C.FLn C.FLl C.FLs C.FLe C.KB 2 st (res st f a) (evaluateHOLFiniteState t (eBin2With E (eRest kk 2))))
+    (hwrap : ∀ (s : AState) (f a : EIdx) (t : PState σ), SRep t C.L C.FLn C.FLl C.FLs C.FLe (res s.store f a).1 →
+      op f a s = .ok ((res s.store f a).2, { s with store := (res s.store f a).1 }))
+    (hcode : C.code.lookup fn = some ([(lEf, .one), (lEa, .one)], bin2Body E kk, .one))
+    {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64} {k : EIdx → AM β}
+    {R : β → BitVec 64 → AState → PState σ → Prop} (x : MlS) (e1 e2 : ExpHOL 64) (f a : EIdx) (hx : x ∈ D)
+    (he1 : sev Γ e1 = some (Enc.idxW f)) (he2 : sev Γ e2 = some (Enc.idxW a))
+    (hk : ∀ h s', SpecR (Inv C s' ((x, Enc.idxW h) :: Γ) [] D) rest s' (k h) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, x), none)) fn [e1, e2]) rest) s (op f a >>= k) R :=
+  specR_call2I x fn lEf lEa (by decide) e1 e2 (bin2Body E kk) (Enc.idxW f) (Enc.idxW a) hx hcode he1 he2
+    (PostE C) (fun _ _ _ _ hp => hp.2)
+    (fun u hu h1 h2 v hv => by
+      subst hv
+      exact bin2_body_spec C hok E kk op res hspec hwrap s f a _ ⟨hu, fun y w hy => by
+        simp only [Env.get] at hy
+        split at hy
+        · rename_i e; subst e; simp at hy; subst hy; exact h1
+        · split at hy
+          · rename_i e; subst e; simp at hy; subst hy; exact h2
+          · simp at hy⟩)
+    (fun h w s' st hp => by obtain ⟨rfl, _⟩ := hp; exact hk h s')
+
+def fInternLam := ofString "internLam"
+def fInternForallE := ofString "internForallE"
+
+theorem specR_internLamI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxOK C)
+    (hcode : C.code.lookup fInternLam = some ([(lEf, .one), (lEa, .one)], bin2Body lamDataE 14, .one))
+    {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64} {k : EIdx → AM β}
+    {R : β → BitVec 64 → AState → PState σ → Prop} (x : MlS) (e1 e2 : ExpHOL 64) (ty b : EIdx) (hx : x ∈ D)
+    (he1 : sev Γ e1 = some (Enc.idxW ty)) (he2 : sev Γ e2 = some (Enc.idxW b))
+    (hk : ∀ h s', SpecR (Inv C s' ((x, Enc.idxW h) :: Γ) [] D) rest s' (k h) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, x), none)) fInternLam [e1, e2]) rest) s
+      (internLamE ty b >>= k) R :=
+  specR_bin2I hok fInternLam lamDataE 14 internLamE (fun st f a => st.internLam f a)
+    (fun t st f a hR kbd lkb lef lea ldir lfle hw =>
+      eInternLam_spec ra t C.L C.FLn C.FLl C.FLs C.FLe C.KB st f a hR hok.sepLam kbd (kb_ne_kb8 _) hok.b0Lam hok.b1Lam
+        lkb lef lea ldir lfle hw)
+    (fun s f a t hsr => internLamE_eq s f a (Nat.le_trans (tabAt_size_le hsr.e.p5) (hok.sepLam.cap 0 (by decide)))
+      (Nat.le_trans (tabAt_size_le hsr.e.s5) (hok.sepLam.cap 1 (by decide))))
+    hcode x e1 e2 ty b hx he1 he2 hk
+
+theorem specR_internForallEI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxOK C)
+    (hcode : C.code.lookup fInternForallE = some ([(lEf, .one), (lEa, .one)], bin2Body forDataE 15, .one))
+    {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64} {k : EIdx → AM β}
+    {R : β → BitVec 64 → AState → PState σ → Prop} (x : MlS) (e1 e2 : ExpHOL 64) (ty b : EIdx) (hx : x ∈ D)
+    (he1 : sev Γ e1 = some (Enc.idxW ty)) (he2 : sev Γ e2 = some (Enc.idxW b))
+    (hk : ∀ h s', SpecR (Inv C s' ((x, Enc.idxW h) :: Γ) [] D) rest s' (k h) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, x), none)) fInternForallE [e1, e2]) rest) s
+      (internForallEE ty b >>= k) R :=
+  specR_bin2I hok fInternForallE forDataE 15 internForallEE (fun st f a => st.internForallE f a)
+    (fun t st f a hR kbd lkb lef lea ldir lfle hw =>
+      eInternForallE_spec ra t C.L C.FLn C.FLl C.FLs C.FLe C.KB st f a hR hok.sepFor kbd (kb_ne_kb8 _) hok.b0For
+        hok.b1For lkb lef lea ldir lfle hw)
+    (fun s f a t hsr => internForallEE_eq s f a (Nat.le_trans (tabAt_size_le hsr.e.p6) (hok.sepFor.cap 0 (by decide)))
+      (Nat.le_trans (tabAt_size_le hsr.e.s6) (hok.sepFor.cap 1 (by decide))))
+    hcode x e1 e2 ty b hx he1 he2 hk
 
 end ConPanqueque.T
