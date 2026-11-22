@@ -121,4 +121,16 @@ theorem fvar_data (ra : RuntimeAssumptions) (i : Nat) (hi : i < 2 ^ 63) (ty : Co
   simp only [ConLeche.Expr.data, ConLeche.packData, ra.mixHash, fvarDataW, ConLeche.satSucc, ConLeche.satRange, hs, lp_bit]
   simp; rfl
 
+/-- `Expr.const n us`'s data word, from the name's hash and the levels' hash and has-parameter bit. -/
+def constDataW (hn lh lp : UInt64) : UInt64 :=
+  ConLeche.hash32 (leanMixHash 11 (leanMixHash hn lh)) * 4294967296 + lp
+
+pan_exp constDataE := fun (hn lh lp : UInt64) => constDataW hn lh lp
+
+theorem const_data (ra : RuntimeAssumptions) (n : ConLeche.Name) (us : List ConLeche.Level) :
+    (ConLeche.Expr.const n us).data =
+      constDataW n.hashData (ConLeche.levelsHash us) (if ConLeche.levelsHaveParam us then 1 else 0) := by
+  simp only [ConLeche.Expr.data, ConLeche.packData, ra.mixHash, constDataW]
+  simp; rfl
+
 end ConPanqueque.ExprData

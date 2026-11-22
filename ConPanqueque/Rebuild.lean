@@ -150,4 +150,48 @@ theorem step_call {σ : Type} (fn x p1 p2 : MlS) (C : HolFiniteMapExact MlS (Lis
     (by have : t1.clock = t.clock := rfl; omega) gl2 md2 ta2
   exact h'
 
+/-- `var y = 0; y := f(e); rest` for a one-parameter function that allocates nothing:
+`rest` runs from the state with `y` bound, the arena unchanged. -/
+theorem pure_step {σ : Type} (f x y : MlS) (B rest : ProgHOL 64) (P : Heap → BitVec 64 → Prop) (c c' : Nat)
+    (t : PanSemStateFiniteExact 64 σ) (lo hp a w : BitVec 64) (e : ExpHOL 64) (hi : AInv t lo hp)
+    (hcode : t.code.lookup f = some ([(x, .one)], B, .one))
+    (he : @evalHOLExact 64 σ _ (setVarHOLFinite y (.val (.word 0)) t).toExact
+      (fun a => Classical.propDecidable (t.memaddrs a)) e = some (.val (.word a)))
+    (hck : 1 + c ≤ t.clock)
+    (hB : ∀ s' : PanSemStateFiniteExact 64 σ, s'.code = t.code → s'.memory = t.memory → s'.memaddrs = t.memaddrs →
+      s'.globals = t.globals → s'.locals.lookup x = some (.val (.word a)) → c ≤ s'.clock →
+      ∃ st, evaluateHOLFiniteState s' B = (some (.returned (.val (.word w))), st) ∧
+        st.code = s'.code ∧ st.memory = s'.memory ∧ st.memaddrs = s'.memaddrs ∧ s'.clock ≤ st.clock + c ∧
+        st.globals = s'.globals ∧ st.topAddr = s'.topAddr)
+    (hrest : ∀ t' : PanSemStateFiniteExact 64 σ, t'.locals.lookup y = some (.val (.word w)) →
+      (∀ z, z ≠ y → t'.locals.lookup z = t.locals.lookup z) → t'.memory = t.memory → t'.code = t.code →
+      t'.globals = t.globals → t'.memaddrs = t.memaddrs → t'.topAddr = t.topAddr → t.clock ≤ t'.clock + 1 + c →
+      RRes t' (evaluateHOLFiniteState t' rest) lo hp P c') :
+    RRes t (evaluateHOLFiniteState t (.dec y .one (.const 0) (.seq (.call (some (some (.local, y), none)) f [e]) rest)))
+      lo hp P (1 + c + c') := by
+  let t1 := setVarHOLFinite y (.val (.word 0)) t
+  obtain ⟨L1, e1⟩ := dec_word' t y (.const 0) 0 (.seq (.call (some (some (.local, y), none)) f [e]) rest)
+    (by simp [evalHOLExact])
+  obtain ⟨st, ⟨cd, mm, md, ck, gl, ta⟩, hcall⟩ := call1 t1 f x y B e a w
+    (fun st => st.code = t.code ∧ st.memory = t.memory ∧ st.memaddrs = t.memaddrs ∧ t.clock - 1 ≤ st.clock + c ∧
+      st.globals = t.globals ∧ st.topAddr = t.topAddr)
+    hcode he (by show t.clock ≠ 0; omega) ⟨0, by simp [t1]⟩
+    (fun callee hx => by
+      obtain ⟨st, ev, a1, a2, a3, a4, a5, a6⟩ := hB (callEntryStateHOLFinite t1 callee) rfl rfl rfl rfl hx
+        (by show c ≤ t.clock - 1; omega)
+      exact ⟨st, ev, a1, a2, a3, a4, a5, a6⟩)
+  rw [e1]; apply rres_locals'; rw [seq_normal _ hcall]
+  let t2 := setKvarHOLFinite .local y (.val (.word w)) { st with locals := t1.locals }
+  have := hrest t2 (by simp [t2, setKvarHOLFinite])
+    (fun z hz => by simp only [t2, setKvarHOLFinite, t1]; rw [lookup_setVar_other _ _ hz, lookup_setVar_other _ _ hz])
+    (by simp [t2, setKvarHOLFinite, setVarHOLFinite, mm]) (by simp [t2, setKvarHOLFinite, setVarHOLFinite, cd])
+    (by simp [t2, setKvarHOLFinite, setVarHOLFinite, gl]) (by simp [t2, setKvarHOLFinite, setVarHOLFinite, md])
+    (by simp [t2, setKvarHOLFinite, setVarHOLFinite, ta])
+    (by simp [t2, setKvarHOLFinite, setVarHOLFinite]; omega)
+  have hm2 : t2.memory = t.memory := by simp [t2, setKvarHOLFinite, setVarHOLFinite, mm]
+  exact rres_trans (t := t) (c := 1 + c) this ⟨BitVec.le_refl _, fun b _ _ => by rw [hm2]⟩
+    (by simp [t2, setKvarHOLFinite, setVarHOLFinite, cd]) (by simp [t2, setKvarHOLFinite, setVarHOLFinite]; omega)
+    (fun g _ => by simp [t2, setKvarHOLFinite, setVarHOLFinite, gl]) (by simp [t2, setKvarHOLFinite, setVarHOLFinite, md])
+    (by simp [t2, setKvarHOLFinite, setVarHOLFinite, ta])
+
 end ConPanqueque.Rebuild
