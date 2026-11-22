@@ -571,7 +571,7 @@ theorem specR_memoSetI {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoK) (setOp
     by rw [hg]; exact hsr.gdir, by rw [hg]; exact hsr.gfln, by rw [hg]; exact hsr.gfll, by rw [hg]; exact hsr.gfls,
     by rw [hg]; exact hsr.gfle, by rw [hg]; exact hsr.gkb, by rw [hc]; exact hsr.code,
     fun j hj => by rw [hd']; exact hsr.kbuf j hj, fun mk' => ?_, fun nk => ?_,
-    heapAt_frame hsr.heap (fun i hi => hfr _ (hok.heapMemo (.e mk) i hi)) hd' (by rw [hg])⟩⟩
+    heapEx_frame hsr.heap (fun i hi => hfr _ (hok.heapMemo (.e mk) i hi)) hd' (by rw [hg])⟩⟩
   rotate_left
   · show MemoAtN _ _ _ (memoSelN nk (memoUpd mk s.memos _)); rw [memoSelN_upd]
     exact memoAtN_frame (hsr.memoN nk) (fun c hc => hfr c (hok.memoDis (.n nk) (.e mk) c (by simp) hc))

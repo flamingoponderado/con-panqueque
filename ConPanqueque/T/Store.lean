@@ -108,12 +108,23 @@ structure HeapAt {σ : Type} (t : PanSemStateFiniteExact 64 σ) (HB : BitVec 64)
   dom : ∀ i, i < HN → t.memaddrs (HB + BitVec.ofNat 64 (8 * i))
   val : ∀ i (hi : i < H.length), t.memory (HB + BitVec.ofNat 64 (8 * i)) = .word H[i]
 
+/-- The heap holds some extension of the image `H` (later allocations are invisible to a context that
+fixed `H`). -/
+def HeapEx {σ : Type} (t : PanSemStateFiniteExact 64 σ) (HB : BitVec 64) (HN : Nat) (H : List (BitVec 64)) : Prop :=
+  ∃ H', H <+: H' ∧ HeapAt t HB HN H'
+
 theorem heapAt_frame {σ : Type} {t u : PanSemStateFiniteExact 64 σ} {HB : BitVec 64} {HN : Nat}
     {H : List (BitVec 64)} (h : HeapAt t HB HN H)
     (hm : ∀ i, i < HN → u.memory (HB + BitVec.ofNat 64 (8 * i)) = t.memory (HB + BitVec.ofNat 64 (8 * i)))
     (hd : u.memaddrs = t.memaddrs) (hg : u.globals.lookup gHt = t.globals.lookup gHt) : HeapAt u HB HN H :=
   ⟨by rw [hg]; exact h.top, h.len, h.lay, fun i hi => by rw [hd]; exact h.dom i hi,
     fun i hi => by rw [hm i (Nat.lt_of_lt_of_le hi h.len)]; exact h.val i hi⟩
+
+theorem heapEx_frame {σ : Type} {t u : PanSemStateFiniteExact 64 σ} {HB : BitVec 64} {HN : Nat}
+    {H : List (BitVec 64)} (h : HeapEx t HB HN H)
+    (hm : ∀ i, i < HN → u.memory (HB + BitVec.ofNat 64 (8 * i)) = t.memory (HB + BitVec.ofNat 64 (8 * i)))
+    (hd : u.memaddrs = t.memaddrs) (hg : u.globals.lookup gHt = t.globals.lookup gHt) : HeapEx u HB HN H :=
+  let ⟨H', hp, ha⟩ := h; ⟨H', hp, heapAt_frame ha hm hd hg⟩
 
 variable {σ : Type}
 
@@ -133,7 +144,7 @@ structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   /-- The `EIdx → Nat` memos. -/
   memoN : ∀ k, MemoAtN t (C.mG (.n k)) (C.mg (.n k)) (memoSelN k s.memos)
   /-- The value heap. -/
-  heap : HeapAt t C.HB C.HN C.H
+  heap : HeapEx t C.HB C.HN C.H
 
 theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u.memory = t.memory)
     (hd : u.memaddrs = t.memaddrs) (hg : u.globals = t.globals) (hc : u.code = t.code) : SR C s u :=
@@ -143,7 +154,7 @@ theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u
     by rw [hg]; exact h.gfle, by rw [hg]; exact h.gkb, by rw [hc]; exact h.code,
     fun j hj => by rw [hd]; exact h.kbuf j hj, fun k => memoAt_of_eq (h.memo k) hm hd,
     fun k => memoAtN_frame (h.memoN k) (fun _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd,
-    heapAt_frame h.heap (fun _ _ => by rw [hm]) hd (by rw [hg])⟩
+    heapEx_frame h.heap (fun _ _ => by rw [hm]) hd (by rw [hg])⟩
 
 theorem eval_gv (t : PState σ) (g : MlS) (w : BitVec 64) (h : t.globals.lookup g = some (.val (.word w))) :
     EV t (.var .global g) = some (.val (.word w)) := by
