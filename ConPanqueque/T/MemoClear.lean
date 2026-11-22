@@ -90,60 +90,62 @@ def clearCode (g : VGeo) (rest : ProgHOL 64) : ProgHOL 64 :=
     (.seq (.store (.const g.C) (.const 0)) (.seq (.store (.const (g.C + 8)) (.const g.KH)) rest)))
 
 theorem inst1Clear_run (s : AState) :
-    inst1Clear s = .ok ((), { s with memos := { s.memos with inst1C := ∅ } }) := rfl
+    inst1Clear s = .ok ((), { s with memos := memoUpd .inst1 s.memos ∅ }) := rfl
 
-theorem specR_inst1ClearI {β : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env} {M : Mem} {D : List MlS}
+theorem specR_memoClearI {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoK) (clearOp : AM Unit)
+    (hclear : ∀ s, clearOp s = .ok ((), { s with memos := memoUpd mk s.memos ∅ }))
+    {s : AState} {Γ : Env} {M : Mem} {D : List MlS}
     {rest : ProgHOL 64} {k : Unit → AM β} {R : β → BitVec 64 → AState → PState σ → Prop} (hj : lJ0 ∈ D)
-    (hk : SpecR (Inv C { s with memos := { s.memos with inst1C := ∅ } } (Γ.kill [lJ0]) [] D) rest
-      { s with memos := { s.memos with inst1C := ∅ } } (k ()) R) :
-    SpecR (Inv C s Γ M D) (clearCode C.mg rest) s (inst1Clear >>= k) R := by
+    (hk : SpecR (Inv C { s with memos := memoUpd mk s.memos ∅ } (Γ.kill [lJ0]) [] D) rest
+      { s with memos := memoUpd mk s.memos ∅ } (k ()) R) :
+    SpecR (Inv C s Γ M D) (clearCode (C.mg mk) rest) s (clearOp >>= k) R := by
   intro t ht
-  obtain ⟨hdesc, hn, hb, hcap, tb, rows, ders, slots, hu, hT, hinv, hr, hder, hrel⟩ := ht.sr.inst1
+  obtain ⟨hdesc, hn, hb, hcap, tb, rows, ders, slots, hu, hT, hinv, hr, hder, hrel⟩ := ht.sr.memo mk
   have lC := hT.layC; have lS := hT.layS; have lR := hT.layR; have lD := hT.layD; have lK := hT.layK
-  have hn56 : C.mg.n ≤ 2 ^ 56 := by rw [hn]; exact Nat.pow_le_pow_right (by decide) hb
-  have hpos : 0 < C.mg.n := hinv.pos
+  have hn56 : (C.mg mk).n ≤ 2 ^ 56 := by rw [hn]; exact Nat.pow_le_pow_right (by decide) hb
+  have hpos : 0 < (C.mg mk).n := hinv.pos
   unfold clearCode
   obtain ⟨w0, hw0⟩ := ht.decl lJ0 hj
   rw [seq_normal _ (ConsLoop.assign_local t lJ0 (.const 0) 0 w0 (eval_const t 0) hw0)]
   let t1 := setVarHOLFinite lJ0 (.val (.word 0)) t
-  have hdom : ∀ j, j < C.mg.n → t1.memaddrs (C.mg.S + BitVec.ofNat 64 (8 * j)) := fun j hj' => by
+  have hdom : ∀ j, j < (C.mg mk).n → t1.memaddrs ((C.mg mk).S + BitVec.ofNat 64 (8 * j)) := fun j hj' => by
     obtain ⟨_, _, _, a, _⟩ := hT.slot j hj'; exact a
-  rcases clearLoop_spec t1 C.mg hn56 (by omega) hdom (lookup_setVar_same _ _ _) with hs | ⟨hn1, hI, hjn⟩
+  rcases clearLoop_spec t1 (C.mg mk) hn56 (by omega) hdom (lookup_setVar_same _ _ _) with hs | ⟨hn1, hI, hjn⟩
   · exact Or.inl (seq_stop _ _ _ hs)
-  have e1 : evaluateHOLFiniteState t1 (clearLoop C.mg) = (none, (evaluateHOLFiniteState t1 (clearLoop C.mg)).2) := by
+  have e1 : evaluateHOLFiniteState t1 (clearLoop (C.mg mk)) = (none, (evaluateHOLFiniteState t1 (clearLoop (C.mg mk))).2) := by
     rw [← hn1]
   rw [seq_normal _ e1]
-  generalize (evaluateHOLFiniteState t1 (clearLoop C.mg)).2 = t2 at hI hjn
+  generalize (evaluateHOLFiniteState t1 (clearLoop (C.mg mk))).2 = t2 at hI hjn
   obtain ⟨j, hjle, hjl, hz, hfr, hd2, hc2, hg2, hta2, hl2⟩ := hI
-  have hjeq : j = C.mg.n := by
+  have hjeq : j = (C.mg mk).n := by
     rw [hjl] at hjn; simp at hjn
     have := congrArg BitVec.toNat hjn; simp at this; omega
   subst hjeq
-  have hCd : t2.memaddrs C.mg.C := by rw [hd2]; exact hT.cnt.1
-  rw [seq_normal _ (store_word t2 (.const C.mg.C) (.const 0) C.mg.C 0 (eval_const t2 _) (eval_const t2 0) hCd)]
-  let t3 : PState σ := { t2 with memory := fun c => (if c = C.mg.C then HolWordLab.word 0 else t2.memory c) }
-  have hC8 : t3.memaddrs (C.mg.C + 8) := by show t2.memaddrs _; rw [hd2]; exact hT.top.1
-  rw [seq_normal _ (store_word t3 (.const (C.mg.C + 8)) (.const C.mg.KH) (C.mg.C + 8) C.mg.KH (eval_const t3 _)
+  have hCd : t2.memaddrs (C.mg mk).C := by rw [hd2]; exact hT.cnt.1
+  rw [seq_normal _ (store_word t2 (.const (C.mg mk).C) (.const 0) (C.mg mk).C 0 (eval_const t2 _) (eval_const t2 0) hCd)]
+  let t3 : PState σ := { t2 with memory := fun c => (if c = (C.mg mk).C then HolWordLab.word 0 else t2.memory c) }
+  have hC8 : t3.memaddrs ((C.mg mk).C + 8) := by show t2.memaddrs _; rw [hd2]; exact hT.top.1
+  rw [seq_normal _ (store_word t3 (.const ((C.mg mk).C + 8)) (.const (C.mg mk).KH) ((C.mg mk).C + 8) (C.mg mk).KH (eval_const t3 _)
     (eval_const t3 _) hC8)]
-  let t4 : PState σ := { t3 with memory := fun c => (if c = C.mg.C + 8 then HolWordLab.word C.mg.KH else t3.memory c) }
-  have hCne : C.mg.C ≠ C.mg.C + 8 := kb_ne_kb8 _
-  have hCval : (C.mg.C).toNat + 8 < 2 ^ 64 := by omega
-  have hSne : ∀ j, j < C.mg.n → C.mg.S + BitVec.ofNat 64 (8 * j) ≠ C.mg.C ∧ C.mg.S + BitVec.ofNat 64 (8 * j) ≠ C.mg.C + 8 := by
+  let t4 : PState σ := { t3 with memory := fun c => (if c = (C.mg mk).C + 8 then HolWordLab.word (C.mg mk).KH else t3.memory c) }
+  have hCne : (C.mg mk).C ≠ (C.mg mk).C + 8 := kb_ne_kb8 _
+  have hCval : ((C.mg mk).C).toNat + 8 < 2 ^ 64 := by omega
+  have hSne : ∀ j, j < (C.mg mk).n → (C.mg mk).S + BitVec.ofNat 64 (8 * j) ≠ (C.mg mk).C ∧ (C.mg mk).S + BitVec.ofNat 64 (8 * j) ≠ (C.mg mk).C + 8 := by
     intro j hj'
     refine ⟨fun x => ?_, fun x => ?_⟩ <;> have := congrArg BitVec.toNat x
     · rw [toNat_add_of_lt _ _ (by omega)] at this; omega
     · rw [toNat_add_of_lt _ _ (by omega), toNat_add8 _ hCval] at this; omega
-  have m4 : ∀ c, t4.memory c = if c = C.mg.C + 8 then .word C.mg.KH else if c = C.mg.C then .word 0 else t2.memory c :=
+  have m4 : ∀ c, t4.memory c = if c = (C.mg mk).C + 8 then .word (C.mg mk).KH else if c = (C.mg mk).C then .word 0 else t2.memory c :=
     fun c => rfl
   -- memory outside the memo region is untouched
-  have hout : ∀ c, ¬ inR C.mg c → t4.memory c = t.memory c := by
+  have hout : ∀ c, ¬ inR (C.mg mk) c → t4.memory c = t.memory c := by
     intro c hc
-    have hc1 : c ≠ C.mg.C + 8 := fun e => hc (by rw [e]; refine ⟨?_, ?_⟩ <;> rw [toNat_add8 _ hCval] <;> omega)
-    have hc2 : c ≠ C.mg.C := fun e => hc (by rw [e]; exact ⟨Nat.le_refl _, by omega⟩)
+    have hc1 : c ≠ (C.mg mk).C + 8 := fun e => hc (by rw [e]; refine ⟨?_, ?_⟩ <;> rw [toNat_add8 _ hCval] <;> omega)
+    have hc2 : c ≠ (C.mg mk).C := fun e => hc (by rw [e]; exact ⟨Nat.le_refl _, by omega⟩)
     rw [m4, if_neg hc1, if_neg hc2, hfr c (fun j hj' e => hc (by
       rw [e]; refine ⟨?_, ?_⟩ <;> rw [toNat_add_of_lt _ _ (by omega)] <;> omega))]
     rfl
-  have hVT : VT t4 encMemo [] [] (List.replicate C.mg.n 0) C.mg 0 := by
+  have hVT : VT t4 encMemo [] [] (List.replicate (C.mg mk).n 0) (C.mg mk) 0 := by
     refine ⟨fun j hj' => ⟨0, by simp [hj'], by decide, ?_, ?_⟩, fun i hi => absurd hi (by simp),
       fun i hi => absurd hi (by simp), ⟨by show t2.memaddrs _; exact hCd, ?_⟩, ⟨hC8, ?_⟩, Nat.zero_le _, rfl,
       fun i hi => absurd hi (by simp), Nat.zero_le _, fun i hi => ?_, fun i hi => ?_, lC, lS, lR, lD, lK⟩
@@ -153,24 +155,33 @@ theorem specR_inst1ClearI {β : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ
     · rw [m4]; simp
     · have := hT.room i hi; show t2.memaddrs _ ∧ _; rw [hd2]; exact this
     · have := hT.hroom i hi; show t2.memaddrs _; rw [hd2]; exact this
-  have hinv' : ConsModel.Inv (homeV encMemo C.mg.b) ([] : List (EIdx × Nat)) (List.replicate C.mg.n 0) C.mg.n :=
+  have hinv' : ConsModel.Inv (homeV encMemo (C.mg mk).b) ([] : List (EIdx × Nat)) (List.replicate (C.mg mk).n 0) (C.mg mk).n :=
     ⟨by simp, hpos, hinv.home_lt, fun j i hji => by
       simp [List.getElem?_replicate] at hji, fun i hi => absurd hi (by simp), List.nodup_nil⟩
-  have hsr' : SR C { s with memos := { s.memos with inst1C := ∅ } } t4 := by
+  have hsr' : SR C { s with memos := memoUpd mk s.memos ∅ } t4 := by
     have hd4 : t4.memaddrs = t.memaddrs := by show t2.memaddrs = _; rw [hd2]; rfl
     have hg4 : t4.globals = t.globals := by show t2.globals = _; rw [hg2]; rfl
     have hc4 : t4.code = t.code := by show t2.code = _; rw [hc2]; rfl
-    refine ⟨srep_frame ht.sr.rep ⟨hout _ (hok.flMemo _ (Or.inl rfl)), hout _ (hok.flMemo _ (Or.inr (Or.inl rfl))),
-        hout _ (hok.flMemo _ (Or.inr (Or.inr (Or.inl rfl)))), hout _ (hok.flMemo _ (Or.inr (Or.inr (Or.inr rfl))))⟩ hd4
-        (fun kk tier hk1 hk2 => ⟨fun mm hm => hout _ (hok.dirMemo kk tier mm hk1 hk2 hm),
-          fun c hc => hout c (fun hin => hok.memoOut c hin ⟨kk, tier, hk1, hk2, hc⟩)⟩),
+    refine ⟨srep_frame ht.sr.rep ⟨hout _ (hok.flMemo mk _ (Or.inl rfl)), hout _ (hok.flMemo mk _ (Or.inr (Or.inl rfl))),
+        hout _ (hok.flMemo mk _ (Or.inr (Or.inr (Or.inl rfl)))), hout _ (hok.flMemo mk _ (Or.inr (Or.inr (Or.inr rfl))))⟩ hd4
+        (fun kk tier hk1 hk2 => ⟨fun mm hm => hout _ (hok.dirMemo mk kk tier mm hk1 hk2 hm),
+          fun c hc => hout c (fun hin => hok.memoOut mk c hin ⟨kk, tier, hk1, hk2, hc⟩)⟩),
       by rw [hg4]; exact ht.sr.gdir, by rw [hg4]; exact ht.sr.gfln, by rw [hg4]; exact ht.sr.gfll,
       by rw [hg4]; exact ht.sr.gfls, by rw [hg4]; exact ht.sr.gfle, by rw [hg4]; exact ht.sr.gkb,
       by rw [hc4]; exact ht.sr.code, fun j hj' => by rw [hd4]; exact ht.sr.kbuf j hj', ?_⟩
-    refine ⟨fun j hj' => ⟨by rw [hd4]; exact (hdesc j hj').1, by rw [hout _ (hok.mdescMemo j hj')]; exact (hdesc j hj').2⟩,
-      hn, hb, hcap, ⟨#[], #[], ∅⟩, [], [], List.replicate C.mg.n 0, 0, hVT, hinv',
-      ⟨rfl, fun a => by simp⟩, rfl, memoRel_empty⟩
-  have hInv : Inv C { s with memos := { s.memos with inst1C := ∅ } } (Γ.kill [lJ0]) [] D t4 := by
+    intro mk'
+    by_cases e : mk' = mk
+    · subst e
+      show MemoAt _ _ _ (memoSel mk' (memoUpd mk' s.memos ∅)); rw [memoSel_upd_same]
+      have hds : DescV t4 (C.mG mk') (C.mg mk') 1 := fun j hj' =>
+        ⟨by rw [hd4]; exact (hdesc j hj').1, by rw [hout _ (hok.mdescMemo mk' mk' j hj')]; exact (hdesc j hj').2⟩
+      exact ⟨hds,
+        hn, hb, hcap, ⟨#[], #[], ∅⟩, [], [], List.replicate (C.mg mk').n 0, 0, hVT, hinv',
+        ⟨rfl, fun a => by simp⟩, rfl, memoRel_empty⟩
+    · show MemoAt _ _ _ (memoSel mk' (memoUpd mk s.memos ∅)); rw [memoSel_upd_ne mk mk' e]
+      exact memoAt_frame (ht.sr.memo mk') (fun c hc => hout c (hok.memoDis mk' mk c e hc))
+        (fun kk hkk => hout _ (hok.mdescMemo mk mk' kk hkk)) hd4
+  have hInv : Inv C { s with memos := memoUpd mk s.memos ∅ } (Γ.kill [lJ0]) [] D t4 := by
     refine ⟨hsr', fun y w hy => ?_, fun _ _ h => absurd h (by simp), fun y hy => ?_⟩
     · obtain ⟨hk1, hy'⟩ := Env.get_kill Γ _ y w hy
       have hne : y ≠ lJ0 := by simpa using hk1
@@ -185,7 +196,7 @@ theorem specR_inst1ClearI {β : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ
   rcases hk t4 hInv with hs | ⟨w, hr', a, s', hk', hR⟩
   · exact Or.inl hs
   refine Or.inr ⟨w, hr', a, s', ?_, hR⟩
-  show (do let r ← inst1Clear s; match r with | (a, s) => k a s) = _
-  rw [inst1Clear_run]; exact hk'
+  show (do let r ← clearOp s; match r with | (a, s) => k a s) = _
+  rw [hclear]; exact hk'
 
 end ConPanqueque.T

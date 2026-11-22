@@ -16,6 +16,25 @@ which a translated function's prologue copies into the locals the store code rea
 
 namespace ConPanqueque.T
 
+/-- The memos of type `Std.HashMap (EIdx × Nat) EIdx`. -/
+inductive MemoK | inst1 | instL | lift | abs1 | inst1L | instLP
+  deriving DecidableEq
+
+def memoSel : MemoK → Memos → Std.HashMap (EIdx × Nat) EIdx
+  | .inst1, m => m.inst1C | .instL, m => m.instLC | .lift, m => m.liftC
+  | .abs1, m => m.abs1C | .inst1L, m => m.inst1LC | .instLP, m => m.instLPC
+
+def memoUpd : MemoK → Memos → Std.HashMap (EIdx × Nat) EIdx → Memos
+  | .inst1, m, x => { m with inst1C := x } | .instL, m, x => { m with instLC := x }
+  | .lift, m, x => { m with liftC := x } | .abs1, m, x => { m with abs1C := x }
+  | .inst1L, m, x => { m with inst1LC := x } | .instLP, m, x => { m with instLPC := x }
+
+theorem memoSel_upd_same (k : MemoK) (m : Memos) (x : Std.HashMap (EIdx × Nat) EIdx) :
+    memoSel k (memoUpd k m x) = x := by cases k <;> rfl
+
+theorem memoSel_upd_ne (k k' : MemoK) (h : k' ≠ k) (m : Memos) (x : Std.HashMap (EIdx × Nat) EIdx) :
+    memoSel k' (memoUpd k m x) = memoSel k' m := by cases k <;> cases k' <;> first | rfl | exact absurd rfl h
+
 structure Ctx where
   L : Layout
   FLn : BitVec 64
@@ -25,9 +44,9 @@ structure Ctx where
   KB : BitVec 64
   /-- The program's functions. -/
   code : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL)
-  /-- The `instantiate1` memo's descriptor and geometry. -/
-  mG : BitVec 64
-  mg : VGeo
+  /-- Each memo's descriptor and geometry. -/
+  mG : MemoK → BitVec 64
+  mg : MemoK → VGeo
 
 def gDir := ofString "Gdir"
 def gFln := ofString "Gfln"
@@ -49,8 +68,8 @@ structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   code : t.code = C.code
   /-- The key buffer's words are addressable (keys of up to three words; longer ones later). -/
   kbuf : ∀ j, j < 3 → t.memaddrs (C.KB + BitVec.ofNat 64 (8 * j))
-  /-- The `instantiate1` memo. -/
-  inst1 : MemoAt t C.mG C.mg s.memos.inst1C
+  /-- The memos. -/
+  memo : ∀ k, MemoAt t (C.mG k) (C.mg k) (memoSel k s.memos)
 
 theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u.memory = t.memory)
     (hd : u.memaddrs = t.memaddrs) (hg : u.globals = t.globals) (hc : u.code = t.code) : SR C s u :=
@@ -58,7 +77,7 @@ theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u
       (fun _ _ _ _ => ⟨fun _ _ => by rw [hm], fun _ _ => by rw [hm]⟩),
     by rw [hg]; exact h.gdir, by rw [hg]; exact h.gfln, by rw [hg]; exact h.gfll, by rw [hg]; exact h.gfls,
     by rw [hg]; exact h.gfle, by rw [hg]; exact h.gkb, by rw [hc]; exact h.code,
-    fun j hj => by rw [hd]; exact h.kbuf j hj, memoAt_of_eq h.inst1 hm hd⟩
+    fun j hj => by rw [hd]; exact h.kbuf j hj, fun k => memoAt_of_eq (h.memo k) hm hd⟩
 
 theorem eval_gv (t : PState σ) (g : MlS) (w : BitVec 64) (h : t.globals.lookup g = some (.val (.word w))) :
     EV t (.var .global g) = some (.val (.word w)) := by

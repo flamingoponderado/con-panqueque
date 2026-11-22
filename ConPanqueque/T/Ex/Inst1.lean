@@ -179,10 +179,10 @@ theorem appArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
     (hv : Γ.get pV = some (Enc.idxW v)) (hfu : Γ.get pFu = some (BitVec.ofNat 64 (n + 1)))
     (hh : Γ.get pH = some (Enc.idxW h)) (hdd : Γ.get pD = some (BitVec.ofNat 64 d))
     (hkb : Γ.get lKb = some C.KB) (hfle : Γ.get lFle = some C.FLe) (hdir : Γ.get lDir = some C.L.DIR) :
-    SpecR (Inv (σ := σ) C s Γ M DI) (appArm C.mG) s (instantiate1ArmApp v n h d) (PostE C) := by
+    SpecR (Inv (σ := σ) C s Γ M DI) (appArm (C.mG .inst1)) s (instantiate1ArmApp v n h d) (PostE C) := by
   refine specR_congr (by rw [instantiate1ArmApp]) ?_
   unfold appArm probed memoGetP
-  refine specR_inst1GetI hok hc.memoGet hc.memoProbe lX (vv pH) (vv pD) h d hd (by decide) (by simp [hh])
+  refine specR_memoGetI hok .inst1 inst1Get inst1Get_run hc.memoGet hc.memoProbe lX (vv pH) (vv pD) h d hd (by decide) (by simp [hh])
     (by simp [hdd]) hkb (fun r => ?_)
   cases r with
   | some w =>
@@ -205,7 +205,7 @@ theorem appArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
     refine specR_internAppI ra hok hc.internApp lW (vv lY) (vv lZ) f' a' (by decide) (by simp +decide)
       (by simp +decide) (fun r s3 => ?_)
     unfold memoSetP
-    refine specR_inst1SetI hok hc.memoSet hc.memoIns lX (vv pH) (vv pD) (vv lW) h d r hd (by decide)
+    refine specR_memoSetI hok .inst1 inst1Set inst1Set_run hc.memoSet hc.memoIns lX (vv pH) (vv pD) (vv lW) h d r hd (by decide)
       (by simp +decide [hh]) (by simp +decide [hdd]) (by simp +decide) (by simp +decide [hkb]) (fun w => ?_)
     exact specR_returnI (vv lW) (Enc.idxW r) (by simp +decide) (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
@@ -225,10 +225,10 @@ theorem bindArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
     (hv : Γ.get pV = some (Enc.idxW v)) (hfu : Γ.get pFu = some (BitVec.ofNat 64 (n + 1)))
     (hh : Γ.get pH = some (Enc.idxW h)) (hdd : Γ.get pD = some (BitVec.ofNat 64 d))
     (hkb : Γ.get lKb = some C.KB) (hfle : Γ.get lFle = some C.FLe) (hdir : Γ.get lDir = some C.L.DIR) :
-    SpecR (Inv (σ := σ) C s Γ M DI) (bindArm C.mG) s (instantiate1ArmBind v n h d) (PostE C) := by
+    SpecR (Inv (σ := σ) C s Γ M DI) (bindArm (C.mG .inst1)) s (instantiate1ArmBind v n h d) (PostE C) := by
   refine specR_congr (by rw [instantiate1ArmBind]) ?_
   unfold bindArm probed memoGetP
-  refine specR_inst1GetI hok hc.memoGet hc.memoProbe lX (vv pH) (vv pD) h d hd (by decide) (by simp [hh])
+  refine specR_memoGetI hok .inst1 inst1Get inst1Get_run hc.memoGet hc.memoProbe lX (vv pH) (vv pD) h d hd (by decide) (by simp [hh])
     (by simp [hdd]) hkb (fun r => ?_)
   cases r with
   | some w =>
@@ -272,7 +272,7 @@ theorem bindArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
       refine specR_internLamI ra hok hc.internLam lW (vv lY) (vv lZ) t' b' (by decide) (by simp +decide)
         (by simp +decide) (fun r s3 => ?_)
       unfold memoSetP
-      refine specR_inst1SetI hok hc.memoSet hc.memoIns lX (vv pH) (vv pD) (vv lW) h d r hd (by decide)
+      refine specR_memoSetI hok .inst1 inst1Set inst1Set_run hc.memoSet hc.memoIns lX (vv pH) (vv pD) (vv lW) h d r hd (by decide)
         (by simp +decide [hh]) (by simp +decide [hdd]) (by simp +decide) (by simp +decide [hkb]) (fun w => ?_)
       exact specR_returnI (vv lW) (Enc.idxW r) (by simp +decide) (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     | forallE ty bd =>
@@ -304,7 +304,7 @@ theorem bindArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
       refine specR_internForallEI ra hok hc.internForallE lW (vv lY) (vv lZ) t' b' (by decide) (by simp +decide)
         (by simp +decide) (fun r s3 => ?_)
       unfold memoSetP
-      refine specR_inst1SetI hok hc.memoSet hc.memoIns lX (vv pH) (vv pD) (vv lW) h d r hd (by decide)
+      refine specR_memoSetI hok .inst1 inst1Set inst1Set_run hc.memoSet hc.memoIns lX (vv pH) (vv pD) (vv lW) h d r hd (by decide)
         (by simp +decide [hh]) (by simp +decide [hdd]) (by simp +decide) (by simp +decide [hkb]) (fun w => ?_)
       exact specR_returnI (vv lW) (Enc.idxW r) (by simp +decide) (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     | _ => simp [ENodeView.tagN] at htg; rcases hb with hb | hb <;> rw [hb] at htg <;> simp at htg
@@ -325,10 +325,10 @@ theorem letArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
     (hv : Γ.get pV = some (Enc.idxW v)) (hfu : Γ.get pFu = some (BitVec.ofNat 64 (n + 1)))
     (hh : Γ.get pH = some (Enc.idxW h)) (hdd : Γ.get pD = some (BitVec.ofNat 64 d))
     (hkb : Γ.get lKb = some C.KB) (hfle : Γ.get lFle = some C.FLe) (hdir : Γ.get lDir = some C.L.DIR) :
-    SpecR (Inv (σ := σ) C s Γ M DI) (letArm C.mG) s (instantiate1ArmLet v n h d) (PostE C) := by
+    SpecR (Inv (σ := σ) C s Γ M DI) (letArm (C.mG .inst1)) s (instantiate1ArmLet v n h d) (PostE C) := by
   refine specR_congr (by rw [instantiate1ArmLet]) ?_
   unfold letArm probed memoGetP
-  refine specR_inst1GetI hok hc.memoGet hc.memoProbe lX (vv pH) (vv pD) h d hd (by decide) (by simp [hh])
+  refine specR_memoGetI hok .inst1 inst1Get inst1Get_run hc.memoGet hc.memoProbe lX (vv pH) (vv pD) h d hd (by decide) (by simp [hh])
     (by simp [hdd]) hkb (fun r => ?_)
   cases r with
   | some w =>
@@ -364,7 +364,7 @@ theorem letArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
       refine specR_internLetI ra hok hc.internLet lW (vv lY) (vv lZ) (vv lB) t' w' b' (by decide) (by simp +decide)
         (by simp +decide) (by simp +decide) (fun r s4 => ?_)
       unfold memoSetP
-      refine specR_inst1SetI hok hc.memoSet hc.memoIns lX (vv pH) (vv pD) (vv lW) h d r hd (by decide)
+      refine specR_memoSetI hok .inst1 inst1Set inst1Set_run hc.memoSet hc.memoIns lX (vv pH) (vv pD) (vv lW) h d r hd (by decide)
         (by simp +decide [hh]) (by simp +decide [hdd]) (by simp +decide) (by simp +decide [hkb]) (fun w => ?_)
       exact specR_returnI (vv lW) (Enc.idxW r) (by simp +decide) (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     | _ => simp [ENodeView.tagN, h7] at htg
@@ -496,7 +496,7 @@ theorem projRest_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok
     (hh : Γ.get pH = some (Enc.idxW h)) (hdd : Γ.get pD = some (BitVec.ofNat 64 d))
     (hkb : Γ.get lKb = some C.KB) (ha1 : Γ.get lA1 = some (Enc.idxW c)) (ha2 : Γ.get lA2 = some (Enc.idxW e))
     (hb : Γ.get lB = some (BitVec.ofNat 64 i)) :
-    SpecR (Inv (σ := σ) C s Γ M DI) (projRest C.mG) s
+    SpecR (Inv (σ := σ) C s Γ M DI) (projRest (C.mG .inst1)) s
       (do let u ← instantiate1Go v n e d; let r ← internProjE c i u; inst1Set (h, d) r; pure r) (PostE C) := by
   unfold projRest
   refine specR_ifI (.shift .lsr (vv lB) (.const 63)) (BitVec.ofNat 64 i >>> (63 : BitVec 64).toNat)
@@ -506,7 +506,7 @@ theorem projRest_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok
   refine specR_internProjI ra hok hc.internProj lW (vv lA1) (vv lY) (vv lB) c i u hi63 (by decide)
     (by simp +decide [ha1]) (by simp +decide) (by simp +decide [hb]) (fun r s2 => ?_)
   unfold memoSetP
-  refine specR_inst1SetI hok hc.memoSet hc.memoIns lX (vv pH) (vv pD) (vv lW) h d r hd (by decide)
+  refine specR_memoSetI hok .inst1 inst1Set inst1Set_run hc.memoSet hc.memoIns lX (vv pH) (vv pD) (vv lW) h d r hd (by decide)
     (by simp +decide [hh]) (by simp +decide [hdd]) (by simp +decide) (by simp +decide [hkb]) (fun w => ?_)
   exact specR_returnI (vv lW) (Enc.idxW r) (by simp +decide) (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
@@ -516,10 +516,10 @@ theorem projArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
     (hv : Γ.get pV = some (Enc.idxW v)) (hfu : Γ.get pFu = some (BitVec.ofNat 64 (n + 1)))
     (hh : Γ.get pH = some (Enc.idxW h)) (hdd : Γ.get pD = some (BitVec.ofNat 64 d))
     (hkb : Γ.get lKb = some C.KB) (hfle : Γ.get lFle = some C.FLe) (hdir : Γ.get lDir = some C.L.DIR) :
-    SpecR (Inv (σ := σ) C s Γ M DI) (projArm C.mG) s (instantiate1ArmProj v n h d) (PostE C) := by
+    SpecR (Inv (σ := σ) C s Γ M DI) (projArm (C.mG .inst1)) s (instantiate1ArmProj v n h d) (PostE C) := by
   refine specR_congr (by rw [instantiate1ArmProj]) ?_
   unfold projArm probed memoGetP
-  refine specR_inst1GetI hok hc.memoGet hc.memoProbe lX (vv pH) (vv pD) h d hd (by decide) (by simp [hh])
+  refine specR_memoGetI hok .inst1 inst1Get inst1Get_run hc.memoGet hc.memoProbe lX (vv pH) (vv pD) h d hd (by decide) (by simp [hh])
     (by simp [hdd]) hkb (fun r => ?_)
   cases r with
   | some w =>
@@ -576,7 +576,7 @@ theorem projArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
 
 end
 
-def body (C : Ctx) : ProgHOL 64 := prologue inst1Locals (core C.mG)
+def body (C : Ctx) : ProgHOL 64 := prologue inst1Locals (core (C.mG .inst1))
 
 theorem bvarOfData_word (der : UInt64) :
     der.toBitVec >>> (16 : Nat) &&& 32767#64 = (ConLeche.bvarOfData der).toBitVec := by

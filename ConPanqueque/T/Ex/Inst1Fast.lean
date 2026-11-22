@@ -18,9 +18,9 @@ def fInst1F := ofString "instantiate1"
 def fastLocals : List MlS := [lJ0, lW]
 
 def fastBody (C : Ctx) : ProgHOL 64 :=
-  prologue fastLocals (clearCode C.mg
+  prologue fastLocals (clearCode (C.mg .inst1)
     (.seq (.call (some (some (.local, lW), none)) fInst1 [vv pV, vv pFu, vv pH, vv pD])
-      (clearCode C.mg (.return (vv lW)))))
+      (clearCode (C.mg .inst1) (.return (vv lW)))))
 
 section
 variable {σ : Type}
@@ -32,7 +32,7 @@ theorem fast_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : C
   refine specR_prologue (postE_locals C) (fun x hx => ?_) ?_
   · simp only [fastLocals, List.mem_cons, List.not_mem_nil, or_false] at hx
     rcases hx with rfl | rfl <;> rfl
-  refine specR_inst1ClearI hok (by decide) ?_
+  refine specR_memoClearI hok .inst1 inst1Clear inst1Clear_run (by decide) ?_
   refine specR_call4IM lW fInst1 pV pFu pH pD (by decide) _ _ _ _ (body C) (Enc.idxW v) (BitVec.ofNat 64 fuel)
     (Enc.idxW e) (BitVec.ofNat 64 d) (by decide) hc.inst1 (by simp +decide [Env.kill, ctxEnv])
     (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv])
@@ -52,7 +52,7 @@ theorem fast_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : C
               · simp at hy⟩)
     (fun r w s' st hp => ?_)
   obtain ⟨rfl, _⟩ := hp
-  refine specR_inst1ClearI hok (by decide) ?_
+  refine specR_memoClearI hok .inst1 inst1Clear inst1Clear_run (by decide) ?_
   exact specR_returnI (vv lW) (Enc.idxW r) (by simp +decide [Env.kill])
     (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
