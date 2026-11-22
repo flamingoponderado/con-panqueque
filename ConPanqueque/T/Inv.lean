@@ -646,4 +646,44 @@ theorem specR_call4IM {α β : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem}
   exact specR_bind (Q1 := fun a s' t' => ∃ w st, Rf a w s' st ∧ Inv C s' ((x, w) :: Γ) [] D t') hc
     (fun a s' u ⟨w, st, hr, hu⟩ => hk a w s' st hr u hu) t rfl
 
+theorem specR_call5IM {α β : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64}
+    {m : AM α} {k : α → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    (x f p1 p2 p3 p4 p5 : MlS) (hnd : [p1, p2, p3, p4, p5].Nodup) (e1 e2 e3 e4 e5 : ExpHOL 64) (B : ProgHOL 64)
+    (v1 v2 v3 v4 v5 : BitVec 64)
+    (hx : x ∈ D) (hC : C.code.lookup f = some ([(p1, .one), (p2, .one), (p3, .one), (p4, .one), (p5, .one)], B, .one))
+    (he1 : sev Γ e1 = some v1) (he2 : sev Γ e2 = some v2) (he3 : sev Γ e3 = some v3)
+    (he4 : sev Γ e4 = some v4) (he5 : sev Γ e5 = some v5)
+    (Rf : α → BitVec 64 → AState → PState σ → Prop) (hRf : ∀ a w s' st, Rf a w s' st → SR C s' st)
+    (hB : ∀ u : PState σ, SR C s u → (∀ a v, (a, v) ∈ M → u.memaddrs a ∧ u.memory a = .word v) →
+      u.locals.lookup p1 = some (.val (.word v1)) → u.locals.lookup p2 = some (.val (.word v2)) →
+      u.locals.lookup p3 = some (.val (.word v3)) → u.locals.lookup p4 = some (.val (.word v4)) →
+      u.locals.lookup p5 = some (.val (.word v5)) → SpecR (· = u) B s m Rf)
+    (hk : ∀ a w s' (st : PState σ), Rf a w s' st → SpecR (Inv C s' ((x, w) :: Γ) [] D) rest s' (k a) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, x), none)) f [e1, e2, e3, e4, e5]) rest) s (m >>= k) R := by
+  intro t ht
+  have hc := spec_call5 (P := (· = t)) (s := s) (m := m)
+    (Q := fun a s' t' => ∃ w st, Rf a w s' st ∧ Inv C s' ((x, w) :: Γ) [] D t')
+    x f p1 p2 p3 p4 p5 hnd e1 e2 e3 e4 e5 B (fun _ => v1) (fun _ => v2) (fun _ => v3) (fun _ => v4) (fun _ => v5)
+    (fun u hu => by rw [hu, ht.sr.code]; exact hC)
+    (fun u hu => by rw [hu]; exact inv_ev ht he1) (fun u hu => by rw [hu]; exact inv_ev ht he2)
+    (fun u hu => by rw [hu]; exact inv_ev ht he3) (fun u hu => by rw [hu]; exact inv_ev ht he4)
+    (fun u hu => by rw [hu]; exact inv_ev ht he5)
+    (fun u hu => by rw [hu]; exact ht.decl x hx) (fun _ => Rf)
+    (fun u hu callee h1 h2 h3 h4 h5 => by
+      subst hu; exact hB _ (sr_of_eq ht.sr rfl rfl rfl rfl) (fun a v ha => ht.mem a v ha) h1 h2 h3 h4 h5)
+    (fun u hu a w s' st hr => by
+      subst hu
+      refine ⟨w, st, hr, ⟨sr_of_eq (hRf a w s' st hr) rfl rfl rfl rfl, fun y v hy => ?_, fun _ _ h => absurd h (by simp),
+        fun y hy => ?_⟩⟩
+      · simp only [setKvarHOLFinite, Env.get] at hy ⊢
+        split at hy
+        · rename_i e; subst e; simp at hy; subst hy; exact lookup_setVar_same _ _ _
+        · rename_i e; rw [lookup_setVar_other _ _ e]; exact ht.env y v hy
+      · simp only [setKvarHOLFinite]
+        by_cases e : y = x
+        · subst e; exact ⟨w, lookup_setVar_same _ _ _⟩
+        · rw [lookup_setVar_other _ _ e]; exact ht.decl y hy)
+  exact specR_bind (Q1 := fun a s' t' => ∃ w st, Rf a w s' st ∧ Inv C s' ((x, w) :: Γ) [] D t') hc
+    (fun a s' u ⟨w, st, hr, hu⟩ => hk a w s' st hr u hu) t rfl
+
 end ConPanqueque.T
