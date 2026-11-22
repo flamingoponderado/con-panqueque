@@ -64,4 +64,30 @@ theorem iW_sign (d : Int) (hl : -2 ^ 63 ≤ d) (hh : d < 2 ^ 63) :
   · rw [iW_toNat_nonneg d h0 hh]; omega
   · rw [iW_toNat_neg d (by omega) hl]; omega
 
+section
+variable {σ : Type}
+
+/-- Calling an `Option Bool`-valued pure function of any arity. -/
+theorem callOB_spec {β : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64}
+    {k : Option Bool → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    (x f : MlS) (ps : List MlS) (es : List (ExpHOL 64)) (B : ProgHOL 64) (vs : List (BitVec 64))
+    (hnd : ps.Nodup) (hl : vs.length = ps.length)
+    (hx : x ∈ D) (hC : C.code.lookup f = some (ps.map (fun p => (p, ShapeHOL.one)), B, .one))
+    (hes : EvAll (fun e v => sev Γ e = some v) es vs) (o : Option Bool)
+    (hspec : SpecR (Pre (σ := σ) C s (ps.zip vs)) B s (pure o) (PostOB C))
+    (hk : SpecR (Inv C s ((x, obW o) :: Γ) [] D) rest s (k o) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, x), none)) f es) rest) s (pure o >>= k) R := by
+  refine specR_callNIM x f ps es B vs hnd hl hx hC hes (fun a w s' st => s' = s ∧ a = o ∧ PostOB C a w s' st)
+    (fun _ _ _ _ hp => hp.2.2.2)
+    (fun u hu _ hlk => by
+      have H0 : SpecR (· = u) B s (pure o : AM (Option Bool)) (PostOB C) :=
+        fun w hw => by subst hw; exact hspec _ (pre_of_lookups hu ps vs hl hlk)
+      refine specR_mono (specR_run H0) (fun _ h => h) (fun a w s' st hp => ?_)
+      obtain ⟨hrun, hp⟩ := hp
+      simp only [pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at hrun
+      exact ⟨hrun.2.symm, hrun.1.symm, hp⟩)
+    (fun a w s' st ⟨hs, ha, hw, _⟩ => by subst hs ha hw; exact hk)
+
+end
+
 end ConPanqueque.T.LLeq
