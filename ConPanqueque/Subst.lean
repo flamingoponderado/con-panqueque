@@ -110,7 +110,7 @@ theorem bin_case {σ : Type} (bc fc sc cc : ProgHOL 64) (fn : MlS) (C : HolFinit
     simp only [t3]; rw [lookup_setVar_other _ _ (Ne.symm dBU), lo2 _ (Ne.symm dAU)]; exact hu1
   have hk3 : t3.locals.lookup iK = some (.val (.word kw)) := by
     simp only [t3]; rw [lookup_setVar_other _ _ (Ne.symm dBK), lo2 _ (Ne.symm dAK)]; exact hk1
-  have g2' : Grows t t2 lo hp hp2 := ⟨g2.le, g2.mem⟩
+  have g2' : Grows t t2 lo hp hp2 := ⟨g2.le, g2.mem, g2.low⟩
   have hOf3 : hOf t3 lo hp2 = hOf t2 lo hp2 := hOf_of_eq lo hp2 rfl
   have m2' := arena_read h2 g2' a2
   -- second child
@@ -122,7 +122,7 @@ theorem bin_case {σ : Type} (bc fc sc cc : ProgHOL 64) (fn : MlS) (C : HolFinit
         (fun g hg' => by rw [hg]; show t2.globals.lookup g = _; rw [gl2 g hg']; rfl) hu' hk' hc') with
     hs | ⟨t4, q2, hp4, ev4, a4, g4, r2, lrb4, lo4, cd4, ck4, gl4, md4, ta4⟩
   · left; unfold binCase; rw [e1]; simp only; rw [ev2, e3]; exact hs
-  have g4' : Grows t2 t4 lo hp2 hp4 := ⟨g4.le, g4.mem⟩
+  have g4' : Grows t2 t4 lo hp2 hp4 := ⟨g4.le, g4.mem, g4.low⟩
   have r1' : ExprAt (hOf t4 lo hp4) q1 v1 := exprAt_mono (grows_sub g4') r1
   have lra4 : t4.locals.lookup iRa = some (.val (.word q1)) := by
     rw [lo4 _ dAB]; simp only [t3]; rw [lookup_setVar_other _ _ dAB]; exact lra2
@@ -200,7 +200,7 @@ theorem ok_of_eq {σ : Type} {t t2 st : PanSemStateFiniteExact 64 σ} {lo hp : B
     (hck : t2.clock = t.clock) (hg : t2.globals = t.globals) (hd : t2.memaddrs = t.memaddrs)
     (ht : t2.topAddr = t.topAddr) : ROk t st lo hp P c q := by
   obtain ⟨hp', a, g, pq, cd, ck, gl, md, ta⟩ := h
-  exact ⟨hp', a, ⟨g.le, fun b h1 h2 => by rw [g.mem b h1 h2, hm]⟩, pq, by rw [cd, hcd], by omega,
+  exact ⟨hp', a, ⟨g.le, fun b h1 h2 => by rw [g.mem b h1 h2, hm], fun b h1 => by rw [g.low b h1, hm]⟩, pq, by rw [cd, hcd], by omega,
     fun g' h' => by rw [gl g' h', hg], by rw [md, hd], by rw [ta, ht]⟩
 
 theorem rres_of_eq {σ : Type} {t t2 : PanSemStateFiniteExact 64 σ} {r : Option (PanSemResultExact 64) × PanSemStateFiniteExact 64 σ}
@@ -257,7 +257,7 @@ theorem entry {σ : Type} (ce : ExpHOL 64) (CP : ConLeche.Expr → Nat → Prop)
       · rw [evaluateHOLFiniteState_eq_evaluate_def]
         simp only [vv, evalHOLExact, hu1]
         simp [shapeOfHOLExact, emptyLocalsHOLFinite]
-        exact ⟨hp, ainv_of_eq hi rfl rfl rfl, ⟨BitVec.le_refl _, fun _ _ _ => rfl⟩,
+        exact ⟨hp, ainv_of_eq hi rfl rfl rfl, ⟨BitVec.le_refl _, fun _ _ _ => rfl, fun _ _ => rfl⟩,
           by rw [hOf_of_eq lo hp rfl]; exact hcut hct,
           rfl, by show t.clock ≤ t.clock + c; omega, fun _ _ => rfl, rfl, rfl⟩
   · have hw0 : w = 0 := Classical.byContradiction fun hne => hct (hw.mp hne)
@@ -473,7 +473,7 @@ theorem rres_ret {σ : Type} {s st : PanSemStateFiniteExact 64 σ} {lo hp q : Bi
     {c : Nat} (hi : AInv s lo hp) (hP : P (hOf s lo hp) q) (hm : st.memory = s.memory) (hcd : st.code = s.code)
     (hck : st.clock = s.clock) (hg : st.globals = s.globals) (hd : st.memaddrs = s.memaddrs)
     (ht : st.topAddr = s.topAddr) : RRes s (some (.returned (.val (.word q))), st) lo hp P c :=
-  Or.inr ⟨q, rfl, hp, ainv_of_eq hi hg hd ht, ⟨BitVec.le_refl _, fun a _ _ => by rw [hm]⟩,
+  Or.inr ⟨q, rfl, hp, ainv_of_eq hi hg hd ht, ⟨BitVec.le_refl _, fun a _ _ => by rw [hm], fun a _ => by rw [hm]⟩,
     by rw [hOf_of_eq lo hp hm]; exact hP, hcd, by show s.clock ≤ st.clock + c; omega, fun g _ => by rw [hg], hd, ht⟩
 
 theorem eval_return_local {σ : Type} (t : PanSemStateFiniteExact 64 σ) (x : MlS) (w : BitVec 64)
@@ -519,7 +519,7 @@ theorem fin_let {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : Pan
     hs | ⟨hr, a5, g5, hpos, cells, cd5, ck5, gl5, md5, ta5⟩
   · exact Or.inl hs
   right
-  have sub5 := grows_sub (show Grows t _ lo hq _ from ⟨g5.le, g5.mem⟩)
+  have sub5 := grows_sub (show Grows t _ lo hq _ from ⟨g5.le, g5.mem, g5.low⟩)
   have c0 := cells 0 (by decide)
   have c1 := cells 1 (by decide)
   have c2 := cells 2 (by decide)
@@ -532,7 +532,7 @@ theorem fin_let {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : Pan
   rw [show BitVec.ofNat 64 (8 * 2) = 16#64 from by decide] at c2
   rw [show BitVec.ofNat 64 (8 * 3) = 24#64 from by decide] at c3
   rw [show BitVec.ofNat 64 (8 * 4) = 32#64 from by decide] at c4
-  exact ⟨hq, hr, _, a5, ⟨g5.le, g5.mem⟩,
+  exact ⟨hq, hr, _, a5, ⟨g5.le, g5.mem, g5.low⟩,
     .letE hpos c0 c1 c2 c3 c4 (exprAt_mono sub5 e1) (exprAt_mono sub5 e2) (exprAt_mono sub5 e3),
     cd5, by rw [ck5]; show t.clock ≤ t.clock + 0; omega, gl5, md5, ta5⟩
 
@@ -630,7 +630,8 @@ theorem fin_proj {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : Pa
     hs | ⟨hr, a5, g5, hpos, cells, cd5, ck5, gl5, md5, ta5⟩
   · exact Or.inl hs
   right
-  have g5' : Grows t _ lo hq _ := ⟨g5.le, fun a h1 h2 => by rw [g5.mem a h1 h2]; show t'.memory a = _; rw [mm]⟩
+  have g5' : Grows t _ lo hq _ := ⟨g5.le, fun a h1 h2 => by rw [g5.mem a h1 h2]; show t'.memory a = _; rw [mm],
+    fun a h1 => by rw [g5.low a h1]; show t'.memory a = _; rw [mm]⟩
   have sub5 := grows_sub g5'
   have c0 := cells 0 (by decide)
   have c1 := cells 1 (by decide)

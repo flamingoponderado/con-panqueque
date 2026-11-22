@@ -65,8 +65,8 @@ theorem fin_fvar {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : Pa
   rw [show BitVec.ofNat 64 (8 * 1) = 8#64 from by decide] at c1
   rw [show BitVec.ofNat 64 (8 * 2) = 16#64 from by decide] at c2
   rw [show BitVec.ofNat 64 (8 * 3) = 24#64 from by decide] at c3
-  have sub := grows_sub (show Grows t _ lo hq _ from ⟨g5.le, g5.mem⟩)
-  exact ⟨hq, hr, _, a5, ⟨g5.le, g5.mem⟩, .fvar hpos c0 c1 c2 c3 ⟨hi63, rfl⟩ (exprAt_mono sub e1),
+  have sub := grows_sub (show Grows t _ lo hq _ from ⟨g5.le, g5.mem, g5.low⟩)
+  exact ⟨hq, hr, _, a5, ⟨g5.le, g5.mem, g5.low⟩, .fvar hpos c0 c1 c2 c3 ⟨hi63, rfl⟩ (exprAt_mono sub e1),
     cd5, by rw [ck5]; show t.clock ≤ t.clock + 0; omega, gl5, md5, ta5⟩
 
 theorem bit_toBitVec (b : Bool) : ConPanqueque.LevelFns.bit b = (if b then (1 : UInt64) else 0).toBitVec := by
@@ -102,8 +102,8 @@ theorem fin_sort {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : Pa
   rw [show hq + BitVec.ofNat 64 (8 * 0) = hq by simp] at c0
   rw [show BitVec.ofNat 64 (8 * 1) = 8#64 from by decide] at c1
   rw [show BitVec.ofNat 64 (8 * 2) = 16#64 from by decide] at c2
-  have sub := grows_sub (show Grows t _ lo hq _ from ⟨g5.le, g5.mem⟩)
-  exact ⟨hq, hr, _, a5, ⟨g5.le, g5.mem⟩, .sort hpos c0 c1 c2 (levelAt_mono sub e1),
+  have sub := grows_sub (show Grows t _ lo hq _ from ⟨g5.le, g5.mem, g5.low⟩)
+  exact ⟨hq, hr, _, a5, ⟨g5.le, g5.mem, g5.low⟩, .sort hpos c0 c1 c2 (levelAt_mono sub e1),
     cd5, by rw [ck5]; show t.clock ≤ t.clock + 0; omega, gl5, md5, ta5⟩
 
 def finConst : ProgHOL 64 :=
@@ -133,7 +133,7 @@ theorem fin_const {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : P
     hs | ⟨hr, a5, g5, hpos, cells, cd5, ck5, gl5, md5, ta5⟩
   · exact Or.inl hs
   right
-  have g5' : Grows t _ lo hq _ := ⟨g5.le, fun a h1 h2 => by rw [g5.mem a h1 h2, mm]⟩
+  have g5' : Grows t _ lo hq _ := ⟨g5.le, fun a h1 h2 => by rw [g5.mem a h1 h2, mm], fun a h1 => by rw [g5.low a h1, mm]⟩
   have sub := grows_sub g5'
   have c0 := cells 0 (by decide)
   have c1 := cells 1 (by decide)

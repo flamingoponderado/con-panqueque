@@ -193,7 +193,7 @@ theorem spec_bvar {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (fn : 
       simp [ConLeche.Expr.instantiateList, hlt, hin, m]
     show RRes t2 _ lo hp (fun h q => ExprAt h q ((ConLeche.Expr.bvar i).instantiateList vs k)) _
     rw [hF]
-    have := rres_trans (c := ConPanqueque.ExprFold.cost (.bvar i)) (t := t2) hb ⟨BitVec.le_refl _, fun _ _ _ => rfl⟩ rfl
+    have := rres_trans (c := ConPanqueque.ExprFold.cost (.bvar i)) (t := t2) hb ⟨BitVec.le_refl _, fun _ _ _ => rfl, fun _ _ => rfl⟩ rfl
       (by show t2.clock ≤ t2.clock + _; omega) (fun _ _ => rfl) rfl rfl
     simpa using this
 

@@ -154,7 +154,7 @@ theorem spec_bvar {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (fn : 
       rw [e0] at c0; rw [e8] at c1; rw [e16] at c2
       have hdat : (ConLeche.Expr.bvar (i - 1)).data = ConPanqueque.ExprData.bvarDataW (UInt64.ofNat (i - 1)) :=
         ConPanqueque.ExprData.bvar_data ra (i - 1) (by omega)
-      refine ⟨hp, hr, _, a5, ⟨g5.le, g5.mem⟩, ?_, cd5, ?_, gl5, md5, ta5⟩
+      refine ⟨hp, hr, _, a5, ⟨g5.le, g5.mem, g5.low⟩, ?_, cd5, ?_, gl5, md5, ta5⟩
       · have hgt : i > k := hlt
         simp only [ConLeche.Expr.instantiate1, hik, hgt, ↓reduceIte]
         exact .bvar hpos c0 (by rw [hdat]; exact c1) c2 ⟨by omega, rfl⟩

@@ -30,7 +30,7 @@ theorem ok_locals {σ : Type} {s st : PanSemStateFiniteExact 64 σ} {lo hp : Bit
     {c : Nat} {q : BitVec 64} (L : HolFiniteMapExact MlS (ValueHOL 64)) (h : ROk s st lo hp P c q) :
     ROk s { st with locals := L } lo hp P c q := by
   obtain ⟨hp', a, g, p, cd, ck, gl, md, ta⟩ := h
-  exact ⟨hp', ainv_of_eq a rfl rfl rfl, ⟨g.le, g.mem⟩, by rw [hOf_of_eq lo hp' rfl]; exact p, cd, ck, gl, md, ta⟩
+  exact ⟨hp', ainv_of_eq a rfl rfl rfl, ⟨g.le, g.mem, g.low⟩, by rw [hOf_of_eq lo hp' rfl]; exact p, cd, ck, gl, md, ta⟩
 
 /-- A two-parameter call to an allocating function, then `rest`. -/
 theorem call_child {σ : Type} (fn x p1 p2 : MlS) (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))
@@ -76,7 +76,8 @@ theorem call_child {σ : Type} (fn x p1 p2 : MlS) (C : HolFiniteMapExact MlS (Li
   refine ⟨t', q, hp', by rw [seq_normal _ hcall], ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
   · exact ainv_of_eq a (by simp [t', setKvarHOLFinite, setVarHOLFinite]) (by simp [t', setKvarHOLFinite, setVarHOLFinite])
       (by simp [t', setKvarHOLFinite, setVarHOLFinite])
-  · exact ⟨g.le, fun b h1 h2 => by simpa [t', setKvarHOLFinite, setVarHOLFinite, s', callEntryStateHOLFinite] using g.mem b h1 h2⟩
+  · exact ⟨g.le, fun b h1 h2 => by simpa [t', setKvarHOLFinite, setVarHOLFinite, s', callEntryStateHOLFinite] using g.mem b h1 h2,
+      fun b h1 => by simpa [t', setKvarHOLFinite, setVarHOLFinite, s', callEntryStateHOLFinite] using g.low b h1⟩
   · rw [hOf_of_eq (s := st) lo hp' (by simp [t', setKvarHOLFinite, setVarHOLFinite])]; exact pq
   · simp [t', setKvarHOLFinite, setVarHOLFinite, FUPDATE]
   · intro y hy; simp only [t', setKvarHOLFinite]; exact lookup_setVar_other _ _ hy
@@ -111,7 +112,7 @@ theorem rres_locals' {σ : Type} {t : PanSemStateFiniteExact 64 σ} {r1 : Option
   rcases h with h | ⟨q, hr, ok⟩
   · exact Or.inl h
   · obtain ⟨hp', a, g, pq, cd, ck, gl, md, ta⟩ := ok
-    exact Or.inr ⟨q, hr, hp', ainv_of_eq a rfl rfl rfl, ⟨g.le, g.mem⟩, by rw [hOf_of_eq lo hp' rfl]; exact pq,
+    exact Or.inr ⟨q, hr, hp', ainv_of_eq a rfl rfl rfl, ⟨g.le, g.mem, g.low⟩, by rw [hOf_of_eq lo hp' rfl]; exact pq,
       cd, ck, gl, md, ta⟩
 
 /-- `var x = 0; x := fn(e1, e2); rest`: the call, then `rest` from the state with `x` bound. -/
@@ -145,8 +146,8 @@ theorem step_call {σ : Type} (fn x p1 p2 : MlS) (C : HolFiniteMapExact MlS (Lis
   rw [ev]
   have lo2' : ∀ y, y ≠ x → t2.locals.lookup y = t.locals.lookup y := by
     intro y hy; rw [lo2 y hy]; simp only [t1]; exact lookup_setVar_other _ _ hy
-  have := hrest t2 q hq (by rw [cd2]; exact hcode) a2' ⟨g2.le, g2.mem⟩ p2' lx lo2' ck2 gl2 md2 ta2
-  have h' := rres_trans (t := t) (c := 1 + c1) this ⟨g2.le, g2.mem⟩ cd2
+  have := hrest t2 q hq (by rw [cd2]; exact hcode) a2' ⟨g2.le, g2.mem, g2.low⟩ p2' lx lo2' ck2 gl2 md2 ta2
+  have h' := rres_trans (t := t) (c := 1 + c1) this ⟨g2.le, g2.mem, g2.low⟩ cd2
     (by have : t1.clock = t.clock := rfl; omega) gl2 md2 ta2
   exact h'
 
@@ -189,7 +190,7 @@ theorem pure_step {σ : Type} (f x y : MlS) (B rest : ProgHOL 64) (P : Heap → 
     (by simp [t2, setKvarHOLFinite, setVarHOLFinite, ta])
     (by simp [t2, setKvarHOLFinite, setVarHOLFinite]; omega)
   have hm2 : t2.memory = t.memory := by simp [t2, setKvarHOLFinite, setVarHOLFinite, mm]
-  exact rres_trans (t := t) (c := 1 + c) this ⟨BitVec.le_refl _, fun b _ _ => by rw [hm2]⟩
+  exact rres_trans (t := t) (c := 1 + c) this ⟨BitVec.le_refl _, fun b _ _ => by rw [hm2], fun b _ => by rw [hm2]⟩
     (by simp [t2, setKvarHOLFinite, setVarHOLFinite, cd]) (by simp [t2, setKvarHOLFinite, setVarHOLFinite]; omega)
     (fun g _ => by simp [t2, setKvarHOLFinite, setVarHOLFinite, gl]) (by simp [t2, setKvarHOLFinite, setVarHOLFinite, md])
     (by simp [t2, setKvarHOLFinite, setVarHOLFinite, ta])

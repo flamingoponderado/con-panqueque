@@ -427,7 +427,7 @@ theorem lsub_spec (hkv : KVAt h c (ks.zip vs)) (hint : Interned h) {p : BitVec 6
       rw [eval_return_local t4 iU p l4u]
       refine Or.inr ⟨p, rfl, hq, ainv_of_eq hai2 (by simp [emptyLocalsHOLFinite, f4.2.2.1])
         (by simp [emptyLocalsHOLFinite, f4.2.2.2.1]) (by simp [emptyLocalsHOLFinite, f4.2.2.2.2]),
-        ⟨BitVec.le_refl _, fun a _ _ => by simp [emptyLocalsHOLFinite, f4.1]⟩, ?_,
+        ⟨BitVec.le_refl _, fun a _ _ => by simp [emptyLocalsHOLFinite, f4.1], fun a _ => by simp [emptyLocalsHOLFinite, f4.1]⟩, ?_,
         by simp [emptyLocalsHOLFinite, f4.2.1], hclk, fun g' _ => by simp [emptyLocalsHOLFinite, f4.2.2.1],
         by simp [emptyLocalsHOLFinite, f4.2.2.2.1], by simp [emptyLocalsHOLFinite, f4.2.2.2.2]⟩
       rw [hOf_of_eq lo hq (show (emptyLocalsHOLFinite t4).memory = t2.memory by simp [emptyLocalsHOLFinite, f4.1])]
@@ -438,7 +438,7 @@ theorem lsub_spec (hkv : KVAt h c (ks.zip vs)) (hint : Interned h) {p : BitVec 6
       rw [eval_return_local t4 iR w l4r]
       refine Or.inr ⟨w, rfl, hq, ainv_of_eq hai2 (by simp [emptyLocalsHOLFinite, f4.2.2.1])
         (by simp [emptyLocalsHOLFinite, f4.2.2.2.1]) (by simp [emptyLocalsHOLFinite, f4.2.2.2.2]),
-        ⟨BitVec.le_refl _, fun a _ _ => by simp [emptyLocalsHOLFinite, f4.1]⟩, ?_,
+        ⟨BitVec.le_refl _, fun a _ _ => by simp [emptyLocalsHOLFinite, f4.1], fun a _ => by simp [emptyLocalsHOLFinite, f4.1]⟩, ?_,
         by simp [emptyLocalsHOLFinite, f4.2.1], hclk, fun g' _ => by simp [emptyLocalsHOLFinite, f4.2.2.1],
         by simp [emptyLocalsHOLFinite, f4.2.2.2.1], by simp [emptyLocalsHOLFinite, f4.2.2.2.2]⟩
       rw [hOf_of_eq lo hq (show (emptyLocalsHOLFinite t4).memory = t2.memory by simp [emptyLocalsHOLFinite, f4.1])]

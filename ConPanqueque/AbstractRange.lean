@@ -203,7 +203,7 @@ theorem spec_fvar {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (fn : 
                 simp [ConLeche.Expr.abstractRange, h1, hin, j]
               show RRes t2 _ lo hp (fun h q => ExprAt h q ((ConLeche.Expr.fvar i ty).abstractRange d n k)) _
               rw [hF]
-              have := rres_trans (c := ConPanqueque.ExprFold.cost (.fvar i ty)) (t := t2) hb ⟨BitVec.le_refl _, fun _ _ _ => rfl⟩ rfl
+              have := rres_trans (c := ConPanqueque.ExprFold.cost (.fvar i ty)) (t := t2) hb ⟨BitVec.le_refl _, fun _ _ _ => rfl, fun _ _ => rfl⟩ rfl
                 (by show t2.clock ≤ t2.clock + _; omega) (fun _ _ => rfl) rfl rfl
               simpa using this
             · rename_i hh; exact absurd (by decide) hh

@@ -52,6 +52,8 @@ theorem hOf_pos {σ : Type} {s : PanSemStateFiniteExact 64 σ} {lo hp a : BitVec
 structure Grows {σ : Type} (s st : PanSemStateFiniteExact 64 σ) (lo hp hp' : BitVec 64) : Prop where
   le : hp ≤ hp'
   mem : ∀ a, lo ≤ a → a < hp → st.memory a = s.memory a
+  /-- Memory below the arena (other structures, e.g. memo tables) is untouched. -/
+  low : ∀ a, a < lo → st.memory a = s.memory a
 
 theorem grows_sub {σ : Type} {s st : PanSemStateFiniteExact 64 σ} {lo hp hp' : BitVec 64}
     (g : Grows s st lo hp hp') : Sub (hOf s lo hp) (hOf st lo hp') := by
@@ -64,12 +66,13 @@ theorem grows_sub {σ : Type} {s st : PanSemStateFiniteExact 64 σ} {lo hp hp' :
   · cases ha
 
 theorem grows_refl {σ : Type} (s : PanSemStateFiniteExact 64 σ) (lo hp : BitVec 64) : Grows s s lo hp hp :=
-  ⟨BitVec.le_refl _, fun _ _ _ => rfl⟩
+  ⟨BitVec.le_refl _, fun _ _ _ => rfl, fun _ _ => rfl⟩
 
 theorem grows_trans {σ : Type} {s t u : PanSemStateFiniteExact 64 σ} {lo h1 h2 h3 : BitVec 64}
     (g1 : Grows s t lo h1 h2) (g2 : Grows t u lo h2 h3) : Grows s u lo h1 h3 :=
   ⟨by have := g1.le; have := g2.le; bv_omega,
-   fun a ha hb => by rw [g2.mem a ha (by have := g1.le; bv_omega), g1.mem a ha hb]⟩
+   fun a ha hb => by rw [g2.mem a ha (by have := g1.le; bv_omega), g1.mem a ha hb],
+   fun a ha => by rw [g2.low a ha, g1.low a ha]⟩
 
 /-- Same memory, address space and globals: same arena. -/
 theorem ainv_of_eq {σ : Type} {s t : PanSemStateFiniteExact 64 σ} {lo hp : BitVec 64} (hi : AInv s lo hp)
@@ -114,7 +117,7 @@ theorem mkNode_ainv {σ : Type} (t : PanSemStateFiniteExact 64 σ) (lo hp tag dv
     intro j hj; simp only [at8, hp']
     have : (BitVec.ofNat 64 (8 * j)).toNat = 8 * j := by simp; omega
     constructor <;> bv_omega
-  refine ⟨hr, ⟨ok.hp, by have := hi.le; bv_omega, hi.pos, ?_, ok.arena.2.1⟩, ⟨hle, ?_⟩, hpos, ?_,
+  refine ⟨hr, ⟨ok.hp, by have := hi.le; bv_omega, hi.pos, ?_, ok.arena.2.1⟩, ⟨hle, ?_, ?_⟩, hpos, ?_,
     ok.code, ok.clock, ok.globals, ok.memaddrs, ok.topAddr⟩
   · intro a h1 h2
     rw [ok.memaddrs]
@@ -126,6 +129,8 @@ theorem mkNode_ainv {σ : Type} (t : PanSemStateFiniteExact 64 σ) (lo hp tag dv
       exact hi.free.2 a (by bv_omega) (by bv_omega)
   · intro a h1 h2
     exact ok.memory a (fun j hj e => by have := (hj8 j hj).1; subst e; bv_omega)
+  · intro a h1
+    exact ok.memory a (fun j hj e => by have := (hj8 j hj).1; have := hi.le; subst e; bv_omega)
   · intro j hj
     have cj := ok.cells j (by simp; omega)
     have mj := (ok.arena.1 _ _ cj).2
@@ -165,7 +170,7 @@ theorem mkCell_ainv {σ : Type} (t : PanSemStateFiniteExact 64 σ) (lo hp : BitV
     intro j hj; simp only [at8, hp']
     have : (BitVec.ofNat 64 (8 * j)).toNat = 8 * j := by simp; omega
     constructor <;> bv_omega
-  refine ⟨hr, ⟨ok.hp, by have := hi.le; bv_omega, hi.pos, ?_, ok.arena.2.1⟩, ⟨hle, ?_⟩, hpos, ?_,
+  refine ⟨hr, ⟨ok.hp, by have := hi.le; bv_omega, hi.pos, ?_, ok.arena.2.1⟩, ⟨hle, ?_, ?_⟩, hpos, ?_,
     ok.code, ok.clock, ok.globals, ok.memaddrs, ok.topAddr⟩
   · intro a h1 h2
     rw [ok.memaddrs]
@@ -177,6 +182,8 @@ theorem mkCell_ainv {σ : Type} (t : PanSemStateFiniteExact 64 σ) (lo hp : BitV
       exact hi.free.2 a (by bv_omega) (by bv_omega)
   · intro a h1 h2
     exact ok.memory a (fun j hj e => by have := (hj8 j hj).1; subst e; bv_omega)
+  · intro a h1
+    exact ok.memory a (fun j hj e => by have := (hj8 j hj).1; have := hi.le; subst e; bv_omega)
   · intro j hj
     have cj := ok.cells j (by omega)
     have mj := (ok.arena.1 _ _ cj).2
