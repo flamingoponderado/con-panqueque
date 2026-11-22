@@ -50,6 +50,18 @@ def appArm (G : BitVec 64) : ProgHOL 64 :=
     (.seq (.call (some (some (.local, lW), none)) fInternApp [vv lY, vv lZ])
     (memoSetP G (.return (vv lW)))))))))))
 
+def bindTail (G : BitVec 64) (fn : MlS) : ProgHOL 64 :=
+  .seq (.call (some (some (.local, lW), none)) fn [vv lY, vv lZ]) (memoSetP G (.return (vv lW)))
+
+def bindArm (G : BitVec 64) : ProgHOL 64 :=
+  probed G (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv pH)) (.seq eViewP
+    (.seq (.assign .local lA1 (.load .one (.op .add [vv lRp, .const 0])))
+    (.seq (.assign .local lA2 (.load .one (.op .add [vv lRp, .const 8])))
+    (.seq (.assign .local lD1 (.op .add [vv pD, .const 1]))
+    (.ite (.shift .lsr (vv lD1) (.const 63)) hang
+    (.seq (callG lY lA1 (vv pD)) (.seq (callG lZ lA2 (vv lD1))
+    (.ite (tagIsE pH 5) (bindTail G fInternLam) (bindTail G fInternForallE)))))))))))
+
 def inst1Locals : List MlS := [lFl, lDh, lDt, lDg, lDi, lDo1, lDo2, lRp, lRn, lB, lX, lA1, lA2, lA3, lY, lZ, lW, lD1]
 
 abbrev DI : List MlS := ctxLocals ++ inst1Locals
@@ -144,6 +156,106 @@ theorem appArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
     refine specR_inst1SetI hok hc.memoSet hc.memoIns lX (vv pH) (vv pD) (vv lW) h d r hd (by decide)
       (by simp +decide [hh]) (by simp +decide [hdd]) (by simp +decide) (by simp +decide [hkb]) (fun w => ?_)
     exact specR_returnI (vv lW) (Enc.idxW r) (by simp +decide) (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+end
+
+section
+variable {σ : Type}
+
+theorem viewBind_run (h : EIdx) (hb : h.tag = 5 ∨ h.tag = 6) (s : AState) (v : ENodeView)
+    (hv : s.store.view h = some v) : ConRon.Arena.viewBind h s = .ok (projBind v, s) :=
+  viewX_run ConRon.Arena.viewBind (fun st h => st.viewBind h) (fun _ _ => rfl) projBind h
+    (fun st => viewBind_bind st h hb) s v hv
+
+theorem bindArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (B : ProgHOL 64)
+    (hc : Codes C B) (n : Nat) (ih : Rec1 (σ := σ) C B n) {s : AState} {Γ : Env} {M : Mem}
+    (v h : EIdx) (d : Nat) (hd : d < 2 ^ 63) (hb : h.tag = 5 ∨ h.tag = 6)
+    (hv : Γ.get pV = some (Enc.idxW v)) (hfu : Γ.get pFu = some (BitVec.ofNat 64 (n + 1)))
+    (hh : Γ.get pH = some (Enc.idxW h)) (hdd : Γ.get pD = some (BitVec.ofNat 64 d))
+    (hkb : Γ.get lKb = some C.KB) (hfle : Γ.get lFle = some C.FLe) (hdir : Γ.get lDir = some C.L.DIR) :
+    SpecR (Inv (σ := σ) C s Γ M DI) (bindArm C.mG) s (instantiate1ArmBind v n h d) (PostE C) := by
+  refine specR_congr (by rw [instantiate1ArmBind]) ?_
+  unfold bindArm probed memoGetP
+  refine specR_inst1GetI hok hc.memoGet hc.memoProbe lX (vv pH) (vv pD) h d hd (by decide) (by simp [hh])
+    (by simp [hdd]) hkb (fun r => ?_)
+  cases r with
+  | some w =>
+    refine specR_ifI (vv lX) (Enc.idxW w + 1) (by simp [optW]) (fun _ => ?_)
+      (fun hw => absurd hw (idxW_add_one_ne w))
+    exact specR_returnI (.op .sub [vv lX, .const 1]) (Enc.idxW w) (by simp [sev, optW, BitVec.add_sub_cancel])
+      (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  | none =>
+    refine specR_ifI (vv lX) 0 (by simp [optW]) (fun hw => absurd rfl hw) (fun _ => ?_)
+    refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [hfle]) ?_
+    refine specR_assignI lDh (vv pH) (Enc.idxW h) (by decide) (by simp +decide [hh]) ?_
+    refine specR_viewXI ConRon.Arena.viewBind projBind h (fun vw hvw => viewBind_run h hb s vw hvw)
+      (by simp) (by simp +decide) (by simp +decide [hdir]) (by decide) (fun vw P htg => ?_)
+    cases vw with
+    | lam ty bd =>
+      have htag : h.tag = 5 := by
+        simp [ENodeView.tagN] at htg
+        apply UInt32.toNat_inj.mp; simp; omega
+      refine specR_loadI' lA1 _ (P + 0) (P + BitVec.ofNat 64 0) (Enc.idxW ty) (by decide) (by simp [sev]) rfl
+        (wordsAt_mem0 _ _ _ _) ?_
+      refine specR_loadI' lA2 _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW bd) (by decide) (by simp +decide [sev]) rfl
+        (wordsAt_mem1 _ _ _ _ _) ?_
+      refine specR_assignI lD1 _ (BitVec.ofNat 64 (d + 1)) (by decide)
+        (by simp +decide [sev, hdd]; rw [word_add1_eq]) ?_
+      refine specR_ifI (.shift .lsr (vv lD1) (.const 63)) (BitVec.ofNat 64 (d + 1) >>> (63 : BitVec 64).toNat)
+        (by simp +decide [sev]) (fun _ => specR_hangI) (fun hw => ?_)
+      have hlt := (shr63_eq_zero (d + 1) (by omega)).mp hw
+      refine callG_spec C B hc.inst1 n ih lY lA1 (vv pD) v ty d hd (by decide) (by simp +decide [hv])
+        (by simp +decide [hfu]) (by simp +decide) (by simp +decide [hdd]) (fun t' s1 => ?_)
+      refine callG_spec C B hc.inst1 n ih lZ lA2 (vv lD1) v bd (d + 1) hlt (by decide) (by simp +decide [hv])
+        (by simp +decide [hfu]) (by simp +decide) (by simp +decide) (fun b' s2 => ?_)
+      obtain ⟨w5, hw5, hw5i⟩ := sev_tagIs ((lZ, Enc.idxW b') :: (lY, Enc.idxW t') :: (lD1, BitVec.ofNat 64 (d + 1)) ::
+        (lA2, Enc.idxW bd) :: (lA1, Enc.idxW ty) :: (lRp, P) ::
+        (lRn, BitVec.ofNat 64 (encEView (.lam ty bd)).length) :: (lDt, BitVec.ofNat 64 h.tier.toNat) ::
+        (lDg, BitVec.ofNat 64 (ENodeView.lam ty bd).tagN) :: (lDi, BitVec.ofNat 64 h.idxNat) ::
+        (lDh, Enc.idxW h) :: (lFl, C.FLe) :: Γ) pH h (by simp +decide [hh]) 5 (by decide) (by decide)
+      refine specR_ifI (tagIsE pH 5) w5 hw5 (fun hw => ?_) (fun hw => absurd (hw5i.mpr htag) (by simp [hw]))
+      have hib : internBindE h.tag t' b' = internLamE t' b' := by simp [internBindE, htag, ETag.lam]
+      refine specR_congr (by rw [hib]) ?_
+      unfold bindTail
+      refine specR_internLamI ra hok hc.internLam lW (vv lY) (vv lZ) t' b' (by decide) (by simp +decide)
+        (by simp +decide) (fun r s3 => ?_)
+      unfold memoSetP
+      refine specR_inst1SetI hok hc.memoSet hc.memoIns lX (vv pH) (vv pD) (vv lW) h d r hd (by decide)
+        (by simp +decide [hh]) (by simp +decide [hdd]) (by simp +decide) (by simp +decide [hkb]) (fun w => ?_)
+      exact specR_returnI (vv lW) (Enc.idxW r) (by simp +decide) (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    | forallE ty bd =>
+      have htag : h.tag = 6 := by
+        simp [ENodeView.tagN] at htg
+        apply UInt32.toNat_inj.mp; simp; omega
+      refine specR_loadI' lA1 _ (P + 0) (P + BitVec.ofNat 64 0) (Enc.idxW ty) (by decide) (by simp [sev]) rfl
+        (wordsAt_mem0 _ _ _ _) ?_
+      refine specR_loadI' lA2 _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW bd) (by decide) (by simp +decide [sev]) rfl
+        (wordsAt_mem1 _ _ _ _ _) ?_
+      refine specR_assignI lD1 _ (BitVec.ofNat 64 (d + 1)) (by decide)
+        (by simp +decide [sev, hdd]; rw [word_add1_eq]) ?_
+      refine specR_ifI (.shift .lsr (vv lD1) (.const 63)) (BitVec.ofNat 64 (d + 1) >>> (63 : BitVec 64).toNat)
+        (by simp +decide [sev]) (fun _ => specR_hangI) (fun hw => ?_)
+      have hlt := (shr63_eq_zero (d + 1) (by omega)).mp hw
+      refine callG_spec C B hc.inst1 n ih lY lA1 (vv pD) v ty d hd (by decide) (by simp +decide [hv])
+        (by simp +decide [hfu]) (by simp +decide) (by simp +decide [hdd]) (fun t' s1 => ?_)
+      refine callG_spec C B hc.inst1 n ih lZ lA2 (vv lD1) v bd (d + 1) hlt (by decide) (by simp +decide [hv])
+        (by simp +decide [hfu]) (by simp +decide) (by simp +decide) (fun b' s2 => ?_)
+      obtain ⟨w5, hw5, hw5i⟩ := sev_tagIs ((lZ, Enc.idxW b') :: (lY, Enc.idxW t') :: (lD1, BitVec.ofNat 64 (d + 1)) ::
+        (lA2, Enc.idxW bd) :: (lA1, Enc.idxW ty) :: (lRp, P) ::
+        (lRn, BitVec.ofNat 64 (encEView (.forallE ty bd)).length) :: (lDt, BitVec.ofNat 64 h.tier.toNat) ::
+        (lDg, BitVec.ofNat 64 (ENodeView.forallE ty bd).tagN) :: (lDi, BitVec.ofNat 64 h.idxNat) ::
+        (lDh, Enc.idxW h) :: (lFl, C.FLe) :: Γ) pH h (by simp +decide [hh]) 5 (by decide) (by decide)
+      refine specR_ifI (tagIsE pH 5) w5 hw5 (fun hw => absurd (hw5i.mp hw) (by rw [htag]; decide)) (fun hw => ?_)
+      have hib : internBindE h.tag t' b' = internForallEE t' b' := by simp [internBindE, htag, ETag.lam]
+      refine specR_congr (by rw [hib]) ?_
+      unfold bindTail
+      refine specR_internForallEI ra hok hc.internForallE lW (vv lY) (vv lZ) t' b' (by decide) (by simp +decide)
+        (by simp +decide) (fun r s3 => ?_)
+      unfold memoSetP
+      refine specR_inst1SetI hok hc.memoSet hc.memoIns lX (vv pH) (vv pD) (vv lW) h d r hd (by decide)
+        (by simp +decide [hh]) (by simp +decide [hdd]) (by simp +decide) (by simp +decide [hkb]) (fun w => ?_)
+      exact specR_returnI (vv lW) (Enc.idxW r) (by simp +decide) (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    | _ => simp [ENodeView.tagN] at htg; rcases hb with hb | hb <;> rw [hb] at htg <;> simp at htg
 
 end
 
