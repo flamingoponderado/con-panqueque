@@ -74,6 +74,7 @@ import ConPanqueque.T.Inv
 import ConPanqueque.T.Proj
 import ConPanqueque.T.Ex.GetAppFn2
 import ConPanqueque.T.Ex.SizeB
+import ConPanqueque.T.Ex.Inst1
 import ConPanqueque.V.EApp2
 import ConPanqueque.T.Intern
 import ConPanqueque.T.MemoModel
