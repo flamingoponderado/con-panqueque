@@ -100,6 +100,20 @@ def projArm (G : BitVec 64) : ProgHOL 64 :=
       (.ite (.cmp .equal (vv lRn) (.const 3))
         (.seq (.assign .local lB (.load .one (.op .add [vv lRp, .const 16]))) (projRest G)) hang)))))))
 
+/-- The cutoff word `(der >>> 16) & 32767` (the packed word's bvar-range field). -/
+def bvarFieldE (e : ExpHOL 64) : ExpHOL 64 := .op .and [.shift .lsr e (.const 16), .const 32767]
+
+def core (G : BitVec 64) : ProgHOL 64 :=
+  .ite (.cmp .equal (vv pFu) (.const 0)) hang
+   (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv pH)) (.seq (storeDerived 9 10)
+   (.seq (.assign .local lB (bvarFieldE (vv lDo1)))
+   (.ite (.op .and [.cmp .lower (vv lB) (.const 32767), .cmp .notLower (vv pD) (vv lB)]) (.return (vv pH))
+    (.ite (isAppE (vv pH)) (appArm G)
+     (.ite (.op .or [tagIsE pH 5, tagIsE pH 6]) (bindArm G)
+      (.ite (tagIsE pH 0) bvarArm
+       (.ite (tagIsE pH 7) (letArm G)
+        (.ite (tagIsE pH 9) (projArm G) (.return (vv pH))))))))))))
+
 def inst1Locals : List MlS := [lFl, lDh, lDt, lDg, lDi, lDo1, lDo2, lRp, lRn, lB, lX, lA1, lA2, lA3, lY, lZ, lW, lD1]
 
 abbrev DI : List MlS := ctxLocals ++ inst1Locals
@@ -560,6 +574,139 @@ theorem projArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
             (fun hw => absurd rfl hw) (fun _ => specR_hangI)
     | _ => simp [ENodeView.tagN, h9] at htg
 
+end
+
+def body (C : Ctx) : ProgHOL 64 := prologue inst1Locals (core C.mG)
+
+theorem bvarOfData_word (der : UInt64) :
+    der.toBitVec >>> (16 : Nat) &&& 32767#64 = (ConLeche.bvarOfData der).toBitVec := by
+  apply BitVec.eq_of_toNat_eq
+  simp only [BitVec.toNat_and, BitVec.toNat_ushiftRight, Nat.shiftRight_eq_div_pow, ConLeche.bvarOfData]
+  have e : (32767#64).toNat = 2 ^ 15 - 1 := rfl
+  rw [e, Nat.and_two_pow_sub_one_eq_mod]
+  simp [UInt64.toNat_div, UInt64.toNat_mod]
+
+theorem cutoff_iff (b d : Nat) (hb : b < 2 ^ 15) (hd : d < 2 ^ 63) :
+    ((if Flapjack.Compiler.Encoders.Asm.wordCmpHOL .lower (BitVec.ofNat 64 b) 32767 then (1 : BitVec 64) else 0) &&&
+      (if Flapjack.Compiler.Encoders.Asm.wordCmpHOL .notLower (BitVec.ofNat 64 d) (BitVec.ofNat 64 b) then 1 else 0))
+      ≠ 0 ↔ (decide (b < ConLeche.satRange) && decide (b ≤ d)) = true := by
+  have h1 : (BitVec.ofNat 64 b < (32767 : BitVec 64)) ↔ b < 32767 := by
+    rw [BitVec.lt_def]; simp; omega
+  have h2 : (BitVec.ofNat 64 d < BitVec.ofNat 64 b) ↔ d < b := by
+    rw [BitVec.lt_def]; simp; omega
+  have e1 : Flapjack.Compiler.Encoders.Asm.wordCmpHOL .lower (BitVec.ofNat 64 b) 32767 = decide (b < 32767) := by
+    simp only [Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact decide_eq_decide.mpr h1
+  have e2 : Flapjack.Compiler.Encoders.Asm.wordCmpHOL .notLower (BitVec.ofNat 64 d) (BitVec.ofNat 64 b) =
+      decide (b ≤ d) := by
+    simp only [Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+    by_cases c : d < b
+    · have := h2.mpr c; simp [this]; omega
+    · have : ¬ BitVec.ofNat 64 d < BitVec.ofNat 64 b := fun x => c (h2.mp x)
+      simp [this]; omega
+  rw [e1, e2]
+  simp only [ConLeche.satRange]
+  by_cases c1 : b < 32767 <;> by_cases c2 : b ≤ d <;> simp [c1, c2]
+
+section
+variable {σ : Type}
+
+/-- The tag test's value at a handle word. -/
+def tagW (h : EIdx) (k : Nat) : BitVec 64 :=
+  if Flapjack.Compiler.Encoders.Asm.wordCmpHOL .equal ((Enc.idxW h >>> (26 : Nat)) &&& 31) (BitVec.ofNat 64 k)
+  then 1 else 0
+
+theorem tagW_iff (h : EIdx) (k : Nat) (hk : k < 16) (hk4 : k ≠ 4) : tagW h k ≠ 0 ↔ h.tag = UInt32.ofNat k := by
+  rw [← tag_bits_iff h k hk hk4]
+  unfold tagW
+  by_cases e : (Enc.idxW h >>> (26 : Nat)) &&& 31 = BitVec.ofNat 64 k
+  · simp [e, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+  · simp [e, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+
+theorem params_none1 (v h : EIdx) (n d : Nat) (C : Ctx) :
+    ∀ x, x ∈ inst1Locals → (ctxEnv C ++ [(pV, Enc.idxW v), (pFu, BitVec.ofNat 64 n), (pH, Enc.idxW h),
+      (pD, BitVec.ofNat 64 d)]).get x = none := by
+  intro x hx
+  simp only [inst1Locals, List.mem_cons, List.not_mem_nil, or_false] at hx
+  rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> rfl
+
+theorem isBind_iff (h : EIdx) (w5 w6 : BitVec 64) (h5 : w5 ≠ 0 ↔ h.tag = UInt32.ofNat 5)
+    (h6 : w6 ≠ 0 ↔ h.tag = UInt32.ofNat 6) : (w5 ||| w6) ≠ 0 ↔ ETag.isBind h.tag = true := by
+  rw [Ne, show (0 : BitVec 64) = 0#64 from rfl, BitVec.or_eq_zero_iff, ← show (0 : BitVec 64) = 0#64 from rfl]
+  simp only [ETag.isBind, Bool.or_eq_true, beq_iff_eq, ETag.lam, ETag.forallE]
+  constructor
+  · intro hn
+    by_cases a : w5 = 0
+    · have b : w6 ≠ 0 := fun b => hn ⟨a, b⟩
+      exact Or.inr (h6.mp b)
+    · exact Or.inl (h5.mp a)
+  · rintro (e | e) ⟨a, b⟩
+    · exact h5.mpr e a
+    · exact h6.mpr e b
+
+theorem inst1_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : Codes C (body C)) :
+    ∀ n, n < 2 ^ 64 → Rec1 (σ := σ) C (body C) n := by
+  intro n
+  induction n with
+  | zero =>
+    intro _ v h d s hd
+    refine specR_prologue (postE_locals C) (params_none1 v h 0 d C) ?_
+    refine specR_ifI _ _ rfl (fun _ => specR_hangI) (fun hw => ?_)
+    simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL] at hw
+  | succ n ih =>
+    intro hf v h d s hd
+    have ih' := ih (by omega)
+    refine specR_prologue (postE_locals C) (params_none1 v h (n + 1) d C) ?_
+    refine specR_ifI _ _ rfl (fun hw => ?_) (fun _ => ?_)
+    · have := ofNat_ne_zero (n + 1) (by omega) hf
+      simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL] at hw; exact absurd hw this
+    refine specR_congr (by rw [instantiate1Go_succ]) ?_
+    refine specR_assignI lFl (vv lFle) C.FLe (by decide) rfl ?_
+    refine specR_assignI lDh (vv pH) (Enc.idxW h) (by decide) rfl ?_
+    refine specR_derivedEI h rfl rfl rfl (by decide) ?_
+    have hbt : (ConLeche.bvarOfData (s.store.derived h)).toBitVec =
+        BitVec.ofNat 64 (ConLeche.bvarOfData (s.store.derived h)).toNat := by
+      apply BitVec.eq_of_toNat_eq; simp
+    have hb15 : (ConLeche.bvarOfData (s.store.derived h)).toNat < 2 ^ 15 := by
+      simp only [ConLeche.bvarOfData, UInt64.toNat_mod]; simp; omega
+    refine specR_assignI lB (bvarFieldE (vv lDo1)) (ConLeche.bvarOfData (s.store.derived h)).toBitVec (by decide)
+      (by simp [sev, bvarFieldE]; exact bvarOfData_word _) ?_
+    generalize hbdef : (ConLeche.bvarOfData (s.store.derived h)).toNat = b at hb15 hbt
+    refine specR_iteI (.op .and [.cmp .lower (vv lB) (.const 32767), .cmp .notLower (vv pD) (vv lB)])
+      ((if Flapjack.Compiler.Encoders.Asm.wordCmpHOL .lower (BitVec.ofNat 64 b) 32767 then (1 : BitVec 64) else 0) &&&
+        (if Flapjack.Compiler.Encoders.Asm.wordCmpHOL .notLower (BitVec.ofNat 64 d) (BitVec.ofNat 64 b) then 1 else 0))
+      ?_ (cutoff_iff b d hb15 hd) (fun _ => ?_) (fun _ => ?_)
+    · simp +decide [sev, Env.kill, ctxEnv, hbt]
+    · exact specR_returnI (vv pH) (Enc.idxW h) (by simp +decide [Env.kill, ctxEnv])
+        (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    refine specR_iteI (isAppE (vv pH)) (isAppW (Enc.idxW h)) ?_
+      (by rw [isApp_iff]; simp [ETag.app]) (fun hb => ?_) (fun _ => ?_)
+    · exact Ex2.sev_isApp _ pH _ (by simp +decide [Env.kill, ctxEnv])
+    · have h4 : h.tag = 4 := by simpa [ETag.app] using hb
+      exact appArm_spec ra C hok (body C) hc n ih' v h d hd h4 (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv])
+    refine specR_iteI (.op .or [tagIsE pH 5, tagIsE pH 6]) (tagW h 5 ||| tagW h 6) ?_
+      (isBind_iff h _ _ (tagW_iff h 5 (by decide) (by decide)) (tagW_iff h 6 (by decide) (by decide)))
+      (fun hb => ?_) (fun _ => ?_)
+    · simp +decide [sev, tagIsE, tagW, Env.kill, ctxEnv]
+    · have hb' : h.tag = 5 ∨ h.tag = 6 := by
+        simp only [ETag.isBind, Bool.or_eq_true, beq_iff_eq, ETag.lam, ETag.forallE] at hb; exact hb
+      exact bindArm_spec ra C hok (body C) hc n ih' v h d hd hb' (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv])
+    refine specR_iteI (tagIsE pH 0) (tagW h 0) ?_ (by rw [tagW_iff h 0 (by decide) (by decide)]; simp [ETag.bvar])
+      (fun hb => ?_) (fun _ => ?_)
+    · simp +decide [sev, tagIsE, tagW, Env.kill, ctxEnv]
+    · have h0 : h.tag = 0 := by simpa [ETag.bvar] using hb
+      exact bvarArm_spec ra C hok (body C) hc v h d hd h0 (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv])
+    refine specR_iteI (tagIsE pH 7) (tagW h 7) ?_ (by rw [tagW_iff h 7 (by decide) (by decide)]; simp [ETag.letE])
+      (fun hb => ?_) (fun _ => ?_)
+    · simp +decide [sev, tagIsE, tagW, Env.kill, ctxEnv]
+    · have h7 : h.tag = 7 := by simpa [ETag.letE] using hb
+      exact letArm_spec ra C hok (body C) hc n ih' v h d hd h7 (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv])
+    refine specR_iteI (tagIsE pH 9) (tagW h 9) ?_ (by rw [tagW_iff h 9 (by decide) (by decide)]; simp [ETag.proj])
+      (fun hb => ?_) (fun _ => ?_)
+    · simp +decide [sev, tagIsE, tagW, Env.kill, ctxEnv]
+    · have h9 : h.tag = 9 := by simpa [ETag.proj] using hb
+      exact projArm_spec ra C hok (body C) hc n ih' v h d hd h9 (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv]) (by simp +decide [Env.kill, ctxEnv])
+    exact specR_returnI (vv pH) (Enc.idxW h) (by simp +decide [Env.kill, ctxEnv])
+      (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 end
 
 end ConPanqueque.T.ExI
