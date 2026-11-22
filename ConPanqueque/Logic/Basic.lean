@@ -80,4 +80,28 @@ theorem while_rule {σ : Type} (c : ExpHOL 64) (body : ProgHOL 64)
       simp only [hw, ne_eq, hw0, not_false_eq_true, ite_true, hck, ite_false, hb]
       exact ih (m s') (by omega) s' hs' rfl
 
+/-! ## Memory -/
+
+/-- A one-word store to an address in the memory domain. -/
+theorem store_word {σ : Type} (s : PanSemStateFiniteExact 64 σ) (dst src : ExpHOL 64)
+    (a w : BitVec 64)
+    (hd : @evalHOLExact 64 σ _ s.toExact (fun x => Classical.propDecidable (s.memaddrs x)) dst =
+      some (.val (.word a)))
+    (hs : @evalHOLExact 64 σ _ s.toExact (fun x => Classical.propDecidable (s.memaddrs x)) src =
+      some (.val (.word w)))
+    (hdom : s.memaddrs a) :
+    evaluateHOLFiniteState s (.store dst src) =
+      (none, { s with memory := fun c => if c = a then .word w else s.memory c }) := by
+  rw [evaluateHOLFiniteState_eq_evaluate_def]
+  simp [hd, hs, flattenHOL, panMemStoresHOL, panMemStoreHOL, hdom]
+
+/-- A one-word load from an address in the memory domain. -/
+theorem eval_load_word {σ : Type} (s : PanSemStateFiniteExact 64 σ) (e : ExpHOL 64) (a : BitVec 64)
+    (he : @evalHOLExact 64 σ _ s.toExact (fun x => Classical.propDecidable (s.memaddrs x)) e =
+      some (.val (.word a)))
+    (hdom : s.memaddrs a) :
+    @evalHOLExact 64 σ _ s.toExact (fun x => Classical.propDecidable (s.memaddrs x)) (.load .one e) =
+      some (.val (s.memory a)) := by
+  simp [evalHOLExact, he, memLoadHOLExact, hdom]
+
 end ConPanqueque.Logic
