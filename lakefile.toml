@@ -21,11 +21,13 @@ name = "ConPanqueque"
 name = "ConRonArena"
 srcDir = "deps/con-ron/proof"
 roots = ["ConRon.Arena"]
-leanOptions = { "weak.backward.isDefEq.respectTransparency" = false, "weak.backward.do.legacy" = true }
+leanOptions.weak.backward.isDefEq.respectTransparency = false
+leanOptions.weak.backward.do.legacy = true
 
 [[lean_lib]]
 name = "ConRonBridge"
 srcDir = "deps/con-ron/proof"
 roots = ["ConRon.Bridge"]
 globs = ["ConRon.Bridge.*"]
-leanOptions = { "weak.backward.isDefEq.respectTransparency" = false, "weak.backward.do.legacy" = true }
+leanOptions.weak.backward.isDefEq.respectTransparency = false
+leanOptions.weak.backward.do.legacy = true
