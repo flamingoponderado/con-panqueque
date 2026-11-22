@@ -15,10 +15,20 @@ returns `1 + i` for row `i`; keys are two words, placed at the key buffer by the
 namespace ConPanqueque.T
 
 def pG := ofString "mg"
-def fMemoProbe2 := ofString "memoProbe2"
+def pLen := ofString "mlen"
+def fMemoProbe := ofString "memoProbe"
 
-def memoProbe2Body : ProgHOL 64 :=
-  .dec lK .one (.var .global gKb) (.dec lL .one (.const 2) (withGeoV pG (.seq probeV (.return (.const 0)))))
+/-- A memo's key: the handle, then the number's limbs (injective at every `Nat`). -/
+def encMemo (k : EIdx × Nat) : List (BitVec 64) := Enc.idxW k.1 :: Enc.limbs k.2
+
+theorem encMemo_inj : ∀ x y, encMemo x = encMemo y → x = y := by
+  intro ⟨h, d⟩ ⟨h', d'⟩ e
+  simp only [encMemo, List.cons.injEq] at e
+  rw [Enc.idxW_inj e.1, Enc.limbs_inj e.2]
+
+/-- `memoProbe(g, len)`: probe the memo described at `g` for the `len`-word key in the key buffer. -/
+def memoProbeBody : ProgHOL 64 :=
+  .dec lK .one (.var .global gKb) (.dec lL .one (vv pLen) (withGeoV pG (.seq probeV (.return (.const 0)))))
 
 variable {σ : Type}
 
@@ -37,29 +47,30 @@ theorem mpres_restore {α δ : Type} [BEq α] [Hashable α] {s : PState σ} {tb 
   · exact Or.inl h
   · exact Or.inr ⟨m, d, c, g, h⟩
 
-theorem memoProbe2_spec {α δ : Type} [BEq α] [LawfulBEq α] [Hashable α] [DecidableEq α]
+theorem memoProbe_spec {α δ : Type} [BEq α] [LawfulBEq α] [Hashable α] [DecidableEq α]
     (t : PState σ) (enc : α → List (BitVec 64)) (dW : δ → BitVec 64 × BitVec 64)
     (hinj : ∀ x y, enc x = enc y → x = y) (tb : Tbl α Nat δ) (rows : List α) (ders : List (BitVec 64 × BitVec 64))
-    (slots : List Nat) (hu : Nat) (g : VGeo) (G KB : BitVec 64) (x : α) (hx2 : (enc x).length = 2)
+    (slots : List Nat) (hu : Nat) (g : VGeo) (G KB : BitVec 64) (x : α) (hxl : (enc x).length < 2 ^ 61)
     (hn : g.n = 2 ^ g.b) (hb : g.b ≤ 56) (hcap : g.cap < 2 ^ 30)
     (hT : VT t enc rows ders slots g hu) (hinv : ConsModel.Inv (α := α) (homeV enc g.b) rows slots g.n)
     (hrel : TblRel tb rows id) (hK : Words t KB (enc x)) (hdesc : DescV t G g 1)
-    (hgk : t.globals.lookup gKb = some (.val (.word KB))) (hg : t.locals.lookup pG = some (.val (.word G))) :
-    MPRes t tb x (evaluateHOLFiniteState t memoProbe2Body) := by
-  unfold memoProbe2Body
+    (hgk : t.globals.lookup gKb = some (.val (.word KB))) (hg : t.locals.lookup pG = some (.val (.word G)))
+    (hl : t.locals.lookup pLen = some (.val (.word (BitVec.ofNat 64 (enc x).length)))) :
+    MPRes t tb x (evaluateHOLFiniteState t memoProbeBody) := by
+  unfold memoProbeBody
   rw [dec_word_eq t lK _ KB _ (eval_gv t gKb KB hgk)]
   refine mpres_restore lK KB _ ?_
   let t1 := setVarHOLFinite lK (.val (.word KB)) t
-  rw [dec_word_eq t1 lL (.const 2) 2 _ (eval_const t1 2)]
-  refine mpres_restore lL 2 _ ?_
-  let t2 := setVarHOLFinite lL (.val (.word 2)) t1
+  rw [dec_word_eq t1 lL (vv pLen) (BitVec.ofNat 64 (enc x).length) _ (eval_vv t1 pLen _ (by lk [t1]; exact hl))]
+  refine mpres_restore lL (BitVec.ofNat 64 (enc x).length) _ ?_
+  let t2 := setVarHOLFinite lL (.val (.word (BitVec.ofNat 64 (enc x).length))) t1
   have hd2 : DescV t2 G g 1 := hdesc
   apply withGeoV_lift (fun s r => MPRes s tb x r) (fun s y v r h => mpres_restore y v r h) t2 pG G g 1 _
     (by lk [t2, t1]; exact hg) (by decide) hd2
   let u := geoStateV t2 g 1
   have hP := probeV_spec u enc (fun i => 1 + BitVec.ofNat 64 i) id 1 (2 ^ 30) (fun i _ => rfl) hinj tb rows ders slots hu
     g x KB hn hb hcap (Nat.le_of_lt hcap) (vt_frame hT (fun _ _ => rfl) rfl) hinv hrel (fun j hj => hK j hj)
-    (by omega) (by simp only [u, geoStateV]; lk [t2, t1]) (by simp only [u, geoStateV]; lk [t2]; rw [hx2]; rfl)
+    hxl (by simp only [u, geoStateV]; lk [t2, t1]) (by simp only [u, geoStateV]; lk [t2])
     (by simp only [u, geoStateV]; lk) (by simp only [u, geoStateV]; lk) (by simp only [u, geoStateV]; lk)
     (by simp only [u, geoStateV]; lk)
   rcases hP with hs | ⟨m, d, c, gl, _, ⟨i, hf, hr⟩ | ⟨hf, hr, _⟩⟩
