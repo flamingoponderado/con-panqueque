@@ -258,4 +258,62 @@ theorem memoGet_spec {α : Type} (G KB : BitVec 64) (g : VGeo) (m : Std.HashMap 
     rw [return_state t2 _ _ (eval_const t2 0)]
     exact ⟨m2, d2, g2, c2⟩
 
+/-! ## `memoIns`: intern the key, the value as its derived word -/
+
+def pVal := ofString "mval"
+def fMemoIns := ofString "memoIns"
+
+/-- `memoIns(g, len, val)`: the row of the key in the key buffer (appended with `val` if new), as `1 + i`. -/
+def memoInsBody : ProgHOL 64 :=
+  .dec lK .one (.var .global gKb) (.dec lL .one (vv pLen) (.dec lDv .one (vv pVal) (.dec lDv2 .one (.const 0)
+    (withGeoV pG internV))))
+
+theorem vres_restore {α : Type} [BEq α] [LawfulBEq α] [Hashable α] [DecidableEq α] {s : PState σ}
+    {enc : α → List (BitVec 64)} {dW : EIdx → BitVec 64 × BitVec 64} {hwd : Nat → BitVec 64} {mkI : Nat → Nat}
+    {tb : Tbl α Nat EIdx} {g : VGeo} {x : α} {d : EIdx} (y : MlS) (v : BitVec 64)
+    (r : Option (PanSemResultExact 64) × PState σ)
+    (h : VRes (setVarHOLFinite y (.val (.word v)) s) enc dW hwd mkI tb g x d r) :
+    VRes s enc dW hwd mkI tb g x d (r.1, { r.2 with locals := HolFiniteMapExact.resVarEq r.2.locals (y, s.locals.lookup y) }) := by
+  rcases h with h | ⟨hr, rows', ders', slots', hu', hT, hi, hrel, hd, c1, c2, c3, c4, c5⟩
+  · exact Or.inl h
+  · exact Or.inr ⟨hr, rows', ders', slots', hu', vt_of_eq hT rfl rfl, hi, hrel, hd, c1, c2, c3, c4, c5⟩
+
+theorem memoIns_spec (t : PState σ) (tb : Tbl (EIdx × Nat) Nat EIdx) (rows : List (EIdx × Nat))
+    (ders : List (BitVec 64 × BitVec 64)) (slots : List Nat) (hu : Nat) (g : VGeo) (G KB : BitVec 64)
+    (k : EIdx × Nat) (v : EIdx) (hkl : (encMemo k).length < 2 ^ 61)
+    (hn : g.n = 2 ^ g.b) (hb : g.b ≤ 56) (hcap : g.cap < 2 ^ 30)
+    (hT : VT t encMemo rows ders slots g hu) (hinv : ConsModel.Inv (homeV encMemo g.b) rows slots g.n)
+    (hrel : TblRel tb rows id) (hder : tb.der.toList.map dWE = ders)
+    (hK : Words t KB (encMemo k)) (hKout : ∀ i, i < (encMemo k).length → ¬ inR g (KB + BitVec.ofNat 64 (8 * i)))
+    (hdesc : DescV t G g 1)
+    (hgk : t.globals.lookup gKb = some (.val (.word KB))) (hg : t.locals.lookup pG = some (.val (.word G)))
+    (hl : t.locals.lookup pLen = some (.val (.word (BitVec.ofNat 64 (encMemo k).length))))
+    (hv : t.locals.lookup pVal = some (.val (.word (Enc.idxW v)))) :
+    VRes t encMemo dWE (fun i => 1 + BitVec.ofNat 64 i) id tb g k v (evaluateHOLFiniteState t memoInsBody) := by
+  unfold memoInsBody
+  rw [dec_word_eq t lK _ KB _ (eval_gv t gKb KB hgk)]
+  refine vres_restore lK KB _ ?_
+  let t1 := setVarHOLFinite lK (.val (.word KB)) t
+  rw [dec_word_eq t1 lL (vv pLen) (BitVec.ofNat 64 (encMemo k).length) _ (eval_vv t1 pLen _ (by lk [t1]; exact hl))]
+  refine vres_restore lL (BitVec.ofNat 64 (encMemo k).length) _ ?_
+  let t2 := setVarHOLFinite lL (.val (.word (BitVec.ofNat 64 (encMemo k).length))) t1
+  rw [dec_word_eq t2 lDv (vv pVal) (Enc.idxW v) _ (eval_vv t2 pVal _ (by lk [t2, t1]; exact hv))]
+  refine vres_restore lDv (Enc.idxW v) _ ?_
+  let t3 := setVarHOLFinite lDv (.val (.word (Enc.idxW v))) t2
+  rw [dec_word_eq t3 lDv2 (.const 0) 0 _ (eval_const t3 0)]
+  refine vres_restore lDv2 0 _ ?_
+  let t4 := setVarHOLFinite lDv2 (.val (.word 0)) t3
+  have hd4 : DescV t4 G g 1 := hdesc
+  apply withGeoV_lift (fun s r => VRes s encMemo dWE (fun i => 1 + BitVec.ofNat 64 i) id tb g k v r)
+    (fun s y w r h => vres_restore y w r h) t4 pG G g 1 _ (by lk [t4, t3, t2, t1]; exact hg) (by decide) hd4
+  let u := geoStateV t4 g 1
+  exact internV_spec u encMemo dWE (fun i => 1 + BitVec.ofNat 64 i) id 1 (2 ^ 30) (fun i _ => rfl) encMemo_inj tb rows
+    ders slots hu g k v KB hn hb hcap (Nat.le_of_lt hcap) (vt_frame hT (fun _ _ => rfl) rfl) hinv hrel hder
+    (fun j hj => hK j hj) hkl hKout
+    (by simp only [u, geoStateV]; lk [t4, t3, t2, t1]) (by simp only [u, geoStateV]; lk [t4, t3, t2])
+    (by simp only [u, geoStateV]; lk) (by simp only [u, geoStateV]; lk) (by simp only [u, geoStateV]; lk)
+    (by simp only [u, geoStateV]; lk) (by simp only [u, geoStateV]; lk) (by simp only [u, geoStateV]; lk)
+    (by simp only [u, geoStateV]; lk [t4, t3]; rfl) (by simp only [u, geoStateV]; lk [t4]; rfl)
+    (by simp only [u, geoStateV]; lk) (by simp only [u, geoStateV]; lk)
+
 end ConPanqueque.T
