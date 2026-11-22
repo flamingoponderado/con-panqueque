@@ -238,4 +238,63 @@ theorem ins_rel (t t' : PanSemStateFiniteExact 64 σ) (enc : α → BitVec 64 ×
         if_neg (ne _ _ (by rw [di, rc.1]; omega)), dm, List.getElem_append_left (by omega)]
 end
 
+/-! ## The table's region
+
+A table occupies `[C, D + 8·cap)`. `tmem_frame`: memory changes outside that
+interval keep it represented; `insMem_out`: the append writes only inside it. -/
+
+def inReg (C D : BitVec 64) (cap : Nat) (a : BitVec 64) : Prop := C.toNat ≤ a.toNat ∧ a.toNat < D.toNat + 8 * cap
+
+theorem toNat_add_lt (X Y : BitVec 64) (h : X.toNat + Y.toNat < 2 ^ 64) : (X + Y).toNat = X.toNat + Y.toNat := by
+  rw [BitVec.toNat_add]; exact Nat.mod_eq_of_lt h
+
+theorem toNat_ofNat_lt (k : Nat) (h : k < 2 ^ 64) : (BitVec.ofNat 64 k).toNat = k := by
+  simp only [BitVec.toNat_ofNat]; exact Nat.mod_eq_of_lt h
+
+section
+variable {σ : Type} {α : Type} [DecidableEq α]
+
+theorem tmem_frame {t t' : PanSemStateFiniteExact 64 σ} {enc : α → BitVec 64 × BitVec 64} {rows : List α}
+    {ders : List (BitVec 64)} {slots : List Nat} {n cap : Nat} {C S R D : BitVec 64}
+    (h : TMem t enc rows ders slots n cap C S R D) (hm : ∀ a, inReg C D cap a → t'.memory a = t.memory a)
+    (hd : t'.memaddrs = t.memaddrs) : TMem t' enc rows ders slots n cap C S R D := by
+  obtain ⟨⟨hs, hr⟩, ⟨c1, c2⟩, hdl, hder, hle, hroom, l1, l2, l3, l4⟩ := h
+  have hR := R.isLt; have hS := S.isLt; have hD := D.isLt
+  refine ⟨⟨fun j hj => ?_, fun i hi => ?_⟩, ⟨by rw [hd]; exact c1, by rw [hm C ⟨Nat.le_refl _, by omega⟩]; exact c2⟩,
+    hdl, fun i hi => ?_, hle, fun i hi => ?_, l1, l2, l3, l4⟩
+  · obtain ⟨v, a1, a2, a3, a4⟩ := hs j hj
+    have e : (S + BitVec.ofNat 64 (8 * j)).toNat = S.toNat + 8 * j := by
+      rw [toNat_add_lt _ _ (by rw [toNat_ofNat_lt _ (by omega)]; omega), toNat_ofNat_lt _ (by omega)]
+    exact ⟨v, a1, a2, by rw [hd]; exact a3, by rw [hm _ ⟨by omega, by omega⟩]; exact a4⟩
+  · obtain ⟨a1, a2, a3, a4⟩ := hr i hi
+    have e : (R + BitVec.ofNat 64 (16 * i)).toNat = R.toNat + 16 * i := by
+      rw [toNat_add_lt _ _ (by rw [toNat_ofNat_lt _ (by omega)]; omega), toNat_ofNat_lt _ (by omega)]
+    have e8 : (R + BitVec.ofNat 64 (16 * i) + 8).toNat = R.toNat + 16 * i + 8 := by
+      rw [toNat_add_lt _ _ (by rw [e]; simp; omega), e]; simp
+    exact ⟨by rw [hd]; exact a1, by rw [hd]; exact a2, by rw [hm _ ⟨by omega, by omega⟩]; exact a3,
+      by rw [hm _ ⟨by omega, by omega⟩]; exact a4⟩
+  · obtain ⟨a1, a2⟩ := hder i hi
+    have e : (D + BitVec.ofNat 64 (8 * i)).toNat = D.toNat + 8 * i := by
+      rw [toNat_add_lt _ _ (by rw [toNat_ofNat_lt _ (by omega)]; omega), toNat_ofNat_lt _ (by omega)]
+    exact ⟨by rw [hd]; exact a1, by rw [hm _ ⟨by omega, by omega⟩]; exact a2⟩
+  · obtain ⟨a1, a2, a3⟩ := hroom i hi; exact ⟨by rw [hd]; exact a1, by rw [hd]; exact a2, by rw [hd]; exact a3⟩
+
+theorem insMem_out (m : BitVec 64 → HolWordLab 64) (C R D S kf ka dv : BitVec 64) (cnt j n cap : Nat)
+    (lC : C.toNat + 8 ≤ S.toNat) (lS : S.toNat + 8 * n ≤ R.toNat) (lR : R.toNat + 16 * cap ≤ D.toNat)
+    (lD : D.toNat + 8 * cap ≤ 2 ^ 64) (hc : cnt < cap) (hj : j < n) (a : BitVec 64) (ha : ¬ inReg C D cap a) :
+    insMem m C R D S kf ka dv cnt j a = m a := by
+  have eS : (S + BitVec.ofNat 64 (8 * j)).toNat = S.toNat + 8 * j := by
+    rw [toNat_add_lt _ _ (by rw [toNat_ofNat_lt _ (by omega)]; omega), toNat_ofNat_lt _ (by omega)]
+  have eR : (R + BitVec.ofNat 64 (16 * cnt)).toNat = R.toNat + 16 * cnt := by
+    rw [toNat_add_lt _ _ (by rw [toNat_ofNat_lt _ (by omega)]; omega), toNat_ofNat_lt _ (by omega)]
+  have eR8 : (R + BitVec.ofNat 64 (16 * cnt) + 8).toNat = R.toNat + 16 * cnt + 8 := by
+    rw [toNat_add_lt _ _ (by rw [eR]; simp; omega), eR]; simp
+  have eD : (D + BitVec.ofNat 64 (8 * cnt)).toNat = D.toNat + 8 * cnt := by
+    rw [toNat_add_lt _ _ (by rw [toNat_ofNat_lt _ (by omega)]; omega), toNat_ofNat_lt _ (by omega)]
+  have ne : ∀ b : BitVec 64, inReg C D cap b → a ≠ b := fun b hb e => ha (e ▸ hb)
+  simp only [insMem, upd]
+  rw [if_neg (ne C ⟨Nat.le_refl _, by omega⟩), if_neg (ne _ ⟨by omega, by omega⟩), if_neg (ne _ ⟨by omega, by omega⟩),
+    if_neg (ne _ ⟨by omega, by omega⟩), if_neg (ne _ ⟨by omega, by omega⟩)]
+end
+
 end ConPanqueque.ConsIns

@@ -120,7 +120,8 @@ def IRes {σ : Type} (t : PanSemStateFiniteExact 64 σ) (tb : Tbl AppNode EIdx U
         Inv (α := AppNode) (homeApp b) rows' slots' n ∧
         TblRel (tierApp tb x dv tier).1 rows' (fun i => Idx.mkWide tier (UInt32.ofNat i)) ∧
         (tierApp tb x dv tier).1.der.toList.map (·.toBitVec) = ders' ∧
-        r.2.code = t.code ∧ r.2.globals = t.globals ∧ r.2.memaddrs = t.memaddrs ∧ r.2.topAddr = t.topAddr)
+        r.2.code = t.code ∧ r.2.globals = t.globals ∧ r.2.memaddrs = t.memaddrs ∧ r.2.topAddr = t.topAddr ∧
+        ∀ a, ¬ inReg C D cap a → r.2.memory a = t.memory a)
 
 theorem tmem_locals {σ : Type} {st : PanSemStateFiniteExact 64 σ} {α : Type} [DecidableEq α]
     {enc : α → BitVec 64 × BitVec 64} {rows : List α} {ders : List (BitVec 64)} {slots : List Nat} {n cap : Nat}
@@ -144,9 +145,9 @@ theorem ires_locals {σ : Type} {t : PanSemStateFiniteExact 64 σ} {tb : Tbl App
     {C S R D : BitVec 64} {x : AppNode} {dv : UInt64} {tier : UInt32} {r1 : Option (PanSemResultExact 64)}
     {st : PanSemStateFiniteExact 64 σ} (L : HolFiniteMapExact MlS (ValueHOL 64))
     (h : IRes t tb n b cap C S R D x dv tier (r1, st)) : IRes t tb n b cap C S R D x dv tier (r1, { st with locals := L }) := by
-  rcases h with h | ⟨hr, rows', ders', slots', hT, hi, hrel, hd, c1, c2, c3, c4⟩
+  rcases h with h | ⟨hr, rows', ders', slots', hT, hi, hrel, hd, c1, c2, c3, c4, c5⟩
   · exact Or.inl h
-  · exact Or.inr ⟨hr, rows', ders', slots', tmem_locals L hT, hi, hrel, hd, c1, c2, c3, c4⟩
+  · exact Or.inr ⟨hr, rows', ders', slots', tmem_locals L hT, hi, hrel, hd, c1, c2, c3, c4, c5⟩
 
 theorem internTier_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (tb : Tbl AppNode EIdx UInt64)
     (rows : List AppNode) (ders : List (BitVec 64)) (slots : List Nat) (n b cap : Nat) (C S R D : BitVec 64)
@@ -254,7 +255,8 @@ theorem internTier_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (tb : Tbl
       rw [hfind, ← hprobe]; show (ans.toOpt).map _ = _; rw [hans]; rfl
     have htA : tierApp tb x dv tier = (tb, Idx.mkWide tier (UInt32.ofNat i)) := by simp only [tierApp, hfi]
     right
-    refine ⟨by simp [htA], rows, ders, slots, ?_, hinv, by rw [htA]; exact hrel, by rw [htA]; exact hder, ?_, ?_, ?_, ?_⟩
+    refine ⟨by simp [htA], rows, ders, slots, ?_, hinv, by rw [htA]; exact hrel, by rw [htA]; exact hder, ?_, ?_, ?_, ?_,
+      fun a _ => by rw [show (emptyLocalsHOLFinite t6).memory = t6.memory from rfl, hmt6]⟩
     · exact tmem_of_eq hT (by simp [emptyLocalsHOLFinite, hmt6]) (by simp [emptyLocalsHOLFinite, hdt6])
     all_goals (simp [emptyLocalsHOLFinite, c6, g6, d6, ta6]; try rfl)
   | empty j0 =>
@@ -344,7 +346,10 @@ theorem internTier_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (tb : Tbl
       hlt hn56 (by omega) (by show insMem t6.memory _ _ _ _ _ _ _ _ _ = _; rw [hmt6, ← hjj, hjd]) hdt6
     right
     refine ⟨by simp [htA], rows ++ [x], ders ++ [dv.toBitVec], _, tmem_of_eq hT8 rfl rfl, hI8,
-      by rw [htA]; exact push_rel tb rows _ hrel x dv hxr, by rw [htA]; simp [Tbl.push, ← hder], ?_, ?_, ?_, ?_⟩
+      by rw [htA]; exact push_rel tb rows _ hrel x dv hxr, by rw [htA]; simp [Tbl.push, ← hder], ?_, ?_, ?_, ?_,
+      fun a ha => by
+        show insMem t6.memory _ _ _ _ _ _ _ _ _ a = _
+        rw [hmt6]; exact insMem_out _ _ _ _ _ _ _ _ _ _ n cap hT.layC hT.layS hT.layR hT.layD hlt hj a ha⟩
     all_goals (simp [emptyLocalsHOLFinite, t8, t7, setVarHOLFinite, c6, g6, d6, ta6]; try rfl)
   | full =>
     rw [hans] at hres6

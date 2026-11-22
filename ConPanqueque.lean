@@ -33,6 +33,9 @@ import ConPanqueque.ConsTbl
 import ConPanqueque.ConsLoop
 import ConPanqueque.ConsIns
 import ConPanqueque.ConsIntern
+import ConPanqueque.ConsProbe
+import ConPanqueque.ConsGeo
+import ConPanqueque.ConsApp2
 import ConPanqueque.LevelFns
 import ConPanqueque.LevelFold
 import ConPanqueque.Table
