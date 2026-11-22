@@ -106,6 +106,7 @@ import ConPanqueque.T.Lvl
 import ConPanqueque.T.LvlView
 import ConPanqueque.T.LvlEq
 import ConPanqueque.T.LvlMk
+import ConPanqueque.T.LvlComb
 import ConPanqueque.T.CallN
 import ConPanqueque.V.DerWrite
 import ConPanqueque.LevelFns
