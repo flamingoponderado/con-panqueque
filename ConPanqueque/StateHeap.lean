@@ -95,7 +95,8 @@ theorem mkNode_ainv {σ : Type} (t : PanSemStateFiniteExact 64 σ) (lo hp tag dv
       (evaluateHOLFiniteState t (mkNode tag dexp fs)).1 = some (.returned (.val (.word hp))) ∧
         AInv st lo hp' ∧ Grows t st lo hp hp' ∧ hp ≠ 0 ∧
         (∀ j (hj : j < fs.length + 2), hOf st lo hp' (at8 hp j) = some (.word ((tag :: dv :: ws)[j]'(by simp [← hlen]; omega)))) ∧
-        st.code = t.code ∧ st.clock = t.clock ∧ (∀ g, g ≠ nHp → st.globals.lookup g = t.globals.lookup g) := by
+        st.code = t.code ∧ st.clock = t.clock ∧ (∀ g, g ≠ nHp → st.globals.lookup g = t.globals.lookup g) ∧
+        st.memaddrs = t.memaddrs ∧ st.topAddr = t.topAddr := by
   rcases mkNode_spec t (hOf t lo hp) hp tag dv dexp fs ws hlen hnD hnT hnP hsmall hd hx hi.hpv (ainv_arena hi) with
     hs | ⟨h', hr, ok⟩
   · exact Or.inl hs
@@ -114,7 +115,7 @@ theorem mkNode_ainv {σ : Type} (t : PanSemStateFiniteExact 64 σ) (lo hp tag dv
     have : (BitVec.ofNat 64 (8 * j)).toNat = 8 * j := by simp; omega
     constructor <;> bv_omega
   refine ⟨hr, ⟨ok.hp, by have := hi.le; bv_omega, hi.pos, ?_, ok.arena.2.1⟩, ⟨hle, ?_⟩, hpos, ?_,
-    ok.code, ok.clock, ok.globals⟩
+    ok.code, ok.clock, ok.globals, ok.memaddrs, ok.topAddr⟩
   · intro a h1 h2
     rw [ok.memaddrs]
     by_cases ha : a < hp
