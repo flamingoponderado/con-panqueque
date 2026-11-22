@@ -447,14 +447,6 @@ theorem memoSet_spec (G KB : BitVec 64) (g : VGeo) (m : Std.HashMap (EIdx × Nat
 
 /-! ## The twin's `inst1Get`, in a caller -/
 
-theorem limbs_small (d : Nat) (hd : d < 2 ^ 64) : Enc.limbs d = if d = 0 then [] else [BitVec.ofNat 64 d] := by
-  unfold Enc.limbs
-  by_cases h : d = 0
-  · simp [h]
-  · simp only [h, ↓reduceDIte, ite_false]
-    rw [Nat.div_eq_of_lt hd]
-    simp [Enc.limbs, Nat.mod_eq_of_lt hd]
-
 /-- The key length word `1 + (d ≠ 0)`. -/
 def lenE (ed : ExpHOL 64) : ExpHOL 64 := .op .add [.const 1, .cmp .notEqual ed (.const 0)]
 

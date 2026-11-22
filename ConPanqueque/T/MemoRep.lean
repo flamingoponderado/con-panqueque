@@ -49,4 +49,12 @@ theorem memoAt_of_eq {t u : PanSemStateFiniteExact 64 σ} {G : BitVec 64} {g : V
   memoAt_frame h (fun _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd
 
 
+theorem limbs_small (d : Nat) (hd : d < 2 ^ 64) : Enc.limbs d = if d = 0 then [] else [BitVec.ofNat 64 d] := by
+  unfold Enc.limbs
+  by_cases h : d = 0
+  · simp [h]
+  · simp only [h, ↓reduceDIte, ite_false]
+    rw [Nat.div_eq_of_lt hd]
+    simp [Enc.limbs, Nat.mod_eq_of_lt hd]
+
 end ConPanqueque.T

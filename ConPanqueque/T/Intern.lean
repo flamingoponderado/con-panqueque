@@ -509,6 +509,9 @@ structure CtxOK (C : Ctx) : Prop where
   sepLet : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 3 16
   b0Let : C.L.base 16 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.letE.toUInt64.toBitVec * 67108864
   b1Let : C.L.base 16 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.letE.toUInt64.toBitVec * 67108864
+  sepBVar : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 2 9
+  b0BVar : C.L.base 9 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.bvar.toUInt64.toBitVec * 67108864
+  b1BVar : C.L.base 9 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.bvar.toUInt64.toBitVec * 67108864
 
 def fInternApp := ofString "internApp"
 
@@ -943,5 +946,105 @@ theorem specR_internLetI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions)
             · rename_i e; subst e; simp at hy; subst hy; exact h3
             · simp at hy⟩)
     (fun h w s' st hp => by obtain ⟨rfl, _⟩ := hp; exact hk h s')
+
+/-! ## The `bvar` intern function -/
+
+theorem sepK_mono {L : Layout} {FLn FLl FLs FLe KB : BitVec 64} {w w' k : Nat} (h : SepK L FLn FLl FLs FLe KB w k)
+    (hw : w' ≤ w) : SepK L FLn FLl FLs FLe KB w' k :=
+  ⟨h.pow, h.cap, h.dis, h.oth, fun k' tier m h1 h2 h3 => ⟨(h.dsc k' tier m h1 h2 h3).1, (h.dsc k' tier m h1 h2 h3).2.1,
+    fun j hj => (h.dsc k' tier m h1 h2 h3).2.2 j (by omega)⟩,
+    fun F hF => ⟨(h.fls F hF).1, (h.fls F hF).2.1, fun j hj => (h.fls F hF).2.2 j (by omega)⟩,
+    fun j k' tier hj h1 h2 => h.kbo j k' tier (by omega) h1 h2⟩
+
+def fInternBVar := ofString "internBVar"
+def bvarLocals : List MlS := lEn :: bvarScratch
+
+/-- `internBVar(iw)`: the key `limbs i` (one word, or none for `0`) to the key buffer, its length, then
+the intern program at kind 9. -/
+def bvarBody : ProgHOL 64 :=
+  prologue bvarLocals (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 0))]) (vv lIw))
+    (.seq (.assign .local lEn (.cmp .notEqual (vv lIw) (.const 0))) (eBVarWith (rRestE 9 (vv lEn) lFle))))
+
+theorem encBVar_small (i : Nat) (hi : i < 2 ^ 64) :
+    Enc.encBVar ⟨i⟩ = if i = 0 then [] else [BitVec.ofNat 64 i] := limbs_small i hi
+
+theorem bvar_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (s : AState) (i : Nat)
+    (hi : i < 2 ^ 63) :
+    SpecR (Pre (σ := σ) C s [(lIw, BitVec.ofNat 64 i)]) bvarBody s (internBVarE i) (PostE C) := by
+  have hlen : (Enc.encBVar ⟨i⟩).length ≤ 1 := by rw [encBVar_small i (by omega)]; split <;> simp
+  have hlenW : (if Flapjack.Compiler.Encoders.Asm.wordCmpHOL .notEqual (BitVec.ofNat 64 i) 0 then (1 : BitVec 64)
+      else 0) = BitVec.ofNat 64 (Enc.encBVar ⟨i⟩).length := by
+    rw [encBVar_small i (by omega)]
+    by_cases h0 : i = 0
+    · subst h0; simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+    · have : BitVec.ofNat 64 i ≠ 0#64 := by intro e; have := congrArg BitVec.toNat e; simp at this; omega
+      simp [h0, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, this]
+  refine specR_prologue (postE_locals C) (fun x hx => ?_) ?_
+  · simp only [bvarLocals, bvarScratch, List.mem_cons, List.not_mem_nil, or_false] at hx
+    rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> rfl
+  refine specR_storeKBI hok 0 (by decide) (vv lIw) (BitVec.ofNat 64 i) rfl rfl ?_
+  refine specR_assignI lEn _ (BitVec.ofNat 64 (Enc.encBVar ⟨i⟩).length) (by decide) (by rw [← hlenW]; rfl) ?_
+  intro t ht
+  have hw : ∀ y, y ∈ bvarScratch → ∃ w, t.locals.lookup y = some (.val (.word w)) :=
+    fun y hy => ht.decl y (List.mem_append_right _ (List.mem_cons_of_mem _ hy))
+  have hK : Words t C.KB (Enc.encBVar ⟨i⟩) := by
+    intro j hj
+    have hj0 : j = 0 := by omega
+    subst hj0
+    have h0 : i ≠ 0 := by intro e; subst e; simp [Enc.encBVar, Enc.limbs] at hj
+    have e0 : (Enc.encBVar ⟨i⟩)[0]'hj = BitVec.ofNat 64 i := by
+      simp only [encBVar_small i (by omega), h0, ite_false]; rfl
+    rw [e0]; exact ht.mem _ _ (by simp)
+  rcases eInternBVar_spec ra t C.L C.FLn C.FLl C.FLs C.FLe C.KB s.store i hi ht.sr.rep
+      (sepK_mono hok.sepBVar (by omega)) hK (by omega) hok.b0BVar hok.b1BVar (ht.env _ _ rfl) (ht.env _ _ rfl)
+      (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) hw with
+    hs | ⟨hr, hsr, hc, hg, hd, _, hm⟩
+  · exact Or.inl hs
+  right
+  refine ⟨_, hr, (s.store.intern (.bvar i)).2, { s with store := (s.store.intern (.bvar i)).1 }, ?_, rfl, ?_⟩
+  · show internNodeE (.bvar i) s = _
+    exact internNodeE_bvar s i
+      (Nat.le_trans (tabAt_size_le hsr.e.p0) (hok.sepBVar.cap 0 (by decide)))
+      (Nat.le_trans (tabAt_size_le hsr.e.s0) (hok.sepBVar.cap 1 (by decide)))
+  · exact ⟨hsr, by rw [hg]; exact ht.sr.gdir, by rw [hg]; exact ht.sr.gfln, by rw [hg]; exact ht.sr.gfll,
+      by rw [hg]; exact ht.sr.gfls, by rw [hg]; exact ht.sr.gfle, by rw [hg]; exact ht.sr.gkb,
+      by rw [hc]; exact ht.sr.code, fun j hj => by rw [hd]; exact ht.sr.kbuf j hj,
+      memoAt_frame ht.sr.inst1 (fun c hc => hm c (hok.memoOut c hc) (fun j hj e => hok.kbMemo j (by omega) (e ▸ hc)))
+        (fun k hk => hm _ (hok.mdescOut k hk) (fun j hj => hok.kbMdesc k j hk (by omega))) hd⟩
+
+theorem specR_internBVarI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxOK C)
+    (hcode : C.code.lookup fInternBVar = some ([(lIw, .one)], bvarBody, .one))
+    {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64} {k : EIdx → AM β}
+    {R : β → BitVec 64 → AState → PState σ → Prop} (x : MlS) (e1 : ExpHOL 64) (i : Nat) (hi : i < 2 ^ 63)
+    (hx : x ∈ D) (he1 : sev Γ e1 = some (BitVec.ofNat 64 i))
+    (hk : ∀ h s', SpecR (Inv C s' ((x, Enc.idxW h) :: Γ) [] D) rest s' (k h) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, x), none)) fInternBVar [e1]) rest) s
+      (internBVarE i >>= k) R := by
+  intro t ht
+  have hc := spec_call1 (P := (· = t)) (s := s) (m := internBVarE i)
+    (Q := fun a s' t' => ∃ w st, PostE C a w s' st ∧ Inv C s' ((x, w) :: Γ) [] D t')
+    x fInternBVar lIw e1 bvarBody (fun _ => BitVec.ofNat 64 i) (fun u hu => by rw [hu, ht.sr.code]; exact hcode)
+    (fun u hu => by rw [hu]; exact inv_ev ht he1) (fun u hu => by rw [hu]; exact ht.decl x hx) (fun _ => PostE C)
+    (fun u hu callee h1 v hv => by
+      subst hu hv
+      exact bvar_body_spec ra C hok s i hi _ ⟨sr_of_eq ht.sr rfl rfl rfl rfl, fun y w hy => by
+        simp only [Env.get] at hy
+        split at hy
+        · rename_i e; subst e; simp at hy; subst hy; exact h1
+        · simp at hy⟩)
+    (fun u hu a w s' st hp => by
+      subst hu
+      refine ⟨w, st, hp, ⟨sr_of_eq hp.2 rfl rfl rfl rfl, fun y v hy => ?_, fun _ _ h => absurd h (by simp),
+        fun y hy => ?_⟩⟩
+      · simp only [setKvarHOLFinite, Env.get] at hy ⊢
+        split at hy
+        · rename_i e; subst e; simp at hy; subst hy; exact lookup_setVar_same _ _ _
+        · rename_i e; rw [lookup_setVar_other _ _ e]; exact ht.env y v hy
+      · simp only [setKvarHOLFinite]
+        by_cases e : y = x
+        · subst e; exact ⟨w, lookup_setVar_same _ _ _⟩
+        · rw [lookup_setVar_other _ _ e]; exact ht.decl y hy)
+  exact specR_bind (Q1 := fun a s' t' => ∃ w st, PostE C a w s' st ∧ Inv C s' ((x, w) :: Γ) [] D t') hc
+    (fun a s' u ⟨w, st, hp, hu⟩ => by obtain ⟨rfl, _⟩ := hp; exact hk a s' u hu) t rfl
 
 end ConPanqueque.T
