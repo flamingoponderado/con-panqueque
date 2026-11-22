@@ -348,7 +348,7 @@ theorem specR_viewI {β : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D :
     (h : EIdx)
     (hdh : Γ.get lDh = some (Enc.idxW h)) (hfl : Γ.get lFl = some C.FLe) (hdir : Γ.get lDir = some C.L.DIR)
     (hD : lDt ∈ D ∧ lDg ∈ D ∧ lDi ∈ D ∧ lRp ∈ D ∧ lRn ∈ D)
-    (hk : ∀ v P, v.tagN = h.tag.toNat → SpecR (Inv C s ((lRp, P) ::
+    (hk : ∀ v P, v.tagN = h.tag.toNat → (encEView v).length < 2 ^ 61 → SpecR (Inv C s ((lRp, P) ::
       (lRn, BitVec.ofNat 64 (encEView v).length) :: (lDt, BitVec.ofNat 64 h.tier.toNat) ::
       (lDg, BitVec.ofNat 64 v.tagN) :: (lDi, BitVec.ofNat 64 h.idxNat) :: Γ)
       (wordsAt P (encEView v) ++ M) D) rest s (k v) R) :
@@ -358,7 +358,7 @@ theorem specR_viewI {β : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D :
       (ht.decl _ hD.1) (ht.decl _ hD.2.1) (ht.decl _ hD.2.2.1) (ht.decl _ hD.2.2.2.1) (ht.decl _ hD.2.2.2.2) with
     hs | ⟨v, hv, htg, hr⟩
   · exact Or.inl (seq_stop t _ _ hs)
-  obtain ⟨hn, hm, hd, hc, hg, _, ⟨P, hrp, hW⟩, hrn, _, hdt, hdg, hdi, hfr⟩ := hr
+  obtain ⟨hn, hm, hd, hc, hg, _, ⟨P, hrp, hW⟩, hrn, hsh, hdt, hdg, hdi, hfr⟩ := hr
   have e : evaluateHOLFiniteState t eViewP = (none, (evaluateHOLFiniteState t eViewP).2) := by rw [← hn]
   rw [seq_normal rest e]
   have hInv : Inv C s ((lRp, P) :: (lRn, BitVec.ofNat 64 (encEView v).length) ::
@@ -393,7 +393,7 @@ theorem specR_viewI {β : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D :
       by_cases e5 : y = lDi
       · subst e5; exact ⟨_, hdi⟩
       obtain ⟨w, hw⟩ := ht.decl y hy; exact ⟨w, by rw [hfr y e1 e2 e3 e4 e5]; exact hw⟩
-  rcases hk v P htg _ hInv with hs | ⟨w, hr', a, s', hk', hR⟩
+  rcases hk v P htg hsh _ hInv with hs | ⟨w, hr', a, s', hk', hR⟩
   · exact Or.inl hs
   refine Or.inr ⟨w, hr', a, s', ?_, hR⟩
   show (do let r ← ConRon.Arena.view h s; match r with | (a, s) => k a s) = _

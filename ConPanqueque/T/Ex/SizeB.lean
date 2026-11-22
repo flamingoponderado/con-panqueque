@@ -195,7 +195,7 @@ theorem sizeB_spec (C : Ctx) (hcode : C.code.lookup fSizeB = some ([(pFu, .one),
       | .proj _ _ sub => sizeBArmProj n sub) (by rw [sizeB]; rfl) ?_
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) rfl ?_
     refine specR_assignI lDh (vv pH) (Enc.idxW h) (by decide) rfl ?_
-    refine specR_viewI h rfl rfl rfl (by decide) (fun v P _ => ?_)
+    refine specR_viewI h rfl rfl rfl (by decide) (fun v P _ _ => ?_)
     cases v with
     | bvar i =>
       refine specR_congr (m' := pure 1) rfl ?_
