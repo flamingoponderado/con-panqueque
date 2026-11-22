@@ -168,3 +168,34 @@ con-leche and Flapjack's `lean-v4.35.0` branch both use Lean v4.35.0
 - **Control.** First-order recursion through `step_call` / `pure_step`
   (`Rebuild.lean`), node and cell allocation through `mkNode` / `mkCell`
   with `Stop` on exhaustion, case analysis on tags through `iteChain`.
+
+## con-ron as a route (2026-11-22)
+
+[con-ron](https://github.com/leanprover/con-ron) ports con-leche to Rust with a
+proof in two layers:
+
+- a **twin** (`proof/ConRon/Arena`, ≈39k lines of Lean): an executable checker
+  with the Rust's data structures (hash-consed DAG in per-constructor arrays,
+  `u32` handles, two tiers, cache tables), monad
+  `ReaderT PersTier (StateT AState (Except CheckError))`, explicit fuel;
+- **Theorem 1** (`proof/ConRon/Bridge`, ≈118k lines): the twin refines
+  con-leche's pure checker, for the whole checker (kernel, inductives, stream);
+- **Theorem 2** (`proof/ConRon/Refine2`, ≈138k lines): the Rust (via Aeneas)
+  refines the twin, largely mechanical (`lockstep` tactic).
+
+Both headline theorems (`model_exists`, `no_False_declaration`) are **partial
+correctness, one direction**: if con-ron accepts, con-leche's soundness
+conclusion holds; con-ron may decline (resource limits: `Native`) where
+con-leche accepts, and Theorem 1 does not relate rejections.
+
+For con-panqueque this suggests: write the Pancake program to mirror the
+twin (its arrays and tables as memory regions, handles as words), and prove
+**Pancake refines the twin** in lockstep — the analogue of Theorem 2 — then
+compose with con-ron's Theorem 1 to get con-ron's soundness statement for the
+Pancake binary. That reuses the ≈118k-line kernel proof instead of redoing
+it. Costs: the twin's store layout differs from the arena here (`hOf`,
+pointer nodes with data words), so the data representation layer would be
+redone against the twin's `AState`; and the result is one-directional (an
+accepted file is consistent), not "same verdict" in both directions. A
+converse (con-leche rejects ⇒ Pancake rejects) would need a new, two-sided
+refinement proof that neither con-ron nor this repository has.
