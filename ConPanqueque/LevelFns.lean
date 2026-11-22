@@ -48,7 +48,8 @@ end ConPanqueque.LevelFns
 namespace ConPanqueque.LevelFns
 
 def Post {σ : Type} (s st : PanSemStateFiniteExact 64 σ) (c : Nat) : Prop :=
-  st.code = s.code ∧ st.memory = s.memory ∧ st.memaddrs = s.memaddrs ∧ s.clock ≤ st.clock + c
+  st.code = s.code ∧ st.memory = s.memory ∧ st.memaddrs = s.memaddrs ∧ s.clock ≤ st.clock + c ∧
+    st.globals = s.globals ∧ st.topAddr = s.topAddr
 
 /-- The `max`/`imax` case of `lhp_spec`, for node tag `tg ∈ {2, 3}`. -/
 theorem lhp_bin {σ : Type} (h : Heap) (p q r : BitVec 64) (tg : BitVec 64) (u v : ConLeche.Level)
@@ -89,9 +90,10 @@ theorem lhp_bin {σ : Type} (h : Heap) (p q r : BitVec 64) (tg : BitVec 64) (u v
   have lu2 : s2.locals.lookup nU = some (.val (.word p)) := by
     simp only [s2, s1]; rw [lookup_setVar_other _ _ dUR, lookup_setVar_other _ _ dUT]; exact hpu
   -- first call, on u
-  obtain ⟨st, ⟨pc, pm, pd, pclk⟩, hcall⟩ := call1 s2 nLhp nU nR lhpBody (.load .one (.op .add [vU, .const 16])) q
+  obtain ⟨st, ⟨pc, pm, pd, pclk, pg, pt⟩, hcall⟩ := call1 s2 nLhp nU nR lhpBody (.load .one (.op .add [vU, .const 16])) q
     (bit (ConLeche.levelHasParam u))
-    (fun st => st.code = s.code ∧ st.memory = s.memory ∧ st.memaddrs = s.memaddrs ∧ s.clock - 1 ≤ st.clock + cost u)
+    (fun st => st.code = s.code ∧ st.memory = s.memory ∧ st.memaddrs = s.memaddrs ∧ s.clock - 1 ≤ st.clock + cost u ∧
+      st.globals = s.globals ∧ st.topAddr = s.topAddr)
     (by simpa [s2, s1, setVarHOLFinite] using hc)
     (by rw [eval_load_word s2 _ (p + 16) (by simp [evalHOLExact, evalListHOLExact, vU, lu2, wordOpHOL, wordOp,
       valueIsWord, valueWord]) (by simpa [s2, s1, setVarHOLFinite] using d2)]
@@ -104,11 +106,13 @@ theorem lhp_bin {σ : Type} (h : Heap) (p q r : BitVec 64) (tg : BitVec 64) (u v
         (fun a w ha => by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using hm a w ha)
         (by simpa [callEntryStateHOLFinite] using hcl)
         (by simp [callEntryStateHOLFinite, s2, s1, setVarHOLFinite]; omega)
-      obtain ⟨a1, a2, a3, a4⟩ := post
+      obtain ⟨a1, a2, a3, a4, a5, a6⟩ := post
       exact ⟨st, ev, by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using a1,
         by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using a2,
         by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using a3,
-        by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using a4⟩)
+        by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using a4,
+        by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using a5,
+        by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using a6⟩)
   let s3 := setKvarHOLFinite .local nR (.val (.word (bit (ConLeche.levelHasParam u)))) { st with locals := s2.locals }
   have lt3 : s3.locals.lookup nT = some (.val (.word tg)) := by
     simp only [s3, setKvarHOLFinite]; rw [lookup_setVar_other _ _ (Ne.symm dRT)]; exact lt2
@@ -131,10 +135,10 @@ theorem lhp_bin {σ : Type} (h : Heap) (p q r : BitVec 64) (tg : BitVec 64) (u v
     have lr3' : s3.locals.lookup nR = some (.val (.word 0)) := by simpa [bit, hlu] using lr3
     rw [ite_word s3 _ _ _ 0 (by simp [evalHOLExact, vR, lr3', Flapjack.Compiler.Encoders.Asm.wordCmpHOL])]
     simp only [ne_eq, not_true_eq_false, ite_false]
-    obtain ⟨st2, ⟨qc, qm, qd, qclk⟩, hcall2⟩ := call1 s3 nLhp nU nR lhpBody
+    obtain ⟨st2, ⟨qc, qm, qd, qclk, qg, qt⟩, hcall2⟩ := call1 s3 nLhp nU nR lhpBody
       (.load .one (.op .add [vU, .const 24])) r (bit (ConLeche.levelHasParam v))
       (fun st2 => st2.code = s.code ∧ st2.memory = s.memory ∧ st2.memaddrs = s.memaddrs ∧
-        st.clock - 1 ≤ st2.clock + cost v)
+        st.clock - 1 ≤ st2.clock + cost v ∧ st2.globals = s.globals ∧ st2.topAddr = s.topAddr)
       (by simpa [s3, setKvarHOLFinite, setVarHOLFinite, pc] using hc)
       (by rw [eval_load_word s3 _ (p + 24) (by simp [evalHOLExact, evalListHOLExact, vU, lu3, wordOpHOL, wordOp,
         valueIsWord, valueWord]) (by simpa [s3, setKvarHOLFinite, setVarHOLFinite, pd] using d3)]
@@ -149,11 +153,13 @@ theorem lhp_bin {σ : Type} (h : Heap) (p q r : BitVec 64) (tg : BitVec 64) (u v
             simpa [callEntryStateHOLFinite, s3, setKvarHOLFinite, setVarHOLFinite, pm, pd] using this)
           (by simpa [callEntryStateHOLFinite] using hcl)
           (by simp [callEntryStateHOLFinite, s3, setKvarHOLFinite, setVarHOLFinite]; omega)
-        obtain ⟨a1, a2, a3, a4⟩ := post
+        obtain ⟨a1, a2, a3, a4, a5, a6⟩ := post
         exact ⟨st2, ev, by simpa [callEntryStateHOLFinite, s3, setKvarHOLFinite, setVarHOLFinite, pc] using a1,
           by simpa [callEntryStateHOLFinite, s3, setKvarHOLFinite, setVarHOLFinite, pm] using a2,
           by simpa [callEntryStateHOLFinite, s3, setKvarHOLFinite, setVarHOLFinite, pd] using a3,
-          by simpa [callEntryStateHOLFinite, s3, setKvarHOLFinite, setVarHOLFinite] using a4⟩)
+          by simpa [callEntryStateHOLFinite, s3, setKvarHOLFinite, setVarHOLFinite] using a4,
+          by simpa [callEntryStateHOLFinite, s3, setKvarHOLFinite, setVarHOLFinite, pg] using a5,
+          by simpa [callEntryStateHOLFinite, s3, setKvarHOLFinite, setVarHOLFinite, pt] using a6⟩)
     let s4 := setKvarHOLFinite .local nR (.val (.word (bit (ConLeche.levelHasParam v)))) { st2 with locals := s3.locals }
     have lr4 : s4.locals.lookup nR = some (.val (.word (bit (ConLeche.levelHasParam v)))) := by
       simp [s4, setKvarHOLFinite]
@@ -166,7 +172,9 @@ theorem lhp_bin {σ : Type} (h : Heap) (p q r : BitVec 64) (tg : BitVec 64) (u v
     refine ⟨_, rfl, ?_⟩
     refine ⟨by simp [s4, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, qc],
       by simp [s4, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, qm],
-      by simp [s4, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, qd], ?_⟩
+      by simp [s4, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, qd], ?_,
+      by simp [s4, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, qg],
+      by simp [s4, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, qt]⟩
     simp [s4, s3, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite] at qclk ⊢
     omega
   · -- u has a parameter: return 1
@@ -178,7 +186,9 @@ theorem lhp_bin {σ : Type} (h : Heap) (p q r : BitVec 64) (tg : BitVec 64) (u v
     refine ⟨_, Prod.ext (by simp [evalHOLExact, shapeOfHOLExact, bit]) rfl, ?_⟩
     refine ⟨by simp [s3, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, evalHOLExact, shapeOfHOLExact, pc],
       by simp [s3, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, evalHOLExact, shapeOfHOLExact, pm],
-      by simp [s3, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, evalHOLExact, shapeOfHOLExact, pd], ?_⟩
+      by simp [s3, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, evalHOLExact, shapeOfHOLExact, pd], ?_,
+      by simp [s3, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, evalHOLExact, shapeOfHOLExact, pg],
+      by simp [s3, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, evalHOLExact, shapeOfHOLExact, pt]⟩
     simp [s3, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, evalHOLExact, shapeOfHOLExact]
     omega
 
@@ -232,9 +242,10 @@ theorem lhp_spec {σ : Type} (h : Heap) {p : BitVec 64} {lv : ConLeche.Level} (h
       simp only [s2]; rw [lookup_setVar_other _ _ (Ne.symm dRT)]; exact lt1
     have lu2 : s2.locals.lookup nU = some (.val (.word p)) := by
       simp only [s2, s1]; rw [lookup_setVar_other _ _ dUR, lookup_setVar_other _ _ dUT]; exact hpu
-    obtain ⟨st, ⟨pc, pm, pd, pclk⟩, hcall⟩ := call1 s2 nLhp nU nR lhpBody (.load .one (.op .add [vU, .const 16])) q
+    obtain ⟨st, ⟨pc, pm, pd, pclk, pg, pt⟩, hcall⟩ := call1 s2 nLhp nU nR lhpBody (.load .one (.op .add [vU, .const 16])) q
       (bit (ConLeche.levelHasParam u))
-      (fun st => st.code = s.code ∧ st.memory = s.memory ∧ st.memaddrs = s.memaddrs ∧ s.clock - 1 ≤ st.clock + cost u)
+      (fun st => st.code = s.code ∧ st.memory = s.memory ∧ st.memaddrs = s.memaddrs ∧ s.clock - 1 ≤ st.clock + cost u ∧
+      st.globals = s.globals ∧ st.topAddr = s.topAddr)
       (by simpa [s2, s1, setVarHOLFinite] using hc)
       (by rw [eval_load_word s2 _ (p + 16) (by simp [evalHOLExact, evalListHOLExact, vU, lu2, wordOpHOL, wordOp,
         valueIsWord, valueWord]) (by simpa [s2, s1, setVarHOLFinite] using d2)]
@@ -247,11 +258,13 @@ theorem lhp_spec {σ : Type} (h : Heap) {p : BitVec 64} {lv : ConLeche.Level} (h
           (fun a w ha => by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using hm a w ha)
           (by simpa [callEntryStateHOLFinite] using hcl)
           (by simp [callEntryStateHOLFinite, s2, s1, setVarHOLFinite]; omega)
-        obtain ⟨a1, a2, a3, a4⟩ := post
+        obtain ⟨a1, a2, a3, a4, a5, a6⟩ := post
         exact ⟨st, ev, by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using a1,
           by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using a2,
           by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using a3,
-          by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using a4⟩)
+          by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using a4,
+          by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using a5,
+          by simpa [callEntryStateHOLFinite, s2, s1, setVarHOLFinite] using a6⟩)
     let s3 := setKvarHOLFinite .local nR (.val (.word (bit (ConLeche.levelHasParam u)))) { st with locals := s2.locals }
     have lt3 : s3.locals.lookup nT = some (.val (.word 1)) := by
       simp only [s3, setKvarHOLFinite]; rw [lookup_setVar_other _ _ (Ne.symm dRT)]; exact lt2
@@ -276,7 +289,9 @@ theorem lhp_spec {σ : Type} (h : Heap) {p : BitVec 64} {lv : ConLeche.Level} (h
     refine ⟨_, rfl, ?_⟩
     refine ⟨by simp [s3, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, pc],
       by simp [s3, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, pm],
-      by simp [s3, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, pd], ?_⟩
+      by simp [s3, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, pd], ?_,
+      by simp [s3, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, pg],
+      by simp [s3, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, pt]⟩
     simp [s3, setKvarHOLFinite, setVarHOLFinite, emptyLocalsHOLFinite, cost]
     omega
   | @max p q r u v hp h0 h1 h2 h3 hu hv ihu ihv =>
