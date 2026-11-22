@@ -1,4 +1,5 @@
 import ConPanqueque.T.LvlEq
+import ConPanqueque.T.CallN
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena
@@ -150,5 +151,38 @@ theorem lrep_mkParam (C : Ctx) (ls : LStore) (H2 ws : List (BitVec 64)) (nh : NI
 theorem lrep_mkZero (C : Ctx) (ls : LStore) (H2 ws : List (BitVec 64)) (h1 : ws.length = 1) :
     LRep C.HB ((H2 ++ ws).set H2.length (BitVec.ofNat 64 0)) ls (cellA C H2.length) .zero :=
   Or.inr ⟨H2.length, rfl, img1_get H2 ws _ h1⟩
+
+/-! ## Level-valued functions -/
+
+/-- A level-valued pure function's post: the result word represents the tree at a bigger image. -/
+def PostLv (C : Ctx) (l : ConLeche.Level) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
+  ∃ H', C.H <+: H' ∧ LRep C.HB H' s'.store.ls w l ∧ SR (ctxH C H') s' st
+
+theorem postLv_locals (C : Ctx) : ∀ (a : ConLeche.Level) w s' (st : PState σ)
+    (L : HolFiniteMapExact MlS (ValueHOL 64)), PostLv C a w s' st → PostLv C a w s' { st with locals := L } :=
+  fun _ _ _ _ _ ⟨H', hp, hl, hs⟩ => ⟨H', hp, hl, sr_of_eq hs rfl rfl rfl rfl⟩
+
+/-- Calling a level-valued pure function: the continuation runs at the image holding the result. -/
+theorem callLv_spec {β : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64}
+    {k : ConLeche.Level → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    (x f : MlS) (ps : List MlS) (es : List (ExpHOL 64)) (B : ProgHOL 64) (vs : List (BitVec 64))
+    (hnd : ps.Nodup) (hl : vs.length = ps.length)
+    (hx : x ∈ D) (hC : C.code.lookup f = some (ps.map (fun p => (p, ShapeHOL.one)), B, .one))
+    (hes : EvAll (fun e v => sev Γ e = some v) es vs) (F : ConLeche.Level)
+    (hspec : SpecR (Pre (σ := σ) C s (ps.zip vs)) B s (pure F) (PostLv C))
+    (hk : ∀ H' w, C.H <+: H' → LRep C.HB H' s.store.ls w F →
+      SpecR (Inv (ctxH C H') s ((x, w) :: Γ) [] D) rest s (k F) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, x), none)) f es) rest) s (pure F >>= k) R := by
+  refine specR_callNIH x f ps es B vs hnd hl hx hC hes (fun a w s' st => s' = s ∧ a = F ∧ PostLv C a w s' st)
+    (fun a w s' H' => s' = s ∧ a = F ∧ LRep C.HB H' s'.store.ls w a)
+    (fun a w s' st ⟨hs, ha, H', hp, hlr, hsr⟩ => ⟨H', hp, ⟨hs, ha, hlr⟩, hsr⟩)
+    (fun u hu _ hlk => by
+      have H0 : SpecR (· = u) B s (pure F : AM ConLeche.Level) (PostLv C) :=
+        fun w hw => by subst hw; exact hspec _ (pre_of_lookups hu ps vs hl hlk)
+      refine specR_mono (specR_run H0) (fun _ h => h) (fun a w s' st hp => ?_)
+      obtain ⟨hrun, hp⟩ := hp
+      simp only [pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at hrun
+      exact ⟨hrun.2.symm, hrun.1.symm, hp⟩)
+    (fun a w s' H' hp ⟨hs, ha, hlr⟩ => by subst hs ha; exact hk H' w hp hlr)
 
 end ConPanqueque.T
