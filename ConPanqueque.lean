@@ -27,6 +27,7 @@ import ConPanqueque.ILP
 import ConPanqueque.InstList
 import ConPanqueque.ArenaRep
 import ConPanqueque.LowTable
+import ConPanqueque.Spine
 import ConPanqueque.LevelFns
 import ConPanqueque.LevelFold
 import ConPanqueque.Table
