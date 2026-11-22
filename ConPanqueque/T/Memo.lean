@@ -445,4 +445,66 @@ theorem memoSet_spec (G KB : BitVec 64) (g : VGeo) (m : Std.HashMap (EIdx × Nat
       refine ⟨?_, ?_⟩ <;> rw [toNat_add_of_lt _ _ (by omega)] <;> omega
     rw [if_neg (fun e => hc (by rw [e]; exact hin)), m2 c hc]
 
+/-! ## The twin's `inst1Get`, in a caller -/
+
+theorem limbs_small (d : Nat) (hd : d < 2 ^ 64) : Enc.limbs d = if d = 0 then [] else [BitVec.ofNat 64 d] := by
+  unfold Enc.limbs
+  by_cases h : d = 0
+  · simp [h]
+  · simp only [h, ↓reduceDIte, ite_false]
+    rw [Nat.div_eq_of_lt hd]
+    simp [Enc.limbs, Nat.mod_eq_of_lt hd]
+
+/-- The key length word `1 + (d ≠ 0)`. -/
+def lenE (ed : ExpHOL 64) : ExpHOL 64 := .op .add [.const 1, .cmp .notEqual ed (.const 0)]
+
+theorem sev_lenE (Γ : Env) (ed : ExpHOL 64) (d : Nat) (hd : d < 2 ^ 63) (he : sev Γ ed = some (BitVec.ofNat 64 d))
+    (h : EIdx) : sev Γ (lenE ed) = some (BitVec.ofNat 64 (encMemo (h, d)).length) := by
+  simp only [lenE, sev, he]
+  simp only [encMemo, List.length_cons, limbs_small d (by omega)]
+  by_cases h0 : d = 0
+  · subst h0; simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+  · have : BitVec.ofNat 64 d ≠ 0#64 := by
+      intro e; have := congrArg BitVec.toNat e; simp at this; omega
+    simp [h0, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, this]
+
+theorem inst1Get_run (k : EIdx × Nat) (s : AState) : inst1Get k s = .ok (s.memos.inst1C[k]?, s) := rfl
+
+theorem specR_inst1GetI {β : Type} {C : Ctx} (hok : CtxOK C)
+    (hcodeG : C.code.lookup fMemoGet = some ([(pG, .one), (pLen, .one)], memoGetBody, .one))
+    (hcodeP : C.code.lookup fMemoProbe = some ([(pG, .one), (pLen, .one)], memoProbeBody, .one))
+    {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64} {k : Option EIdx → AM β}
+    {R : β → BitVec 64 → AState → PState σ → Prop}
+    (x : MlS) (eh ed : ExpHOL 64) (h : EIdx) (d : Nat) (hd : d < 2 ^ 63) (hx : x ∈ D)
+    (heh : sev Γ eh = some (Enc.idxW h)) (hed : sev Γ ed = some (BitVec.ofNat 64 d)) (hkb : Γ.get lKb = some C.KB)
+    (hk : ∀ r, SpecR (Inv C s ((x, optW r) :: Γ) [] D) rest s (k r) R) :
+    SpecR (Inv C s Γ M D)
+      (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 0))]) eh)
+        (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 1))]) ed)
+          (.seq (.call (some (some (.local, x), none)) fMemoGet [.const C.mG, lenE ed]) rest)))
+      s (inst1Get (h, d) >>= k) R := by
+  refine specR_storeKB2I hok eh ed (Enc.idxW h) (BitVec.ofNat 64 d) heh hed hkb ?_
+  refine specR_call2IM x fMemoGet pG pLen (by decide) (.const C.mG) (lenE ed) memoGetBody C.mG
+    (BitVec.ofNat 64 (encMemo (h, d)).length) hx hcodeG rfl (sev_lenE _ ed d hd hed h)
+    (fun a w s' st => s' = s ∧ w = optW a ∧ SR C s st) (fun _ _ _ _ hp => by rw [hp.1]; exact hp.2.2)
+    (fun u hsr hM h1 h2 => ?_) (fun a w s' st hp => by obtain ⟨rfl, rfl, _⟩ := hp; exact hk a)
+  have hW : Words u C.KB (encMemo (h, d)) := by
+    intro j hj
+    have hl : (encMemo (h, d)).length ≤ 2 := by
+      simp only [encMemo, List.length_cons, limbs_small d (by omega)]; split <;> simp
+    rcases (by omega : j = 0 ∨ j = 1) with rfl | rfl
+    · have e0 : (encMemo (h, d))[0]'hj = Enc.idxW h := rfl
+      rw [e0]; exact hM _ _ (by simp)
+    · have h0 : d ≠ 0 := by
+        intro e; subst e; simp [encMemo, Enc.limbs] at hj
+      have e1 : (encMemo (h, d))[1]'hj = BitVec.ofNat 64 d := by
+        simp only [encMemo, limbs_small d (by omega), h0, ite_false]; rfl
+      rw [e1]; exact hM _ _ (by simp)
+  have G := memoGet_spec (σ := σ) (α := Unit) C.mG C.KB C.mg s.memos.inst1C (h, d) s u hsr.inst1 hW
+    (by simp only [encMemo, List.length_cons, limbs_small d (by omega)]; split <;> simp)
+    hsr.gkb h1 h2 (by rw [hsr.code]; exact hcodeP)
+  refine specR_congr (inst1Get_run (h, d) s) (specR_mono G (fun v hv => hv) (fun a w s' st hp => ?_))
+  obtain ⟨hs, hw, hm, hd', hg, hc⟩ := hp
+  exact ⟨hs, hw, sr_of_eq hsr hm hd' hg hc⟩
+
 end ConPanqueque.T
