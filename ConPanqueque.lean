@@ -91,6 +91,8 @@ import ConPanqueque.T.MemoClear
 import ConPanqueque.T.MemoN
 import ConPanqueque.T.Heap
 import ConPanqueque.T.Loop
+import ConPanqueque.T.Blk
+import ConPanqueque.T.Copy
 import ConPanqueque.V.DerWrite
 import ConPanqueque.LevelFns
 import ConPanqueque.LevelFold
