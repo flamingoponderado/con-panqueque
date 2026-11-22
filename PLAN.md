@@ -294,8 +294,11 @@ applies the combinators by goal shape, and the bulk translation.
 The hand proofs (`getAppFn`, `sizeB`, `instantiate1Go`) fixed the shape of the
 primitives and combinators. The twin code still to translate on the path to
 the top-level theorem is about 18k lines (`Core` 4.6k, `ExprOps` 2.3k,
-`DeclCheck`, `Inductives/*`, the frontend, pins, the stream index), which is
-out of reach by hand. Two pieces come next:
+`DeclCheck`, `Inductives/*`, the frontend, pins, the stream index). With the
+primitives in place a function costs tens to a few hundred lines of proof, so
+the plan is to continue function by function, adding primitives as needed;
+automation (item 2) is a speed-up, not a prerequisite. Pieces needed along
+the way:
 
 1. **Heap values.** Lists, options, products and records (the twin's
    `List EIdx`, `IConstantInfo`, …) as immutable cells in an append-only heap
