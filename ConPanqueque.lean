@@ -53,6 +53,7 @@ import ConPanqueque.V.ListDer
 import ConPanqueque.V.NatHash
 import ConPanqueque.V.EIntern
 import ConPanqueque.V.ESort
+import ConPanqueque.V.EGen
 import ConPanqueque.LevelFns
 import ConPanqueque.LevelFold
 import ConPanqueque.Table
