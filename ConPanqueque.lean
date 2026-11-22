@@ -7,5 +7,6 @@ import ConPanqueque.ExprRep
 import ConPanqueque.Arena
 import ConPanqueque.Hash
 import ConPanqueque.DataWord
+import ConPanqueque.AppData
 import ConPanqueque.LevelCons
 import ConPanqueque.Examples.ListLength
