@@ -462,4 +462,45 @@ theorem copyLoop_spec (t : PanSemStateFiniteExact 64 σ) (A B : BitVec 64) (xs :
   · exact Or.inr ⟨h1, h2, h3⟩
 end
 
+/-! ## Evaluation combinators over a general state -/
+
+section
+variable {σ : Type} (s : PanSemStateFiniteExact 64 σ)
+
+local notation "EV" e => @evalHOLExact 64 σ _ (PanSemStateFiniteExact.toExact s)
+  (fun a => Classical.propDecidable (PanSemStateFiniteExact.memaddrs s a)) e
+
+theorem eval_const (c : BitVec 64) : (EV (.const c)) = some (.val (.word c)) := by simp [evalHOLExact]
+
+theorem eval_add2 (e1 e2 : ExpHOL 64) (v1 v2 : BitVec 64) (h1 : (EV e1) = some (.val (.word v1)))
+    (h2 : (EV e2) = some (.val (.word v2))) : (EV (.op .add [e1, e2])) = some (.val (.word (v1 + v2))) := by
+  rw [evalHOLExact]; simp [evalListHOLExact, h1, h2, wordOpHOL, wordOp, valueIsWord, valueWord]
+
+theorem eval_add3 (e1 e2 e3 : ExpHOL 64) (v1 v2 v3 : BitVec 64) (h1 : (EV e1) = some (.val (.word v1)))
+    (h2 : (EV e2) = some (.val (.word v2))) (h3 : (EV e3) = some (.val (.word v3))) :
+    (EV (.op .add [e1, e2, e3])) = some (.val (.word (v1 + v2 + v3))) := by
+  rw [evalHOLExact]; simp [evalListHOLExact, h1, h2, h3, wordOpHOL, wordOp, valueIsWord, valueWord, BitVec.add_assoc]
+
+theorem eval_sub2 (e1 e2 : ExpHOL 64) (v1 v2 : BitVec 64) (h1 : (EV e1) = some (.val (.word v1)))
+    (h2 : (EV e2) = some (.val (.word v2))) : (EV (.op .sub [e1, e2])) = some (.val (.word (v1 - v2))) := by
+  rw [evalHOLExact]; simp [evalListHOLExact, h1, h2, wordOpHOL, wordOp, valueIsWord, valueWord]
+
+theorem eval_shl (e : ExpHOL 64) (c v : BitVec 64) (h : (EV e) = some (.val (.word v))) (hc : c.toNat < 64) :
+    (EV (.shift .lsl e (.const c))) = some (.val (.word (v <<< c.toNat))) := by
+  rw [evalHOLExact]; simp [evalHOLExact, h, wordShiftHOL]; omega
+
+theorem eval_shr (e : ExpHOL 64) (c v : BitVec 64) (h : (EV e) = some (.val (.word v))) (hc : c.toNat < 64) :
+    (EV (.shift .lsr e (.const c))) = some (.val (.word (v >>> c.toNat))) := by
+  rw [evalHOLExact]; simp [evalHOLExact, h, wordShiftHOL]; omega
+
+end
+
+theorem shl_ofNat (c k : Nat) (h : 2 ^ k * c < 2 ^ 64) :
+    BitVec.ofNat 64 c <<< k = BitVec.ofNat 64 (2 ^ k * c) := by
+  apply BitVec.eq_of_toNat_eq
+  simp only [BitVec.toNat_shiftLeft, BitVec.toNat_ofNat, Nat.shiftLeft_eq]
+  have : c < 2 ^ 64 := by
+    have := Nat.one_le_two_pow (n := k); exact Nat.lt_of_le_of_lt (Nat.le_mul_of_pos_left c this) h
+  rw [Nat.mod_eq_of_lt this, Nat.mod_eq_of_lt (by rw [Nat.mul_comm]; exact h), Nat.mod_eq_of_lt h, Nat.mul_comm]
+
 end ConPanqueque.V

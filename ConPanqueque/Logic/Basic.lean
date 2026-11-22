@@ -257,6 +257,10 @@ theorem dec_word_eq {σ : Type} (s : PanSemStateFiniteExact 64 σ) (x : MlS) (e 
   rw [evaluateHOLFiniteState_eq_evaluate_def]
   simp [he, shapeOfHOLExact, shapeEqHOL]
 
+theorem lookup_resVar_same (m : HolFiniteMapExact MlS (ValueHOL 64)) (x : MlS) (o : Option (ValueHOL 64)) :
+    (HolFiniteMapExact.resVarEq m (x, o)).lookup x = o := by
+  cases o <;> simp [FDOMSUB_HOL, FUPDATE_HOL]
+
 theorem lookup_resVar_other (m : HolFiniteMapExact MlS (ValueHOL 64)) (x y : MlS) (o : Option (ValueHOL 64))
     (h : y ≠ x) : (HolFiniteMapExact.resVarEq m (x, o)).lookup y = m.lookup y := by
   cases o <;> simp [FDOMSUB_HOL, FUPDATE_HOL, h]

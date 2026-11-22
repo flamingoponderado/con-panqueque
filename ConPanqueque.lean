@@ -38,6 +38,7 @@ import ConPanqueque.ConsGeo
 import ConPanqueque.ConsApp2
 import ConPanqueque.V.Key
 import ConPanqueque.V.Probe
+import ConPanqueque.V.Ins
 import ConPanqueque.LevelFns
 import ConPanqueque.LevelFold
 import ConPanqueque.Table

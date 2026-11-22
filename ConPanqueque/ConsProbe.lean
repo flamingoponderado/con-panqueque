@@ -23,10 +23,6 @@ def probeTier : ProgHOL 64 :=
 /-- Locals agree outside `A`. -/
 def Fr (A : List MlS) (u t : HolFiniteMapExact MlS (ValueHOL 64)) : Prop := ∀ y, y ∉ A → u.lookup y = t.lookup y
 
-theorem lookup_resVar_same (m : HolFiniteMapExact MlS (ValueHOL 64)) (x : MlS) (o : Option (ValueHOL 64)) :
-    (HolFiniteMapExact.resVarEq m (x, o)).lookup x = o := by
-  cases o <;> simp [FDOMSUB_HOL, FUPDATE_HOL]
-
 theorem fr_dec {σ : Type} {s : PanSemStateFiniteExact 64 σ} {x : MlS} {v : ValueHOL 64} {A : List MlS}
     {m : HolFiniteMapExact MlS (ValueHOL 64)} (h : Fr (x :: A) m (setVarHOLFinite x v s).locals) :
     Fr A (HolFiniteMapExact.resVarEq m (x, s.locals.lookup x)) s.locals := by
