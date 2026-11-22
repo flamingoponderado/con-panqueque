@@ -46,6 +46,15 @@ theorem step_assignI {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} 
   rw [ConsLoop.assign_local t x e v w0 (inv_ev ht he) h0]
   exact Or.inr ⟨rfl, inv_set ht x v⟩
 
+theorem step_loadI {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} (x : MlS) (e : ExpHOL 64)
+    (a v : BitVec 64) (hx : x ∈ D) (he : sev Γ e = some a) (hm : (a, v) ∈ M) :
+    Step (Inv (σ := σ) C s Γ M D) (.assign .local x (.load .one e)) (Inv C s ((x, v) :: Γ) M D) := by
+  intro t ht
+  obtain ⟨w0, h0⟩ := ht.decl x hx
+  rw [ConsLoop.assign_local t x _ v w0
+    (by rw [eval_load_word t _ _ (inv_ev ht he) (ht.mem a v hm).1, (ht.mem a v hm).2]) h0]
+  exact Or.inr ⟨rfl, inv_set ht x _⟩
+
 theorem step_heapLoadI {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} (x : MlS) (e : ExpHOL 64)
     (j : Nat) (hj : j < C.H.length) (hx : x ∈ D) (he : sev Γ e = some (cellA C j)) :
     Step (Inv (σ := σ) C s Γ M D) (.assign .local x (.load .one e)) (Inv C s ((x, C.H[j]) :: Γ) M D) := by
