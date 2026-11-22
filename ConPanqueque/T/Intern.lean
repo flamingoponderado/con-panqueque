@@ -126,6 +126,9 @@ structure CtxOK (C : Ctx) : Prop where
   kbMdesc : ∀ k j, k < 8 → j < 3 → C.mG + BitVec.ofNat 64 (8 * k) ≠ C.KB + BitVec.ofNat 64 (8 * j)
   memoOut : ∀ c, inR C.mg c → ¬ inAny C.L c
   mdescOut : ∀ k, k < 8 → ¬ inAny C.L (C.mG + BitVec.ofNat 64 (8 * k))
+  flMemo : ∀ F, (F = C.FLn ∨ F = C.FLl ∨ F = C.FLs ∨ F = C.FLe) → ¬ inR C.mg F
+  dirMemo : ∀ k tier m, k < 19 → tier < 2 → m < 8 → ¬ inR C.mg (descAddr C.L k tier + BitVec.ofNat 64 (8 * m))
+  mdescMemo : ∀ k, k < 8 → ¬ inR C.mg (C.mG + BitVec.ofNat 64 (8 * k))
 
 def fInternApp := ofString "internApp"
 

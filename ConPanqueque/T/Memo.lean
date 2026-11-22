@@ -507,4 +507,62 @@ theorem specR_inst1GetI {β : Type} {C : Ctx} (hok : CtxOK C)
   obtain ⟨hs, hw, hm, hd', hg, hc⟩ := hp
   exact ⟨hs, hw, sr_of_eq hsr hm hd' hg hc⟩
 
+/-! ## The twin's `inst1Set`, in a caller -/
+
+theorem inst1Set_run (k : EIdx × Nat) (r : EIdx) (s : AState) :
+    inst1Set k r s = .ok ((), { s with memos := { s.memos with inst1C := s.memos.inst1C.insert k r } }) := rfl
+
+theorem specR_inst1SetI {β : Type} {C : Ctx} (hok : CtxOK C)
+    (hcodeS : C.code.lookup fMemoSet = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoSetBody, .one))
+    (hcodeI : C.code.lookup fMemoIns = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoInsBody, .one))
+    {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64} {k : Unit → AM β}
+    {R : β → BitVec 64 → AState → PState σ → Prop}
+    (x : MlS) (eh ed ev : ExpHOL 64) (h : EIdx) (d : Nat) (r : EIdx) (hd : d < 2 ^ 63) (hx : x ∈ D)
+    (heh : sev Γ eh = some (Enc.idxW h)) (hed : sev Γ ed = some (BitVec.ofNat 64 d))
+    (hev : sev Γ ev = some (Enc.idxW r)) (hkb : Γ.get lKb = some C.KB)
+    (hk : ∀ w, SpecR (Inv C { s with memos := { s.memos with inst1C := s.memos.inst1C.insert (h, d) r } }
+      ((x, w) :: Γ) [] D) rest { s with memos := { s.memos with inst1C := s.memos.inst1C.insert (h, d) r } }
+      (k ()) R) :
+    SpecR (Inv C s Γ M D)
+      (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 0))]) eh)
+        (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 1))]) ed)
+          (.seq (.call (some (some (.local, x), none)) fMemoSet [.const C.mG, lenE ed, ev]) rest)))
+      s (inst1Set (h, d) r >>= k) R := by
+  let s' : AState := { s with memos := { s.memos with inst1C := s.memos.inst1C.insert (h, d) r } }
+  refine specR_storeKB2I hok eh ed (Enc.idxW h) (BitVec.ofNat 64 d) heh hed hkb ?_
+  refine specR_call3IM x fMemoSet pG pLen pVal (by decide) (by decide) (by decide) (.const C.mG) (lenE ed) ev
+    memoSetBody C.mG (BitVec.ofNat 64 (encMemo (h, d)).length) (Enc.idxW r) hx hcodeS rfl (sev_lenE _ ed d hd hed h) hev
+    (fun _ _ s'' st => s'' = s' ∧ SR C s' st) (fun _ _ _ _ hp => by rw [hp.1]; exact hp.2)
+    (fun u hsr hM h1 h2 h3 => ?_) (fun a w s'' st hp => by obtain ⟨rfl, _⟩ := hp; exact hk w)
+  have hW : Words u C.KB (encMemo (h, d)) := by
+    intro j hj
+    have hl : (encMemo (h, d)).length ≤ 2 := by
+      simp only [encMemo, List.length_cons, limbs_small d (by omega)]; split <;> simp
+    rcases (by omega : j = 0 ∨ j = 1) with rfl | rfl
+    · have e0 : (encMemo (h, d))[0]'hj = Enc.idxW h := rfl
+      rw [e0]; exact hM _ _ (by simp)
+    · have h0 : d ≠ 0 := by
+        intro e; subst e; simp [encMemo, Enc.limbs] at hj
+      have e1 : (encMemo (h, d))[1]'hj = BitVec.ofNat 64 d := by
+        simp only [encMemo, limbs_small d (by omega), h0, ite_false]; rfl
+      rw [e1]; exact hM _ _ (by simp)
+  have hl2 : (encMemo (h, d)).length ≤ 2 := by
+    simp only [encMemo, List.length_cons, limbs_small d (by omega)]; split <;> simp
+  have hlen : (encMemo (h, d)).length < 2 ^ 61 := by omega
+  have S := memoSet_spec (σ := σ) C.mG C.KB C.mg s.memos.inst1C (h, d) r s u hsr.inst1 hW hlen
+    (fun j hj => hok.kbMemo j (by omega)) (fun j hj => hok.mdescMemo j hj) hsr.gkb h1 h2 h3
+    (by rw [hsr.code]; exact hcodeI)
+  intro t ht
+  rcases S t ht with hs | ⟨w, hr, _, s'', _, hp⟩
+  · exact Or.inl hs
+  obtain ⟨_, hmem, hfr, hd', hg, hc⟩ := hp
+  subst ht
+  refine Or.inr ⟨w, hr, (), s', inst1Set_run (h, d) r s, rfl, ⟨srep_frame hsr.rep ⟨hfr _ (hok.flMemo _ (Or.inl rfl)), hfr _ (hok.flMemo _ (Or.inr (Or.inl rfl))),
+      hfr _ (hok.flMemo _ (Or.inr (Or.inr (Or.inl rfl)))), hfr _ (hok.flMemo _ (Or.inr (Or.inr (Or.inr rfl))))⟩ hd'
+      (fun kk tier hk1 hk2 => ⟨fun mm hm => hfr _ (hok.dirMemo kk tier mm hk1 hk2 hm),
+        fun c hc => hfr c (fun hin => hok.memoOut c hin ⟨kk, tier, hk1, hk2, hc⟩)⟩),
+    by rw [hg]; exact hsr.gdir, by rw [hg]; exact hsr.gfln, by rw [hg]; exact hsr.gfll, by rw [hg]; exact hsr.gfls,
+    by rw [hg]; exact hsr.gfle, by rw [hg]; exact hsr.gkb, by rw [hc]; exact hsr.code,
+    fun j hj => by rw [hd']; exact hsr.kbuf j hj, hmem⟩⟩
+
 end ConPanqueque.T
