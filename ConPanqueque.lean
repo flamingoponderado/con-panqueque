@@ -14,4 +14,5 @@ import ConPanqueque.BinCons
 import ConPanqueque.Tail
 import ConPanqueque.LevelFns
 import ConPanqueque.Translate.Exp
+import ConPanqueque.Translate.ConLecheWords
 import ConPanqueque.Examples.ListLength

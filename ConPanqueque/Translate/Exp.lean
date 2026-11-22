@@ -18,7 +18,7 @@ namespace ConPanqueque.Translate
 
 /-- Compile a Lean `UInt64` term (variables `vars`, each named after its Pancake
 local) to surface syntax for an `ExpHOL 64`. -/
-partial def toPanSyntax (vars : Array (Expr × String)) (e : Expr) : MetaM (TSyntax `term) := do
+partial def toPanSyntax (vars : Array (Expr × String)) (e : Expr) : StateT (Array Name) MetaM (TSyntax `term) := do
   let e ← instantiateMVars e
   for (v, n) in vars do
     if e == v then return ← `(ExpHOL.var .local (ofString $(quote n)))
@@ -64,20 +64,26 @@ partial def toPanSyntax (vars : Array (Expr × String)) (e : Expr) : MetaM (TSyn
         | (``Ne, #[_, a, b]) => do `(ExpHOL.cmp .notEqual $(← toPanSyntax vars a) $(← toPanSyntax vars b))
         | _ => throwError "toPanSyntax: unsupported condition {c}"
       `(ExpHOL.op .add [$y', ExpHOL.panop .mul [ExpHOL.op .sub [$x', $y'], $cmp]])
-  | _ => throwError "toPanSyntax: unsupported term {e}"
+  | _ =>
+    -- a non-recursive definition (e.g. one of con-leche's helpers): unfold it
+    if e.getAppFn.isConst then
+      if let some e' ← unfoldDefinition? e then
+        modify (·.push e.getAppFn.constName!)
+        return ← toPanSyntax vars e'.headBeta
+    throwError "toPanSyntax: unsupported term {e}"
 
 /-- `pan_exp N := fun (x₁ … xₙ : UInt64) => t` defines `N : ExpHOL 64` computing `t`
 from the locals `x₁ … xₙ`, and `N_eval`, its correctness, proved by evaluation. -/
 elab "pan_exp " nm:ident " := " t:term : command => do
-  let (body, names) ← liftTermElabM do
+  let (body, names, unfolded) ← liftTermElabM do
     let f ← elabTerm t none
     synthesizeSyntheticMVarsNoPostponing
     let f ← instantiateMVars f
     lambdaTelescope f fun xs b => do
       let names ← xs.mapM fun x => do return (← x.fvarId!.getUserName).toString
       let b ← zetaReduce b
-      let s ← toPanSyntax (xs.zip names) b
-      return (s, names)
+      let (s, unf) ← (toPanSyntax (xs.zip names) b).run #[]
+      return (s, names, unf)
   let defName := nm.getId
   elabCommand (← `(def $nm : ExpHOL 64 := $body))
   let binders ← names.mapM fun n => `(Lean.Parser.Term.bracketedBinderF| ($(mkIdent n.toName) : UInt64))
@@ -86,8 +92,8 @@ elab "pan_exp " nm:ident " := " t:term : command => do
     `(Lean.Parser.Term.bracketedBinderF|
       ($h : s.locals.lookup (ofString $(quote n)) = some (.val (.word $(mkIdent n.toName).toBitVec))))
   let hnames := names.map fun n => mkIdent (Name.mkSimple ("h_" ++ n))
-  let simpArgs : Array (TSyntax ``Lean.Parser.Tactic.simpLemma) ← hnames.mapM fun h =>
-    `(Lean.Parser.Tactic.simpLemma| $h:term)
+  let simpArgs : Array (TSyntax ``Lean.Parser.Tactic.simpLemma) ←
+    (hnames ++ unfolded.map (fun c => mkIdent c)).mapM fun h => `(Lean.Parser.Tactic.simpLemma| $h:term)
   let app ← `($t $(names.map (fun n => (mkIdent n.toName : TSyntax `term)))*)
   let thm := mkIdent (defName ++ `eval)
   elabCommand (← `(
