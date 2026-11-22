@@ -78,13 +78,17 @@ theorem memoProbe_spec {α δ : Type} [BEq α] [LawfulBEq α] [Hashable α] [Dec
     refine Or.inr ⟨by rw [es]; exact m, by rw [es]; exact d, by rw [es]; exact c, by rw [es]; exact gl,
       Or.inr ⟨hf, er⟩⟩
 
+section
+variable {K V : Type} [BEq K] [LawfulBEq K] [Hashable K] [DecidableEq K] [Inhabited V] {enc : K → List (BitVec 64)}
+  {valW : V → BitVec 64}
+
 /-- A hit's value word: row `i` of the key holds the memo's answer at `D + 16 i`. -/
-theorem memo_value {t : PState σ} {g : VGeo} {m : Std.HashMap (EIdx × Nat) EIdx} {tb : Tbl (EIdx × Nat) Nat EIdx}
-    {rows : List (EIdx × Nat)} {ders : List (BitVec 64 × BitVec 64)} {slots : List Nat} {hu : Nat}
-    (hT : VT t encMemo rows ders slots g hu) (hr : TblRel tb rows id) (hder : tb.der.toList.map dWE = ders)
-    (hrel : MemoRel m tb) (k : EIdx × Nat) (i : Nat) (hf : tb.find? k = some i) :
+theorem memo_value {t : PState σ} {g : VGeo} {m : Std.HashMap K V} {tb : Tbl K Nat V}
+    {rows : List K} {ders : List (BitVec 64 × BitVec 64)} {slots : List Nat} {hu : Nat}
+    (hT : VT t enc rows ders slots g hu) (hr : TblRel tb rows id) (hder : tb.der.toList.map (dWG valW) = ders)
+    (hrel : MemoRel m tb) (k : K) (i : Nat) (hf : tb.find? k = some i) :
     i < g.cap ∧ ∃ v, m[k]? = some v ∧ t.memaddrs (g.D + BitVec.ofNat 64 (16 * i)) ∧
-      t.memory (g.D + BitVec.ofNat 64 (16 * i)) = .word (Enc.idxW v) := by
+      t.memory (g.D + BitVec.ofNat 64 (16 * i)) = .word (valW v) := by
   have hil : i < rows.length := by
     have := hr.cons k
     simp only [Tbl.find?] at hf
@@ -98,7 +102,7 @@ theorem memo_value {t : PState σ} {g : VGeo} {m : Std.HashMap (EIdx × Nat) EId
   obtain ⟨a1, _, a3, _⟩ := hT.der i hil
   have hsz : tb.der.size = rows.length := by
     have := congrArg List.length hder; simp at this; rw [this, hT.dlen]
-  have hdi : ders[i]'(by rw [hT.dlen]; exact hil) = dWE (tb.derAt i) := by
+  have hdi : ders[i]'(by rw [hT.dlen]; exact hil) = (dWG valW) (tb.derAt i) := by
     simp only [← hder, List.getElem_map, Array.getElem_toList, Tbl.derAt, Array.getD_eq_getD_getElem?,
       Array.getElem?_eq_getElem (show i < tb.der.size by omega), Option.getD_some]
   refine ⟨by omega, tb.derAt i, by rw [hrel k, hf]; rfl, a1, by rw [a3, hdi]; rfl⟩
@@ -119,9 +123,11 @@ def memoGetBody : ProgHOL 64 :=
       (.return (.const 0))))
 
 /-- A memo answer as `memoGet` returns it. -/
-def optW : Option EIdx → BitVec 64
-  | some v => Enc.idxW v + 1
+def optWG {V : Type} (valW : V → BitVec 64) : Option V → BitVec 64
+  | some v => valW v + 1
   | none => 0
+
+abbrev optW : Option EIdx → BitVec 64 := optWG Enc.idxW
 
 theorem idxW_add_one_ne (v : EIdx) : Enc.idxW v + 1 ≠ 0 := by
   intro h
@@ -134,15 +140,15 @@ theorem one_add_ne (i : Nat) (hi : i < 2 ^ 30) : (1 : BitVec 64) + BitVec.ofNat 
   have := congrArg BitVec.toNat h
   simp [BitVec.toNat_add] at this; omega
 
-theorem memoGet_spec {α : Type} (G KB : BitVec 64) (g : VGeo) (m : Std.HashMap (EIdx × Nat) EIdx) (k : EIdx × Nat)
+theorem memoGet_spec {α : Type} (G KB : BitVec 64) (g : VGeo) (hinj : ∀ x y, enc x = enc y → x = y) (m : Std.HashMap K V) (k : K)
     (s : AState) (u : PState σ)
-    (hm : MemoAt u G g m) (hK : Words u KB (encMemo k)) (hkl : (encMemo k).length < 2 ^ 61)
+    (hm : MemoAtG enc valW u G g m) (hK : Words u KB (enc k)) (hkl : (enc k).length < 2 ^ 61)
     (hgk : u.globals.lookup gKb = some (.val (.word KB)))
     (hpg : u.locals.lookup pG = some (.val (.word G)))
-    (hpl : u.locals.lookup pLen = some (.val (.word (BitVec.ofNat 64 (encMemo k).length))))
+    (hpl : u.locals.lookup pLen = some (.val (.word (BitVec.ofNat 64 (enc k).length))))
     (hcode : u.code.lookup fMemoProbe = some ([(pG, .one), (pLen, .one)], memoProbeBody, .one)) :
-    SpecR (fun t => t = u) memoGetBody s (pure (m[k]?) : AM (Option EIdx))
-      (fun a w s' st => s' = s ∧ w = optW a ∧ st.memory = u.memory ∧ st.memaddrs = u.memaddrs ∧
+    SpecR (fun t => t = u) memoGetBody s (pure (m[k]?) : AM (Option V))
+      (fun a w s' st => s' = s ∧ w = optWG valW a ∧ st.memory = u.memory ∧ st.memaddrs = u.memaddrs ∧
         st.globals = u.globals ∧ st.code = u.code) := by
   obtain ⟨hdesc, hn, hb, hcap, tb, rows, ders, slots, hu, hT, hinv, hr, hder, hrel⟩ := hm
   intro t ht
@@ -157,7 +163,7 @@ theorem memoGet_spec {α : Type} (G KB : BitVec 64) (g : VGeo) (m : Std.HashMap 
       ((∃ i, tb.find? k = some i ∧ t'.locals.lookup lMx = some (.val (.word (1 + BitVec.ofNat 64 i)))) ∨
        (tb.find? k = none ∧ t'.locals.lookup lMx = some (.val (.word 0)))))
     lMx fMemoProbe pG pLen (by decide) (vv pG) (vv pLen) memoProbeBody (fun _ => G)
-    (fun _ => BitVec.ofNat 64 (encMemo k).length) (fun v hv => by rw [hv]; exact hcode)
+    (fun _ => BitVec.ofNat 64 (enc k).length) (fun v hv => by rw [hv]; exact hcode)
     (fun v hv => by rw [hv]; exact eval_vv _ pG _ (by lk [t1]; exact hpg))
     (fun v hv => by rw [hv]; exact eval_vv _ pLen _ (by lk [t1]; exact hpl))
     (fun v hv => ⟨0, by rw [hv]; exact lookup_setVar_same _ _ _⟩)
@@ -166,7 +172,7 @@ theorem memoGet_spec {α : Type} (G KB : BitVec 64) (g : VGeo) (m : Std.HashMap 
       ((∃ i, tb.find? k = some i ∧ w = 1 + BitVec.ofNat 64 i) ∨ (tb.find? k = none ∧ w = 0)))
     (fun v hv callee h1 h2 x hx => by
       subst hv hx
-      have P := memoProbe_spec (callEntryStateHOLFinite t1 callee) encMemo dWE encMemo_inj tb rows ders slots hu g G KB
+      have P := memoProbe_spec (callEntryStateHOLFinite t1 callee) enc (dWG valW) hinj tb rows ders slots hu g G KB
         k hkl hn hb hcap (vt_frame hT (fun _ _ => rfl) rfl) hinv hr (fun j hj => hK j hj) hdesc hgk h1 h2
       rcases P with hs | ⟨m1, d1, c1, g1, ⟨i, hf, hr'⟩ | ⟨hf, hr'⟩⟩
       · exact Or.inl hs
@@ -213,12 +219,12 @@ theorem memoGet_spec {α : Type} (G KB : BitVec 64) (g : VGeo) (m : Std.HashMap 
         (eval_shl t3 _ _ _ (eval_sub2 t3 _ _ _ _ (eval_vv t3 lMx _ (by lk [t3]; exact hx)) (eval_const t3 1))
           (by decide))
     have hl := eval_load_word t3 _ _ hA (by show t2.memaddrs _; rw [d2]; exact ha)
-    rw [show t3.memory (g.D + BitVec.ofNat 64 (16 * i)) = .word (Enc.idxW v) by
+    rw [show t3.memory (g.D + BitVec.ofNat 64 (16 * i)) = .word (valW v) by
       show t2.memory _ = _; rw [m2]; exact hmv] at hl
     have hv3 : EV t3 (.op .add [.load .one (.op .add [vv lMd, .shift .lsl (.op .sub [vv lMx, .const 1]) (.const 4)]),
-        .const 1]) = some (.val (.word (Enc.idxW v + 1))) := eval_add2 t3 _ _ _ _ hl (eval_const t3 1)
+        .const 1]) = some (.val (.word (valW v + 1))) := eval_add2 t3 _ _ _ _ hl (eval_const t3 1)
     right
-    refine ⟨Enc.idxW v + 1, by rw [return_word t3 _ _ hv3], some v, s, by rw [hv]; rfl, rfl, rfl, ?_⟩
+    refine ⟨valW v + 1, by rw [return_word t3 _ _ hv3], some v, s, by rw [hv]; rfl, rfl, rfl, ?_⟩
     rw [return_state t3 _ _ hv3]
     exact ⟨m2, d2, g2, c2⟩
   · have hnone : m[k]? = none := by rw [hrel k, hf]; rfl
@@ -239,8 +245,8 @@ def memoInsBody : ProgHOL 64 :=
     (withGeoV pG internV))))
 
 theorem vres_restore {α : Type} [BEq α] [LawfulBEq α] [Hashable α] [DecidableEq α] {s : PState σ}
-    {enc : α → List (BitVec 64)} {dW : EIdx → BitVec 64 × BitVec 64} {hwd : Nat → BitVec 64} {mkI : Nat → Nat}
-    {tb : Tbl α Nat EIdx} {g : VGeo} {x : α} {d : EIdx} (y : MlS) (v : BitVec 64)
+    {enc : α → List (BitVec 64)} {dW : V → BitVec 64 × BitVec 64} {hwd : Nat → BitVec 64} {mkI : Nat → Nat}
+    {tb : Tbl α Nat V} {g : VGeo} {x : α} {d : V} (y : MlS) (v : BitVec 64)
     (r : Option (PanSemResultExact 64) × PState σ)
     (h : VRes (setVarHOLFinite y (.val (.word v)) s) enc dW hwd mkI tb g x d r) :
     VRes s enc dW hwd mkI tb g x d (r.1, { r.2 with locals := HolFiniteMapExact.resVarEq r.2.locals (y, s.locals.lookup y) }) := by
@@ -248,36 +254,36 @@ theorem vres_restore {α : Type} [BEq α] [LawfulBEq α] [Hashable α] [Decidabl
   · exact Or.inl h
   · exact Or.inr ⟨hr, rows', ders', slots', hu', vt_of_eq hT rfl rfl, hi, hrel, hd, c1, c2, c3, c4, c5⟩
 
-theorem memoIns_spec (t : PState σ) (tb : Tbl (EIdx × Nat) Nat EIdx) (rows : List (EIdx × Nat))
+theorem memoIns_spec (t : PState σ) (hinj : ∀ x y, enc x = enc y → x = y) (tb : Tbl K Nat V) (rows : List K)
     (ders : List (BitVec 64 × BitVec 64)) (slots : List Nat) (hu : Nat) (g : VGeo) (G KB : BitVec 64)
-    (k : EIdx × Nat) (v : EIdx) (hkl : (encMemo k).length < 2 ^ 61)
+    (k : K) (v : V) (hkl : (enc k).length < 2 ^ 61)
     (hn : g.n = 2 ^ g.b) (hb : g.b ≤ 56) (hcap : g.cap < 2 ^ 30)
-    (hT : VT t encMemo rows ders slots g hu) (hinv : ConsModel.Inv (homeV encMemo g.b) rows slots g.n)
-    (hrel : TblRel tb rows id) (hder : tb.der.toList.map dWE = ders)
-    (hK : Words t KB (encMemo k)) (hKout : ∀ i, i < (encMemo k).length → ¬ inR g (KB + BitVec.ofNat 64 (8 * i)))
+    (hT : VT t enc rows ders slots g hu) (hinv : ConsModel.Inv (homeV enc g.b) rows slots g.n)
+    (hrel : TblRel tb rows id) (hder : tb.der.toList.map (dWG valW) = ders)
+    (hK : Words t KB (enc k)) (hKout : ∀ i, i < (enc k).length → ¬ inR g (KB + BitVec.ofNat 64 (8 * i)))
     (hdesc : DescV t G g 1)
     (hgk : t.globals.lookup gKb = some (.val (.word KB))) (hg : t.locals.lookup pG = some (.val (.word G)))
-    (hl : t.locals.lookup pLen = some (.val (.word (BitVec.ofNat 64 (encMemo k).length))))
-    (hv : t.locals.lookup pVal = some (.val (.word (Enc.idxW v)))) :
-    VRes t encMemo dWE (fun i => 1 + BitVec.ofNat 64 i) id tb g k v (evaluateHOLFiniteState t memoInsBody) := by
+    (hl : t.locals.lookup pLen = some (.val (.word (BitVec.ofNat 64 (enc k).length))))
+    (hv : t.locals.lookup pVal = some (.val (.word (valW v)))) :
+    VRes t enc (dWG valW) (fun i => 1 + BitVec.ofNat 64 i) id tb g k v (evaluateHOLFiniteState t memoInsBody) := by
   unfold memoInsBody
   rw [dec_word_eq t lK _ KB _ (eval_gv t gKb KB hgk)]
   refine vres_restore lK KB _ ?_
   let t1 := setVarHOLFinite lK (.val (.word KB)) t
-  rw [dec_word_eq t1 lL (vv pLen) (BitVec.ofNat 64 (encMemo k).length) _ (eval_vv t1 pLen _ (by lk [t1]; exact hl))]
-  refine vres_restore lL (BitVec.ofNat 64 (encMemo k).length) _ ?_
-  let t2 := setVarHOLFinite lL (.val (.word (BitVec.ofNat 64 (encMemo k).length))) t1
-  rw [dec_word_eq t2 lDv (vv pVal) (Enc.idxW v) _ (eval_vv t2 pVal _ (by lk [t2, t1]; exact hv))]
-  refine vres_restore lDv (Enc.idxW v) _ ?_
-  let t3 := setVarHOLFinite lDv (.val (.word (Enc.idxW v))) t2
+  rw [dec_word_eq t1 lL (vv pLen) (BitVec.ofNat 64 (enc k).length) _ (eval_vv t1 pLen _ (by lk [t1]; exact hl))]
+  refine vres_restore lL (BitVec.ofNat 64 (enc k).length) _ ?_
+  let t2 := setVarHOLFinite lL (.val (.word (BitVec.ofNat 64 (enc k).length))) t1
+  rw [dec_word_eq t2 lDv (vv pVal) (valW v) _ (eval_vv t2 pVal _ (by lk [t2, t1]; exact hv))]
+  refine vres_restore lDv (valW v) _ ?_
+  let t3 := setVarHOLFinite lDv (.val (.word (valW v))) t2
   rw [dec_word_eq t3 lDv2 (.const 0) 0 _ (eval_const t3 0)]
   refine vres_restore lDv2 0 _ ?_
   let t4 := setVarHOLFinite lDv2 (.val (.word 0)) t3
   have hd4 : DescV t4 G g 1 := hdesc
-  apply withGeoV_lift (fun s r => VRes s encMemo dWE (fun i => 1 + BitVec.ofNat 64 i) id tb g k v r)
+  apply withGeoV_lift (fun s r => VRes s enc (dWG valW) (fun i => 1 + BitVec.ofNat 64 i) id tb g k v r)
     (fun s y w r h => vres_restore y w r h) t4 pG G g 1 _ (by lk [t4, t3, t2, t1]; exact hg) (by decide) hd4
   let u := geoStateV t4 g 1
-  exact internV_spec u encMemo dWE (fun i => 1 + BitVec.ofNat 64 i) id 1 (2 ^ 30) (fun i _ => rfl) encMemo_inj tb rows
+  exact internV_spec u enc (dWG valW) (fun i => 1 + BitVec.ofNat 64 i) id 1 (2 ^ 30) (fun i _ => rfl) hinj tb rows
     ders slots hu g k v KB hn hb hcap (Nat.le_of_lt hcap) (vt_frame hT (fun _ _ => rfl) rfl) hinv hrel hder
     (fun j hj => hK j hj) hkl hKout
     (by simp only [u, geoStateV]; lk [t4, t3, t2, t1]) (by simp only [u, geoStateV]; lk [t4, t3, t2])
@@ -297,14 +303,14 @@ def memoSetBody : ProgHOL 64 :=
       (.seq (.store (.op .add [vv lMd, .shift .lsl (.op .sub [vv lMx, .const 1]) (.const 4)]) (vv pVal))
         (.return (.const 0)))))
 
-theorem tierInt_find_self {α : Type} [BEq α] [LawfulBEq α] [Hashable α] (tb : Tbl α Nat EIdx) (k : α) (v : EIdx) :
+theorem tierInt_find_self {α : Type} [BEq α] [LawfulBEq α] [Hashable α] (tb : Tbl α Nat V) (k : α) (v : V) :
     (tierInt tb k v id).1.find? k = some (tierInt tb k v id).2 := by
   unfold tierInt
   cases h : tb.find? k with
   | some i => simp [h]
   | none => simp [Tbl.find?, Tbl.push, Std.HashMap.getElem?_insert]
 
-theorem idx_lt_of_find {α : Type} [BEq α] [LawfulBEq α] [Hashable α] [DecidableEq α] {tb : Tbl α Nat EIdx}
+theorem idx_lt_of_find {α : Type} [BEq α] [LawfulBEq α] [Hashable α] [DecidableEq α] {tb : Tbl α Nat V}
     {rows : List α} (hr : TblRel tb rows id) {k : α} {i : Nat} (hf : tb.find? k = some i) : i < rows.length := by
   have := hr.cons k
   simp only [Tbl.find?] at hf
@@ -323,18 +329,18 @@ theorem der_map_setDer {K V : Type} [BEq K] [LawfulBEq K] [Hashable K] [Decidabl
   simp only [Tbl.setDer, Array.set!, Array.toList_setIfInBounds, List.map_set]
   simp [dWG]
 
-theorem memoSet_spec (G KB : BitVec 64) (g : VGeo) (m : Std.HashMap (EIdx × Nat) EIdx) (k : EIdx × Nat) (v : EIdx)
+theorem memoSet_spec (G KB : BitVec 64) (g : VGeo) (hinj : ∀ x y, enc x = enc y → x = y) (m : Std.HashMap K V) (k : K) (v : V)
     (s : AState) (u : PState σ)
-    (hm : MemoAt u G g m) (hK : Words u KB (encMemo k)) (hkl : (encMemo k).length < 2 ^ 61)
-    (hKout : ∀ i, i < (encMemo k).length → ¬ inR g (KB + BitVec.ofNat 64 (8 * i)))
+    (hm : MemoAtG enc valW u G g m) (hK : Words u KB (enc k)) (hkl : (enc k).length < 2 ^ 61)
+    (hKout : ∀ i, i < (enc k).length → ¬ inR g (KB + BitVec.ofNat 64 (8 * i)))
     (hGout : ∀ j, j < 8 → ¬ inR g (G + BitVec.ofNat 64 (8 * j)))
     (hgk : u.globals.lookup gKb = some (.val (.word KB)))
     (hpg : u.locals.lookup pG = some (.val (.word G)))
-    (hpl : u.locals.lookup pLen = some (.val (.word (BitVec.ofNat 64 (encMemo k).length))))
-    (hpv : u.locals.lookup pVal = some (.val (.word (Enc.idxW v))))
+    (hpl : u.locals.lookup pLen = some (.val (.word (BitVec.ofNat 64 (enc k).length))))
+    (hpv : u.locals.lookup pVal = some (.val (.word (valW v))))
     (hcode : u.code.lookup fMemoIns = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoInsBody, .one)) :
     SpecR (fun t => t = u) memoSetBody s (pure () : AM Unit)
-      (fun _ _ s' st => s' = s ∧ MemoAt st G g (m.insert k v) ∧ (∀ c, ¬ inR g c → st.memory c = u.memory c) ∧
+      (fun _ _ s' st => s' = s ∧ MemoAtG enc valW st G g (m.insert k v) ∧ (∀ c, ¬ inR g c → st.memory c = u.memory c) ∧
         st.memaddrs = u.memaddrs ∧ st.globals = u.globals ∧ st.code = u.code) := by
   obtain ⟨hdesc, hn, hb, hcap, tb, rows, ders, slots, hu, hT, hinv, hr, hder, hrel⟩ := hm
   intro t ht
@@ -349,10 +355,10 @@ theorem memoSet_spec (G KB : BitVec 64) (g : VGeo) (m : Std.HashMap (EIdx × Nat
       (∀ c, ¬ inR g c → t'.memory c = t.memory c) ∧
       (∀ y, y ≠ lMx → t'.locals.lookup y = t1.locals.lookup y) ∧
       t'.locals.lookup lMx = some (.val (.word (1 + BitVec.ofNat 64 i'))) ∧
-      ∃ rows' ders' slots' hu', VT t' encMemo rows' ders' slots' g hu' ∧
-        ConsModel.Inv (homeV encMemo g.b) rows' slots' g.n ∧ TblRel tb' rows' id ∧ tb'.der.toList.map dWE = ders')
+      ∃ rows' ders' slots' hu', VT t' enc rows' ders' slots' g hu' ∧
+        ConsModel.Inv (homeV enc g.b) rows' slots' g.n ∧ TblRel tb' rows' id ∧ tb'.der.toList.map (dWG valW) = ders')
     lMx fMemoIns pG pLen pVal (by decide) (by decide) (by decide) (vv pG) (vv pLen) (vv pVal) memoInsBody
-    (fun _ => G) (fun _ => BitVec.ofNat 64 (encMemo k).length) (fun _ => Enc.idxW v)
+    (fun _ => G) (fun _ => BitVec.ofNat 64 (enc k).length) (fun _ => valW v)
     (fun w hw => by rw [hw]; exact hcode)
     (fun w hw => by rw [hw]; exact eval_vv _ pG _ (by lk [t1]; exact hpg))
     (fun w hw => by rw [hw]; exact eval_vv _ pLen _ (by lk [t1]; exact hpl))
@@ -360,11 +366,11 @@ theorem memoSet_spec (G KB : BitVec 64) (g : VGeo) (m : Std.HashMap (EIdx × Nat
     (fun w hw => ⟨0, by rw [hw]; exact lookup_setVar_same _ _ _⟩)
     (fun _ _ w s' st => s' = s ∧ w = 1 + BitVec.ofNat 64 i' ∧ st.memaddrs = t.memaddrs ∧ st.globals = t.globals ∧
       st.code = t.code ∧ (∀ c, ¬ inR g c → st.memory c = t.memory c) ∧
-      ∃ rows' ders' slots' hu', VT st encMemo rows' ders' slots' g hu' ∧
-        ConsModel.Inv (homeV encMemo g.b) rows' slots' g.n ∧ TblRel tb' rows' id ∧ tb'.der.toList.map dWE = ders')
+      ∃ rows' ders' slots' hu', VT st enc rows' ders' slots' g hu' ∧
+        ConsModel.Inv (homeV enc g.b) rows' slots' g.n ∧ TblRel tb' rows' id ∧ tb'.der.toList.map (dWG valW) = ders')
     (fun w hw callee h1 h2 h3 x hx => by
       subst hw hx
-      rcases memoIns_spec (callEntryStateHOLFinite t1 callee) tb rows ders slots hu g G KB k v hkl hn hb hcap
+      rcases memoIns_spec (callEntryStateHOLFinite t1 callee) hinj tb rows ders slots hu g G KB k v hkl hn hb hcap
           (vt_frame hT (fun _ _ => rfl) rfl) hinv hr hder (fun j hj => hK j hj) hKout hdesc hgk h1 h2 h3 with
         hs | ⟨hr', rows', ders', slots', hu', hT', hi', hrel', hd', c1, c2, c3, _, c5⟩
       · exact Or.inl hs
@@ -387,7 +393,7 @@ theorem memoSet_spec (G KB : BitVec 64) (g : VGeo) (m : Std.HashMap (EIdx × Nat
   generalize (evaluateHOLFiniteState t1 (.call (some (some (.local, lMx), none)) fMemoIns [vv pG, vv pLen, vv pVal])).2 = t2
     at d2 g2 c2 m2 fr2 hx2 hT' 
   have hpg2 : t2.locals.lookup pG = some (.val (.word G)) := by rw [fr2 _ (by decide)]; lk [t1]; exact hpg
-  have hpv2 : t2.locals.lookup pVal = some (.val (.word (Enc.idxW v)))  := by rw [fr2 _ (by decide)]; lk [t1]; exact hpv
+  have hpv2 : t2.locals.lookup pVal = some (.val (.word (valW v)))  := by rw [fr2 _ (by decide)]; lk [t1]; exact hpv
   have hil : i' < rows'.length := idx_lt_of_find hrel' (tierInt_find_self tb k v)
   have hle := hT'.le
   have hD : EV t2 (.load .one (.op .add [vv pG, .const 40])) = some (.val (.word g.D)) := by
@@ -407,10 +413,10 @@ theorem memoSet_spec (G KB : BitVec 64) (g : VGeo) (m : Std.HashMap (EIdx × Nat
     exact eval_add2 t3 _ _ _ _ (eval_vv t3 lMd _ (lookup_setVar_same _ _ _))
       (eval_shl t3 _ _ _ (eval_sub2 t3 _ _ _ _ (eval_vv t3 lMx _ (by lk [t3]; exact hx2)) (eval_const t3 1)) (by decide))
   obtain ⟨da, _, _, _⟩ := hT'.der i' hil
-  rw [seq_normal _ (store_word t3 _ _ _ (Enc.idxW v) hA (eval_vv t3 pVal _ (by lk [t3]; exact hpv2))
+  rw [seq_normal _ (store_word t3 _ _ _ (valW v) hA (eval_vv t3 pVal _ (by lk [t3]; exact hpv2))
     (by show t2.memaddrs _; exact da))]
   let t4 : PState σ :=
-    { t3 with memory := fun c => (if c = g.D + BitVec.ofNat 64 (16 * i') then HolWordLab.word (Enc.idxW v) else t3.memory c) }
+    { t3 with memory := fun c => (if c = g.D + BitVec.ofNat 64 (16 * i') then HolWordLab.word (valW v) else t3.memory c) }
   have hr4 := return_word t4 (.const 0) 0 (eval_const t4 0)
   have hs4 := return_state t4 (.const 0) 0 (eval_const t4 0)
   right
@@ -423,12 +429,12 @@ theorem memoSet_spec (G KB : BitVec 64) (g : VGeo) (m : Std.HashMap (EIdx × Nat
     rw [List.getElem?_eq_getElem hdl] at this
     cases e : tb'.der[i']? with
     | none => rw [e] at this; simp at this
-    | some w => rw [e] at this; simp [dWE] at this; exact this.symm
-  have hVT := vt_setDer hT' i' hil (Enc.idxW v)
+    | some w => rw [e] at this; simp [dWG] at this; exact this.symm
+  have hVT := vt_setDer hT' i' hil (valW v)
   rw [hd2] at hVT
   have hmi := memoRel_insert m tb rows hrel hr hinv.rows_nodup (by
     have := congrArg List.length hder; simp at this; rw [this, hT.dlen]) k v
-  refine ⟨⟨fun j hj => ?_, hn, hb, hcap, Tbl.setDer tb' i' v, rows', ders'.set i' (Enc.idxW v, 0), slots', hu',
+  refine ⟨⟨fun j hj => ?_, hn, hb, hcap, Tbl.setDer tb' i' v, rows', ders'.set i' (valW v, 0), slots', hu',
     vt_of_eq hVT rfl rfl, hi', ⟨by simp [Tbl.setDer]; exact hrel'.nodes, fun a => hrel'.cons a⟩, ?_, hmi.1⟩,
     fun c hc => ?_, d2, g2, c2⟩
   · have hj' := hdesc j hj
@@ -447,6 +453,8 @@ theorem memoSet_spec (G KB : BitVec 64) (g : VGeo) (m : Std.HashMap (EIdx × Nat
     rw [if_neg (fun e => hc (by rw [e]; exact hin)), m2 c hc]
 
 /-! ## The twin's `inst1Get`, in a caller -/
+
+end
 
 /-- The key length word `1 + (d ≠ 0)`. -/
 def lenE (ed : ExpHOL 64) : ExpHOL 64 := .op .add [.const 1, .cmp .notEqual ed (.const 0)]
@@ -495,7 +503,7 @@ theorem specR_memoGetI {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoK) (getOp
       have e1 : (encMemo (h, d))[1]'hj = BitVec.ofNat 64 d := by
         simp only [encMemo, limbs_small d (by omega), h0, ite_false]; rfl
       rw [e1]; exact hM _ _ (by simp)
-  have G := memoGet_spec (σ := σ) (α := Unit) (C.mG mk) C.KB (C.mg mk) (memoSel mk s.memos) (h, d) s u (hsr.memo mk) hW
+  have G := memoGet_spec (σ := σ) (α := Unit) (C.mG mk) C.KB (C.mg mk) encMemo_inj (memoSel mk s.memos) (h, d) s u (hsr.memo mk) hW
     (by simp only [encMemo, List.length_cons, limbs_small d (by omega)]; split <;> simp)
     hsr.gkb h1 h2 (by rw [hsr.code]; exact hcodeP)
   refine specR_congr (hget (h, d) s) (specR_mono G (fun v hv => hv) (fun a w s' st hp => ?_))
@@ -547,7 +555,7 @@ theorem specR_memoSetI {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoK) (setOp
   have hl2 : (encMemo (h, d)).length ≤ 2 := by
     simp only [encMemo, List.length_cons, limbs_small d (by omega)]; split <;> simp
   have hlen : (encMemo (h, d)).length < 2 ^ 61 := by omega
-  have S := memoSet_spec (σ := σ) (C.mG mk) C.KB (C.mg mk) (memoSel mk s.memos) (h, d) r s u (hsr.memo mk) hW hlen
+  have S := memoSet_spec (σ := σ) (C.mG mk) C.KB (C.mg mk) encMemo_inj (memoSel mk s.memos) (h, d) r s u (hsr.memo mk) hW hlen
     (fun j hj => hok.kbMemo mk j (by omega)) (fun j hj => hok.mdescMemo mk mk j hj) hsr.gkb h1 h2 h3
     (by rw [hsr.code]; exact hcodeI)
   intro t ht

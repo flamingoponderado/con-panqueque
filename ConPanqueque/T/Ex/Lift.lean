@@ -150,12 +150,12 @@ theorem probedL_spec {C : Ctx} (hok : CtxOK C) (B : ProgHOL 64) (hc : CodesL C B
     (by simp [hh]) (by simp [hcc]) hkb (fun r => ?_)
   cases r with
   | some w =>
-    refine specR_ifI (vv lX) (Enc.idxW w + 1) (by simp [optW]) (fun _ => ?_)
+    refine specR_ifI (vv lX) (Enc.idxW w + 1) (by simp [optW, optWG]) (fun _ => ?_)
       (fun hw => absurd hw (idxW_add_one_ne w))
-    exact specR_returnI (.op .sub [vv lX, .const 1]) (Enc.idxW w) (by simp [sev, optW, BitVec.add_sub_cancel])
+    exact specR_returnI (.op .sub [vv lX, .const 1]) (Enc.idxW w) (by simp [sev, optW, optWG, BitVec.add_sub_cancel])
       (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   | none =>
-    exact specR_ifI (vv lX) 0 (by simp [optW]) (fun hw => absurd rfl hw) (fun _ => hmiss)
+    exact specR_ifI (vv lX) 0 (by simp [optW, optWG]) (fun hw => absurd rfl hw) (fun _ => hmiss)
 
 /-- `KB[0..1] := (h, c); memoSet(liftC, w); return w`. -/
 theorem setRetL_spec {C : Ctx} (hok : CtxOK C) (B : ProgHOL 64) (hc : CodesL C B) {s : AState} {Γ : Env}

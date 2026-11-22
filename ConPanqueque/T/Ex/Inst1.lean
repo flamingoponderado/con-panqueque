@@ -186,12 +186,12 @@ theorem appArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
     (by simp [hdd]) hkb (fun r => ?_)
   cases r with
   | some w =>
-    refine specR_ifI (vv lX) (Enc.idxW w + 1) (by simp [optW]) (fun _ => ?_)
+    refine specR_ifI (vv lX) (Enc.idxW w + 1) (by simp [optW, optWG]) (fun _ => ?_)
       (fun hw => absurd hw (idxW_add_one_ne w))
-    exact specR_returnI (.op .sub [vv lX, .const 1]) (Enc.idxW w) (by simp [sev, optW, BitVec.add_sub_cancel])
+    exact specR_returnI (.op .sub [vv lX, .const 1]) (Enc.idxW w) (by simp [sev, optW, optWG, BitVec.add_sub_cancel])
       (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   | none =>
-    refine specR_ifI (vv lX) 0 (by simp [optW]) (fun hw => absurd rfl hw) (fun _ => ?_)
+    refine specR_ifI (vv lX) 0 (by simp [optW, optWG]) (fun hw => absurd rfl hw) (fun _ => ?_)
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [hfle]) ?_
     refine specR_assignI lDh (vv pH) (Enc.idxW h) (by decide) (by simp +decide [hh]) ?_
     refine specR_viewAppI h h4 (by simp) (by simp +decide) (by simp +decide [hdir]) (by decide) (fun f a P => ?_)
@@ -232,12 +232,12 @@ theorem bindArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
     (by simp [hdd]) hkb (fun r => ?_)
   cases r with
   | some w =>
-    refine specR_ifI (vv lX) (Enc.idxW w + 1) (by simp [optW]) (fun _ => ?_)
+    refine specR_ifI (vv lX) (Enc.idxW w + 1) (by simp [optW, optWG]) (fun _ => ?_)
       (fun hw => absurd hw (idxW_add_one_ne w))
-    exact specR_returnI (.op .sub [vv lX, .const 1]) (Enc.idxW w) (by simp [sev, optW, BitVec.add_sub_cancel])
+    exact specR_returnI (.op .sub [vv lX, .const 1]) (Enc.idxW w) (by simp [sev, optW, optWG, BitVec.add_sub_cancel])
       (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   | none =>
-    refine specR_ifI (vv lX) 0 (by simp [optW]) (fun hw => absurd rfl hw) (fun _ => ?_)
+    refine specR_ifI (vv lX) 0 (by simp [optW, optWG]) (fun hw => absurd rfl hw) (fun _ => ?_)
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [hfle]) ?_
     refine specR_assignI lDh (vv pH) (Enc.idxW h) (by decide) (by simp +decide [hh]) ?_
     refine specR_viewXI ConRon.Arena.viewBind projBind h (fun vw hvw => viewBind_run h hb s vw hvw)
@@ -332,12 +332,12 @@ theorem letArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
     (by simp [hdd]) hkb (fun r => ?_)
   cases r with
   | some w =>
-    refine specR_ifI (vv lX) (Enc.idxW w + 1) (by simp [optW]) (fun _ => ?_)
+    refine specR_ifI (vv lX) (Enc.idxW w + 1) (by simp [optW, optWG]) (fun _ => ?_)
       (fun hw => absurd hw (idxW_add_one_ne w))
-    exact specR_returnI (.op .sub [vv lX, .const 1]) (Enc.idxW w) (by simp [sev, optW, BitVec.add_sub_cancel])
+    exact specR_returnI (.op .sub [vv lX, .const 1]) (Enc.idxW w) (by simp [sev, optW, optWG, BitVec.add_sub_cancel])
       (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   | none =>
-    refine specR_ifI (vv lX) 0 (by simp [optW]) (fun hw => absurd rfl hw) (fun _ => ?_)
+    refine specR_ifI (vv lX) 0 (by simp [optW, optWG]) (fun hw => absurd rfl hw) (fun _ => ?_)
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [hfle]) ?_
     refine specR_assignI lDh (vv pH) (Enc.idxW h) (by decide) (by simp +decide [hh]) ?_
     refine specR_viewXI ConRon.Arena.viewLet projLet h (fun vw hvw => viewLet_run h h7 s vw hvw)
@@ -523,12 +523,12 @@ theorem projArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
     (by simp [hdd]) hkb (fun r => ?_)
   cases r with
   | some w =>
-    refine specR_ifI (vv lX) (Enc.idxW w + 1) (by simp [optW]) (fun _ => ?_)
+    refine specR_ifI (vv lX) (Enc.idxW w + 1) (by simp [optW, optWG]) (fun _ => ?_)
       (fun hw => absurd hw (idxW_add_one_ne w))
-    exact specR_returnI (.op .sub [vv lX, .const 1]) (Enc.idxW w) (by simp [sev, optW, BitVec.add_sub_cancel])
+    exact specR_returnI (.op .sub [vv lX, .const 1]) (Enc.idxW w) (by simp [sev, optW, optWG, BitVec.add_sub_cancel])
       (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   | none =>
-    refine specR_ifI (vv lX) 0 (by simp [optW]) (fun hw => absurd rfl hw) (fun _ => ?_)
+    refine specR_ifI (vv lX) 0 (by simp [optW, optWG]) (fun hw => absurd rfl hw) (fun _ => ?_)
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [hfle]) ?_
     refine specR_assignI lDh (vv pH) (Enc.idxW h) (by decide) (by simp +decide [hh]) ?_
     refine specR_viewXI ConRon.Arena.viewProj projProj h (fun vw hvw => viewProj_run h h9 s vw hvw)
