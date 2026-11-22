@@ -33,7 +33,13 @@ make -C pancake test  # the Pancake toolchain check
 
 ## Licence
 
-con-panqueque is derived from con-leche and is distributed under the same
-licence, the Apache License 2.0 ([LICENSE](LICENSE), copied from
-con-leche). Changes from con-leche: the checker is being rewritten in
-Pancake; see the commit history.
+con-panqueque is derived from con-leche and from
+[con-ron](https://github.com/leanprover/con-ron) (whose Lean "twin" of the
+checker and its refinement proof the Pancake port follows), and is distributed
+under the same licence as both, the Apache License 2.0:
+
+- [LICENSE](LICENSE): con-leche's licence, copied from con-leche;
+- [LICENSE-con-ron](LICENSE-con-ron): con-ron's licence, copied from con-ron.
+
+Changes from con-leche and con-ron: the checker is being rewritten in Pancake;
+see the commit history.
