@@ -1,4 +1,5 @@
 import ConPanqueque.Logic.Basic
+import ConLeche.Kernel.NatHash
 /-!
 # Hashing
 
@@ -47,11 +48,25 @@ def leanStringHash (bs : List UInt8) : UInt64 :=
   let h3 := (h2 ^^^ (h2 >>> 47)) * m
   h3 ^^^ (h3 >>> 47)
 
-/-- What the final theorem assumes about the Lean runtime: its two opaque hash primitives are the
-C functions they are implemented by. -/
+/-- Little-endian 64-bit words of a number, least significant first, no zero top word. -/
+def natWords (n : Nat) : List UInt64 :=
+  if h : n = 0 then [] else UInt64.ofNat n :: natWords (n / 2 ^ 64)
+termination_by n
+decreasing_by exact Nat.div_lt_self (Nat.pos_of_ne_zero h) (by decide)
+
+/-- `lean_nat_big_hash` (con-leche's `native/nat_hash.c`, vendored from lean4#16146): the words mixed
+from the least significant. -/
+def leanNatHash (n : Nat) : UInt64 :=
+  match natWords n with
+  | [] => 0
+  | w :: ws => ws.foldl leanMixHash w
+
+/-- What the final theorem assumes about the native code: the opaque hash primitives (the Lean
+runtime's two, and con-leche's vendored big-number hash) are the C functions they are implemented by. -/
 structure RuntimeAssumptions : Prop where
   mixHash : ∀ h k, mixHash h k = leanMixHash h k
   stringHash : ∀ s : String, String.hash s = leanStringHash s.toByteArray.data.toList
+  natBigHash : ∀ n : Nat, 2 ^ 64 ≤ n → ConLeche.natBigHash n = leanNatHash n
 
 def M : ExpHOL 64 := .const 0xc6a4a7935bd1e995#64
 def vh : ExpHOL 64 := .var .local (ofString "h")

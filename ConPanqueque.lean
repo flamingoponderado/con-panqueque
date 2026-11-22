@@ -50,6 +50,7 @@ import ConPanqueque.V.Decode
 import ConPanqueque.V.Layout
 import ConPanqueque.V.Der
 import ConPanqueque.V.ListDer
+import ConPanqueque.V.NatHash
 import ConPanqueque.LevelFns
 import ConPanqueque.LevelFold
 import ConPanqueque.Table
