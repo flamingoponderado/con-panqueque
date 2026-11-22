@@ -150,4 +150,52 @@ theorem viewBind_bind (st : EStore) (h : EIdx) (hb : h.tag = 5 ∨ h.tag = 6) :
         cases st.scr.foralls.node? h.idxNat <;> rfl
       · rfl
 
+
+/-! ## Tag tests on handle words -/
+
+/-- For a narrow tag `k ≠ 4`: the handle word's bits 30…26 are `k` exactly when the handle's tag is `k`. -/
+theorem tag_bits_iff (h : EIdx) (k : Nat) (hk : k < 16) (hk4 : k ≠ 4) :
+    (Enc.idxW h >>> (26 : Nat)) &&& 31 = BitVec.ofNat 64 k ↔ h.tag = UInt32.ofNat k := by
+  have hw : (Enc.idxW h).toNat = h.word.toNat := by simp [Enc.idxW]
+  have hlt : h.word.toNat < 2 ^ 32 := h.word.toNat_lt
+  have e1 : ((Enc.idxW h >>> (26 : Nat)) &&& 31 = BitVec.ofNat 64 k) ↔ h.word.toNat / 67108864 % 32 = k := by
+    constructor
+    · intro e; have := congrArg BitVec.toNat e
+      simp only [BitVec.toNat_and, BitVec.toNat_ushiftRight, hw, Nat.shiftRight_eq_div_pow, BitVec.toNat_ofNat] at this
+      have e31 : (31 : BitVec 64).toNat = 2 ^ 5 - 1 := rfl
+      rw [e31, Nat.and_two_pow_sub_one_eq_mod] at this; simp at this; omega
+    · intro e; apply BitVec.eq_of_toNat_eq
+      simp only [BitVec.toNat_and, BitVec.toNat_ushiftRight, hw, Nat.shiftRight_eq_div_pow, BitVec.toNat_ofNat]
+      have e31 : (31 : BitVec 64).toNat = 2 ^ 5 - 1 := rfl
+      rw [e31, Nat.and_two_pow_sub_one_eq_mod]; simp; omega
+  rw [e1]
+  simp only [Idx.tag, Idx.isWide, beq_iff_eq]
+  constructor
+  · intro e
+    have hnw : ¬ (h.word / 1073741824 % 2 = 1) := by
+      intro c; have := congrArg UInt32.toNat c; simp [UInt32.toNat_div, UInt32.toNat_mod] at this; omega
+    rw [if_neg hnw]; apply UInt32.toNat_inj.mp; simp [UInt32.toNat_div, UInt32.toNat_mod]; omega
+  · intro e
+    by_cases hnw : h.word / 1073741824 % 2 = 1
+    · rw [if_pos hnw] at e
+      have := congrArg UInt32.toNat e; simp at this; omega
+    · rw [if_neg hnw] at e
+      have a := congrArg UInt32.toNat e
+      have b : ¬ (h.word.toNat / 1073741824 % 2 = 1) := by
+        intro c; apply hnw; apply UInt32.toNat_inj.mp; simp [UInt32.toNat_div, UInt32.toNat_mod]; omega
+      simp [UInt32.toNat_div, UInt32.toNat_mod] at a; omega
+
+/-- The tag test `(h >>> 26) & 31 == k` as an expression over local `x`. -/
+def tagIsE (x : MlS) (k : Nat) : ExpHOL 64 :=
+  .cmp .equal (.op .and [.shift .lsr (vv x) (.const 26), .const 31]) (.const (BitVec.ofNat 64 k))
+
+theorem sev_tagIs (Γ : Env) (x : MlS) (h : EIdx) (hx : Γ.get x = some (Enc.idxW h)) (k : Nat) (hk : k < 16)
+    (hk4 : k ≠ 4) : ∃ w, sev Γ (tagIsE x k) = some w ∧ (w ≠ 0 ↔ h.tag = UInt32.ofNat k) := by
+  refine ⟨_, by simp only [tagIsE, sev, sev_vv, hx]; rfl, ?_⟩
+  simp only [show (26 : BitVec 64).toNat = 26 from rfl, show (64 : Nat) > 26 from by decide, ite_true]
+  rw [← tag_bits_iff h k hk hk4]
+  by_cases e : (Enc.idxW h >>> (26 : Nat)) &&& 31 = BitVec.ofNat 64 k
+  · simp [e, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+  · simp [e, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+
 end ConPanqueque.T
