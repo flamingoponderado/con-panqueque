@@ -99,8 +99,8 @@ section
 variable {σ : Type} {α ι δ : Type} [BEq α] [LawfulBEq α] [Hashable α] [DecidableEq α]
 
 /-- One tier's table represented, with the twin's table and handles `mkI`. -/
-structure TierRepV (t : PanSemStateFiniteExact 64 σ) (enc : α → List (BitVec 64)) (dW : δ → BitVec 64) (g : VGeo)
-    (tb : Tbl α ι δ) (rows : List α) (ders : List (BitVec 64)) (slots : List Nat) (hu : Nat) (mkI : Nat → ι) : Prop where
+structure TierRepV (t : PanSemStateFiniteExact 64 σ) (enc : α → List (BitVec 64)) (dW : δ → BitVec 64 × BitVec 64) (g : VGeo)
+    (tb : Tbl α ι δ) (rows : List α) (ders : List (BitVec 64 × BitVec 64)) (slots : List Nat) (hu : Nat) (mkI : Nat → ι) : Prop where
   vt : VT t enc rows ders slots g hu
   inv : Inv (α := α) (homeV enc g.b) rows slots g.n
   rel : TblRel tb rows mkI
@@ -108,7 +108,7 @@ structure TierRepV (t : PanSemStateFiniteExact 64 σ) (enc : α → List (BitVec
 
 omit [BEq α] [LawfulBEq α] [Hashable α] [DecidableEq α] in
 theorem vt_frame {t t' : PanSemStateFiniteExact 64 σ} {enc : α → List (BitVec 64)} {rows : List α}
-    {ders : List (BitVec 64)} {slots : List Nat} {g : VGeo} {hu : Nat} (h : VT t enc rows ders slots g hu)
+    {ders : List (BitVec 64 × BitVec 64)} {slots : List Nat} {g : VGeo} {hu : Nat} (h : VT t enc rows ders slots g hu)
     (hm : ∀ c, inR g c → t'.memory c = t.memory c) (hd : t'.memaddrs = t.memaddrs) :
     VT t' enc rows ders slots g hu := by
   have lK := h.layK; have lD := h.layD; have lR := h.layR; have lS := h.layS; have lC := h.layC; have hule := h.hu_le
@@ -127,13 +127,15 @@ theorem vt_frame {t t' : PanSemStateFiniteExact 64 σ} {enc : α → List (BitVe
       by rw [hm _ ⟨by omega, by omega⟩]; exact a4, fun k hk => ⟨by rw [hd]; exact (a5 k hk).1, ?_⟩, a6, a7⟩
     have ek := tn P (8 * k) (by omega)
     rw [hm _ ⟨by omega, by omega⟩]; exact (a5 k hk).2
-  · obtain ⟨a1, a2⟩ := h.der i hi
-    have e := tn g.D (8 * i) (by omega)
-    exact ⟨by rw [hd]; exact a1, by rw [hm _ ⟨by omega, by omega⟩]; exact a2⟩
+  · obtain ⟨a1, a2, a3, a4⟩ := h.der i hi
+    have e := tn g.D (16 * i) (by omega)
+    have e8 : (g.D + BitVec.ofNat 64 (16 * i) + 8).toNat = g.D.toNat + 16 * i + 8 := by rw [tn8 _ (by omega), e]
+    exact ⟨by rw [hd]; exact a1, by rw [hd]; exact a2, by rw [hm _ ⟨by omega, by omega⟩]; exact a3,
+      by rw [hm _ ⟨by omega, by omega⟩]; exact a4⟩
 
 /-- What `internTwo` guarantees: a stop, or `twoTier`'s handle with both tiers' new tables represented and
 memory outside the two regions unchanged. -/
-def TRes (t : PanSemStateFiniteExact 64 σ) (enc : α → List (BitVec 64)) (dW : δ → BitVec 64) (hwd : ι → BitVec 64)
+def TRes (t : PanSemStateFiniteExact 64 σ) (enc : α → List (BitVec 64)) (dW : δ → BitVec 64 × BitVec 64) (hwd : ι → BitVec 64)
     (mkP mkS : Nat → ι) (P Sc : Tbl α ι δ) (gp gs : VGeo) (on sk : Bool) (x : α) (d : δ)
     (r : Option (PanSemResultExact 64) × PanSemStateFiniteExact 64 σ) : Prop :=
   Stop r.1 ∨
@@ -149,15 +151,16 @@ section
 variable {σ : Type} {α ι δ : Type} [BEq α] [LawfulBEq α] [Hashable α] [DecidableEq α]
 
 /-- The inputs every run needs, in a state `u`. -/
-structure Inputs (u : PanSemStateFiniteExact 64 σ) (K : BitVec 64) (L : Nat) (dv : BitVec 64) : Prop where
+structure Inputs (u : PanSemStateFiniteExact 64 σ) (K : BitVec 64) (L : Nat) (dd : BitVec 64 × BitVec 64) : Prop where
   k : u.locals.lookup lK = some (.val (.word K))
   l : u.locals.lookup lL = some (.val (.word (BitVec.ofNat 64 L)))
-  dv : u.locals.lookup lDv = some (.val (.word dv))
+  dv : u.locals.lookup lDv = some (.val (.word dd.1))
+  dv2 : u.locals.lookup lDv2 = some (.val (.word dd.2))
 
-theorem tierV_run (u : PanSemStateFiniteExact 64 σ) (enc : α → List (BitVec 64)) (dW : δ → BitVec 64)
+theorem tierV_run (u : PanSemStateFiniteExact 64 σ) (enc : α → List (BitVec 64)) (dW : δ → BitVec 64 × BitVec 64)
     (hwd : ι → BitVec 64) (mkI : Nat → ι) (base : BitVec 64) (icap : Nat)
     (hmk : ∀ i, i < icap → hwd (mkI i) = base + BitVec.ofNat 64 i) (hinj : ∀ x y, enc x = enc y → x = y)
-    (tb : Tbl α ι δ) (rows : List α) (ders : List (BitVec 64)) (slots : List Nat) (hu : Nat) (g : VGeo)
+    (tb : Tbl α ι δ) (rows : List α) (ders : List (BitVec 64 × BitVec 64)) (slots : List Nat) (hu : Nat) (g : VGeo)
     (x : α) (d : δ) (K G : BitVec 64) (gn : MlS)
     (hn : g.n = 2 ^ g.b) (hb : g.b ≤ 56) (hcap : g.cap < 2 ^ 30) (hci : g.cap ≤ icap)
     (hR : TierRepV u enc dW g tb rows ders slots hu mkI) (hdesc : DescV u G g base)
@@ -172,12 +175,12 @@ theorem tierV_run (u : PanSemStateFiniteExact 64 σ) (enc : α → List (BitVec 
       (vt_of_eq hR.vt rfl rfl) hR.inv hR.rel hR.der hK hKl hKout
       (by lk [geoStateV]; exact hin.k) (by lk [geoStateV]; exact hin.l) (by lk [geoStateV]) (by lk [geoStateV])
       (by lk [geoStateV]) (by lk [geoStateV]) (by lk [geoStateV]) (by lk [geoStateV])
-      (by lk [geoStateV]; exact hin.dv) (by lk [geoStateV]) (by lk [geoStateV]))
+      (by lk [geoStateV]; exact hin.dv) (by lk [geoStateV]; exact hin.dv2) (by lk [geoStateV]) (by lk [geoStateV]))
 
-theorem probeV_run (u : PanSemStateFiniteExact 64 σ) (enc : α → List (BitVec 64)) (dW : δ → BitVec 64)
+theorem probeV_run (u : PanSemStateFiniteExact 64 σ) (enc : α → List (BitVec 64)) (dW : δ → BitVec 64 × BitVec 64)
     (hwd : ι → BitVec 64) (mkI : Nat → ι) (base : BitVec 64) (icap : Nat)
     (hmk : ∀ i, i < icap → hwd (mkI i) = base + BitVec.ofNat 64 i) (hinj : ∀ x y, enc x = enc y → x = y)
-    (tb : Tbl α ι δ) (rows : List α) (ders : List (BitVec 64)) (slots : List Nat) (hu : Nat) (g : VGeo)
+    (tb : Tbl α ι δ) (rows : List α) (ders : List (BitVec 64 × BitVec 64)) (slots : List Nat) (hu : Nat) (g : VGeo)
     (x : α) (K G : BitVec 64) (gn : MlS)
     (hn : g.n = 2 ^ g.b) (hb : g.b ≤ 56) (hcap : g.cap < 2 ^ 30) (hci : g.cap ≤ icap)
     (hR : TierRepV u enc dW g tb rows ders slots hu mkI) (hdesc : DescV u G g base)
@@ -192,8 +195,8 @@ theorem probeV_run (u : PanSemStateFiniteExact 64 σ) (enc : α → List (BitVec
       (by lk [geoStateV]; exact hin.k) (by lk [geoStateV]; exact hin.l) (by lk [geoStateV]) (by lk [geoStateV])
       (by lk [geoStateV]) (by lk [geoStateV]))
 
-theorem tierRepV_frame {t t' : PanSemStateFiniteExact 64 σ} {enc : α → List (BitVec 64)} {dW : δ → BitVec 64}
-    {g : VGeo} {tb : Tbl α ι δ} {rows : List α} {ders : List (BitVec 64)} {slots : List Nat} {hu : Nat}
+theorem tierRepV_frame {t t' : PanSemStateFiniteExact 64 σ} {enc : α → List (BitVec 64)} {dW : δ → BitVec 64 × BitVec 64}
+    {g : VGeo} {tb : Tbl α ι δ} {rows : List α} {ders : List (BitVec 64 × BitVec 64)} {slots : List Nat} {hu : Nat}
     {mkI : Nat → ι} (h : TierRepV t enc dW g tb rows ders slots hu mkI)
     (hm : ∀ c, inR g c → t'.memory c = t.memory c) (hd : t'.memaddrs = t.memaddrs) :
     TierRepV t' enc dW g tb rows ders slots hu mkI :=
@@ -220,13 +223,13 @@ theorem twoTier_miss (P Sc : Tbl α ι δ) (x : α) (d : δ) (mkP mkS : Nat → 
     twoTier P Sc true false x d mkP mkS = (P, (tierInt Sc x d mkS).1, (tierInt Sc x d mkS).2) := by
   simp [twoTier, hf]
 
-theorem internTwo_spec (t : PanSemStateFiniteExact 64 σ) (enc : α → List (BitVec 64)) (dW : δ → BitVec 64)
+theorem internTwo_spec (t : PanSemStateFiniteExact 64 σ) (enc : α → List (BitVec 64)) (dW : δ → BitVec 64 × BitVec 64)
     (hwd : ι → BitVec 64) (mkP mkS : Nat → ι) (bp bs : BitVec 64) (icap : Nat)
     (hmkP : ∀ i, i < icap → hwd (mkP i) = bp + BitVec.ofNat 64 i)
     (hmkS : ∀ i, i < icap → hwd (mkS i) = bs + BitVec.ofNat 64 i) (hinj : ∀ x y, enc x = enc y → x = y)
     (P Sc : Tbl α ι δ) (gp gs : VGeo)
-    (rp : List α) (dp : List (BitVec 64)) (sp : List Nat) (hup : Nat)
-    (rs : List α) (ds : List (BitVec 64)) (ss : List Nat) (hus : Nat)
+    (rp : List α) (dp : List (BitVec 64 × BitVec 64)) (sp : List Nat) (hup : Nat)
+    (rs : List α) (ds : List (BitVec 64 × BitVec 64)) (ss : List Nat) (hus : Nat)
     (on sk : Bool) (x : α) (d : δ) (K Gp Gs : BitVec 64)
     (hnp : gp.n = 2 ^ gp.b) (hbp : gp.b ≤ 56) (hcp : gp.cap < 2 ^ 30) (hcip : gp.cap ≤ icap)
     (hns : gs.n = 2 ^ gs.b) (hbs : gs.b ≤ 56) (hcs : gs.cap < 2 ^ 30) (hcis : gs.cap ≤ icap)
@@ -267,7 +270,7 @@ theorem internTwo_spec (t : PanSemStateFiniteExact 64 σ) (enc : α → List (Bi
       rcases tierV_run u enc dW hwd mkS bs icap hmkS hinj Sc rs ds ss hus gs x d K Gs lSg hns hbs hcs hcis hSu
           (fun k hk => by rw [m, dd]; exact hds k hk) (by rw [hl]; exact hsg) hsgn
           (fun k hk => by rw [m, dd]; exact hK k hk) hKl (fun i hi => (hKout i hi).2)
-          ⟨by rw [hl]; exact hin.k, by rw [hl]; exact hin.l, by rw [hl]; exact hin.dv⟩ with
+          ⟨by rw [hl]; exact hin.k, by rw [hl]; exact hin.l, by rw [hl]; exact hin.dv, by rw [hl]; exact hin.dv2⟩ with
         h | ⟨hr, rows', ders', slots', hu', hT', hi', hrel', hd', c1, c2, c3, c4, c5⟩
       · exact Or.inl h
       · unfold TRes; rw [hA]

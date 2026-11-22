@@ -46,7 +46,7 @@ variable {σ : Type} {α ι δ : Type} [BEq α] [LawfulBEq α] [Hashable α] [De
 
 omit [BEq α] [LawfulBEq α] [Hashable α] [DecidableEq α] in
 theorem vt_of_eq {t t' : PanSemStateFiniteExact 64 σ} {enc : α → List (BitVec 64)} {rows : List α}
-    {ders : List (BitVec 64)} {slots : List Nat} {g : VGeo} {hu : Nat} (h : VT t enc rows ders slots g hu)
+    {ders : List (BitVec 64 × BitVec 64)} {slots : List Nat} {g : VGeo} {hu : Nat} (h : VT t enc rows ders slots g hu)
     (hm : t'.memory = t.memory) (hd : t'.memaddrs = t.memaddrs) : VT t' enc rows ders slots g hu := by
   obtain ⟨hs, hr, hsh, ⟨c1, c2⟩, ⟨p1, p2⟩, hle', hdl, hder, hle, hroom, hhr, l1, l2, l3, l4, l5⟩ := h
   refine ⟨fun j hj => ?_, fun i hi => ?_, hsh, ⟨by rw [hd]; exact c1, by rw [hm]; exact c2⟩,
@@ -56,12 +56,14 @@ theorem vt_of_eq {t t' : PanSemStateFiniteExact 64 σ} {enc : α → List (BitVe
   · obtain ⟨P, a1, a2, a3, a4, a5, a6, a7⟩ := hr i hi
     exact ⟨P, by rw [hd]; exact a1, by rw [hd]; exact a2, by rw [hm]; exact a3, by rw [hm]; exact a4,
       fun k hk => by rw [hd, hm]; exact a5 k hk, a6, a7⟩
-  · obtain ⟨a1, a2⟩ := hder i hi; exact ⟨by rw [hd]; exact a1, by rw [hm]; exact a2⟩
-  · obtain ⟨a1, a2, a3⟩ := hroom i hi; exact ⟨by rw [hd]; exact a1, by rw [hd]; exact a2, by rw [hd]; exact a3⟩
+  · obtain ⟨a1, a2, a3, a4⟩ := hder i hi
+    exact ⟨by rw [hd]; exact a1, by rw [hd]; exact a2, by rw [hm]; exact a3, by rw [hm]; exact a4⟩
+  · obtain ⟨a1, a2, a3, a4⟩ := hroom i hi
+    exact ⟨by rw [hd]; exact a1, by rw [hd]; exact a2, by rw [hd]; exact a3, by rw [hd]; exact a4⟩
 
 /-- What `internV` guarantees: a stop, or the twin's handle with the twin's new table represented and
 memory outside the table unchanged. Insensitive to the final locals. -/
-def VRes (t : PanSemStateFiniteExact 64 σ) (enc : α → List (BitVec 64)) (dW : δ → BitVec 64)
+def VRes (t : PanSemStateFiniteExact 64 σ) (enc : α → List (BitVec 64)) (dW : δ → BitVec 64 × BitVec 64)
     (hwd : ι → BitVec 64) (mkI : Nat → ι) (tb : Tbl α ι δ) (g : VGeo) (x : α) (d : δ)
     (r : Option (PanSemResultExact 64) × PanSemStateFiniteExact 64 σ) : Prop :=
   Stop r.1 ∨
@@ -71,7 +73,7 @@ def VRes (t : PanSemStateFiniteExact 64 σ) (enc : α → List (BitVec 64)) (dW 
         r.2.code = t.code ∧ r.2.globals = t.globals ∧ r.2.memaddrs = t.memaddrs ∧ r.2.topAddr = t.topAddr ∧
         ∀ c, ¬ inR g c → r.2.memory c = t.memory c)
 
-theorem vres_locals {t : PanSemStateFiniteExact 64 σ} {enc : α → List (BitVec 64)} {dW : δ → BitVec 64}
+theorem vres_locals {t : PanSemStateFiniteExact 64 σ} {enc : α → List (BitVec 64)} {dW : δ → BitVec 64 × BitVec 64}
     {hwd : ι → BitVec 64} {mkI : Nat → ι} {tb : Tbl α ι δ} {g : VGeo} {x : α} {d : δ}
     {r1 : Option (PanSemResultExact 64)} {st : PanSemStateFiniteExact 64 σ} (L : HolFiniteMapExact MlS (ValueHOL 64))
     (h : VRes t enc dW hwd mkI tb g x d (r1, st)) : VRes t enc dW hwd mkI tb g x d (r1, { st with locals := L }) := by
@@ -94,10 +96,10 @@ theorem mask_home (w : BitVec 64) (b : Nat) (hb : b ≤ 56) :
 section
 variable {σ : Type} {α ι δ : Type} [BEq α] [LawfulBEq α] [Hashable α] [DecidableEq α]
 
-theorem internV_spec (t : PanSemStateFiniteExact 64 σ) (enc : α → List (BitVec 64)) (dW : δ → BitVec 64)
+theorem internV_spec (t : PanSemStateFiniteExact 64 σ) (enc : α → List (BitVec 64)) (dW : δ → BitVec 64 × BitVec 64)
     (hwd : ι → BitVec 64) (mkI : Nat → ι) (base : BitVec 64) (icap : Nat)
     (hmk : ∀ i, i < icap → hwd (mkI i) = base + BitVec.ofNat 64 i) (hinj : ∀ x y, enc x = enc y → x = y)
-    (tb : Tbl α ι δ) (rows : List α) (ders : List (BitVec 64)) (slots : List Nat) (hu : Nat) (g : VGeo)
+    (tb : Tbl α ι δ) (rows : List α) (ders : List (BitVec 64 × BitVec 64)) (slots : List Nat) (hu : Nat) (g : VGeo)
     (x : α) (d : δ) (K : BitVec 64)
     (hn : g.n = 2 ^ g.b) (hb : g.b ≤ 56) (hcap : g.cap < 2 ^ 30) (hci : g.cap ≤ icap)
     (hT : VT t enc rows ders slots g hu) (hinv : Inv (α := α) (homeV enc g.b) rows slots g.n)
@@ -111,7 +113,8 @@ theorem internV_spec (t : PanSemStateFiniteExact 64 σ) (enc : α → List (BitV
     (lc : t.locals.lookup lC0 = some (.val (.word g.C)))
     (lcap : t.locals.lookup lCap = some (.val (.word (BitVec.ofNat 64 g.cap))))
     (ld : t.locals.lookup lD = some (.val (.word g.D)))
-    (ldv : t.locals.lookup lDv = some (.val (.word (dW d))))
+    (ldv : t.locals.lookup lDv = some (.val (.word (dW d).1)))
+    (ldv2 : t.locals.lookup lDv2 = some (.val (.word (dW d).2)))
     (lke : t.locals.lookup lKe = some (.val (.word (g.KH + BitVec.ofNat 64 (8 * g.kcap)))))
     (lhb : t.locals.lookup lHb = some (.val (.word base))) :
     VRes t enc dW hwd mkI tb g x d (evaluateHOLFiniteState t internV) := by
@@ -293,13 +296,14 @@ theorem internV_spec (t : PanSemStateFiniteExact 64 σ) (enc : α → List (BitV
     have wback : ∀ y, y ∉ scr → y ≠ lWh → y ≠ lI → w0.locals.lookup y = t.locals.lookup y := by
       intro y h1 h2 h3; lk [w0]; exact uback y h1 h2
     have hxr : x ∉ rows := (probe_correct (homeV enc g.b) rows slots g.n hinv x).2.mp (by rw [← hprobe]; exact hto)
-    rcases ins_spec w0 g enc rows ders slots hu x (dW d) K j (vt_of_eq hT hmu hdu) hj hcap hn56
+    rcases ins_spec w0 g enc rows ders slots hu x (dW d).1 (dW d).2 K j (vt_of_eq hT hmu hdu) hj hcap hn56
         (fun k hk => by show u.memaddrs _ ∧ u.memory _ = _; rw [hmu, hdu]; exact hK k hk) hKl hKout
         (by rw [wback _ (by decide) (by decide) (by decide)]; exact lc)
         (by rw [wback _ (by decide) (by decide) (by decide)]; exact lcap)
         (by lk [w0]; exact hB6.r) (by rw [wback _ (by decide) (by decide) (by decide)]; exact ld)
         (by lk [w0]; exact hB6.s) (by lk [w0]; exact hJ6) (by lk [w0]; exact hB6.k) (by lk [w0]; exact hB6.l)
         (by rw [wback _ (by decide) (by decide) (by decide)]; exact ldv)
+        (by rw [wback _ (by decide) (by decide) (by decide)]; exact ldv2)
         (by rw [wback _ (by decide) (by decide) (by decide)]; exact lke)
         (fun y hy => by
           have : y ≠ lI := fun e => by subst e; revert hy; decide
@@ -329,7 +333,7 @@ theorem internV_spec (t : PanSemStateFiniteExact 64 σ) (enc : α → List (BitV
       rw [show at_ g.n hx 0 = hx by simp only [at_, Nat.add_zero]; exact Nat.mod_eq_of_lt hxn]; exact hans
     obtain ⟨d', hd', hjd⟩ := probeR_empty rows slots g.n hx x hpos g.n 0 j0 hpe
     unfold VRes; rw [htA]
-    refine Or.inr ⟨rfl, rows ++ [x], ders ++ [dW d], slots.set j (rows.length + 1), hu + (enc x).length,
+    refine Or.inr ⟨rfl, rows ++ [x], ders ++ [((dW d).1, (dW d).2)], slots.set j (rows.length + 1), hu + (enc x).length,
       vt_of_eq hVT rfl rfl, ?_, push_rel tb rows mkI hrel x d hxr, by simp [Tbl.push, ← hder], hc7.trans hcu,
       hg7.trans hgu, hd7.trans hdu, ht7.trans htu, fun c hc => by rw [show (emptyLocalsHOLFinite w).memory = w.memory from rfl, hm7 c hc]; exact congrFun hmu c⟩
     rw [← hjj, hjd]; exact insert_inv (homeV enc g.b) rows slots g.n hinv x hxr d' hd'

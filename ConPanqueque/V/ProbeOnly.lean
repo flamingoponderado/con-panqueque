@@ -82,7 +82,7 @@ theorem presV_trans {A B : List MlS} {u t : PanSemStateFiniteExact 64 σ} {hwd :
 theorem probeV_spec (t : PanSemStateFiniteExact 64 σ) (enc : α → List (BitVec 64))
     (hwd : ι → BitVec 64) (mkI : Nat → ι) (base : BitVec 64) (icap : Nat)
     (hmk : ∀ i, i < icap → hwd (mkI i) = base + BitVec.ofNat 64 i) (hinj : ∀ x y, enc x = enc y → x = y)
-    (tb : Tbl α ι δ) (rows : List α) (ders : List (BitVec 64)) (slots : List Nat) (hu : Nat) (g : VGeo)
+    (tb : Tbl α ι δ) (rows : List α) (ders : List (BitVec 64 × BitVec 64)) (slots : List Nat) (hu : Nat) (g : VGeo)
     (x : α) (K : BitVec 64)
     (hn : g.n = 2 ^ g.b) (hb : g.b ≤ 56) (hcap : g.cap < 2 ^ 30) (hci : g.cap ≤ icap)
     (hT : VT t enc rows ders slots g hu) (hinv : Inv (α := α) (homeV enc g.b) rows slots g.n)
