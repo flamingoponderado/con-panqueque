@@ -177,12 +177,12 @@ theorem inst1_spec {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (fn :
     (lo : BitVec 64) {h : Heap} {p : BitVec 64} {e : ConLeche.Expr} (he : ExprAt h p e) :
     Spec (σ := σ) bvarCase idCase idCase idCase fn C (inv v) (shape v) lo h p e :=
   subst_spec ra bvarCase idCase idCase idCase fn C (inv v) (shape v) hC lo
-    (fun h p vw i he h0 h2 hi => spec_bvar ra fn C v lo h p vw i he h0 h2 hi)
-    (fun h p vw q i ty he h0 h2 h3 hi hty _ => spec_leaf bvarCase idCase idCase idCase fn C (inv v) (shape v) lo h p 1 _ he h0
+    (fun p vw i he h0 h2 hi => spec_bvar ra fn C v lo h p vw i he h0 h2 hi)
+    (fun p vw q i ty he h0 h2 h3 hi hty _ => spec_leaf bvarCase idCase idCase idCase fn C (inv v) (shape v) lo h p 1 _ he h0
       (fun k => ⟨by simp, by simp⟩))
-    (fun h p q u he h0 h2 hu => spec_leaf bvarCase idCase idCase idCase fn C (inv v) (shape v) lo h p 2 _ he h0
+    (fun p q u he h0 h2 hu => spec_leaf bvarCase idCase idCase idCase fn C (inv v) (shape v) lo h p 2 _ he h0
       (fun k => ⟨by simp, by simp⟩))
-    (fun h p q r n us he h0 h2 h3 hn hus => spec_leaf bvarCase idCase idCase idCase fn C (inv v) (shape v) lo h p 3 _ he h0
+    (fun p q r n us he h0 h2 h3 hn hus => spec_leaf bvarCase idCase idCase idCase fn C (inv v) (shape v) lo h p 3 _ he h0
       (fun k => ⟨by simp, by simp⟩)) he
 
 end ConPanqueque.Inst1

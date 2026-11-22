@@ -232,12 +232,12 @@ theorem abstractRange_spec {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumption
     (lo : BitVec 64) {h : Heap} {p : BitVec 64} {e : ConLeche.Expr} (he : ExprAt h p e) :
     Spec (σ := σ) idCase fvarCase idCase idCase fn C (inv d n) (shape d n hdn) lo h p e :=
   subst_spec ra idCase fvarCase idCase idCase fn C (inv d n) (shape d n hdn) hC lo
-    (fun h p vw i he h0 h2 hi => spec_leaf idCase fvarCase idCase idCase fn C (inv d n) (shape d n hdn) lo h p 0 _ he h0
+    (fun p vw i he h0 h2 hi => spec_leaf idCase fvarCase idCase idCase fn C (inv d n) (shape d n hdn) lo h p 0 _ he h0
       (fun k => ⟨by simp, by simp⟩))
-    (fun h p vw q i ty he h0 h2 h3 hi hty _ => spec_fvar ra fn C d n hdn lo h p vw i ty he h0 h2 hi)
-    (fun h p q u he h0 h2 hu => spec_leaf idCase fvarCase idCase idCase fn C (inv d n) (shape d n hdn) lo h p 2 _ he h0
+    (fun p vw q i ty he h0 h2 h3 hi hty _ => spec_fvar ra fn C d n hdn lo h p vw i ty he h0 h2 hi)
+    (fun p q u he h0 h2 hu => spec_leaf idCase fvarCase idCase idCase fn C (inv d n) (shape d n hdn) lo h p 2 _ he h0
       (fun k => ⟨by simp, by simp⟩))
-    (fun h p q r nm us he h0 h2 h3 hn hus => spec_leaf idCase fvarCase idCase idCase fn C (inv d n) (shape d n hdn) lo h p 3 _ he h0
+    (fun p q r nm us he h0 h2 h3 hn hus => spec_leaf idCase fvarCase idCase idCase fn C (inv d n) (shape d n hdn) lo h p 3 _ he h0
       (fun k => ⟨by simp, by simp⟩)) he
 
 end ConPanqueque.AbstractRange
