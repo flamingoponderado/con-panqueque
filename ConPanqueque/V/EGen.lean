@@ -62,6 +62,36 @@ theorem eval_sk2 {σ : Type} {k1 k2 : IdxKind} (s : PanSemStateFiniteExact 64 σ
     simp only [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hb', Bool.not_false, ↓reduceIte]
     simp_all
 
+/-- The scratch-child bit of a three-child node. -/
+theorem eval_sk3 {σ : Type} (s : PanSemStateFiniteExact 64 σ) (x y z : MlS) (a b c : EIdx)
+    (ha : s.locals.lookup x = some (.val (.word (Enc.idxW a))))
+    (hb : s.locals.lookup y = some (.val (.word (Enc.idxW b))))
+    (hc : s.locals.lookup z = some (.val (.word (Enc.idxW c)))) :
+    @evalHOLExact 64 σ _ s.toExact (fun q => Classical.propDecidable (s.memaddrs q))
+      (.cmp .notEqual (.op .or [.op .or [.shift .lsr (vv x) (.const 31), .shift .lsr (vv y) (.const 31)],
+        .shift .lsr (vv z) (.const 31)]) (.const 0)) =
+      some (.val (.word (if (if a.isPersistent then (if b.isPersistent then !c.isPersistent else true) else true)
+        then 1 else 0))) := by
+  rw [ConsLoop.eval_cmp_of s .notEqual _ _ _ 0 (eval_or2 s _ _ _ _ (eval_or2 s _ _ _ _
+    (eval_shr s _ _ _ (eval_vv s x _ ha) (by decide)) (eval_shr s _ _ _ (eval_vv s y _ hb) (by decide)))
+    (eval_shr s _ _ _ (eval_vv s z _ hc) (by decide))) (eval_const s 0)]
+  simp only [show (31 : BitVec 64).toNat = 31 from rfl]
+  have ea := persist_iff a; have eb := persist_iff b; have ec := persist_iff c
+  by_cases pa : a.isPersistent = true <;> by_cases pb : b.isPersistent = true <;> by_cases pc : c.isPersistent = true
+  · have h0 : ((Enc.idxW a >>> (31 : Nat) ||| Enc.idxW b >>> (31 : Nat)) ||| Enc.idxW c >>> (31 : Nat)) = 0 := by
+      rw [ea.mp pa, eb.mp pb, ec.mp pc]; rfl
+    have hb' : (((Enc.idxW a >>> (31 : Nat) ||| Enc.idxW b >>> (31 : Nat)) ||| Enc.idxW c >>> (31 : Nat)) == 0) = true :=
+      beq_iff_eq.mpr h0
+    simp only [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hb', pa, pb, pc, Bool.not_true, ↓reduceIte, Bool.false_eq_true]
+  all_goals
+    have h0 : ¬ ((Enc.idxW a >>> (31 : Nat) ||| Enc.idxW b >>> (31 : Nat)) ||| Enc.idxW c >>> (31 : Nat)) = 0 := fun e => by
+      rw [show (0 : BitVec 64) = 0#64 from rfl, BitVec.or_eq_zero_iff, BitVec.or_eq_zero_iff] at e
+      first | exact pa (ea.mpr e.1.1) | exact pb (eb.mpr e.1.2) | exact pc (ec.mpr e.2)
+    have hb' : (((Enc.idxW a >>> (31 : Nat) ||| Enc.idxW b >>> (31 : Nat)) ||| Enc.idxW c >>> (31 : Nat)) == 0) = false := by
+      simpa using h0
+    simp only [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hb', Bool.not_false, ↓reduceIte]
+    simp_all
+
 section
 variable {σ : Type} {α : Type} [BEq α] [LawfulBEq α] [Hashable α] [DecidableEq α]
 

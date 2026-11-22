@@ -56,6 +56,7 @@ import ConPanqueque.V.ESort
 import ConPanqueque.V.EGen
 import ConPanqueque.V.EConst
 import ConPanqueque.V.EBin
+import ConPanqueque.V.ELet
 import ConPanqueque.LevelFns
 import ConPanqueque.LevelFold
 import ConPanqueque.Table
