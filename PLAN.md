@@ -253,3 +253,33 @@ theorem has only the core assumptions (FFI read/write, runtime hashing), and a
 **multi-process** one, whose theorem additionally assumes the `fork`/`wait`
 syscall shims behave as specified. Both share the verified per-worker job
 runner.
+
+## Translator status (2026-11-23)
+
+The refinement judgement and its combinators are in `ConPanqueque/T/`:
+
+- `Spec P c s m Q` / `SpecR P c s m R` (`T/Spec.lean`): from every Pancake state
+  satisfying `P`, program `c` either stops (`Stop`: resource limit or a twin
+  failure, compiled to a halt) or finishes (resp. returns a word) and the twin
+  computation `m` from state `s` succeeds with the result and states related.
+  Only the success direction, which is what soundness needs.
+- `SR C s t` (`T/Store.lean`): the twin state is represented — the stores
+  (`SRep`), the context words in globals, the code map, the key buffer, the
+  `instantiate1` memo (`MemoAt`). `CtxOK C` collects the static layout facts.
+- `Inv C s Γ M D t` (`T/Inv.lean`): `SR` plus a symbolic environment (locals
+  with known words), known memory words and declared locals; expressions are
+  evaluated symbolically (`sev`, proved sound), so a step's side conditions
+  are mostly `rfl`/`decide`. Continuation-style combinators: assignments,
+  loads, `if` on Pancake or twin conditions, returns, calls (1–3 parameters,
+  callee specs from entry states), the uniform function prologue.
+- Store primitives at the twin's level: `view` (all ten expression
+  constructors, fields as known memory), `viewApp`, `derivedE`, `internAppE`
+  (with the twin's probe/capacity wrapper), memo `inst1Get`/`inst1Set`
+  (Pancake functions `memoProbe`/`memoGet`/`memoIns`/`memoSet` over a generic
+  table, refining `Std.HashMap` lookups and inserts).
+- Translated so far, with refinement proofs: `getAppFn` (`T/Ex/GetAppFn2.lean`)
+  and `sizeB` (`T/Ex/SizeB.lean`).
+
+Next: the remaining intern wrappers and projections, memo clearing, the other
+memos/caches/pins in `SR`, `instantiate1`; then a tactic that applies the
+combinators by goal shape, and the bulk translation.
