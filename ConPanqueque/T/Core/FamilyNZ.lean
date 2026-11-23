@@ -1,6 +1,10 @@
 import ConPanqueque.T.Core.FormerLoop
 import ConPanqueque.T.Core.FormerNZ
 import ConPanqueque.T.Core.ConstVal
+import ConPanqueque.T.LsView
+import ConPanqueque.T.SRFacts
+import ConPanqueque.T.PinRead
+import ConPanqueque.T.Comp.TwinFacts
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena
@@ -433,7 +437,11 @@ def fzaCore (C : Ctx) : ProgHOL 64 :=
   (.seq (.call (some (some (.local, fzZ), none)) fNz0 [.op .sub [vv fzS, .const 1]])
     (.return (vv fzZ)))))))))))))))))))
 
-def fzaBody (C : Ctx) : ProgHOL 64 := prologue fzLocals (fzaCore C)
+def fzaLocals : List MlS := fzLocals ++ [lDh, lFl, lDt, lDg, lDi, lRp, lRn]
+
+/-- `formerNeverZeroAt`, after checking its level list's view (halting on an invalid handle). -/
+def fzaBody (C : Ctx) : ProgHOL 64 :=
+  prologue fzaLocals (.seq (.assign .local lDh (vv fzU)) (.seq (.assign .local lFl (vv lFls)) (.seq lsViewP (fzaCore C))))
 
 def fzCore : ProgHOL 64 :=
   .seq (.assign .local fzN (.load .one (.op .add [vv fzQ, .const 72])))
@@ -466,6 +474,10 @@ theorem fz_ecell72 (C : Ctx) (o : Nat) : ecell C o + 72 = ecell C (o + 9) := by 
 theorem fz_ecell48 (C : Ctx) (o : Nat) : ecell C o + 48 = ecell C (o + 6) := by simpa using ecell_add C o 6
 theorem fz_ecell56 (C : Ctx) (o : Nat) : ecell C o + 56 = ecell C (o + 7) := by simpa using ecell_add C o 7
 
+theorem fza_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ fzaLocals → (ctxEnv C ++ fzParams.zip vals).get x = none :=
+  Knot.params_none C fzaLocals fzParams vals (by decide) (by decide)
+
 theorem fza_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C) (hc : FzCodes C) (hn : n < 2 ^ 64)
     (hW : ∀ (H : List (BitVec 64)) s1, C.H <+: H → ∀ d e', Callee (σ := σ) (ctxH C H) kParams
@@ -475,13 +487,8 @@ theorem fza_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     (hci : CIE C.EB C.EH o (.indInfo cvT caps)) (us : LsIdx)
     (hwf : LStoreWF s.store.ls) (hst : StateOK s)
     (ks : List ConLeche.Name) (hks : Frontend.denoteNList s.store.ns cvT.levelParams = some ks)
-    (vs : List ConLeche.Level) (hus : denoteLs s.store.lss us = some vs)
     (hrn : ReadNCacheOK s.caches.readNC s.store) (hrl : ReadLCacheOK s.caches.readLC s.store)
     (hrls : ReadLsCacheOK s.caches.readLsC s.store) (hden : (denoteE s.store cvT.type).isSome = true)
-    (hsd : ∀ u, formerResSort cvT.type s = .ok (some u, s) → (denoteL s.store.ls u).isSome = true)
-    (hsl : ∀ ty s2 u s3, instLPFast coreWalkFuel cvT.levelParams us cvT.type s = .ok (ty, s2) →
-      formerSortLoop (knot mode C n) 0 (caps.nparams + caps.nIdx) ty s2 = .ok (some u, s3) →
-      (denoteL s3.store.ls u).isSome = true ∧ LStoreWF s3.store.ls ∧ ReadLCacheOK s3.caches.readLC s3.store)
     (hlen : cvT.levelParams.length + 1 < 2 ^ 60) (hK : caps.nparams + caps.nIdx < 2 ^ 63) :
     SpecR (σ := σ) (Pre C s (fzParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, ecell C o, Enc.idxW us]))
       (fzaBody C) s (formerNeverZeroAt (knot mode C n) cvT caps us) (PostB C) := by
@@ -489,7 +496,20 @@ theorem fza_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
   have hcv' : CVE C.EB C.EH (o + 1) cvT := hcv
   obtain ⟨_, ⟨wl, hwl, o', hwl', hblk⟩, hty⟩ := id hcv'
   subst hwl'
-  refine specR_prologue (postB_locals C) (fz_none C _) ?_
+  refine specR_prologue (postB_locals C) (fza_none C _) ?_
+  refine specR_assignI lDh (vv fzU) (Enc.idxW us) (by decide) (by simp +decide [Env.get, fzParams, ctxEnv]) ?_
+  refine specR_assignI lFl (vv lFls) C.FLs (by decide) (by simp +decide [Env.get, fzParams, ctxEnv] <;> rfl) ?_
+  refine specR_lsviewPI us (by simp +decide) (by simp +decide <;> rfl)
+    (by simp +decide [Env.get, fzParams, ctxEnv] <;> rfl) ⟨by decide, by decide, by decide, by decide, by decide⟩
+    (fun v0 P0 hv0 _ _ => ?_)
+  refine specR_atEntry fun t0 ht0 => ?_
+  obtain ⟨vs, hus⟩ := Option.isSome_iff_exists.mp (denoteLs_total' (sr_lswf ht0.sr) (by rw [hv0]; rfl))
+  have hsd : ∀ u, formerResSort cvT.type s = .ok (some u, s) → (denoteL s.store.ls u).isSome = true :=
+    fun u hrun => by
+      obtain ⟨w0, hw0⟩ := Comp.formerResSort_sort _ _ _ _ hrun
+      obtain ⟨l, hl⟩ := sr_sortDen ht0.sr w0 u hw0
+      rw [hl]; rfl
+  refine specR_dropMem ?_
   unfold fzaCore
   refine specR_envLoadI fzT (.op .add [vv fzQ, .const 24]) (o + 3) _ (by decide)
     (by simp +decide [sev, Env.get, fzParams, ctxEnv]; exact fn_ecell24 C o) (by simpa [Nat.add_assoc] using hty) ?_
@@ -579,8 +599,11 @@ theorem fza_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     · refine specR_ifI _ 1 (by simp +decide [sev, Env.get, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
         (fun _ => ?_) (fun h => absurd h (by decide))
       exact specR_returnI _ 0 rfl (fun t ht => ⟨H3, hPF.trans hp3, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    · obtain ⟨hdu, hwf3, hrl3⟩ := hsl ty s2 u s3 hrun2 hrun3
-      obtain ⟨l, hl⟩ := Option.isSome_iff_exists.mp hdu
+    · refine specR_atEntry fun t3 ht3 => ?_
+      obtain ⟨w3, hw3⟩ := Comp.formerSortLoop_sort _ _ _ _ _ _ _ hrun3
+      have hwf3 := sr_lwf ht3.sr
+      have hrl3 := ht3.sr.cok.rl
+      obtain ⟨l, hl⟩ := sr_sortDen ht3.sr w3 u hw3
       obtain ⟨X, hx, hX⟩ := readLevelM_runC u s3 l hrl3 hl
       refine LLeq.specR_ofRun (R' := PostB C) (am_run_bind hx rfl) ?_
         (fun w st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, LLeq.sr_congrS hsr rfl rfl ⟨rfl, rfl, rfl, rfl, rfl⟩ rfl
@@ -627,13 +650,8 @@ theorem fz_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     (hci : CIE C.EB C.EH o (.indInfo cvT caps)) (us : LsIdx)
     (hwf : LStoreWF s.store.ls) (hst : StateOK s)
     (ks : List ConLeche.Name) (hks : Frontend.denoteNList s.store.ns cvT.levelParams = some ks)
-    (vs : List ConLeche.Level) (hus : denoteLs s.store.lss us = some vs)
     (hrn : ReadNCacheOK s.caches.readNC s.store) (hrl : ReadLCacheOK s.caches.readLC s.store)
     (hrls : ReadLsCacheOK s.caches.readLsC s.store) (hden : (denoteE s.store cvT.type).isSome = true)
-    (hsd : ∀ u, formerResSort cvT.type s = .ok (some u, s) → (denoteL s.store.ls u).isSome = true)
-    (hsl : ∀ ty s2 u s3, instLPFast coreWalkFuel cvT.levelParams us cvT.type s = .ok (ty, s2) →
-      formerSortLoop (knot mode C n) 0 (caps.nparams + caps.nIdx) ty s2 = .ok (some u, s3) →
-      (denoteL s3.store.ls u).isSome = true ∧ LStoreWF s3.store.ls ∧ ReadLCacheOK s3.caches.readLC s3.store)
     (hlen : cvT.levelParams.length + 1 < 2 ^ 60) (hK : caps.nparams + caps.nIdx < 2 ^ 63) :
     SpecR (σ := σ) (Pre C s (fzParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, ecell C o, Enc.idxW us]))
       fzBody s (familyNeverZeroAt (knot mode C n) cvT caps us) (PostB C) := by
@@ -658,7 +676,7 @@ theorem fz_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       by simp +decide [Env.get, fzParams, ctxEnv], by simp +decide [Env.get, fzParams, ctxEnv], trivial⟩
     (PostB C) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu fzParams _ rfl hlk)
-      (fza_spec ra mode n C hok hc hn hW s d cvT caps o hci us hwf hst ks hks vs hus hrn hrl hrls hden hsd hsl hlen hK))
+      (fza_spec ra mode n C hok hc hn hW s d cvT caps o hci us hwf hst ks hks hrn hrl hrls hden hlen hK))
     (fun b w s1 H1 hp1 hw => ?_)
   subst hw
   exact specR_returnI _ (boolW b) (by simp) (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
