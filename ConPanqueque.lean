@@ -276,3 +276,5 @@ import ConPanqueque.T.Core.CheckProjGuard
 import ConPanqueque.T.Core.TypeAt
 import ConPanqueque.T.Core.InferProj
 import ConPanqueque.T.Core.InferIOArms
+import ConPanqueque.T.Core.InferSpineIO
+import ConPanqueque.T.Core.InferAppIO
