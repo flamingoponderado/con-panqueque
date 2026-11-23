@@ -472,6 +472,6 @@ Next: Core bodies bottom-up (constant instantiation `constTyAt`/`constValAt` wit
   - `shiftLeft` (`T/Big/Shl.lean`) is the verified product with the one-limb block `[2^r]`, then `q` zero limbs and a copy.
   - `sev` now evaluates variable shift amounts.
 - **Remaining for `reduceNat`.**
-  - Arithmetic:, `div`/`mod`, `gcd`, `pow`, bitwise operations, shifts, `log2`.
+  - Arithmetic: `div`/`mod`, `gcd`, `pow`, `log2`.
   - Literal interning from a heap block, with the large key region.
   - Then `natBinOpResult` and `reduceNat`.
