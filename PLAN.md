@@ -465,7 +465,8 @@ Next: Core bodies bottom-up (constant instantiation `constTyAt`/`constValAt` wit
 - **Literal copy.** `litToHeap` copies a literal's limbs into a fresh value-heap block (`T/Big/LitCopy.lean`). It re-views the handle for every limb, because a heap store forgets store-row facts.
 - **Addition.** Heap-block addition (`T/Big/Add.lean`, `add_spec`): two carry loops, the final carry, and a canonical length. The proof goes through `T/Big/AddMath.lean` (carry-chain arithmetic, the 64-bit add-with-carry) and `limbs_eq_digits` (written digits are the canonical limbs).
 - **Subtraction.** Truncated subtraction for `y ≤ x` (`T/Big/Sub.lean`, `sub_spec`): two borrow loops, then a counted scan for the canonical length.
+- **Multiplication.** Schoolbook (`T/Big/Mul.lean`, `mul_spec`). The 64×64→128 multiply-accumulate is built from 32-bit halves (`T/Big/MulMath.lean`). The rows are proved through a closed form of the partially written cells (`T/Big/MulRow.lean`), with a Step-level loop rule for the nested loop (`step_forI`).
 - **Remaining for `reduceNat`.**
-  - Arithmetic: `mul`, `div`/`mod`, `gcd`, `pow`, bitwise operations, shifts, `log2`.
+  - Arithmetic:, `div`/`mod`, `gcd`, `pow`, bitwise operations, shifts, `log2`.
   - Literal interning from a heap block, with the large key region.
   - Then `natBinOpResult` and `reduceNat`.
