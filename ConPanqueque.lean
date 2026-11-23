@@ -311,3 +311,4 @@ import ConPanqueque.T.Core.SubstPW
 import ConPanqueque.T.Core.PropPW
 import ConPanqueque.T.Core.SubstPWAt
 import ConPanqueque.T.Core.PropRO
+import ConPanqueque.T.Core.HeadTypePW
