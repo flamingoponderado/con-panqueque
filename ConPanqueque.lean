@@ -239,3 +239,4 @@ import ConPanqueque.T.Core.NzSubst
 import ConPanqueque.T.Core.FormerNZ
 import ConPanqueque.T.Core.FormerLoop
 import ConPanqueque.T.Core.FamilyNZ
+import ConPanqueque.T.Core.DefEqList
