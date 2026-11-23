@@ -33,6 +33,7 @@ def zY := ofString "rdy"
 def zR := ofString "rdr"
 def zO := ofString "rdo"
 def zP2 := ofString "rdp2"
+def fNbAdd := ofString "nbAdd"
 
 @[simp] theorem rd_zF_ne_zB : zF ≠ zB := by decide
 @[simp] theorem rd_zF_ne_zG : zF ≠ zG := by decide
@@ -976,6 +977,97 @@ theorem rd_chain (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx} (hok : CtxOK C)
       exact rd_chain mode n hok hc hcr hcw Q hQ hW hs hp0 d a b c hDD L _
         (fun e' he' => hL e' (List.mem_cons_of_mem _ he')) (by simp [hFu]) (by simp [hD0]) (by simp [hA])
         (by simp [hB]) (by simp [hC]) (by simp [hnX])
+
+
+theorem specR_gLitI {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64}
+    {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop} (x : MlS) (hx : x ∈ D)
+    (h : SpecR (Inv C s ((x, litW C.fe) :: Γ) M D) rest s m R) :
+    SpecR (Inv C s Γ M D) (.seq (.assign .local x (.var .global gLit)) rest) s m R :=
+  specR_pre_assign x _ (fun _ => litW C.fe) (fun t ht => eval_gv t gLit _ ht.sr.env.2.2.2)
+    (fun t ht => ht.decl x hx) (fun t ht => inv_set ht x _) h
+
+theorem litW_and1 (fe : IFEnv) : litW fe &&& 1#64 = boolW fe.natLit := by
+  unfold litW boolW; cases fe.natLit <;> cases fe.strLit <;> decide
+
+def rdSucc (C : Ctx) : ProgHOL 64 :=
+  .seq (.call (some (some (.local, zW), none)) fW [vv kFu, vv kD, vv zB])
+  (.seq (.call (some (some (.local, zX), none)) fRaw [vv zW])
+  (.ite (.cmp .equal (vv zX) (.const 0)) (.return (.const 0))
+  (allocP C zO (.const 16) (.seq (.store (vv zO) (.const 1))
+  (.seq (.store (.op .add [vv zO, .const 8]) (.const 1))
+  (.seq (.call (some (some (.local, zR), none)) fNbAdd [vv zX, vv zO]) (.return (vv zR))))))))
+
+def succT (r : CoreFnsA) (d : Nat) (b : EIdx) : AM (Option EIdx) :=
+  r.whnf d b >>= fun w => rawNatLit? w >>= fun o => match o with
+    | some n => litNatSized (n + 1)
+    | none => pure none
+
+theorem rd_succ (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx}
+    (hok : CtxOK C) (hc : BigCodes C)
+    (hcr : C.code.lookup fRaw = some ([(qH, ShapeHOL.one)], rnBody C, .one))
+    (hcw : C.code.lookup fW = some (kParams.map (fun p => (p, ShapeHOL.one)), whnfE C fWB, .one))
+    (hca : C.code.lookup fNbAdd = some (nbParams.map (fun p => (p, ShapeHOL.one)), nbAddBody C, .one))
+    (Q : AState → Prop)
+    (hW : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ d e, Callee (σ := σ) (ctxH C H) kParams
+      [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (whnfE C fWB) s1 ((knot mode C n).whnf d e)
+      (PostK (ctxH C H)))
+    {H0 : List (BitVec 64)} {s : AState} {Γ : Env} {D : List MlS} (hs : Q s) (hp0 : C.H <+: H0) (d : Nat) (b : EIdx)
+    (hFu : Γ.get kFu = some (BitVec.ofNat 64 n)) (hD0 : Γ.get kD = some (BitVec.ofNat 64 d))
+    (hB : Γ.get zB = some (Enc.idxW b)) (hDD : zW ∈ D ∧ zX ∈ D ∧ zO ∈ D ∧ zR ∈ D) :
+    SpecR (σ := σ) (Inv (ctxH C H0) s Γ [] D) (rdSucc C) s (succT (knot mode C n) d b) (UD.PostO C) := by
+  unfold rdSucc succT
+  refine specR_callKC zW fW kParams _ (whnfE C fWB) [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW b] (by decide)
+    rfl hDD.1 hcw ⟨by simp [hFu], by simp [hD0], by simp [hB], trivial⟩ (hW H0 s hp0 hs d b)
+    (fun w1 s1 H1 hp1 _ => ?_)
+  refine specR_callRN (C := ctxH (ctxH C H0) H1) (ctxOK_H hok _) (bigCodes_H hc _) hcr zX (vv zW) w1 hDD.2.1
+    (by simp) (fun o1 H2 x hp2 hx => ?_)
+  rcases o1 with _ | n1
+  · simp only at hx; subst hx
+    refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    refine specR_returnI _ 0 rfl (fun t ht => ?_)
+    exact ⟨H2, hp0.trans (hp1.trans hp2), rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
+  obtain ⟨ox, rfl, hbx⟩ := hx
+  refine specR_atEntry fun t0 ht0 => ?_
+  have hox : ox < C.HN := by
+    obtain ⟨H', hp', ha'⟩ := ht0.sr.heap
+    have := blkAt_len hbx; have := hp'.length_le; have := ha'.len; simp only [ctxH] at *; omega
+  have hne := ExSP.cellA_ne0 C hok ox hox
+  refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne) (fun h => absurd rfl h)
+    (fun _ => ?_)
+  refine specR_allocI (C := ctxH C H2) zO (.const 16) 2 (by norm_num) hDD.2.2.1 (fun v => by simp [sev])
+    (fun H3 ws hpre hwl hcap => ?_)
+  have hpl := hpre.length_le
+  have hj : H3.length < (ctxH (ctxH C H2) (H3 ++ ws)).H.length := by show _ < (H3 ++ ws).length; simp; omega
+  refine specR_heapStoreI (ctxOK_H hok _) (vv zO) (.const 1) _ hj 1 (by simp; rfl) rfl ?_
+  have hj2 : H3.length + 1 < (ctxH (ctxH C H2) ((H3 ++ ws).set H3.length 1)).H.length := by
+    show _ < ((H3 ++ ws).set _ _).length; simp; omega
+  refine specR_heapStoreI (ctxOK_H hok _) _ (.const 1) _ hj2 1 (by simp [sev]; exact cellA_add8 C _) rfl ?_
+  let H4 := ((H3 ++ ws).set H3.length 1).set (H3.length + 1) 1
+  have hp1' := prefix_set_ge (hpre.trans (List.prefix_append _ ws)) _ hpl (1 : BitVec 64)
+  have hp2' : H2 <+: H4 := prefix_set_ge hp1' (H3.length + 1) (by omega) (1 : BitVec 64)
+  have hbo : BlkAt H4 H3.length (limbs 1) := by
+    rw [show limbs 1 = [BitVec.ofNat 64 1] by rw [limbs_word 1 (by decide)]; rfl]
+    refine ⟨?_, fun i hi => ?_⟩
+    · show (((H3 ++ ws).set H3.length 1).set (H3.length + 1) 1)[H3.length]? = _
+      rw [List.getElem?_set_ne (by omega), List.getElem?_set_self (by simp; omega)]; rfl
+    · have : i = 0 := by simpa using hi
+      subst this
+      show (((H3 ++ ws).set H3.length 1).set (H3.length + 1) 1)[H3.length + 1 + 0]? = _
+      rw [List.getElem?_set_self (by simp; omega)]; rfl
+  have hbx' : BlkAt H4 ox (limbs n1) := blkAt_mono hbx hp2'
+  show SpecR _ _ _ (natBinOpResult .add n1 1) _
+  refine specR_congr (m' := natBinOpResult .add n1 1 >>= fun r => pure r) (by simp) ?_
+  have hpall : C.H <+: H4 := hp0.trans (hp1.trans (hp2.trans hp2'))
+  refine specR_callNIH zR fNbAdd nbParams [vv zX, vv zO] (nbAddBody C) [cellA C ox, cellA C H3.length]
+    (by decide) rfl hDD.2.2.2 hca ⟨by simp; rfl, by simp; rfl, trivial⟩ (UD.PostO (ctxH C H4))
+    (fun r w _ _ => w = optW r) (fun r w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu nbParams _ rfl hlk)
+      (nbAdd_spec ra (ctxH C H4) (ctxOK_H hok _) (bigCodes_H hc _) s1 n1 1 ox H3.length hbx' hbo))
+    (fun r w s' H5 hp5 hw => ?_)
+  subst hw
+  refine specR_returnI _ (optW r) (by simp) (fun t ht => ?_)
+  exact ⟨H5, hpall.trans hp5, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
 
 end
 
