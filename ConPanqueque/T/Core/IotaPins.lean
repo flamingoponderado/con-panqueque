@@ -1,4 +1,6 @@
 import ConPanqueque.T.Core.RecFire
+import ConPanqueque.T.SRFacts
+import ConPanqueque.T.PinRead
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena ConRon.Bridge
@@ -251,23 +253,20 @@ theorem ip_none (C : Ctx) (vals : List (BitVec 64)) :
 
 theorem ip_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : IpCodes C)
     (lps : List NIdx) (ks : List ConLeche.Name) (us : LsIdx) (vs : List ConLeche.Level) (args : List EIdx) (rP : Nat)
-    (hrP : rP < 2 ^ 63) (ok ot : Nat) (P0 : List EIdx) (Q : AState → Prop)
-    (hQ : ∀ s, Q s → StateOK s ∧ ReadNCacheOK s.caches.readNC s.store ∧ ReadLCacheOK s.caches.readLC s.store ∧
-      ReadLsCacheOK s.caches.readLsC s.store ∧ Frontend.denoteNList s.store.ns lps = some ks ∧
-      denoteLs s.store.lss us = some vs ∧ ∀ p, p ∈ P0 → (denoteE s.store p).isSome = true)
-    (hQi : ∀ s p q s', Q s → instLPFast coreWalkFuel lps us p s = .ok (q, s') → Q s')
-    (hQs : ∀ s q r s', Q s → instSpine coreWalkFuel (args.take rP) (rP - 1) q s = .ok (r, s') → Q s') :
+    (hrP : rP < 2 ^ 63) (ok ot : Nat) (P0 : List EIdx)
+    (hfks : Frontend.denoteNList C.St.ns lps = some ks) (hfus : denoteLs C.St.lss us = some vs)
+    (hfden : ∀ p, p ∈ P0 → (denoteE C.St p).isSome = true) :
     ∀ (pins : List EIdx) (qs : Nat) (H : List (BitVec 64)) (acc : List EIdx) (oa : Nat) (s : AState), C.H <+: H →
       (∀ p, p ∈ pins → p ∈ P0) → (∀ j (hj : j < pins.length), C.EH[qs + j]? = some (Enc.idxW pins[j])) →
       BlkAt H oa (acc.map Enc.idxW) → BlkAt H ok (lps.map Enc.idxW) → BlkAt H ot ((args.take rP).map Enc.idxW) →
-      Q s → pins.length < 2 ^ 61 →
+      pins.length < 2 ^ 61 →
       SpecR (σ := σ) (Pre (ctxH C H) s (ipParams.zip [ecell C qs, BitVec.ofNat 64 pins.length, cellA C ok, Enc.idxW us,
         cellA C ot, BitVec.ofNat 64 rP, cellA C oa])) ipBody s
         (instSpinePins lps us args rP pins >>= fun xs => pure (acc ++ xs)) (PostA (ctxH C H)) := by
   intro pins
   induction pins with
   | nil =>
-    intro qs H acc oa s hp hsub hsrc hb hko hbt hq hlen
+    intro qs H acc oa s hp hsub hsrc hb hko hbt hlen
     refine specR_prologue (postA_locals _) (ip_none _ _) ?_
     unfold ipCore
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, ipParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
@@ -276,8 +275,15 @@ theorem ip_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     exact specR_returnI _ (cellA C oa) (by simp +decide [Env.get, ipParams, ctxEnv] <;> rfl)
       (fun t ht => ⟨H, oa, List.prefix_refl _, rfl, hb, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   | cons p pins ih =>
-    intro qs H acc oa s hp hsub hsrc hb hko hbt hq hlen
-    obtain ⟨hst, hcn, hcl, hcls, hks, hus, hden⟩ := hQ s hq
+    intro qs H acc oa s hp hsub hsrc hb hko hbt hlen
+    refine specR_atEntry fun t0 ht0 => ?_
+    have hst := sr_stateOK ht0.1
+    have hcn := ht0.1.cok.rn
+    have hcl := ht0.1.cok.rl
+    have hcls := ht0.1.cok.rls
+    have hks := denoteNListE_ext ht0.1.floor lps ks hfks
+    have hus := denoteLs_ext hfus ht0.1.floor
+    have hden : ∀ p, p ∈ P0 → (denoteE s.store p).isSome = true := fun p hp => denoteE_isSome_ext ht0.1.floor (hfden p hp)
     refine specR_prologue (postA_locals _) (ip_none _ _) ?_
     unfold ipCore
     have hne := ofNat_succ_ne pins.length (by simp at hlen; omega)
@@ -299,7 +305,6 @@ theorem ip_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
           (hden p (hsub p (by simp))) hko)))
       (fun q w s1 H1 hp1 ⟨hrun1, hw⟩ => ?_)
     subst hw
-    have hq1 := hQi s p q s1 hq hrun1
     refine specR_assignI ipD _ (BitVec.ofNat 64 (rP - 1)) (by decide)
       (by simp +decide [sev, Env.get, ipParams, ctxEnv]; exact ExIS.satPred rP hrP) ?_
     refine specR_callNIH (C := ctxH C H1) ipR ExIS.fInstSpine ExIS.isParams
@@ -318,7 +323,6 @@ theorem ip_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       (fun r w s2 H2 hp2 ⟨hrun2, hw, hH2⟩ => ?_)
     subst hw; subst hH2
     simp only [List.drop_zero] at hrun2
-    have hq2 := hQs s1 q r s2 hq1 hrun2
     refine ExPre.specR_callApp (C := ctxH C H2) (ctxOK_H hok H2) hc.app ipA2 (vv ipA) (vv ipR) oa (acc.map Enc.idxW)
       (Enc.idxW r) (by decide) (blkAt_mono hb hp1) (by simp +decide [Env.get, ipParams, ctxEnv]; rfl) (by simp)
       (fun H3 o3 hp3 hb3 => ?_)
@@ -339,7 +343,7 @@ theorem ip_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ipParams _ rfl hlk)
         (ih (qs + 1) H3 (acc ++ [r]) o3 s2 (hp.trans (hp1.trans hp3)) (fun x hx => hsub x (by simp [hx]))
           (fun j hj => by have h' := hsrc (j + 1) (by simp; omega); rw [show qs + (j + 1) = qs + 1 + j by omega] at h'; simpa using h')
-          hb3' (blkAt_mono hko (hp1.trans hp3)) (blkAt_mono hbt (hp1.trans hp3)) hq2 (by simp at hlen; omega)))
+          hb3' (blkAt_mono hko (hp1.trans hp3)) (blkAt_mono hbt (hp1.trans hp3)) (by simp at hlen; omega)))
       (fun res w s4 H4 hp4 ⟨o4, hw, hb4⟩ => ?_)
     subst hw
     exact specR_returnI _ (cellA C o4) (by simp)

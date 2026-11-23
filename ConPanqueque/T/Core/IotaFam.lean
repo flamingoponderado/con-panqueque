@@ -1035,14 +1035,10 @@ theorem fa_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (rl : IRecRule) (qr : Nat) (hrule : RuleE C.EB C.EH qr rl) (lps : List NIdx) (ok : Nat)
     (hks0 : EBlk C.EH ok (lps.map Enc.idxW)) (hll : lps.length + 1 < 2 ^ 60) (us : LsIdx)
     (ks : List ConLeche.Name) (vs : List ConLeche.Level) (args : List EIdx) (rP cnP : Nat)
-    (hrP : rP < 2 ^ 63) (hcn : cnP < 2 ^ 63) (Q : AState → Prop)
-    (hQ : ∀ s, Q s → StateOK s ∧ ReadNCacheOK s.caches.readNC s.store ∧ ReadLCacheOK s.caches.readLC s.store ∧
-      ReadLsCacheOK s.caches.readLsC s.store ∧ Frontend.denoteNList s.store.ns lps = some ks ∧
-      denoteLs s.store.lss us = some vs ∧
-      ∀ lv pins, rl.fire = .nested lv pins → ∀ p, p ∈ pins → (denoteE s.store p).isSome = true)
-    (hQi : ∀ s p q s', Q s → instLPFast coreWalkFuel lps us p s = .ok (q, s') → Q s')
-    (hQs : ∀ s q r s', Q s → instSpine coreWalkFuel (args.take rP) (rP - 1) q s = .ok (r, s') → Q s')
-    (hq : Q s) (H : List (BitVec 64)) (hp : C.H <+: H) (oa : Nat) (hba : BlkAt H oa (args.map Enc.idxW))
+    (hrP : rP < 2 ^ 63) (hcn : cnP < 2 ^ 63)
+    (hfks : Frontend.denoteNList C.St.ns lps = some ks) (hfus : denoteLs C.St.lss us = some vs)
+    (hfp : ∀ lv pins, rl.fire = .nested lv pins → ∀ p, p ∈ pins → (denoteE C.St p).isSome = true)
+    (H : List (BitVec 64)) (hp : C.H <+: H) (oa : Nat) (hba : BlkAt H oa (args.map Enc.idxW))
     (hal : args.length < 2 ^ 58) :
     SpecR (σ := σ) (Pre (ctxH C H) s (faParams.zip [ecell C qr, ecell C ok, Enc.idxW us, cellA C oa,
       BitVec.ofNat 64 rP, BitVec.ofNat 64 cnP])) (faBody C) s (recFireArgs rl cnP lps us args rP)
@@ -1146,11 +1142,11 @@ theorem fa_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       (PostA (ctxH C G)) (fun a w _ H4 => ∃ o4, w = cellA C o4 ∧ BlkAt H4 o4 (a.map Enc.idxW))
       (fun a w s' st ⟨H4, o4, hp4, hw, hb4, hsr⟩ => ⟨H4, hp4, ⟨o4, hw, hb4⟩, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ipParams _ rfl hlk)
-        (ip_spec ra C hok hc.ip lps ks us vs args rP hrP H1.length o2 pins Q
-          (fun s h => let ⟨a1, a2, a3, a4, a5, a6, a7⟩ := hQ s h; ⟨a1, a2, a3, a4, a5, a6, a7 lv pins hf⟩) hQi hQs
+        (ip_spec ra C hok hc.ip lps ks us vs args rP hrP H1.length o2 pins hfks hfus
+          (fun p hp => hfp lv pins hf p hp)
           pins (ops + 1) G [] H3.length s (hp.trans hHG) (fun p hp => hp)
           (fun j hj => by have h' := hbp.2 j (by simpa using hj); simpa using h')
-          hbA (blkAt_mono hblkK (hp2.trans hpG)) (blkAt_mono hb2 hpG) hq (by omega)))
+          hbA (blkAt_mono hblkK (hp2.trans hpG)) (blkAt_mono hb2 hpG) (by omega)))
       (fun r w s4 H4 hp4 ⟨o4, hw, hb4⟩ => ?_)
     subst hw
     exact specR_returnI _ (cellA C o4) (by simp)
