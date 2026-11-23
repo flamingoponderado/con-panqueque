@@ -112,6 +112,68 @@ theorem mka_gen (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     obtain ⟨rfl, _⟩ := hp
     exact specR_returnI (vv lY) (Enc.idxW a) (by simp +decide) (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
+theorem mka_genN (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
+    (hcode : C.code.lookup fMka = some ([(pF, .one), (pP, .one), (pI, .one), (pN, .one)], mkaBody, .one))
+    (hcI : C.code.lookup fInternApp = some ([(lEf, .one), (lEa, .one)], internAppBody, .one))
+    (o : Nat) (xs : List EIdx) (hblk : BlkAt C.H o (xs.map Enc.idxW)) (hn : xs.length < 2 ^ 59)
+    (n : Nat) (hnl : n ≤ xs.length) (T : Nat → EIdx → AM EIdx)
+    (hT0 : ∀ f, T n f = pure f)
+    (hT1 : ∀ i f (hi : i < n), T i f = (internAppE f xs[i] >>= fun g => T (i + 1) g)) :
+    ∀ k i f s, i + k = n →
+      SpecR (Pre (σ := σ) C s [(pF, Enc.idxW f), (pP, cellA C o), (pI, BitVec.ofNat 64 i),
+        (pN, BitVec.ofNat 64 n)]) mkaBody s (T i f) (PostE C) := by
+  intro k
+  induction k with
+  | zero =>
+    intro i f s hik
+    simp only [Nat.add_zero] at hik; subst i
+    refine specR_prologue (postE_locals C) (params_noneK _ _ _ _ C) ?_
+    refine specR_ifI _ 1 (by simp +decide [sev, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+      (fun hw => absurd hw (by decide))
+    rw [show T n f = pure f from hT0 f]
+    exact specR_returnI (vv pF) (Enc.idxW f) (by simp +decide [ctxEnv]) (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  | succ k ih =>
+    intro i f s hik
+    have hi : i < n := by omega
+    refine specR_prologue (postE_locals C) (params_noneK _ _ _ _ C) ?_
+    have hne : BitVec.ofNat 64 i ≠ BitVec.ofNat 64 n := fun e =>
+      absurd ((word_eq_iff i n (by omega) (by omega)).mp e) (by omega)
+    refine specR_ifI _ 0 (by simp +decide [sev, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne])
+      (fun hw => absurd rfl hw) (fun _ => ?_)
+    obtain ⟨hl, hv⟩ := blkAt_get hblk i (by simp; omega)
+    refine specR_heapLoadI lA1 _ (o + 1 + i) hl (by decide)
+      (by simp +decide [sev, ctxEnv]; exact cellA_idx' C o i (by omega)) ?_
+    rw [show C.H[o + 1 + i]'hl = Enc.idxW xs[i] by rw [hv]; simp]
+    rw [show T i f = (internAppE f xs[i] >>= fun g => T (i + 1) g) from hT1 i f hi]
+    refine specR_internAppI ra hok hcI lW (vv pF) (vv lA1) f xs[i] (by decide) (by simp +decide [ctxEnv])
+      (by simp +decide) (fun g s1 => ?_)
+    refine specR_congr (m' := T (i + 1) g >>= fun a => pure a) (by simp) ?_
+    refine specR_call4IM lY fMka pF pP pI pN (by decide) _ _ _ _ mkaBody (Enc.idxW g) (cellA C o)
+      (BitVec.ofNat 64 (i + 1)) (BitVec.ofNat 64 n) (by decide) hcode (by simp +decide)
+      (by simp +decide [ctxEnv]) (by simp +decide [sev, ctxEnv]; exact word_add1_eq i) (by simp +decide [ctxEnv])
+      (PostE C) (fun _ _ _ _ hp => hp.2)
+      (fun u hu _ h1 h2 h3 h4 w hw => by subst hw; exact ih (i + 1) g s1 (by omega) _ (pre4 hu _ _ _ _ _ _ _ _ h1 h2 h3 h4))
+      (fun a w s' st hp => ?_)
+    obtain ⟨rfl, _⟩ := hp
+    exact specR_returnI (vv lY) (Enc.idxW a) (by simp +decide) (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+/-- `mkAppN f ((xs.take n).drop i)`: the block's first `n` entries. -/
+theorem mkAppN_take_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
+    (hcode : C.code.lookup fMka = some ([(pF, .one), (pP, .one), (pI, .one), (pN, .one)], mkaBody, .one))
+    (hcI : C.code.lookup fInternApp = some ([(lEf, .one), (lEa, .one)], internAppBody, .one))
+    (o : Nat) (xs : List EIdx) (hblk : BlkAt C.H o (xs.map Enc.idxW)) (hn : xs.length < 2 ^ 59)
+    (n : Nat) (hnl : n ≤ xs.length) (f : EIdx) (s : AState) :
+    SpecR (Pre (σ := σ) C s [(pF, Enc.idxW f), (pP, cellA C o), (pI, BitVec.ofNat 64 0),
+      (pN, BitVec.ofNat 64 n)]) mkaBody s (mkAppN f (xs.take n)) (PostE C) := by
+  have := mka_genN (σ := σ) ra C hok hcode hcI o xs hblk hn n hnl (fun i f => mkAppN f ((xs.take n).drop i))
+    (fun f => by rw [List.drop_eq_nil_of_le (show (xs.take n).length ≤ n by simp [Nat.min_le_left])]; rfl)
+    (fun i f hi => by
+      rw [List.drop_eq_getElem_cons (show i < (xs.take n).length by simp; omega)]
+      simp only [List.getElem_take]; rfl)
+    n 0 f s (by omega)
+  simp only [List.drop_zero] at this
+  exact this
+
 /-- `mkAppN f (xs.drop i)`. -/
 theorem mkAppN_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
     (hcode : C.code.lookup fMka = some ([(pF, .one), (pP, .one), (pI, .one), (pN, .one)], mkaBody, .one))
