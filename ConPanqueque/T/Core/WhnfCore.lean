@@ -697,4 +697,141 @@ theorem wcl_rest (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx} (hok : CtxOK C)
 
 end
 
+
+section
+variable {σ : Type}
+
+theorem wcl_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ wclLocals → (ctxEnv C ++ wclParams.zip vals).get x = none :=
+  Knot.params_none C wclLocals wclParams vals (by decide) (by decide)
+
+/-- **`whnfCoreLoop`**: the recursive function refines the twin's loop at every budget. -/
+theorem wcl_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) (Bs : ProgHOL 64)
+    (hcf : C.code.lookup fSCF = some (scParams.map (fun p => (p, ShapeHOL.one)), scBody .whnfCore C fSCF, .one))
+    (hcc : C.code.lookup fSCC = some (scParams.map (fun p => (p, ShapeHOL.one)), scBody .whnfCoreCheap C fSCC, .one))
+    (hcodeS : C.code.lookup fMemoSet = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoSetBody, .one))
+    (hcodeI : C.code.lookup fMemoIns = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoInsBody, .one))
+    (hcodeG : C.code.lookup fMemoGet = some ([(pG, .one), (pLen, .one)], memoGetBody, .one))
+    (hcodeP : C.code.lookup fMemoProbe = some ([(pG, .one), (pLen, .one)], memoProbeBody, .one))
+    (hcaf : C.code.lookup fGetAppFn = some ([(pFu, .one), (pH, .one)], getAppFnBody, .one))
+    (hcs : C.code.lookup fWCS = some (wcsParams.map (fun p => (p, ShapeHOL.one)), Bs, .one))
+    (hcl : C.code.lookup fWCL = some (wclParams.map (fun p => (p, ShapeHOL.one)), wclBody C, .one))
+    (Q : AState → Prop)
+    (hQs : ∀ s1 cheap d h e a s2, Q s1 → whnfCoreStep mode (knot mode C n) C.fe cheap d h e s1 = .ok (a, s2) → Q s2)
+    (hStep : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ cheap d h e,
+      SpecR (σ := σ) (Pre (ctxH C H) s1 (wcsParams.zip [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d,
+        Enc.idxW h, Enc.idxW e])) Bs s1 (whnfCoreStep mode (knot mode C n) C.fe cheap d h e) (PostWS (ctxH C H))) :
+    ∀ f, f < 2 ^ 63 → ∀ (H : List (BitVec 64)) s cheap d e (xs ys : List EIdx) p q, C.H <+: H → Q s →
+      LstAt C H p xs → LstAt C H q ys →
+      SpecR (σ := σ) (Pre (ctxH C H) s (wclParams.zip [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d, Enc.idxW e,
+        p, q, BitVec.ofNat 64 f])) (wclBody C) s
+        (whnfCoreLoop mode (knot mode C n) C.fe cheap d f e xs.reverse.toArray ys.reverse.toArray) (PostK (ctxH C H)) := by
+  intro f
+  induction f with
+  | zero =>
+    intro _ H s cheap d e xs ys p q _ _ _ _
+    refine specR_prologue (postK_locals _) (wcl_none _ _) ?_
+    unfold wclCore
+    exact specR_ifI _ 1 (by simp +decide [sev, Env.get, wclParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun _ => specR_hangI) (fun h => absurd h (by decide))
+  | succ f' ih =>
+    intro hf H s cheap d e xs ys p q hpre hq hp hqL
+    have hok' := ctxOK_H hok H
+    refine specR_prologue (postK_locals _) (wcl_none _ _) ?_
+    unfold wclCore
+    refine specR_declAdd cP p (by simp +decide [Env.get, wclParams, ctxEnv]) ?_
+    refine specR_declAdd cQ q (by simp +decide [Env.get, wclParams, ctxEnv]) ?_
+    refine specR_declAdd cB (BitVec.ofNat 64 (f' + 1)) (by simp +decide [Env.get, wclParams, ctxEnv]) ?_
+    have hfw : BitVec.ofNat 64 (f' + 1) ≠ 0#64 := by
+      intro h0; have := congrArg BitVec.toNat h0; simp at this; omega
+    have hB0 : sev (ctxEnv (ctxH C H) ++ wclParams.zip [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d, Enc.idxW e,
+        p, q, BitVec.ofNat 64 (f' + 1)]) (.cmp .equal (vv cB) (.const 0)) = some 0 := by
+      simp +decide [sev, Env.get, wclParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hfw
+    refine specR_ifI _ 0 hB0 (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_assignI cB _ (BitVec.ofNat 64 f') (by decide) (by
+      simp +decide [sev, Env.get, wclParams, ctxEnv]
+      rw [show (1#64 : BitVec 64) = BitVec.ofNat 64 1 from rfl,
+        BitVec.ofNat_sub_ofNat_of_le _ _ (by omega) (by omega)]
+      rfl) ?_
+    rw [whnfCoreLoop_succ]
+    have hE0 : Env.get ((cB, BitVec.ofNat 64 f') :: (ctxEnv (ctxH C H) ++ wclParams.zip [BitVec.ofNat 64 n, boolW cheap,
+        BitVec.ofNat 64 d, Enc.idxW e, p, q, BitVec.ofNat 64 (f' + 1)])) kE = some (Enc.idxW e) := by
+      simp +decide [Env.get, wclParams, ctxEnv]
+    have hrec : ∀ (H' : List (BitVec 64)) s1 cheap d e (xs ys : List EIdx) p q, (ctxH C H).H <+: H' → Q s1 →
+        LstAt (ctxH C H) H' p xs → LstAt (ctxH C H) H' q ys →
+        SpecR (σ := σ) (Pre (ctxH (ctxH C H) H') s1 (wclParams.zip [BitVec.ofNat 64 n, boolW cheap,
+          BitVec.ofNat 64 d, Enc.idxW e, p, q, BitVec.ofNat 64 f'])) (wclBody (ctxH C H)) s1
+          (whnfCoreLoop mode (knot mode (ctxH C H) n) (ctxH C H).fe cheap d f' e xs.reverse.toArray ys.reverse.toArray)
+          (PostK (ctxH (ctxH C H) H')) :=
+      fun H' s1 cheap d e xs ys p q hp' hq' hpL hqL =>
+        ih (by omega) H' s1 cheap d e xs ys p q (hpre.trans hp') hq' (lstAt_H.mp hpL) (lstAt_H.mp hqL)
+    have hStep' : ∀ (H' : List (BitVec 64)) s1, (ctxH C H).H <+: H' → Q s1 → ∀ cheap d h e,
+        SpecR (σ := σ) (Pre (ctxH (ctxH C H) H') s1 (wcsParams.zip [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d,
+          Enc.idxW h, Enc.idxW e])) Bs s1 (whnfCoreStep mode (knot mode (ctxH C H) n) (ctxH C H).fe cheap d h e)
+          (PostWS (ctxH (ctxH C H) H')) :=
+      fun H' s1 hp' hq' => hStep H' s1 (hpre.trans hp') hq'
+    by_cases hst : whnfCoreStuckTag e = true
+    · rw [if_pos hst]
+      refine specR_ifI _ 1 (by rw [sev_stuckTag _ kE e hE0, hst]; rfl) (fun _ => ?_) (fun h => absurd h (by decide))
+      refine specR_assignI cV (vv kE) (Enc.idxW e) (by decide) (by simp [hE0]) ?_
+      exact scRet_spec (σ := σ) (C0 := ctxH C H) (D := wclD) hok' hcf hcc hcodeS hcodeI (List.prefix_refl _) cheap xs ys
+        p q e (lstAt_H.mpr hp) (lstAt_H.mpr hqL) (by simp +decide [Env.get, wclParams, ctxEnv])
+        (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp)
+        (by decide)
+    rw [if_neg hst]
+    refine specR_ifI _ 0 (by rw [sev_stuckTag _ kE e hE0]; simp [hst, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_callNIM (C := ctxH C H) cH fGetAppFn [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv kE]
+      getAppFnBody [BitVec.ofNat 64 coreWalkFuel, Enc.idxW e] (by decide) rfl (by decide) hcaf
+      ⟨rfl, by simp [hE0], trivial⟩
+      (fun a w s' st => getAppFn coreWalkFuel e s = .ok (a, s') ∧ Post (ctxH C H) s a w s' st)
+      (fun a w s' st ⟨_, _, hs, hsr⟩ => hs ▸ hsr)
+      (fun u hu _ hlk => specR_run (fun t ht => by
+        subst ht
+        exact getAppFn_spec (ctxH C H) hcaf coreWalkFuel e s CV.coreWalkFuel_lt t ⟨hu, hlk 0 (by decide),
+          hlk 1 (by decide)⟩))
+      (fun hh w s' st ⟨hrun, hw, hs, _⟩ => ?_)
+    subst hw
+    have hs' : s = s' := hs.symm
+    subst hs'
+    refine specR_assignI cK (keyE cH kE) (boolW (whnfCoreKey hh e)) (by decide)
+      (sev_key _ cH kE hh e (by simp) (by simp [hE0])) ?_
+    by_cases hk : whnfCoreKey hh e = true
+    · refine specR_ifI _ 1 (by simp [sev, hk, boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
+      cases cheap
+      · refine specR_ifI _ 0 (by simp +decide [sev, Env.get, wclParams, ctxEnv, boolW]) (fun h => absurd rfl h)
+          (fun _ => ?_)
+        rw [show whnfCoreLookupAt (whnfCoreKey hh e) false e = whnfCoreLookup false e by simp [whnfCoreLookupAt, hk]]
+        refine specR_modeGetI hok' .whnfCore (whnfCoreLookup false) (fun _ _ => rfl) hcodeG hcodeP cX (vv kE) e
+          (by decide) (by decide) (by simp +decide [sev, Env.get, wclParams, ctxEnv])
+          (by simp +decide [Env.get, wclParams, ctxEnv]) (fun r => ?_)
+        exact wcl_rest (σ := σ) (C := ctxH C H) mode n hok' Bs hcf hcc hcodeS hcodeI hcs hcl Q hQs hStep' f' hrec
+          (List.prefix_refl _) hq false d e hh xs ys p q r (lstAt_H.mpr hp) (lstAt_H.mpr hqL)
+          (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp +decide [Env.get, wclParams, ctxEnv])
+          (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp +decide [Env.get, wclParams, ctxEnv])
+          (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp +decide [Env.get, wclParams, ctxEnv])
+          (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp) (by simp) (by simp)
+      · refine specR_ifI _ 1 (by simp +decide [sev, Env.get, wclParams, ctxEnv, boolW]) (fun _ => ?_)
+          (fun h => absurd h (by decide))
+        rw [show whnfCoreLookupAt (whnfCoreKey hh e) true e = whnfCoreLookup true e by simp [whnfCoreLookupAt, hk]]
+        refine specR_modeGetI hok' .whnfCoreCheap (whnfCoreLookup true) (fun _ _ => rfl) hcodeG hcodeP cX (vv kE) e
+          (by decide) (by decide) (by simp +decide [sev, Env.get, wclParams, ctxEnv])
+          (by simp +decide [Env.get, wclParams, ctxEnv]) (fun r => ?_)
+        exact wcl_rest (σ := σ) (C := ctxH C H) mode n hok' Bs hcf hcc hcodeS hcodeI hcs hcl Q hQs hStep' f' hrec
+          (List.prefix_refl _) hq true d e hh xs ys p q r (lstAt_H.mpr hp) (lstAt_H.mpr hqL)
+          (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp +decide [Env.get, wclParams, ctxEnv])
+          (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp +decide [Env.get, wclParams, ctxEnv])
+          (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp +decide [Env.get, wclParams, ctxEnv])
+          (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp) (by simp) (by simp)
+    · refine specR_ifI _ 0 (by simp [sev, hk, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
+      refine specR_assignI cX (.const 0) (optW none) (by decide) rfl ?_
+      rw [show whnfCoreLookupAt (whnfCoreKey hh e) cheap e = pure none by simp [whnfCoreLookupAt, hk], pure_bind]
+      exact wcl_rest (σ := σ) (C := ctxH C H) mode n hok' Bs hcf hcc hcodeS hcodeI hcs hcl Q hQs hStep' f' hrec
+          (List.prefix_refl _) hq cheap d e hh xs ys p q none (lstAt_H.mpr hp) (lstAt_H.mpr hqL)
+          (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp +decide [Env.get, wclParams, ctxEnv])
+          (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp +decide [Env.get, wclParams, ctxEnv])
+          (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp +decide [Env.get, wclParams, ctxEnv])
+          (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp) (by simp) (by simp)
+
+end
+
 end ConPanqueque.T.WC
