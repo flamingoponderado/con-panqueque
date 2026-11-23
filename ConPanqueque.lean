@@ -247,3 +247,4 @@ import ConPanqueque.T.Core.IotaCase3
 import ConPanqueque.T.Core.RecFire
 import ConPanqueque.T.Core.IotaPins
 import ConPanqueque.T.Core.IotaFam
+import ConPanqueque.T.Core.IotaFamBody
