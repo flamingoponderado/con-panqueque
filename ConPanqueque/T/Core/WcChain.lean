@@ -176,6 +176,15 @@ theorem lstAt_mono {C : Ctx} {H H' : List (BitVec 64)} (hp : H <+: H') :
     · rw [List.getElem?_append_left (List.getElem?_eq_some_iff.mp h2).1]; exact h2
     · rw [List.getElem?_append_left (List.getElem?_eq_some_iff.mp h3).1]; exact h3
 
+theorem lstAt_H {C : Ctx} {H H' : List (BitVec 64)} {p : BitVec 64} {xs : List EIdx} :
+    LstAt (ctxH C H') H p xs ↔ LstAt C H p xs := by
+  induction xs generalizing p with
+  | nil => rfl
+  | cons x xs ih =>
+    constructor
+    · intro ⟨o, nx, h1, h2, h3, h4⟩; exact ⟨o, nx, h1, h2, h3, ih.mp h4⟩
+    · intro ⟨o, nx, h1, h2, h3, h4⟩; exact ⟨o, nx, h1, h2, h3, ih.mpr h4⟩
+
 def scLocals : List MlS := [scN, scK, scR, scW, lEo]
 def scParams : List MlS := [scL, scV]
 
@@ -295,6 +304,205 @@ theorem sc_spec (k : ModeKE) (storeOp : Array EIdx → Nat → EIdx → AM Unit)
       (by simp) (by simp +decide [sev, Env.get, scParams, ctxEnv]) (by simp +decide [Env.get, ctxEnv])
       (fun w => ?_)
     exact specR_returnI _ 0 rfl (fun t ht => sr_of_eq ht.sr rfl rfl rfl rfl)
+
+end
+
+def cP := ofString "wcp"
+def cQ := ofString "wcq"
+def cV := ofString "wcv"
+def cR := ofString "wcr"
+def fSCF := ofString "storeKeys"
+def fSCC := ofString "storeCheapKeys"
+
+@[simp] theorem wcc_cP_ne_cQ : cP ≠ cQ := by decide
+@[simp] theorem wcc_cP_ne_cV : cP ≠ cV := by decide
+@[simp] theorem wcc_cP_ne_cR : cP ≠ cR := by decide
+@[simp] theorem wcc_cP_ne_kC : cP ≠ kC := by decide
+@[simp] theorem wcc_kC_ne_cP : kC ≠ cP := by decide
+@[simp] theorem wcc_cP_ne_kFu : cP ≠ kFu := by decide
+@[simp] theorem wcc_kFu_ne_cP : kFu ≠ cP := by decide
+@[simp] theorem wcc_cP_ne_kD : cP ≠ kD := by decide
+@[simp] theorem wcc_kD_ne_cP : kD ≠ cP := by decide
+@[simp] theorem wcc_cP_ne_kE : cP ≠ kE := by decide
+@[simp] theorem wcc_kE_ne_cP : kE ≠ cP := by decide
+@[simp] theorem wcc_cP_ne_lEo : cP ≠ lEo := by decide
+@[simp] theorem wcc_lEo_ne_cP : lEo ≠ cP := by decide
+@[simp] theorem wcc_cP_ne_lKb : cP ≠ lKb := by decide
+@[simp] theorem wcc_lKb_ne_cP : lKb ≠ cP := by decide
+@[simp] theorem wcc_cP_ne_scL : cP ≠ scL := by decide
+@[simp] theorem wcc_scL_ne_cP : scL ≠ cP := by decide
+@[simp] theorem wcc_cP_ne_scV : cP ≠ scV := by decide
+@[simp] theorem wcc_scV_ne_cP : scV ≠ cP := by decide
+@[simp] theorem wcc_cP_ne_scN : cP ≠ scN := by decide
+@[simp] theorem wcc_scN_ne_cP : scN ≠ cP := by decide
+@[simp] theorem wcc_cP_ne_scK : cP ≠ scK := by decide
+@[simp] theorem wcc_scK_ne_cP : scK ≠ cP := by decide
+@[simp] theorem wcc_cP_ne_scR : cP ≠ scR := by decide
+@[simp] theorem wcc_scR_ne_cP : scR ≠ cP := by decide
+@[simp] theorem wcc_cP_ne_scW : cP ≠ scW := by decide
+@[simp] theorem wcc_scW_ne_cP : scW ≠ cP := by decide
+@[simp] theorem wcc_cQ_ne_cP : cQ ≠ cP := by decide
+@[simp] theorem wcc_cQ_ne_cV : cQ ≠ cV := by decide
+@[simp] theorem wcc_cQ_ne_cR : cQ ≠ cR := by decide
+@[simp] theorem wcc_cQ_ne_kC : cQ ≠ kC := by decide
+@[simp] theorem wcc_kC_ne_cQ : kC ≠ cQ := by decide
+@[simp] theorem wcc_cQ_ne_kFu : cQ ≠ kFu := by decide
+@[simp] theorem wcc_kFu_ne_cQ : kFu ≠ cQ := by decide
+@[simp] theorem wcc_cQ_ne_kD : cQ ≠ kD := by decide
+@[simp] theorem wcc_kD_ne_cQ : kD ≠ cQ := by decide
+@[simp] theorem wcc_cQ_ne_kE : cQ ≠ kE := by decide
+@[simp] theorem wcc_kE_ne_cQ : kE ≠ cQ := by decide
+@[simp] theorem wcc_cQ_ne_lEo : cQ ≠ lEo := by decide
+@[simp] theorem wcc_lEo_ne_cQ : lEo ≠ cQ := by decide
+@[simp] theorem wcc_cQ_ne_lKb : cQ ≠ lKb := by decide
+@[simp] theorem wcc_lKb_ne_cQ : lKb ≠ cQ := by decide
+@[simp] theorem wcc_cQ_ne_scL : cQ ≠ scL := by decide
+@[simp] theorem wcc_scL_ne_cQ : scL ≠ cQ := by decide
+@[simp] theorem wcc_cQ_ne_scV : cQ ≠ scV := by decide
+@[simp] theorem wcc_scV_ne_cQ : scV ≠ cQ := by decide
+@[simp] theorem wcc_cQ_ne_scN : cQ ≠ scN := by decide
+@[simp] theorem wcc_scN_ne_cQ : scN ≠ cQ := by decide
+@[simp] theorem wcc_cQ_ne_scK : cQ ≠ scK := by decide
+@[simp] theorem wcc_scK_ne_cQ : scK ≠ cQ := by decide
+@[simp] theorem wcc_cQ_ne_scR : cQ ≠ scR := by decide
+@[simp] theorem wcc_scR_ne_cQ : scR ≠ cQ := by decide
+@[simp] theorem wcc_cQ_ne_scW : cQ ≠ scW := by decide
+@[simp] theorem wcc_scW_ne_cQ : scW ≠ cQ := by decide
+@[simp] theorem wcc_cV_ne_cP : cV ≠ cP := by decide
+@[simp] theorem wcc_cV_ne_cQ : cV ≠ cQ := by decide
+@[simp] theorem wcc_cV_ne_cR : cV ≠ cR := by decide
+@[simp] theorem wcc_cV_ne_kC : cV ≠ kC := by decide
+@[simp] theorem wcc_kC_ne_cV : kC ≠ cV := by decide
+@[simp] theorem wcc_cV_ne_kFu : cV ≠ kFu := by decide
+@[simp] theorem wcc_kFu_ne_cV : kFu ≠ cV := by decide
+@[simp] theorem wcc_cV_ne_kD : cV ≠ kD := by decide
+@[simp] theorem wcc_kD_ne_cV : kD ≠ cV := by decide
+@[simp] theorem wcc_cV_ne_kE : cV ≠ kE := by decide
+@[simp] theorem wcc_kE_ne_cV : kE ≠ cV := by decide
+@[simp] theorem wcc_cV_ne_lEo : cV ≠ lEo := by decide
+@[simp] theorem wcc_lEo_ne_cV : lEo ≠ cV := by decide
+@[simp] theorem wcc_cV_ne_lKb : cV ≠ lKb := by decide
+@[simp] theorem wcc_lKb_ne_cV : lKb ≠ cV := by decide
+@[simp] theorem wcc_cV_ne_scL : cV ≠ scL := by decide
+@[simp] theorem wcc_scL_ne_cV : scL ≠ cV := by decide
+@[simp] theorem wcc_cV_ne_scV : cV ≠ scV := by decide
+@[simp] theorem wcc_scV_ne_cV : scV ≠ cV := by decide
+@[simp] theorem wcc_cV_ne_scN : cV ≠ scN := by decide
+@[simp] theorem wcc_scN_ne_cV : scN ≠ cV := by decide
+@[simp] theorem wcc_cV_ne_scK : cV ≠ scK := by decide
+@[simp] theorem wcc_scK_ne_cV : scK ≠ cV := by decide
+@[simp] theorem wcc_cV_ne_scR : cV ≠ scR := by decide
+@[simp] theorem wcc_scR_ne_cV : scR ≠ cV := by decide
+@[simp] theorem wcc_cV_ne_scW : cV ≠ scW := by decide
+@[simp] theorem wcc_scW_ne_cV : scW ≠ cV := by decide
+@[simp] theorem wcc_cR_ne_cP : cR ≠ cP := by decide
+@[simp] theorem wcc_cR_ne_cQ : cR ≠ cQ := by decide
+@[simp] theorem wcc_cR_ne_cV : cR ≠ cV := by decide
+@[simp] theorem wcc_cR_ne_kC : cR ≠ kC := by decide
+@[simp] theorem wcc_kC_ne_cR : kC ≠ cR := by decide
+@[simp] theorem wcc_cR_ne_kFu : cR ≠ kFu := by decide
+@[simp] theorem wcc_kFu_ne_cR : kFu ≠ cR := by decide
+@[simp] theorem wcc_cR_ne_kD : cR ≠ kD := by decide
+@[simp] theorem wcc_kD_ne_cR : kD ≠ cR := by decide
+@[simp] theorem wcc_cR_ne_kE : cR ≠ kE := by decide
+@[simp] theorem wcc_kE_ne_cR : kE ≠ cR := by decide
+@[simp] theorem wcc_cR_ne_lEo : cR ≠ lEo := by decide
+@[simp] theorem wcc_lEo_ne_cR : lEo ≠ cR := by decide
+@[simp] theorem wcc_cR_ne_lKb : cR ≠ lKb := by decide
+@[simp] theorem wcc_lKb_ne_cR : lKb ≠ cR := by decide
+@[simp] theorem wcc_cR_ne_scL : cR ≠ scL := by decide
+@[simp] theorem wcc_scL_ne_cR : scL ≠ cR := by decide
+@[simp] theorem wcc_cR_ne_scV : cR ≠ scV := by decide
+@[simp] theorem wcc_scV_ne_cR : scV ≠ cR := by decide
+@[simp] theorem wcc_cR_ne_scN : cR ≠ scN := by decide
+@[simp] theorem wcc_scN_ne_cR : scN ≠ cR := by decide
+@[simp] theorem wcc_cR_ne_scK : cR ≠ scK := by decide
+@[simp] theorem wcc_scK_ne_cR : scK ≠ cR := by decide
+@[simp] theorem wcc_cR_ne_scR : cR ≠ scR := by decide
+@[simp] theorem wcc_scR_ne_cR : scR ≠ cR := by decide
+@[simp] theorem wcc_cR_ne_scW : cR ≠ scW := by decide
+@[simp] theorem wcc_scW_ne_cR : scW ≠ cR := by decide
+
+/-- Store the chain (unless cheap or empty), then return `v`. -/
+def scRet : ProgHOL 64 :=
+  .ite (.cmp .notEqual (vv kC) (.const 0)) (.return (vv cV))
+  (.ite (.cmp .equal (vv cP) (.const 0)) (.return (vv cV))
+  (.seq (.call (some (some (.local, cR), none)) fSCF [vv cP, vv cV])
+  (.seq (.call (some (some (.local, cR), none)) fSCC [vv cQ, vv cV]) (.return (vv cV)))))
+
+section
+variable {σ : Type}
+
+theorem storeKeys_nil (v : EIdx) : whnfCoreStoreKeys #[] 0 v = pure () := by rw [sk_eq]; rfl
+theorem storeCheapKeys_nil (v : EIdx) : whnfCoreStoreCheapKeys #[] 0 v = pure () := by rw [skc_eq]; rfl
+
+theorem scRet_spec {C0 : Ctx} (hok : CtxOK C0)
+    (hcf : C0.code.lookup fSCF = some (scParams.map (fun p => (p, ShapeHOL.one)), scBody .whnfCore C0 fSCF, .one))
+    (hcc : C0.code.lookup fSCC = some (scParams.map (fun p => (p, ShapeHOL.one)),
+      scBody .whnfCoreCheap C0 fSCC, .one))
+    (hcodeS : C0.code.lookup fMemoSet = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoSetBody, .one))
+    (hcodeI : C0.code.lookup fMemoIns = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoInsBody, .one))
+    {H : List (BitVec 64)} {s : AState} {Γ : Env} {D : List MlS} (hpre : C0.H <+: H)
+    (cheap : Bool) (xs ys : List EIdx) (p q : BitVec 64) (v : EIdx)
+    (hp : LstAt C0 H p xs) (hq : LstAt C0 H q ys)
+    (hC : Γ.get kC = some (boolW cheap)) (hP : Γ.get cP = some p) (hQ : Γ.get cQ = some q)
+    (hV : Γ.get cV = some (Enc.idxW v)) (hD : cR ∈ D) :
+    SpecR (σ := σ) (Inv (ctxH C0 H) s Γ [] D) scRet s
+      (whnfCoreStoreChain cheap xs.reverse.toArray ys.reverse.toArray v >>= fun _ => pure v) (PostK C0) := by
+  unfold scRet
+  have hret : ∀ {s' : AState} {Γ' : Env} {H' : List (BitVec 64)}, C0.H <+: H' → Γ'.get cV = some (Enc.idxW v) →
+      SpecR (σ := σ) (Inv (ctxH C0 H') s' Γ' [] D) (.return (vv cV)) s' (pure v) (PostK C0) :=
+    fun hp' hv' => specR_returnI _ (Enc.idxW v) (by simp [hv']) (fun t ht => ⟨_, hp', rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  cases cheap
+  · refine specR_ifI _ 0 (by simp [sev, hC, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
+      (fun _ => ?_)
+    rcases xs with _ | ⟨x, xs'⟩
+    · simp only [LstAt] at hp; subst hp
+      refine specR_ifI _ 1 (by simp [sev, hP, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+        (fun h => absurd h (by decide))
+      show SpecR _ _ s ((if false then pure () else if (#[] : Array EIdx).size = 0 then pure () else _) >>= _) _
+      simp only [Bool.false_eq_true, ite_false, List.reverse_nil]
+      exact hret hpre hV
+    · obtain ⟨o, nx, rfl, hx0, hnx, hrest⟩ := hp
+      refine specR_atEntry fun t0 ht0 => ?_
+      have ho : o < C0.HN := by
+        obtain ⟨H', hp', ha'⟩ := ht0.sr.heap
+        have := (List.getElem?_eq_some_iff.mp hx0).1; have := hp'.length_le; have := ha'.len; simp only [ctxH] at *
+        omega
+      have hne := ExSP.cellA_ne0 C0 hok o ho
+      refine specR_ifI _ 0 (by simp [sev, hP, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
+        (fun h => absurd rfl h) (fun _ => ?_)
+      have hsz : ((x :: xs').reverse.toArray).size ≠ 0 := by simp
+      show SpecR _ _ s ((if false then pure () else if ((x :: xs').reverse.toArray).size = 0 then pure () else _) >>= _) _
+      simp only [Bool.false_eq_true, ite_false, if_neg hsz, bind_assoc]
+      refine specR_callNIH (C := ctxH C0 H) cR fSCF scParams [vv cP, vv cV] (scBody .whnfCore C0 fSCF)
+        [cellA C0 o, Enc.idxW v] (by decide) rfl hD hcf ⟨by simp [hP], by simp [hV], trivial⟩
+        (fun u w s' st => whnfCoreStoreKeys (x :: xs').reverse.toArray 0 v s = .ok (u, s') ∧ PostS (ctxH C0 H) u w s' st)
+        (fun u w s' H' => H' = H ∧ whnfCoreStoreKeys (x :: xs').reverse.toArray 0 v s = .ok (u, s'))
+        (fun u w s' st ⟨hrun, hsr⟩ => ⟨H, List.prefix_refl _, ⟨rfl, hrun⟩, hsr⟩)
+        (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu scParams _ rfl hlk)
+          (sc_spec .whnfCore whnfCoreStoreKeys whnfCoreSet (fun _ _ _ => rfl) (fun x xs v => storeKeys_rev x v xs) storeKeys_nil
+            (ctxH C0 H) (ctxOK_H hok _) fSCF hcf hcodeS hcodeI v (x :: xs') s (cellA C0 o)
+            (lstAt_H.mpr ⟨o, nx, rfl, hx0, hnx, hrest⟩))))
+        (fun u w s1 H1 _ ⟨hH, _⟩ => ?_)
+      subst H1
+      refine specR_callNIH (C := ctxH (ctxH C0 H) H) cR fSCC scParams [vv cQ, vv cV] (scBody .whnfCoreCheap C0 fSCC)
+        [q, Enc.idxW v] (by decide) rfl hD hcc ⟨by simp [hQ], by simp [hV], trivial⟩
+        (fun u w s' st => whnfCoreStoreCheapKeys ys.reverse.toArray 0 v s1 = .ok (u, s') ∧
+          PostS (ctxH C0 H) u w s' st)
+        (fun u w s' H' => H' = H ∧ whnfCoreStoreCheapKeys ys.reverse.toArray 0 v s1 = .ok (u, s'))
+        (fun u w s' st ⟨hrun, hsr⟩ => ⟨H, List.prefix_refl _, ⟨rfl, hrun⟩, hsr⟩)
+        (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu scParams _ rfl hlk)
+          (sc_spec .whnfCoreCheap whnfCoreStoreCheapKeys whnfCoreCheapSet (fun _ _ _ => rfl) (fun x xs v => storeCheapKeys_rev x v xs)
+            storeCheapKeys_nil (ctxH C0 H) (ctxOK_H hok _) fSCC hcc hcodeS hcodeI v ys s1 q (lstAt_H.mpr hq))))
+        (fun u w s2 H2 _ ⟨hH, _⟩ => ?_)
+      subst H2
+      exact hret hpre (by simp [hV])
+  · refine specR_ifI _ 1 (by simp [sev, hC, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    show SpecR _ _ s ((if true then pure () else _) >>= _) _
+    simp only [ite_true]
+    exact hret hpre hV
 
 end
 
