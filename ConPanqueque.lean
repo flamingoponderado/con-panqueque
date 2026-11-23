@@ -298,3 +298,4 @@ import ConPanqueque.T.Core.StructEta
 import ConPanqueque.T.Core.EtaShape
 import ConPanqueque.T.Core.StructEtaArms
 import ConPanqueque.T.Core.StuckIrrel
+import ConPanqueque.T.Core.DefeqStuck
