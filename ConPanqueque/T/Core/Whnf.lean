@@ -454,4 +454,52 @@ theorem wb_iter (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx} (hok : CtxOK C)
 
 end
 
+section
+variable {σ : Type}
+
+theorem wb_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ wbLocals → (ctxEnv C ++ kParams.zip vals).get x = none :=
+  Knot.params_none C wbLocals kParams vals (by decide) (by decide)
+
+/-- **`whnfBody`**: the port's loop refines the twin's, given its three steps as callees over a state family
+closed under their runs. -/
+theorem wb_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
+    (hcwc : C.code.lookup fWC = some (pmap wcParams, wcE, .one))
+    (hcrn : C.code.lookup fRN = some (pmap kParams, rdBody C, .one))
+    (hcuf : C.code.lookup UD.fUnfold = some (pmap [UD.uE], UD.ufBody C, .one))
+    (Q : AState → Prop)
+    (hQwc : ∀ s1 d e a s2, Q s1 → (knot mode C n).whnfCore false d e s1 = .ok (a, s2) → Q s2)
+    (hQrn : ∀ s1 d e a s2, Q s1 → reduceNat (knot mode C n) C.fe d e s1 = .ok (a, s2) → Q s2)
+    (hQuf : ∀ s1 e a s2, Q s1 → unfoldDefinition C.fe e s1 = .ok (a, s2) → Q s2)
+    (hWC : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ d e, Callee (σ := σ) (ctxH C H) wcParams
+      [BitVec.ofNat 64 n, boolW false, BitVec.ofNat 64 d, Enc.idxW e] wcE s1
+      ((knot mode C n).whnfCore false d e) (PostK (ctxH C H)))
+    (hRN : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ d e,
+      SpecR (σ := σ) (Pre (ctxH C H) s1 (kParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e])) (rdBody C) s1
+        (reduceNat (knot mode C n) C.fe d e) (UD.PostO (ctxH C H)))
+    (hUF : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ e,
+      SpecR (σ := σ) (Pre (ctxH C H) s1 ([UD.uE].zip [Enc.idxW e])) (UD.ufBody C) s1
+        (unfoldDefinition C.fe e) (UD.PostO (ctxH C H)))
+    (s : AState) (hs : Q s) (d : Nat) (e : EIdx) :
+    SpecR (σ := σ) (Pre C s (kParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e])) wbBody s
+      (whnfBody (knot mode C n) C.fe d e) (PostK C) := by
+  refine specR_prologue (postK_locals C) (wb_none C _) ?_
+  unfold wbCore
+  refine specR_assignI wE (vv kE) (Enc.idxW e) (by decide) (by simp +decide [Env.get, kParams, ctxEnv]) ?_
+  refine specR_assignI wF _ (BitVec.ofNat 64 whnfLoopFuel) (by decide) rfl ?_
+  refine specR_assignI wG (.const 1) 1 (by decide) rfl ?_
+  have hF : whnfLoopFuel < 2 ^ 63 := by unfold whnfLoopFuel; omega
+  let p0 : LoopPt EIdx := ⟨ctxH C C.H, s, contEnv C n d e whnfLoopFuel e,
+    whnfLoop (knot mode C n) C.fe d whnfLoopFuel e⟩
+  refine specR_whileT (D := ctxLocals ++ wbLocals) (wbPts mode C n Q d e) p0
+    (Or.inl ⟨C.H, s, e, whnfLoopFuel, List.prefix_refl _, hs, hF, rfl⟩) (fun p hp _ => ?_)
+  rcases hp with ⟨H, s1, e', f, hpH, hq, hf, rfl⟩ | ⟨H, s1, f, v, hpH, rfl⟩
+  · refine ⟨1, by simp [contEnv], fun h => absurd h (by decide), fun _ => ?_⟩
+    exact wb_iter mode n hok hcwc hcrn hcuf Q hQwc hQrn hQuf hWC hRN hUF d e hpH hq hf
+  · refine ⟨0, by simp [doneEnv], fun _ => ?_, fun h => absurd rfl h⟩
+    refine specR_returnI _ (Enc.idxW v) (by simp [doneEnv]) (fun t ht => ?_)
+    exact ⟨H, hpH, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
+
+end
+
 end ConPanqueque.T.WB
