@@ -338,3 +338,29 @@ the way:
 
 The memo, cache and pin tables of `AState` join `SR` as the functions that use
 them are translated (the `instantiate1` memo is the template).
+
+### Progress (2026-11-23, levels)
+
+Levels are represented by `LRep` (an arena handle, or a heap block `[tag, kids]`
+built by the port), compared deeply. Verified, each a Pancake function with
+its `SpecR`:
+
+- `levelEq` (`T/LvlEq.lean`), `combining`/`simplify` (`T/LvlComb.lean`,
+  `T/LvlSimp.lean`), `subst` (`T/LvlSubst.lean`).
+- The `leqCore` mutual block: `byCases` (`T/LvlLeq.lean`), `innerTag` plus
+  `imaxRules` (`T/LvlImax.lean`), `rest` (`T/LvlRest.lean`), `leqCore`
+  and the fuel induction `leq_all` (`T/LvlLeqCore.lean`). Each case follows
+  con-leche's match order, pinned by twin case lemmas (`ir_c1..7`,
+  `rest_pp..rest_else`).
+- `isEquiv` (`T/LvlEquiv.lean`); its `l == r` disjunct is verdict-neutral
+  (`isEquiv_noPtr`), so the port starts at the simplified comparison.
+- `lvlEq?` at two handles (`T/LvlEqQ.lean`). The port does not cache.
+  Under con-ron's cache invariants (`ReadLCacheOK`, `LvlEqCacheOK`, part
+  of its `CheckOK`), a cache hit gives the same answer as recomputing, so
+  `eqvBody` refines `lvlEq?`. The post keeps the store and memos; `SR`
+  ignores caches.
+
+Cache policy from here: caches whose values are readbacks or verdicts are
+not mirrored. Their con-ron invariants are taken as hypotheses at the entry
+state. The top-level composition gets them from con-ron's `CheckOK`
+preservation.
