@@ -850,6 +850,64 @@ theorem shl_spec (C : Ctx) (hok : CtxOK C) (s : AState) (a b : Nat) (oa ob : Nat
     have := congrArg BitVec.toNat e; simp at this; omega)
   refine specR_ifI _ 0 (by simp [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hbw0)
     (fun h => absurd rfl h) (fun _ => ?_)
+  unfold shlMain
+  have hbB : b < B := by have := (limbs_length_lt_iff b 1).mp hb1; simpa using this
+  have hbB' : b < 2 ^ 64 := hbB
+  have hbw : C.H[ob + 1 + 0]? = some (BitVec.ofNat 64 b) := by
+    rw [hbb.2 0 (by omega), limbs_getElem b 0 (by omega)]
+    simp only [Nat.pow_zero, Nat.div_one]
+    rw [Nat.mod_eq_of_lt hbB]
+  refine UD.specR_heapLoadI' gBw _ (ob + 1 + 0) _ hbw (by decide)
+    (by simp +decide [sev, Env.get, shlParams, ctxEnv]; exact cellA_add8 C _) ?_
+  refine specR_assignI gQ _ (BitVec.ofNat 64 (b / 64)) (by decide) (by
+    simp only [sev, sev_vv, Env.get_cons]
+    simp
+    apply BitVec.eq_of_toNat_eq
+    simp [Nat.shiftRight_eq_div_pow, Nat.mod_eq_of_lt hbB']
+    omega) ?_
+  have hand : b &&& 63 = b % 64 := Nat.and_two_pow_sub_one_eq_mod b 6
+  refine specR_assignI gR _ (BitVec.ofNat 64 (b % 64)) (by decide) (by
+    simp only [sev, sev_vv, Env.get_cons]
+    simp
+    apply BitVec.eq_of_toNat_eq
+    simp [BitVec.toNat_and, Nat.mod_eq_of_lt hbB', hand]
+    have h64 : b % 64 < 18446744073709551616 := Nat.lt_of_lt_of_le (Nat.mod_lt b (by decide)) (by decide)
+    have hb2 : b < 18446744073709551616 := hbB'
+    rw [Nat.mod_eq_of_lt hb2, hand]
+    exact (Nat.mod_eq_of_lt h64).symm) ?_
+  have hbdm : 64 * (b / 64) + b % 64 = b := Nat.div_add_mod b 64
+  have hr64 : b % 64 < 64 := Nat.mod_lt _ (by decide)
+  generalize hq' : b / 64 = q at hbdm
+  generalize hr' : b % 64 = r at hbdm hr64
+  have hab : a <<< b = a * 2 ^ r * B ^ q := by
+    rw [Nat.shiftLeft_eq, ← hbdm, Nat.pow_add, Nat.pow_mul]; ring
+  -- the block [2^r]
+  refine specR_allocI gP (.const 16) 2 (by norm_num) (by decide) (fun v => by simp [sev]) (fun H1 ws1 hp1 hwl1 _ => ?_)
+  have hp1l := hp1.length_le
+  have hj1 : H1.length < (ctxH C (H1 ++ ws1)).H.length := by show _ < (H1 ++ ws1).length; simp; omega
+  refine specR_heapStoreI (ctxOK_H hok _) (vv gP) (.const 1) _ hj1 1 (by simp; rfl) rfl ?_
+  have hj2 : H1.length + 1 < (ctxH C ((H1 ++ ws1).set H1.length 1)).H.length := by
+    show _ < ((H1 ++ ws1).set H1.length 1).length; simp; omega
+  have hrr : (BitVec.ofNat 64 r).toNat = r := by simp; omega
+  have h2r : (1 : BitVec 64) <<< r = BitVec.ofNat 64 (2 ^ r) := by
+    apply BitVec.eq_of_toNat_eq
+    simp [BitVec.toNat_shiftLeft, Nat.shiftLeft_eq]
+  refine specR_heapStoreI (ctxOK_H hok _) (.op .add [vv gP, .const 8]) (.shift .lsl (.const 1) (vv gR)) _ hj2
+    (BitVec.ofNat 64 (2 ^ r)) (by simp [sev]; exact cellA_add8 C _)
+    (by simp [sev, vv, hrr, show r < 64 from hr64]; exact h2r) ?_
+  let HP := ((H1 ++ ws1).set H1.length 1).set (H1.length + 1) (BitVec.ofNat 64 (2 ^ r))
+  have hHP : HP.length = H1.length + 2 := by simp [HP, hwl1]
+  have hPblk : BlkAt HP H1.length (limbs (2 ^ r)) := by
+    rw [limbs_two_pow r hr64]
+    refine ⟨?_, fun i hi => ?_⟩
+    · show (((H1 ++ ws1).set H1.length 1).set (H1.length + 1) _)[H1.length]? = _
+      rw [List.getElem?_set_ne (by omega), List.getElem?_set_self (by simp; omega)]; rfl
+    · have : i = 0 := by simpa using hi
+      subst this
+      show (((H1 ++ ws1).set H1.length 1).set (H1.length + 1) _)[H1.length + 1 + 0]? = _
+      rw [List.getElem?_set_self (by simp; omega)]; rfl
+  have hpHP : H1 <+: HP := prefix_set_ge (prefix_set_ge (List.prefix_append _ _) _ (by omega) _) _ (by omega) _
+  have hbaP : BlkAt HP oa (limbs a) := blkAt_mono hba (hp1.trans hpHP)
   sorry
 
 end
