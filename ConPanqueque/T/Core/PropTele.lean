@@ -1141,6 +1141,188 @@ def uwParams : List MlS := [uwN, uwE]
 def uwLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, uwH, uwC, uwP, uwQ, uwK, uwV, uwL, uwKk, uwJ, uwX, uwLa, uwA, uwR]
 def uwBody (C : Ctx) : ProgHOL 64 := prologue uwLocals (.ite (.cmp .equal (vv uwN) (.const 0)) (.return (vv uwE)) (.seq (.call (some (some (.local, uwH), none)) fGetAppFn [(.const (BitVec.ofNat 64 coreWalkFuel)), (vv uwE)]) (.ite (tagIsE uwH 3) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv uwH)) (.seq eViewP (.seq (.assign .local uwC (.load .one (vv lRp))) (envFindP C uwP (vv uwC) (.ite (.cmp .equal (vv uwP) (.const 0)) (.return (vv uwE)) (.seq (.assign .local uwQ (.op .sub [(vv uwP), (.const 1)])) (.seq (.assign .local uwK (.load .one (vv uwQ))) (.ite (.cmp .notEqual (vv uwK) (.const 1)) (.return (vv uwE)) (.seq (.assign .local uwV (.load .one (.op .add [(vv uwQ), (.const 32)]))) (.seq (.call (some (some (.local, uwL), none)) fLj [(.const (BitVec.ofNat 64 coreWalkFuel)), (.const 0), (vv uwV)]) (.ite (.cmp .equal (vv uwL) (.const 0)) (.return (vv uwE)) (.seq (.assign .local uwKk (.load .one (vv uwL))) (.seq (.assign .local uwJ (.load .one (.op .add [(vv uwL), (.const 8)]))) (.seq (.call (some (some (.local, uwX), none)) ExG.fGaa [(.const (BitVec.ofNat 64 coreWalkFuel)), (vv uwE)]) (.seq (.assign .local uwLa (.load .one (vv uwX))) (.ite (.cmp .notEqual (vv uwLa) (vv uwKk)) (.return (vv uwE)) (.seq (.assign .local uwA (.load .one (.op .add [(.op .add [(vv uwX), (.const 8)]), (.shift .lsl (.op .sub [(.op .sub [(vv uwKk), (.const 1)]), (vv uwJ)]) (.const 3))]))) (.seq (.call (some (some (.local, uwR), none)) fUw [(.op .sub [(vv uwN), (.const 1)]), (vv uwA)]) (.return (vv uwR))))))))))))))))))))) (.return (vv uwE)))))
 
+def pvK := ofString "ppv_pvk"
+def pvE := ofString "ppv_pve"
+def pvU := ofString "ppv_pvu"
+def pvB := ofString "ppv_pvb"
+def pvR := ofString "ppv_pvr"
+def fPv := ofString "peelPisW"
+
+@[simp] theorem ppv_pvK_ne_pvE : pvK ≠ pvE := by decide
+@[simp] theorem ppv_pvK_ne_pvU : pvK ≠ pvU := by decide
+@[simp] theorem ppv_pvK_ne_pvB : pvK ≠ pvB := by decide
+@[simp] theorem ppv_pvK_ne_pvR : pvK ≠ pvR := by decide
+@[simp] theorem ppv_pvK_ne_lFl : pvK ≠ lFl := by decide
+@[simp] theorem ppv_lFl_ne_pvK : lFl ≠ pvK := by decide
+@[simp] theorem ppv_pvK_ne_lDh : pvK ≠ lDh := by decide
+@[simp] theorem ppv_lDh_ne_pvK : lDh ≠ pvK := by decide
+@[simp] theorem ppv_pvK_ne_lDt : pvK ≠ lDt := by decide
+@[simp] theorem ppv_lDt_ne_pvK : lDt ≠ pvK := by decide
+@[simp] theorem ppv_pvK_ne_lDg : pvK ≠ lDg := by decide
+@[simp] theorem ppv_lDg_ne_pvK : lDg ≠ pvK := by decide
+@[simp] theorem ppv_pvK_ne_lDi : pvK ≠ lDi := by decide
+@[simp] theorem ppv_lDi_ne_pvK : lDi ≠ pvK := by decide
+@[simp] theorem ppv_pvK_ne_lRp : pvK ≠ lRp := by decide
+@[simp] theorem ppv_lRp_ne_pvK : lRp ≠ pvK := by decide
+@[simp] theorem ppv_pvK_ne_lRn : pvK ≠ lRn := by decide
+@[simp] theorem ppv_lRn_ne_pvK : lRn ≠ pvK := by decide
+@[simp] theorem ppv_pvK_ne_lFle : pvK ≠ lFle := by decide
+@[simp] theorem ppv_lFle_ne_pvK : lFle ≠ pvK := by decide
+@[simp] theorem ppv_pvK_ne_lKb : pvK ≠ lKb := by decide
+@[simp] theorem ppv_lKb_ne_pvK : lKb ≠ pvK := by decide
+@[simp] theorem ppv_pvK_ne_lDir : pvK ≠ lDir := by decide
+@[simp] theorem ppv_lDir_ne_pvK : lDir ≠ pvK := by decide
+@[simp] theorem ppv_pvK_ne_lFln : pvK ≠ lFln := by decide
+@[simp] theorem ppv_lFln_ne_pvK : lFln ≠ pvK := by decide
+@[simp] theorem ppv_pvK_ne_lFll : pvK ≠ lFll := by decide
+@[simp] theorem ppv_lFll_ne_pvK : lFll ≠ pvK := by decide
+@[simp] theorem ppv_pvK_ne_lFls : pvK ≠ lFls := by decide
+@[simp] theorem ppv_lFls_ne_pvK : lFls ≠ pvK := by decide
+@[simp] theorem ppv_pvK_ne_kFu : pvK ≠ kFu := by decide
+@[simp] theorem ppv_kFu_ne_pvK : kFu ≠ pvK := by decide
+@[simp] theorem ppv_pvK_ne_kD : pvK ≠ kD := by decide
+@[simp] theorem ppv_kD_ne_pvK : kD ≠ pvK := by decide
+@[simp] theorem ppv_pvE_ne_pvK : pvE ≠ pvK := by decide
+@[simp] theorem ppv_pvE_ne_pvU : pvE ≠ pvU := by decide
+@[simp] theorem ppv_pvE_ne_pvB : pvE ≠ pvB := by decide
+@[simp] theorem ppv_pvE_ne_pvR : pvE ≠ pvR := by decide
+@[simp] theorem ppv_pvE_ne_lFl : pvE ≠ lFl := by decide
+@[simp] theorem ppv_lFl_ne_pvE : lFl ≠ pvE := by decide
+@[simp] theorem ppv_pvE_ne_lDh : pvE ≠ lDh := by decide
+@[simp] theorem ppv_lDh_ne_pvE : lDh ≠ pvE := by decide
+@[simp] theorem ppv_pvE_ne_lDt : pvE ≠ lDt := by decide
+@[simp] theorem ppv_lDt_ne_pvE : lDt ≠ pvE := by decide
+@[simp] theorem ppv_pvE_ne_lDg : pvE ≠ lDg := by decide
+@[simp] theorem ppv_lDg_ne_pvE : lDg ≠ pvE := by decide
+@[simp] theorem ppv_pvE_ne_lDi : pvE ≠ lDi := by decide
+@[simp] theorem ppv_lDi_ne_pvE : lDi ≠ pvE := by decide
+@[simp] theorem ppv_pvE_ne_lRp : pvE ≠ lRp := by decide
+@[simp] theorem ppv_lRp_ne_pvE : lRp ≠ pvE := by decide
+@[simp] theorem ppv_pvE_ne_lRn : pvE ≠ lRn := by decide
+@[simp] theorem ppv_lRn_ne_pvE : lRn ≠ pvE := by decide
+@[simp] theorem ppv_pvE_ne_lFle : pvE ≠ lFle := by decide
+@[simp] theorem ppv_lFle_ne_pvE : lFle ≠ pvE := by decide
+@[simp] theorem ppv_pvE_ne_lKb : pvE ≠ lKb := by decide
+@[simp] theorem ppv_lKb_ne_pvE : lKb ≠ pvE := by decide
+@[simp] theorem ppv_pvE_ne_lDir : pvE ≠ lDir := by decide
+@[simp] theorem ppv_lDir_ne_pvE : lDir ≠ pvE := by decide
+@[simp] theorem ppv_pvE_ne_lFln : pvE ≠ lFln := by decide
+@[simp] theorem ppv_lFln_ne_pvE : lFln ≠ pvE := by decide
+@[simp] theorem ppv_pvE_ne_lFll : pvE ≠ lFll := by decide
+@[simp] theorem ppv_lFll_ne_pvE : lFll ≠ pvE := by decide
+@[simp] theorem ppv_pvE_ne_lFls : pvE ≠ lFls := by decide
+@[simp] theorem ppv_lFls_ne_pvE : lFls ≠ pvE := by decide
+@[simp] theorem ppv_pvE_ne_kFu : pvE ≠ kFu := by decide
+@[simp] theorem ppv_kFu_ne_pvE : kFu ≠ pvE := by decide
+@[simp] theorem ppv_pvE_ne_kD : pvE ≠ kD := by decide
+@[simp] theorem ppv_kD_ne_pvE : kD ≠ pvE := by decide
+@[simp] theorem ppv_pvU_ne_pvK : pvU ≠ pvK := by decide
+@[simp] theorem ppv_pvU_ne_pvE : pvU ≠ pvE := by decide
+@[simp] theorem ppv_pvU_ne_pvB : pvU ≠ pvB := by decide
+@[simp] theorem ppv_pvU_ne_pvR : pvU ≠ pvR := by decide
+@[simp] theorem ppv_pvU_ne_lFl : pvU ≠ lFl := by decide
+@[simp] theorem ppv_lFl_ne_pvU : lFl ≠ pvU := by decide
+@[simp] theorem ppv_pvU_ne_lDh : pvU ≠ lDh := by decide
+@[simp] theorem ppv_lDh_ne_pvU : lDh ≠ pvU := by decide
+@[simp] theorem ppv_pvU_ne_lDt : pvU ≠ lDt := by decide
+@[simp] theorem ppv_lDt_ne_pvU : lDt ≠ pvU := by decide
+@[simp] theorem ppv_pvU_ne_lDg : pvU ≠ lDg := by decide
+@[simp] theorem ppv_lDg_ne_pvU : lDg ≠ pvU := by decide
+@[simp] theorem ppv_pvU_ne_lDi : pvU ≠ lDi := by decide
+@[simp] theorem ppv_lDi_ne_pvU : lDi ≠ pvU := by decide
+@[simp] theorem ppv_pvU_ne_lRp : pvU ≠ lRp := by decide
+@[simp] theorem ppv_lRp_ne_pvU : lRp ≠ pvU := by decide
+@[simp] theorem ppv_pvU_ne_lRn : pvU ≠ lRn := by decide
+@[simp] theorem ppv_lRn_ne_pvU : lRn ≠ pvU := by decide
+@[simp] theorem ppv_pvU_ne_lFle : pvU ≠ lFle := by decide
+@[simp] theorem ppv_lFle_ne_pvU : lFle ≠ pvU := by decide
+@[simp] theorem ppv_pvU_ne_lKb : pvU ≠ lKb := by decide
+@[simp] theorem ppv_lKb_ne_pvU : lKb ≠ pvU := by decide
+@[simp] theorem ppv_pvU_ne_lDir : pvU ≠ lDir := by decide
+@[simp] theorem ppv_lDir_ne_pvU : lDir ≠ pvU := by decide
+@[simp] theorem ppv_pvU_ne_lFln : pvU ≠ lFln := by decide
+@[simp] theorem ppv_lFln_ne_pvU : lFln ≠ pvU := by decide
+@[simp] theorem ppv_pvU_ne_lFll : pvU ≠ lFll := by decide
+@[simp] theorem ppv_lFll_ne_pvU : lFll ≠ pvU := by decide
+@[simp] theorem ppv_pvU_ne_lFls : pvU ≠ lFls := by decide
+@[simp] theorem ppv_lFls_ne_pvU : lFls ≠ pvU := by decide
+@[simp] theorem ppv_pvU_ne_kFu : pvU ≠ kFu := by decide
+@[simp] theorem ppv_kFu_ne_pvU : kFu ≠ pvU := by decide
+@[simp] theorem ppv_pvU_ne_kD : pvU ≠ kD := by decide
+@[simp] theorem ppv_kD_ne_pvU : kD ≠ pvU := by decide
+@[simp] theorem ppv_pvB_ne_pvK : pvB ≠ pvK := by decide
+@[simp] theorem ppv_pvB_ne_pvE : pvB ≠ pvE := by decide
+@[simp] theorem ppv_pvB_ne_pvU : pvB ≠ pvU := by decide
+@[simp] theorem ppv_pvB_ne_pvR : pvB ≠ pvR := by decide
+@[simp] theorem ppv_pvB_ne_lFl : pvB ≠ lFl := by decide
+@[simp] theorem ppv_lFl_ne_pvB : lFl ≠ pvB := by decide
+@[simp] theorem ppv_pvB_ne_lDh : pvB ≠ lDh := by decide
+@[simp] theorem ppv_lDh_ne_pvB : lDh ≠ pvB := by decide
+@[simp] theorem ppv_pvB_ne_lDt : pvB ≠ lDt := by decide
+@[simp] theorem ppv_lDt_ne_pvB : lDt ≠ pvB := by decide
+@[simp] theorem ppv_pvB_ne_lDg : pvB ≠ lDg := by decide
+@[simp] theorem ppv_lDg_ne_pvB : lDg ≠ pvB := by decide
+@[simp] theorem ppv_pvB_ne_lDi : pvB ≠ lDi := by decide
+@[simp] theorem ppv_lDi_ne_pvB : lDi ≠ pvB := by decide
+@[simp] theorem ppv_pvB_ne_lRp : pvB ≠ lRp := by decide
+@[simp] theorem ppv_lRp_ne_pvB : lRp ≠ pvB := by decide
+@[simp] theorem ppv_pvB_ne_lRn : pvB ≠ lRn := by decide
+@[simp] theorem ppv_lRn_ne_pvB : lRn ≠ pvB := by decide
+@[simp] theorem ppv_pvB_ne_lFle : pvB ≠ lFle := by decide
+@[simp] theorem ppv_lFle_ne_pvB : lFle ≠ pvB := by decide
+@[simp] theorem ppv_pvB_ne_lKb : pvB ≠ lKb := by decide
+@[simp] theorem ppv_lKb_ne_pvB : lKb ≠ pvB := by decide
+@[simp] theorem ppv_pvB_ne_lDir : pvB ≠ lDir := by decide
+@[simp] theorem ppv_lDir_ne_pvB : lDir ≠ pvB := by decide
+@[simp] theorem ppv_pvB_ne_lFln : pvB ≠ lFln := by decide
+@[simp] theorem ppv_lFln_ne_pvB : lFln ≠ pvB := by decide
+@[simp] theorem ppv_pvB_ne_lFll : pvB ≠ lFll := by decide
+@[simp] theorem ppv_lFll_ne_pvB : lFll ≠ pvB := by decide
+@[simp] theorem ppv_pvB_ne_lFls : pvB ≠ lFls := by decide
+@[simp] theorem ppv_lFls_ne_pvB : lFls ≠ pvB := by decide
+@[simp] theorem ppv_pvB_ne_kFu : pvB ≠ kFu := by decide
+@[simp] theorem ppv_kFu_ne_pvB : kFu ≠ pvB := by decide
+@[simp] theorem ppv_pvB_ne_kD : pvB ≠ kD := by decide
+@[simp] theorem ppv_kD_ne_pvB : kD ≠ pvB := by decide
+@[simp] theorem ppv_pvR_ne_pvK : pvR ≠ pvK := by decide
+@[simp] theorem ppv_pvR_ne_pvE : pvR ≠ pvE := by decide
+@[simp] theorem ppv_pvR_ne_pvU : pvR ≠ pvU := by decide
+@[simp] theorem ppv_pvR_ne_pvB : pvR ≠ pvB := by decide
+@[simp] theorem ppv_pvR_ne_lFl : pvR ≠ lFl := by decide
+@[simp] theorem ppv_lFl_ne_pvR : lFl ≠ pvR := by decide
+@[simp] theorem ppv_pvR_ne_lDh : pvR ≠ lDh := by decide
+@[simp] theorem ppv_lDh_ne_pvR : lDh ≠ pvR := by decide
+@[simp] theorem ppv_pvR_ne_lDt : pvR ≠ lDt := by decide
+@[simp] theorem ppv_lDt_ne_pvR : lDt ≠ pvR := by decide
+@[simp] theorem ppv_pvR_ne_lDg : pvR ≠ lDg := by decide
+@[simp] theorem ppv_lDg_ne_pvR : lDg ≠ pvR := by decide
+@[simp] theorem ppv_pvR_ne_lDi : pvR ≠ lDi := by decide
+@[simp] theorem ppv_lDi_ne_pvR : lDi ≠ pvR := by decide
+@[simp] theorem ppv_pvR_ne_lRp : pvR ≠ lRp := by decide
+@[simp] theorem ppv_lRp_ne_pvR : lRp ≠ pvR := by decide
+@[simp] theorem ppv_pvR_ne_lRn : pvR ≠ lRn := by decide
+@[simp] theorem ppv_lRn_ne_pvR : lRn ≠ pvR := by decide
+@[simp] theorem ppv_pvR_ne_lFle : pvR ≠ lFle := by decide
+@[simp] theorem ppv_lFle_ne_pvR : lFle ≠ pvR := by decide
+@[simp] theorem ppv_pvR_ne_lKb : pvR ≠ lKb := by decide
+@[simp] theorem ppv_lKb_ne_pvR : lKb ≠ pvR := by decide
+@[simp] theorem ppv_pvR_ne_lDir : pvR ≠ lDir := by decide
+@[simp] theorem ppv_lDir_ne_pvR : lDir ≠ pvR := by decide
+@[simp] theorem ppv_pvR_ne_lFln : pvR ≠ lFln := by decide
+@[simp] theorem ppv_lFln_ne_pvR : lFln ≠ pvR := by decide
+@[simp] theorem ppv_pvR_ne_lFll : pvR ≠ lFll := by decide
+@[simp] theorem ppv_lFll_ne_pvR : lFll ≠ pvR := by decide
+@[simp] theorem ppv_pvR_ne_lFls : pvR ≠ lFls := by decide
+@[simp] theorem ppv_lFls_ne_pvR : lFls ≠ pvR := by decide
+@[simp] theorem ppv_pvR_ne_kFu : pvR ≠ kFu := by decide
+@[simp] theorem ppv_kFu_ne_pvR : kFu ≠ pvR := by decide
+@[simp] theorem ppv_pvR_ne_kD : pvR ≠ kD := by decide
+@[simp] theorem ppv_kD_ne_pvR : kD ≠ pvR := by decide
+
+def pvParams : List MlS := [pvK, pvE]
+def pvLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, pvU, pvB, pvR]
+def pvBody (C : Ctx) : ProgHOL 64 := prologue pvLocals (.ite (.cmp .equal (vv pvK) (.const 0)) (.seq (.call (some (some (.local, pvU), none)) fUw [(.const 4), (vv pvE)]) (.return (.op .add [(vv pvU), (.const 1)]))) (.ite (tagIsE pvE 6) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv pvE)) (.seq eViewP (.seq (.assign .local pvB (.load .one (.op .add [(vv lRp), (.const 8)]))) (.seq (.call (some (some (.local, pvR), none)) fPv [(.op .sub [(vv pvK), (.const 1)]), (vv pvB)]) (.return (vv pvR))))))) (.seq (.call (some (some (.local, pvU), none)) fUw [(.const 4), (vv pvE)]) (.ite (tagIsE pvU 6) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv pvU)) (.seq eViewP (.seq (.assign .local pvB (.load .one (.op .add [(vv lRp), (.const 8)]))) (.seq (.call (some (some (.local, pvR), none)) fPv [(.op .sub [(vv pvK), (.const 1)]), (vv pvB)]) (.return (vv pvR))))))) (.return (.const 0))))))
+
 def bdParams : List MlS := [bdK, bdH]
 def bdLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, bdA, bdB, bdR]
 def bdBody : ProgHOL 64 := prologue bdLocals (.ite (tagIsE bdH 6) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv bdH)) (.seq eViewP (.seq (.assign .local bdA (.load .one (vv lRp))) (.seq (.assign .local bdB (.load .one (.op .add [(vv lRp), (.const 8)]))) (.ite (.cmp .equal (vv bdK) (.const 0)) (.return (.op .add [(vv bdA), (.const 1)])) (.seq (.call (some (some (.local, bdR), none)) fBd [(.op .sub [(vv bdK), (.const 1)]), (vv bdB)]) (.return (vv bdR))))))))) (.return (.const 0)))
@@ -1517,6 +1699,97 @@ theorem uw_spec (C : Ctx) (hok : CtxOK C) (hc : UwCodes C) :
     · refine specR_envLoadI uwK (vv uwQ) o 5 (by decide) (by simp [ecell_ctxH]) hci.2.1 ?_
       refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
       exact specR_returnI _ (Enc.idxW e) (by simp +decide [Env.get, uwParams, ctxEnv]) (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+
+
+structure PvCodes (C : Ctx) : Prop where
+  uw : UwCodes C
+  self : C.code.lookup fPv = some (pvParams.map (fun p => (p, ShapeHOL.one)), pvBody C, .one)
+
+theorem pv_spec (C : Ctx) (hok : CtxOK C) (hc : PvCodes C) :
+    ∀ k (H : List (BitVec 64)) (e : EIdx) (s : AState), C.H <+: H → k < 2 ^ 64 →
+      SpecR (σ := σ) (Pre (ctxH C H) s (pvParams.zip [BitVec.ofNat 64 k, Enc.idxW e])) (pvBody C) s
+        (peelPisW C.fe coreWalkFuel k e) (UD.PostO (ctxH C H)) := by
+  intro k
+  induction k with
+  | zero =>
+    intro H e s hpH _
+    refine specR_prologue (UD.postO_locals _) (Knot.params_none _ pvLocals pvParams _ (by decide) (by decide)) ?_
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get, pvParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+    rw [peelPisW]
+    refine specR_callNIH (C := ctxH C H) pvU fUw uwParams [.const 4, vv pvE] (uwBody C) [BitVec.ofNat 64 4, Enc.idxW e]
+      (by decide) rfl (by decide) hc.uw.self ⟨rfl, by simp +decide [Env.get, pvParams, ctxEnv], trivial⟩
+      (PostK (ctxH C H)) (fun r_ w _ _ => w = Enc.idxW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu uwParams _ rfl hlk) (uw_spec C hok hc.uw 4 H e s hpH (by decide)))
+      (fun u w1 s1 H1 hp1 hw1 => ?_)
+    subst hw1
+
+    exact specR_returnI _ (optW (some u)) (by simp [sev, optWG]) (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  | succ k ih =>
+    intro H e s hpH hk
+    refine specR_prologue (UD.postO_locals _) (Knot.params_none _ pvLocals pvParams _ (by decide) (by decide)) ?_
+    have hne : BitVec.ofNat 64 (k + 1) ≠ 0 := by
+      intro e; have := congrArg BitVec.toNat e; simp at this; omega
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, pvParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne) (fun h => absurd rfl h) (fun _ => ?_)
+    rw [peelPisW]
+    refine Knot.specR_tagIteV pvE e 6 (by decide) (by decide) (by simp +decide [Env.get, pvParams, ctxEnv]) (fun htg => ?_) (fun htg => ?_)
+    · rw [if_pos (show (e.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
+      refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
+      refine specR_assignI lDh (vv pvE) (Enc.idxW e) (by decide) (by simp +decide [Env.get, pvParams, ctxEnv]) ?_
+      refine specR_viewP (C := ctxH C H) e (by simp) (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)
+        (fun v P hv' htn _ => ?_)
+      have h6 : v.tagN = 6 := by rw [htn, htg]; rfl
+      obtain ⟨ty, b, rfl⟩ : ∃ ty b, v = .forallE ty b := by cases v <;> simp [ENodeView.tagN] at h6 ⊢
+      have hvb : s.store.viewBind e = some (ty, b) := viewBind_of_view_forallE (by rw [htg]; rfl) hv'
+      refine specR_runBind (by rw [viewBind_run, hvb]) ?_
+      dsimp only
+      refine specR_loadI' pvB _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW b) (by decide) (by simp +decide [sev]) rfl
+        (by simpa [encEView, Enc.encBind] using wordsAt_mem1 P (Enc.idxW ty) (Enc.idxW b) [] []) ?_
+      refine specR_dropM ?_
+      refine specR_congr (m' := peelPisW C.fe coreWalkFuel k b >>= fun r => pure r) (by simp) ?_
+      refine specR_callNIH (C := ctxH C H) pvR fPv pvParams [.op .sub [vv pvK, .const 1], vv pvB] (pvBody C)
+        [BitVec.ofNat 64 k, Enc.idxW b] (by decide) rfl (by decide) hc.self
+        ⟨by simp +decide [sev, Env.get, pvParams, ctxEnv]; exact Ex.ofNat_succ_sub_one _, by simp, trivial⟩
+        (UD.PostO (ctxH C H)) (fun r_ w _ _ => w = optW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+        (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu pvParams _ rfl hlk) (ih H b s hpH (by omega)))
+        (fun r w s2 H2 hp2 hw => ?_)
+      subst hw
+      exact specR_returnI _ (optW r) (by simp) (fun t ht => ⟨H2, hp2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+    rw [if_neg (show ¬ (e.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
+    refine specR_callNIH (C := ctxH C H) pvU fUw uwParams [.const 4, vv pvE] (uwBody C) [BitVec.ofNat 64 4, Enc.idxW e]
+      (by decide) rfl (by decide) hc.uw.self ⟨rfl, by simp +decide [Env.get, pvParams, ctxEnv], trivial⟩
+      (PostK (ctxH C H)) (fun r_ w _ _ => w = Enc.idxW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu uwParams _ rfl hlk) (uw_spec C hok hc.uw 4 H e s hpH (by decide)))
+      (fun u w1 s1 H1 hp1 hw1 => ?_)
+    subst hw1
+
+    refine Knot.specR_tagIteV pvU u 6 (by decide) (by decide) (by simp) (fun htu => ?_) (fun htu => ?_)
+    · rw [if_pos (show (u.tag == ETag.forallE) = true by simp [htu, ETag.forallE])]
+      refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
+      refine specR_assignI lDh (vv pvU) (Enc.idxW u) (by decide) (by simp +decide [Env.get, pvParams, ctxEnv]) ?_
+      refine specR_viewP (C := ctxH C H1) u (by simp) (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)
+        (fun v P hv' htn _ => ?_)
+      have h6 : v.tagN = 6 := by rw [htn, htu]; rfl
+      obtain ⟨ty, b, rfl⟩ : ∃ ty b, v = .forallE ty b := by cases v <;> simp [ENodeView.tagN] at h6 ⊢
+      have hvb : s1.store.viewBind u = some (ty, b) := viewBind_of_view_forallE (by rw [htu]; rfl) hv'
+      refine specR_runBind (by rw [viewBind_run, hvb]) ?_
+      dsimp only
+      refine specR_loadI' pvB _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW b) (by decide) (by simp +decide [sev]) rfl
+        (by simpa [encEView, Enc.encBind] using wordsAt_mem1 P (Enc.idxW ty) (Enc.idxW b) [] []) ?_
+      refine specR_dropM ?_
+      refine specR_congr (m' := peelPisW C.fe coreWalkFuel k b >>= fun r => pure r) (by simp) ?_
+      refine specR_callNIH (C := ctxH C H1) pvR fPv pvParams [.op .sub [vv pvK, .const 1], vv pvB] (pvBody C)
+        [BitVec.ofNat 64 k, Enc.idxW b] (by decide) rfl (by decide) hc.self
+        ⟨by simp +decide [sev, Env.get, pvParams, ctxEnv]; exact Ex.ofNat_succ_sub_one _, by simp, trivial⟩
+        (UD.PostO (ctxH C H1)) (fun r_ w _ _ => w = optW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+        (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu pvParams _ rfl hlk) (ih H1 b s1 (hpH.trans hp1) (by omega)))
+        (fun r w s2 H2 hp2 hw => ?_)
+      subst hw
+      exact specR_returnI _ (optW r) (by simp) (fun t ht => ⟨H2, hp1.trans hp2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+    rw [if_neg (show ¬ (u.tag == ETag.forallE) = true by simpa [ETag.forallE] using htu)]
+    exact specR_returnI _ (optW none) (by simp [optWG]; rfl) (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 
 end
