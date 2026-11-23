@@ -101,6 +101,7 @@ import ConPanqueque.T.Memo
 import ConPanqueque.T.MemoClear
 import ConPanqueque.T.MemoN
 import ConPanqueque.T.Mode
+import ConPanqueque.T.Eager
 import ConPanqueque.T.Heap
 import ConPanqueque.T.Loop
 import ConPanqueque.T.Blk

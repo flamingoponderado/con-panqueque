@@ -558,6 +558,7 @@ structure CtxOK (C : Ctx) : Prop where
   b1FVar : C.L.base 10 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.fvar.toUInt64.toBitVec * 67108864
   /-- The eager side's mode-memo descriptors sit at a fixed offset from the plain side's. -/
   eoSide : ∀ k, C.mG (.m true k) = C.mG (.m false k) + C.EO
+  eoNe : C.EO ≠ 0
 
 def fInternApp := ofString "internApp"
 
