@@ -13,7 +13,7 @@ on the major as found, a `Nat.succ` application or a stuck major head-normalized
 
 namespace ConPanqueque.T.WC
 
-open ConPanqueque.T ConPanqueque.T.Ex ConPanqueque.T.Knot ConPanqueque.T.Big
+open ConPanqueque.T ConPanqueque.T.Ex ConPanqueque.T.Knot ConPanqueque.T.Big ConPanqueque.T.Str
 open ConPanqueque.V.Enc
 
 def mcV := ofString "mcv"
@@ -393,6 +393,77 @@ theorem mc_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
     simp only [ite_true]
     exact specR_returnI _ (encMV v) (by simp)
       (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+end
+
+section
+variable {σ : Type}
+
+theorem tcCodes_H {C : Ctx} (hc : TcCodes C) (H : List (BitVec 64)) : TcCodes (ctxH C H) :=
+  ⟨slCodes_H hc.sl H, hc.lit, hc.ls, hc.ic⟩
+theorem nlCodes_H {C : Ctx} (hc : NlCodes C) (H : List (BitVec 64)) : NlCodes (ctxH C H) :=
+  ⟨hc.lit, hc.ic, hc.sub, hc.litb, hc.ia⟩
+theorem cwCodes_H {C : Ctx} (hc : CwCodes C) (H : List (BitVec 64)) : CwCodes (ctxH C H) :=
+  ⟨hc.cw, hc.af, hc.mg, hc.mp⟩
+
+/-- The code the major's preparation calls. -/
+structure PmCodes (C : Ctx) (Brs : ProgHOL 64) : Prop where
+  tc : TcCodes C
+  nl : NlCodes C
+  cw : CwCodes C
+  nlf : C.code.lookup fNl = some ([(nlH, ShapeHOL.one)], nlBody C, .one)
+  tcf : C.code.lookup fTc = some ([(tcH, ShapeHOL.one)], tcBody C, .one)
+  w : C.code.lookup fW = some (pmap kParams, whnfE C fWB, .one)
+  lm : C.code.lookup fLm = some (kParams.map (fun p => (p, ShapeHOL.one)), lmBody, .one)
+  mc : C.code.lookup fMc = some (pmParams.map (fun p => (p, ShapeHOL.one)), mcBody, .one)
+  rs : C.code.lookup fRs = some (pmParams.map (fun p => (p, ShapeHOL.one)), Brs, .one)
+  pw : C.code.lookup fPw = some (pmParams.map (fun p => (p, ShapeHOL.one)), pwBody, .one)
+  isl : C.code.lookup fIsl = some ([(isH, ShapeHOL.one)], islBody, .one)
+  ns : C.code.lookup fNs = some ([(nsE, ShapeHOL.one)], nsBody C, .one)
+
+theorem pmCodes_H {C : Ctx} {Brs : ProgHOL 64} (hc : PmCodes C Brs) (H : List (BitVec 64)) : PmCodes (ctxH C H) Brs :=
+  ⟨tcCodes_H hc.tc H, nlCodes_H hc.nl H, cwCodes_H hc.cw H, hc.nlf, hc.tcf, hc.w, hc.lm, hc.mc, hc.rs, hc.pw, hc.isl,
+    hc.ns⟩
+
+theorem pw_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
+    (hok : CtxOK C) (Brs : ProgHOL 64) (hc : PmCodes C Brs)
+    (s : AState) (d : Nat) (c : NIdx) (isK : Bool) (rules : List IRecRule) (rw : BitVec 64) (m : EIdx)
+    (hW : ∀ (H : List (BitVec 64)) s1, C.H <+: H → ∀ e', Callee (σ := σ) (ctxH C H) kParams
+      [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d e')
+      (PostK (ctxH C H)))
+    (hRs : ∀ (m' : EIdx) (H : List (BitVec 64)) s1, C.H <+: H →
+      SpecR (σ := σ) (Pre (ctxH C H) s1 (pmParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW c, boolW isK, rw,
+        Enc.idxW m'])) Brs s1 (majorToCtorRescue mode (knot mode C n) C.fe d c isK rules m') (PostK (ctxH C H))) :
+    SpecR (σ := σ) (Pre C s (pmParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW c, boolW isK, rw,
+      Enc.idxW m])) pwBody s (prepareMajorWhnf mode (knot mode C n) C.fe d c isK rules m) (PostMV C) := by
+  refine specR_prologue (postMV_locals C) (pw_none C _) ?_
+  unfold prepareMajorWhnf
+  refine Big.specR_callKC pwA fW kParams [vv kFu, vv kD, vv pmM] (whnfE C fWB)
+    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW m] (by decide) rfl (by decide) hc.w
+    ⟨by simp +decide [Env.get, pmParams, ctxEnv], by simp +decide [Env.get, pmParams, ctxEnv],
+      by simp +decide [Env.get, pmParams, ctxEnv], trivial⟩ (hW C.H s (List.prefix_refl _) m)
+    (fun m0 s1 H1 hp1 _ => ?_)
+  have hok1 := ctxOK_H hok H1
+  refine specR_callKH (C := ctxH C H1) pwB fLm kParams [vv kFu, vv kD, vv pwA] lmBody
+    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW m0] (by decide) rfl (by decide) hc.lm
+    ⟨by simp +decide [Env.get, pmParams, ctxEnv], by simp +decide [Env.get, pmParams, ctxEnv], by simp, trivial⟩
+    (lm_spec ra mode n (ctxH C H1) hok1 (tcCodes_H hc.tc H1) (nlCodes_H hc.nl H1) hc.nlf hc.tcf hc.w s1 d m0
+      (fun H s2 hp e' => hW H s2 (hp1.trans hp) e')) (fun m1 s2 H2 hp2 => ?_)
+  have hok2 := ctxOK_H hok H2
+  refine specR_congr (m' := majorToCtor mode (knot mode C n) C.fe d c isK rules m1 >>= fun r => pure r) (by simp) ?_
+  refine specR_callNIH (C := ctxH C H2) pwR fMc pmParams [vv kFu, vv kD, vv pmC, vv pmK, vv pmR, vv pwB] mcBody
+    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW c, boolW isK, rw, Enc.idxW m1] (by decide) rfl (by decide) hc.mc
+    ⟨by simp +decide [Env.get, pmParams, ctxEnv], by simp +decide [Env.get, pmParams, ctxEnv],
+      by simp +decide [Env.get, pmParams, ctxEnv], by simp +decide [Env.get, pmParams, ctxEnv],
+      by simp +decide [Env.get, pmParams, ctxEnv], by simp, trivial⟩
+    (PostMV (ctxH C H2)) (fun v w _ _ => w = encMV v) (fun v w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu pmParams _ rfl hlk)
+      (mc_spec mode n (ctxH C H2) hok2 (cwCodes_H hc.cw H2) Brs hc.rs s2 d c isK rules rw m1
+        (fun H s3 hp => hRs m1 H s3 ((hp1.trans hp2).trans hp))))
+    (fun v w s3 H3 hp3 hw => ?_)
+  subst hw
+  exact specR_returnI _ (encMV v) (by simp)
+    (fun t ht => ⟨H3, hp1.trans (hp2.trans hp3), rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 end
 
