@@ -372,6 +372,75 @@ theorem nc_spec (C : Ctx) (hok : CtxOK C) (hc : NcCodes C) (s : AState) (isK : B
       (fun _ => ?_) (fun h => absurd h (by decide))
     exact specR_returnI _ 0 rfl (fun t ht => ⟨rfl, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
+/-! ## A fresh block holding a block's first `k` cells -/
+
+def takeCopyP (C : Ctx) (x src cnt : MlS) (rest : ProgHOL 64) : ProgHOL 64 :=
+  .seq (.assign .local lCn (vv cnt))
+  (allocP C x (.shift .lsl (.op .add [vv lCn, .const 1]) (.const 3))
+  (.seq (.store (vv x) (vv lCn))
+  (.seq (.assign .local lSrc (.op .add [vv src, .const 8]))
+  (.seq (.assign .local lDst (.op .add [vv x, .const 8]))
+  (.seq (.assign .local lCi (.const 0))
+  (.seq copyLoop rest))))))
+
+theorem blk_of_fillI_hdr (B xs : List (BitVec 64)) (o : Nat) (h0 : B[o]? = some (BitVec.ofNat 64 xs.length))
+    (hdst : o + 1 + xs.length ≤ B.length) : BlkAt (fillI B xs (o + 1) xs.length) o xs := by
+  constructor
+  · rw [fillI_get?, if_neg (by omega)]; exact h0
+  · intro i hi
+    rw [fillI_get?, if_pos ⟨by omega, by omega, by omega⟩]
+    simp [show o + 1 + i - (o + 1) = i by omega, List.getD_eq_getElem?_getD, hi]
+
+theorem specR_takeCopyI {α : Type} {C : Ctx} (hok : CtxOK C) {H : List (BitVec 64)} {s : AState} {Γ : Env}
+    {M : Mem} {D : List MlS} {rest : ProgHOL 64} {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop}
+    (x src cnt : MlS) (oa k : Nat) (xs : List (BitVec 64))
+    (hD : x ∈ D ∧ lCn ∈ D ∧ lSrc ∈ D ∧ lDst ∈ D ∧ lCi ∈ D ∧ lCz ∈ D)
+    (hsrc : Γ.get src = some (cellA C oa)) (hcnt : Γ.get cnt = some (BitVec.ofNat 64 k)) (hk : k ≤ xs.length)
+    (hxl : xs.length < 2 ^ 58) (hb : BlkAt H oa xs) (hz : Γ.get lCz = none)
+    (hne : x ≠ lCn ∧ x ≠ lSrc ∧ x ≠ lDst ∧ x ≠ lCi ∧ x ≠ lCz) (hsn : src ≠ lCn ∧ src ≠ x)
+    (hcont : ∀ (H' : List (BitVec 64)) o, H <+: H' → H.length ≤ o → BlkAt H' o (xs.take k) →
+      SpecR (Inv (ctxH C H') s ((lCi, BitVec.ofNat 64 k) :: (lDst, cellA C (o + 1 + k)) ::
+        (lSrc, cellA C (oa + 1 + k)) :: (x, cellA C o) :: (lCn, BitVec.ofNat 64 k) :: Γ) [] D) rest s m R) :
+    SpecR (Inv (ctxH C H) s Γ M D) (takeCopyP C x src cnt rest) s m R := by
+  have hlen := blkAt_len hb
+  refine specR_assignI lCn (vv cnt) (BitVec.ofNat 64 k) hD.2.1 (by simpa using hcnt) ?_
+  refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN => ?_)
+  have hlay := hok.heapLay
+  refine specR_allocI (C := ctxH C H) x _ (k + 1) (by omega) hD.1 (fun v => ?_)
+    (fun H2 ws hp2 hws hroom => ?_)
+  · simp +decide [sev, Env.get, hne.1.symm]
+    rw [shl_ofNat _ _ (by omega), show (8#64) = BitVec.ofNat 64 8 from rfl, BitVec.ofNat_add_ofNat, show 2 ^ 3 * k + 8 = 8 * (k + 1) by ring]
+  have hp2' : H <+: H2 := hp2
+  have hH12 := hp2'.length_le
+  have hq0 : H2.length < (ctxH (ctxH C H) (H2 ++ ws)).H.length := by show H2.length < (H2 ++ ws).length; simp; omega
+  refine specR_heapStoreI (ctxOK_H hok _) (vv x) (vv lCn) H2.length hq0 (BitVec.ofNat 64 k)
+    (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, hne.1.symm]) ?_
+  change SpecR (Inv (ctxH C ((H2 ++ ws).set H2.length (BitVec.ofNat 64 k))) _ _ _ _) _ _ _ _
+  generalize hB : (H2 ++ ws).set H2.length (BitVec.ofNat 64 k) = B
+  have hBlen : B.length = H2.length + (k + 1) := by rw [← hB]; simp [hws]
+  refine specR_assignI lSrc _ (cellA C (oa + 1)) hD.2.2.1
+    (by simp +decide [sev, Env.get, hsn.1, hsn.2, hsrc]; exact cellA_add8 C oa) ?_
+  refine specR_assignI lDst _ (cellA C (H2.length + 1)) hD.2.2.2.1
+    (by simp +decide [sev, Env.get, hne.2.1]; exact cellA_add8 C _) ?_
+  refine specR_assignI lCi (.const 0) (BitVec.ofNat 64 0) hD.2.2.2.2.1 rfl ?_
+  have hsrcB : ∀ j (hj : j < (xs.take k).length), B[oa + 1 + j]? = some (xs.take k)[j] := by
+    intro j hj
+    simp only [List.length_take] at hj
+    rw [← hB, List.getElem?_set_ne (by omega), List.getElem?_append_left (by omega), List.getElem_take]
+    exact (blkAt_mono hb hp2').2 j (by omega)
+  have htk : (xs.take k).length = k := by simp; omega
+  refine specR_copyI (C := C) hok B (xs.take k) (oa + 1) (H2.length + 1)
+    ⟨hD.2.2.1, hD.2.2.2.1, hD.2.2.2.2.1, hD.2.2.2.2.2⟩ hsrcB (by rw [htk]; omega) (by rw [htk]; omega)
+    (by rw [htk]; omega) (by rw [htk]; simp +decide [Env.get, hne.1.symm]) (by decide)
+    (by simp +decide [Env.get, hne.2.2.2.2.symm]; exact hz) ?_
+  rw [htk]
+  refine hcont _ H2.length ?_ hH12 ?_
+  · refine hp2'.trans (prefix_of_get? (by rw [fillI_length, hBlen]; omega) (fun j hj => ?_))
+    rw [fillI_get?, if_neg (by omega), ← hB, List.getElem?_set_ne (by omega), List.getElem?_append_left hj]
+  · have := blk_of_fillI_hdr B (xs.take k) H2.length
+      (by rw [htk, ← hB, List.getElem?_set_self (by simp; omega)]) (by rw [htk, hBlen]; omega)
+    rw [htk] at this; exact this
+
 end
 
 end ConPanqueque.T.WC
