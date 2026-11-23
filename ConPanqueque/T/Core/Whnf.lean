@@ -253,4 +253,44 @@ theorem whnfStep_unf (r : CoreFnsA) (fe : IFEnv) (d : Nat) (e e1 : EIdx) (o : Op
 
 end
 
+section
+variable {σ : Type}
+
+def Γb (C : Ctx) (n d : Nat) (e : EIdx) : Env := ctxEnv C ++ kParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e]
+def contEnv (C : Ctx) (n d : Nat) (e : EIdx) (f : Nat) (e' : EIdx) : Env :=
+  (wG, 1) :: (wF, BitVec.ofNat 64 f) :: (wE, Enc.idxW e') :: Γb C n d e
+def doneEnv (C : Ctx) (n d : Nat) (e : EIdx) (v : EIdx) : Env :=
+  (wG, 0) :: (wF, 0) :: (wE, Enc.idxW v) :: Γb C n d e
+
+/-- The loop's points: about to step on `e'` with budget `f`, or done with `v`. -/
+def wbPts (mode : ConLeche.CheckMode) (C : Ctx) (n : Nat) (Q : AState → Prop) (d : Nat) (e : EIdx) :
+    LoopPt EIdx → Prop := fun p =>
+  (∃ H s1 e' f, C.H <+: H ∧ Q s1 ∧ f < 2 ^ 63 ∧
+    p = ⟨ctxH C H, s1, contEnv C n d e f e', whnfLoop (knot mode C n) C.fe d f e'⟩) ∨
+  (∃ H s1 v, C.H <+: H ∧ p = ⟨ctxH C H, s1, doneEnv C n d e v, pure v⟩)
+
+theorem Γb_none (C : Ctx) (n d : Nat) (e : EIdx) : ∀ z, z ∈ wbLocals → (Γb C n d e).get z = none :=
+  Knot.params_none C wbLocals kParams _ (by decide) (by decide)
+
+/-- Weakening a body's final locals to a point's. -/
+theorem wb_weak {C : Ctx} {s : AState} {A : Env} {D : List MlS} {t : PState σ} (n d : Nat) (e : EIdx)
+    (g f x : BitVec 64) (hA : Inv C s A [] D t)
+    (hg : A.get wG = some g) (hf : A.get wF = some f) (hx : A.get wE = some x)
+    (hrest : ∀ z, z ∉ wbLocals → A.get z = (Γb C n d e).get z) :
+    Inv C s ((wG, g) :: (wF, f) :: (wE, x) :: Γb C n d e) [] D t := by
+  refine inv_envMono hA (fun z v hz => ?_)
+  simp only [Env.get_cons] at hz
+  by_cases e1 : z = wG
+  · subst e1; simp at hz; rw [← hz]; exact hg
+  by_cases e2 : z = wF
+  · subst e2; simp at hz; rw [← hz]; exact hf
+  by_cases e3 : z = wE
+  · subst e3; simp at hz; rw [← hz]; exact hx
+  simp only [e1, e2, e3, ite_false] at hz
+  by_cases hm : z ∈ wbLocals
+  · rw [Γb_none C n d e z hm] at hz; simp at hz
+  · rw [hrest z hm]; exact hz
+
+end
+
 end ConPanqueque.T.WB
