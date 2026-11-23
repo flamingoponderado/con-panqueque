@@ -597,31 +597,31 @@ def knot (mode : ConLeche.CheckMode) (C : Ctx) (n : Nat) : CoreFnsA := coreKnot 
 /-- The six entry points at fuel `n`, at every context. -/
 def EntrySpecs (mode : ConLeche.CheckMode) (TI : Ctx → AState → Prop) (Bs : KBodies) (n : Nat) : Prop :=
   ∀ C, CtxOK C → KCodes C Bs → ∀ s, TI C s →
-    (∀ c d e, Callee (σ := σ) C wcParams [BitVec.ofNat 64 n, boolW c, BitVec.ofNat 64 d, Enc.idxW e] wcE s
+    (∀ c d e, d < 2 ^ 63 → Callee (σ := σ) C wcParams [BitVec.ofNat 64 n, boolW c, BitVec.ofNat 64 d, Enc.idxW e] wcE s
       ((knot mode C n).whnfCore c d e) (PostK C)) ∧
-    (∀ d e, Callee (σ := σ) C kParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (whnfE C fWB) s
+    (∀ d e, d < 2 ^ 63 → Callee (σ := σ) C kParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (whnfE C fWB) s
       ((knot mode C n).whnf d e) (PostK C)) ∧
-    (∀ d e, Callee (σ := σ) C kParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (inferE C fIB) s
+    (∀ d e, d < 2 ^ 63 → Callee (σ := σ) C kParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (inferE C fIB) s
       ((knot mode C n).infer d e) (PostK C)) ∧
-    (∀ d a b, Callee (σ := σ) C dParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b] (dE C) s
+    (∀ d a b, d < 2 ^ 63 → Callee (σ := σ) C dParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b] (dE C) s
       ((knot mode C n).defeq d a b) (PostB C)) ∧
-    (∀ d a b, Callee (σ := σ) C dParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b] (dEE C) s
+    (∀ d a b, d < 2 ^ 63 → Callee (σ := σ) C dParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b] (dEE C) s
       ((knot mode C n).defeqE d a b) (PostB C)) ∧
-    (∀ d e, Callee (σ := σ) C kParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (inferIOE C fIOB) s
+    (∀ d e, d < 2 ^ 63 → Callee (σ := σ) C kParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (inferIOE C fIOB) s
       ((knot mode C n).inferIO d e) (PostK C))
 
 /-- The five bodies at fuel `n` (each recursing into the knot at fuel `n`), at every context. -/
 def BodySpecs (mode : ConLeche.CheckMode) (TI : Ctx → AState → Prop) (Bs : KBodies) (n : Nat) : Prop :=
   ∀ C, CtxOK C → KCodes C Bs → ∀ s, TI C s →
-    (∀ c d e, Callee (σ := σ) C wcParams [BitVec.ofNat 64 n, boolW c, BitVec.ofNat 64 d, Enc.idxW e] (Bs.wc C) s
+    (∀ c d e, d < 2 ^ 63 → Callee (σ := σ) C wcParams [BitVec.ofNat 64 n, boolW c, BitVec.ofNat 64 d, Enc.idxW e] (Bs.wc C) s
       (whnfCoreBody mode (knot mode C n) C.fe c d e) (PostK C)) ∧
-    (∀ d e, Callee (σ := σ) C kParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (Bs.w C) s
+    (∀ d e, d < 2 ^ 63 → Callee (σ := σ) C kParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (Bs.w C) s
       (whnfBody (knot mode C n) C.fe d e) (PostK C)) ∧
-    (∀ d e, Callee (σ := σ) C kParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (Bs.i C) s
+    (∀ d e, d < 2 ^ 63 → Callee (σ := σ) C kParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (Bs.i C) s
       (inferBody (knot mode C n) C.fe d e) (PostK C)) ∧
-    (∀ d a b, Callee (σ := σ) C dParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b] (Bs.d C) s
+    (∀ d a b, d < 2 ^ 63 → Callee (σ := σ) C dParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b] (Bs.d C) s
       (defeqBody mode C.side (knot mode C n) C.fe d a b) (PostB C)) ∧
-    (∀ d e, Callee (σ := σ) C kParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (Bs.io C) s
+    (∀ d e, d < 2 ^ 63 → Callee (σ := σ) C kParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (Bs.io C) s
       (inferBodyIO (CoreFnsA.ioView (knot mode C n)) C.fe d e) (PostK C))
 
 /-- **The knot**: the entry points refine the twin's knot at every fuel, given that each body refines its
@@ -634,7 +634,7 @@ theorem knot_all (mode : ConLeche.CheckMode) (TI : Ctx → AState → Prop) (Bs 
   induction n with
   | zero =>
     intro _ C hok hc s hs
-    refine ⟨fun c d e => ?_, fun d e => ?_, fun d e => ?_, fun d a b => ?_, fun d a b => ?_, fun d e => ?_⟩
+    refine ⟨fun c d e _ => ?_, fun d e _ => ?_, fun d e _ => ?_, fun d a b _ => ?_, fun d a b _ => ?_, fun d e _ => ?_⟩
     all_goals refine callee_of_pre rfl ?_
     · exact entry_zeroP wcParams _ _ _ _ (postK_locals C) (wcParams_none C _) (by simp +decide [Env.get, wcParams, ctxEnv])
     · exact entry_zeroP kParams _ _ _ _ (postK_locals C) (kParams_none C _) (by simp +decide [Env.get, kParams, ctxEnv])
@@ -648,10 +648,10 @@ theorem knot_all (mode : ConLeche.CheckMode) (TI : Ctx → AState → Prop) (Bs 
     have hn64 : n + 1 < 2 ^ 64 := by omega
     obtain ⟨bwc, bw, bi, bd, bio⟩ := hB C hok hc s hs
     have dcodes : DCodes C fDB (Bs.d C) := ⟨hc.g, hc.p, hc.s, hc.i, hc.bd⟩
-    refine ⟨fun c d e => ?_, fun d e => ?_, fun d e => ?_, fun d a b => ?_, fun d a b => ?_, fun d e => ?_⟩
+    refine ⟨fun c d e hd => ?_, fun d e hd => ?_, fun d e hd => ?_, fun d a b hd => ?_, fun d a b hd => ?_, fun d e hd => ?_⟩
     all_goals refine callee_of_pre rfl ?_
     · exact whnfCore_succ hc.bwc n hn64 c d e _ (fun u hu h1 h2 h3 h4 =>
-        bwc c d e u hu (fun i hi hv => by
+        bwc c d e hd u hu (fun i hi hv => by
           have : i < 4 := hi
           rcases (by omega : i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3) with rfl | rfl | rfl | rfl
           · exact h1
@@ -659,21 +659,21 @@ theorem knot_all (mode : ConLeche.CheckMode) (TI : Ctx → AState → Prop) (Bs 
           · exact h3
           · exact h4))
     · exact whnf_succ hok hc.g hc.p hc.s hc.i fWB (Bs.w C) hc.bw n d hn64 e _ (fun u hu h1 h2 h3 =>
-        bw d e u hu (fun i hi hv => by
+        bw d e hd u hu (fun i hi hv => by
           have : i < 3 := hi
           rcases (by omega : i = 0 ∨ i = 1 ∨ i = 2) with rfl | rfl | rfl
           · exact h1
           · exact h2
           · exact h3))
     · exact entry_succ hok .infer hc.g hc.p hc.s hc.i fIB (Bs.i C) hc.bi inferSet (fun _ _ _ => rfl) n d hn64 e _
-        (fun u hu h1 h2 h3 => bi d e u hu (fun i hi hv => by
+        (fun u hu h1 h2 h3 => bi d e hd u hu (fun i hi hv => by
           have : i < 3 := hi
           rcases (by omega : i = 0 ∨ i = 1 ∨ i = 2) with rfl | rfl | rfl
           · exact h1
           · exact h2
           · exact h3))
     · exact defeq_succ hok dcodes n d hn64 a b _ (fun u hu h1 h2 h3 h4 =>
-        bd d a b u hu (fun i hi hv => by
+        bd d a b hd u hu (fun i hi hv => by
           have : i < 4 := hi
           rcases (by omega : i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3) with rfl | rfl | rfl | rfl
           · exact h1
@@ -686,7 +686,7 @@ theorem knot_all (mode : ConLeche.CheckMode) (TI : Ctx → AState → Prop) (Bs 
         obtain ⟨-, -, -, bd', -⟩ := hB _ hok' hc' _ (hTI C s hsv hs)
         intro u hu h1 h2 h3 h4
         have e4 := (Bs.inv_saved C (some s.caches.modeMemos)).2.2.2.1
-        have := bd' d a b u hu (fun i hi hv => by
+        have := bd' d a b hd u hu (fun i hi hv => by
           have : i < 4 := hi
           rcases (by omega : i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3) with rfl | rfl | rfl | rfl
           · exact h1
@@ -697,7 +697,7 @@ theorem knot_all (mode : ConLeche.CheckMode) (TI : Ctx → AState → Prop) (Bs 
         exact this
       · have hside : C.side = true := hsv
         intro u hu h1 h2 h3 h4
-        have := bd d a b u hu (fun i hi hv => by
+        have := bd d a b hd u hu (fun i hi hv => by
           have : i < 4 := hi
           rcases (by omega : i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3) with rfl | rfl | rfl | rfl
           · exact h1
@@ -708,7 +708,7 @@ theorem knot_all (mode : ConLeche.CheckMode) (TI : Ctx → AState → Prop) (Bs 
         rw [hside] at this
         exact this
     · exact entry_succ hok .inferIO hc.g hc.p hc.s hc.i fIOB (Bs.io C) hc.bio inferIOSet (fun _ _ _ => rfl) n d hn64 e _
-        (fun u hu h1 h2 h3 => bio d e u hu (fun i hi hv => by
+        (fun u hu h1 h2 h3 => bio d e hd u hu (fun i hi hv => by
           have : i < 3 := hi
           rcases (by omega : i = 0 ∨ i = 1 ∨ i = 2) with rfl | rfl | rfl
           · exact h1
