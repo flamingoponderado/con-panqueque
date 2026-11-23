@@ -1237,6 +1237,67 @@ structure GwCodes (C : Ctx) : Prop where
   op : OpCodes C
   gq : GqCodes C
 
+theorem gw_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : GwCodes C)
+    (tbl : IProjTable) (ot : Nat) (htb : TblE C.EB C.EH ot tbl) (i : Nat) (hi : i < 2 ^ 63) (us : LsIdx)
+    (Q : AState → Prop)
+    (hCt : ∀ s1 (ci : IConstantInfo) (oL : Nat), Q s1 → C.fe.find? tbl.ctor = some ci →
+      EBlk C.EH oL (ci.toConstantVal.levelParams.map Enc.idxW) →
+      SpecR (σ := σ) (Pre C s1 (CV.cvParams.zip [Enc.idxW ci.toConstantVal.name, ecell C oL,
+        Enc.idxW ci.toConstantVal.type, Enc.idxW us])) (CT.ctBody C) s1 (constTyAt ci.toConstantVal us) (PostK C))
+    (s : AState) (hq : Q s) :
+    SpecR (σ := σ) (Pre C s (gwParams.zip [ecell C ot, BitVec.ofNat 64 i, Enc.idxW us])) (gwBody C) s
+      (projGuardRows C.fe (tbl.entry i) us) (PostRows C) := by
+  refine specR_prologue (postRows_locals C) (gw_none C _) ?_
+  obtain ⟨hsn, ⟨wl, hwl, henl⟩, ⟨hnp, hnp63⟩, hcto, _⟩ := htb
+  refine specR_envLoadI gwC (.op .add [vv gwT, .const 24]) (ot + 3) (Enc.idxW tbl.ctor) (by decide)
+    (by simp +decide [sev, Env.get, gwParams, ctxEnv]; exact fn_ecell24 C ot) hcto ?_
+  refine specR_envLoadI gwNp (.op .add [vv gwT, .const 16]) (ot + 2) (BitVec.ofNat 64 tbl.numParams) (by decide)
+    (by simp +decide [sev, Env.get, gwParams, ctxEnv]; exact fn_ecell16 C ot) hnp ?_
+  have hlw := word_lt_iff (tbl.numParams + i) (2 ^ 56) (by unfold B; omega) (by unfold B; omega)
+  by_cases hr : tbl.numParams + i < 2 ^ 56
+  swap
+  · exact specR_ifI _ 0 (by simp +decide [sev, Env.get, gwParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL,
+      BitVec.ofNat_add_ofNat]; rw [Nat.mod_eq_of_lt (show tbl.numParams + i < 18446744073709551616 by omega)]; omega)
+      (fun h => absurd rfl h) (fun _ => specR_hangI)
+  refine specR_ifI _ 1 (by simp +decide [sev, Env.get, gwParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL,
+      BitVec.ofNat_add_ofNat]; rw [Nat.mod_eq_of_lt (show tbl.numParams + i < 18446744073709551616 by omega)]; omega)
+    (fun _ => ?_) (fun h => absurd h (by decide))
+  refine specR_envFindI hok hc.mg hc.mp gwP (vv gwC) tbl.ctor (by decide) (by simp)
+    (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
+  have hrel := find_rel hok tbl.ctor
+  revert hrel
+  unfold projGuardRows
+  simp only [IProjTable.entry]
+  rcases hfind : C.fe.find? tbl.ctor with _ | ci
+  · intro hrel; simp only at hrel; rw [hrel]
+    refine specR_ifI _ 1 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨C.H, List.prefix_refl _, sr_of_eq ht.sr rfl rfl rfl rfl,
+      fun _ => rfl, fun rows hr => by cases hr⟩)
+  intro ⟨o, hm, hci⟩
+  rw [hm]
+  refine specR_atEntry fun t ht => ?_
+  have hoE : o < C.EN := Nat.lt_of_lt_of_le (cie_lt hci) ht.sr.env.1.len
+  refine specR_ifI _ 0 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact ecell_succ_ne hok hoE)
+    (fun h => absurd rfl h) (fun _ => ?_)
+  refine specR_assignI gwQp _ (ecell C o) (by decide) (by simp [sev, optWG]; exact BitVec.add_sub_cancel _ _) ?_
+  obtain ⟨hcn, ⟨w2, hw2, oL, hwL, hblk⟩, hcty⟩ := hci.1
+  refine specR_envLoadI gwN (.op .add [vv gwQp, .const 8]) (o + 1) (Enc.idxW ci.toConstantVal.name) (by decide)
+    (by simp +decide [sev, Env.get]; simpa using ecell_add C o 1) hcn ?_
+  refine specR_envLoadI gwL (.op .add [vv gwQp, .const 16]) (o + 1 + 1) w2 (by decide)
+    (by simp +decide [sev, Env.get]; simpa [Nat.add_assoc] using fn_ecell16 C o) hw2 ?_
+  refine specR_envLoadI gwTy (.op .add [vv gwQp, .const 24]) (o + 1 + 2) (Enc.idxW ci.toConstantVal.type) (by decide)
+    (by simp +decide [sev, Env.get]; simpa [Nat.add_assoc] using fn_ecell24 C o) hcty ?_
+  subst hwL
+  refine specR_callNIH (C := C) gwCt CT.fCT CV.cvParams [vv gwN, vv gwL, vv gwTy, vv gwUs] (CT.ctBody C)
+    [Enc.idxW ci.toConstantVal.name, ecell C oL, Enc.idxW ci.toConstantVal.type, Enc.idxW us] (by decide) rfl
+    (by decide) hc.ct ⟨by simp, by simp; rfl, by simp, by simp +decide [Env.get, gwParams, ctxEnv], trivial⟩
+    (PostK C) (fun a w _ _ => w = Enc.idxW a) (fun a w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu CV.cvParams _ rfl hlk) (hCt s ci oL hq hfind hblk))
+    (fun ct w s1 H1 hp1 hw => ?_)
+  subst hw
+  sorry
+
 end
 
 end ConPanqueque.T.WC
