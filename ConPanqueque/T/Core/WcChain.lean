@@ -162,4 +162,92 @@ def scW := ofString "scw"
 @[simp] theorem sc_scW_ne_lDir : scW ≠ lDir := by decide
 @[simp] theorem sc_lDir_ne_scW : lDir ≠ scW := by decide
 
+/-- A heap list of handles from `p`, head first (`0` is the empty list). -/
+def LstAt (C : Ctx) (H : List (BitVec 64)) : BitVec 64 → List EIdx → Prop
+  | p, [] => p = 0
+  | p, x :: xs => ∃ o nx, p = cellA C o ∧ H[o]? = some (Enc.idxW x) ∧ H[o + 1]? = some nx ∧ LstAt C H nx xs
+
+theorem lstAt_mono {C : Ctx} {H H' : List (BitVec 64)} (hp : H <+: H') :
+    ∀ (p : BitVec 64) (xs : List EIdx), LstAt C H p xs → LstAt C H' p xs
+  | _, [], h => h
+  | p, x :: xs, ⟨o, nx, h1, h2, h3, h4⟩ => by
+    obtain ⟨r, rfl⟩ := hp
+    refine ⟨o, nx, h1, ?_, ?_, lstAt_mono ⟨r, rfl⟩ nx xs h4⟩
+    · rw [List.getElem?_append_left (List.getElem?_eq_some_iff.mp h2).1]; exact h2
+    · rw [List.getElem?_append_left (List.getElem?_eq_some_iff.mp h3).1]; exact h3
+
+def scLocals : List MlS := [scN, scK, scR, scW, lEo]
+def scParams : List MlS := [scL, scV]
+
+def scBody (k : ModeKE) (C : Ctx) (fself : MlS) : ProgHOL 64 :=
+  prologue scLocals (.ite (.cmp .equal (vv scL) (.const 0)) (.return (.const 0))
+    (.seq (.assign .local scN (.load .one (.op .add [vv scL, .const 8])))
+    (.seq (.assign .local scK (.load .one (vv scL)))
+    (.seq (.call (some (some (.local, scR), none)) fself [vv scN, vv scV])
+    (modeSetP C k.toK scW (vv scK) (vv scV) (.return (.const 0)))))))
+
+section
+variable {σ : Type}
+
+def PostS (C : Ctx) (u : Unit) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop := SR C s' st
+
+theorem postS_locals (C : Ctx) : ∀ (a : Unit) w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
+    PostS C a w s' st → PostS C a w s' { st with locals := L } :=
+  fun _ _ _ _ _ h => sr_of_eq h rfl rfl rfl rfl
+
+theorem sc_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ scLocals → (ctxEnv C ++ scParams.zip vals).get x = none :=
+  Knot.params_none C scLocals scParams vals (by decide) (by decide)
+
+theorem sc_spec (k : ModeKE) (storeOp : Array EIdx → Nat → EIdx → AM Unit) (setOp : EIdx → EIdx → AM Unit)
+    (hset : ∀ e r s, setOp e r s = .ok ((), modeSetS k s e r))
+    (hrev : ∀ x (xs : List EIdx) v, storeOp (x :: xs).reverse.toArray 0 v =
+      (storeOp xs.reverse.toArray 0 v >>= fun _ => setOp x v))
+    (hnil : ∀ v, storeOp #[] 0 v = pure ())
+    (C : Ctx) (hok : CtxOK C) (fself : MlS)
+    (hcs : C.code.lookup fself = some (scParams.map (fun p => (p, ShapeHOL.one)), scBody k C fself, .one))
+    (hcodeS : C.code.lookup fMemoSet = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoSetBody, .one))
+    (hcodeI : C.code.lookup fMemoIns = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoInsBody, .one))
+    (v : EIdx) : ∀ (xs : List EIdx) (s : AState) (p : BitVec 64), LstAt C C.H p xs →
+    SpecR (σ := σ) (Pre C s (scParams.zip [p, Enc.idxW v])) (scBody k C fself) s (storeOp xs.reverse.toArray 0 v)
+      (PostS C)
+  | [], s, p, hp => by
+    simp only [LstAt] at hp; subst hp
+    refine specR_prologue (postS_locals C) (sc_none C _) ?_
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get, scParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun _ => ?_) (fun h => absurd h (by decide))
+    rw [show ([] : List EIdx).reverse.toArray = #[] from rfl, hnil]
+    exact specR_returnI _ 0 rfl (fun t ht => sr_of_eq ht.sr rfl rfl rfl rfl)
+  | x :: xs, s, p, ⟨o, nx, hpo, hx, hnx, hrest⟩ => by
+    subst hpo
+    refine specR_prologue (postS_locals C) (sc_none C _) ?_
+    refine specR_atEntry fun t0 ht0 => ?_
+    have ho : o < C.HN := by
+      obtain ⟨H', hp', ha'⟩ := ht0.sr.heap
+      have := (List.getElem?_eq_some_iff.mp hx).1; have := hp'.length_le; have := ha'.len; omega
+    have hne := ExSP.cellA_ne0 C hok o ho
+    have hc0 : sev (ctxEnv C ++ scParams.zip [cellA C o, Enc.idxW v]) (.cmp .equal (vv scL) (.const 0)) = some 0 := by
+      simp +decide [sev, Env.get, scParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne
+    refine specR_ifI _ 0 hc0 (fun h => absurd rfl h) (fun _ => ?_)
+    refine UD.specR_heapLoadI' scN _ (o + 1) nx hnx (by decide)
+      (by simp +decide [sev, Env.get, scParams, ctxEnv]; exact cellA_add8 C o) ?_
+    refine UD.specR_heapLoadI' scK (vv scL) o _ hx (by decide) (by simp +decide [Env.get, scParams, ctxEnv]) ?_
+    rw [hrev]
+    refine specR_callNIH scR fself scParams [vv scN, vv scV] (scBody k C fself) [nx, Enc.idxW v] (by decide) rfl
+      (by decide) hcs ⟨by simp, by simp +decide [sev, Env.get, scParams, ctxEnv], trivial⟩
+      (fun u w s' st => storeOp xs.reverse.toArray 0 v s = .ok (u, s') ∧ PostS C u w s' st)
+      (fun u w s' H' => H' = C.H ∧ storeOp xs.reverse.toArray 0 v s = .ok (u, s'))
+      (fun u w s' st ⟨hrun, hsr⟩ => ⟨C.H, List.prefix_refl _, ⟨rfl, hrun⟩, hsr⟩)
+      (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu scParams _ rfl hlk)
+        (sc_spec k storeOp setOp hset hrev hnil C hok fself hcs hcodeS hcodeI v xs s nx hrest)))
+      (fun u w s1 H1 _ ⟨hH, _⟩ => ?_)
+    subst hH
+    refine specR_congr (m' := setOp x v >>= fun _ => pure ()) (by simp) ?_
+    refine specR_modeSetI hok k setOp hset hcodeS hcodeI scW (vv scK) (vv scV) x v (by decide) (by decide)
+      (by simp) (by simp +decide [sev, Env.get, scParams, ctxEnv]) (by simp +decide [Env.get, ctxEnv])
+      (fun w => ?_)
+    exact specR_returnI _ 0 rfl (fun t ht => sr_of_eq ht.sr rfl rfl rfl rfl)
+
+end
+
 end ConPanqueque.T.WC
