@@ -987,7 +987,7 @@ def chBody (C : Ctx) : ProgHOL 64 := prologue chLocals (.seq (.call (some (some 
 def cqLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, cqX, cqH, cqC, cqP, cqQ, cqK, cqNp, cqNf, cqT, cqNn, cqN, cqP2, cqQ2, cqK2, cqZ, cqEt]
 def cqBody (C : Ctx) : ProgHOL 64 := prologue cqLocals (.seq (.call (some (some (.local, cqX), none)) ExM.fHasFvar [(.const (BitVec.ofNat 64 coreWalkFuel)), (vv cqE)]) (.ite (vv cqX) (.return (.const 0)) (.seq (.call (some (some (.local, cqH), none)) fGetAppFn [(.const (BitVec.ofNat 64 coreWalkFuel)), (vv cqE)]) (.ite (tagIsE cqH 3) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv cqH)) (.seq eViewP (.seq (.assign .local cqC (.load .one (vv lRp))) (envFindP C cqP (vv cqC) (.ite (.cmp .equal (vv cqP) (.const 0)) (.return (.const 0)) (.seq (.assign .local cqQ (.op .sub [(vv cqP), (.const 1)])) (.seq (.assign .local cqK (.load .one (vv cqQ))) (.ite (.cmp .notEqual (vv cqK) (.const 4)) (.return (.const 0)) (.seq (.assign .local cqNp (.load .one (.op .add [(vv cqQ), (.const 32)]))) (.seq (.assign .local cqNf (.load .one (.op .add [(vv cqQ), (.const 40)]))) (.seq (.assign .local cqT (.load .one (.op .add [(vv cqQ), (.const 48)]))) (.seq (.assign .local cqNn (.load .one (.const (ecell C (C.PO + PIN_NAT))))) (.ite (.cmp .equal (vv cqT) (vv cqNn)) (.return (.const 0)) (.seq (.call (some (some (.local, cqN), none)) fNa [(.const (BitVec.ofNat 64 coreWalkFuel)), (vv cqE)]) (.ite (.cmp .notEqual (vv cqN) (.op .add [(vv cqNp), (vv cqNf)])) (.return (.const 0)) (envFindP C cqP2 (vv cqT) (.ite (.cmp .equal (vv cqP2) (.const 0)) (.return (.const 0)) (.seq (.assign .local cqQ2 (.op .sub [(vv cqP2), (.const 1)])) (.seq (.assign .local cqK2 (.load .one (vv cqQ2))) (.ite (.cmp .notEqual (vv cqK2) (.const 3)) (.return (.const 0)) (.seq (.assign .local cqZ (.load .one (.op .add [(vv cqQ2), (.const 72)]))) (.seq (.assign .local cqEt (.load .one (.op .add [(vv cqQ2), (.const 32)]))) (.ite (vv cqZ) (.ite (vv cqEt) (.return (.const 0)) (.return (.op .add [(vv cqC), (.const 1)]))) (.return (.const 0)))))))))))))))))))))))))) (.return (.const 0))))))
 def cfParams : List MlS := [cfO, cfE]
-def cfBody (v : Bool) : ProgHOL 64 := prologue [cfX, cfR] (if v then (.seq (.call (some (some (.local, cfR), none)) fCq [(vv cfE)]) (.return (vv cfR))) else (.seq (.call (some (some (.local, cfX), none)) ExM.fHasFvar [(.const (BitVec.ofNat 64 coreWalkFuel)), (vv cfO)]) (.ite (vv cfX) (.return (.const 0)) (.seq (.call (some (some (.local, cfR), none)) fCq [(vv cfE)]) (.return (vv cfR))))))
+def cfBody (_v : Bool) : ProgHOL 64 := prologue [cfX, cfR] (.ite (.var .global gEo) (.seq (.call (some (some (.local, cfR), none)) fCq [(vv cfE)]) (.return (vv cfR))) (.seq (.call (some (some (.local, cfX), none)) ExM.fHasFvar [(.const (BitVec.ofNat 64 coreWalkFuel)), (vv cfO)]) (.ite (vv cfX) (.return (.const 0)) (.seq (.call (some (some (.local, cfR), none)) fCq [(vv cfE)]) (.return (vv cfR))))))
 
 section
 variable {σ : Type}
@@ -1314,7 +1314,7 @@ theorem cf_spec (C : Ctx) (hok : CtxOK C) (hcF : ExF.CodesF C (ExF.bodyF C))
     (hmp : C.code.lookup fMemoProbe = some ([(pG, .one), (pLen, .one)], memoProbeBody, .one))
     (hcna : C.code.lookup fNa = some (naParams.map (fun p => (p, ShapeHOL.one)), naBody, .one))
     (hcq : C.code.lookup fCq = some ([(cqE, .one)], cqBody C, .one))
-    (v : Bool) (s : AState) (o e : EIdx) :
+    (v : Bool) (hv : C.side = v) (s : AState) (o e : EIdx) :
     SpecR (σ := σ) (Pre C s (cfParams.zip [Enc.idxW o, Enc.idxW e])) (cfBody v) s (ctorTargetFor C.fe v o e)
       (PostON C) := by
   have hcall : ∀ (s1 : AState) {Γ : Env} {M : Mem} {D : List MlS}, cfR ∈ D → sev Γ (vv cfE) = some (Enc.idxW e) →
@@ -1330,8 +1330,11 @@ theorem cf_spec (C : Ctx) (hok : CtxOK C) (hcF : ExF.CodesF C (ExF.bodyF C))
     exact specR_returnI _ w (by simp) (fun t ht => ⟨H', hp, hw, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   refine specR_prologue (postON_locals C) (Knot.params_none C [cfX, cfR] cfParams _ (by decide) (by decide)) ?_
   unfold ctorTargetFor
-  cases v
-  · simp only [Bool.false_eq_true, ↓reduceIte]
+  refine specR_iteSide hok.eoNe (fun hs => ?_) (fun hs => ?_)
+  rotate_left
+  · have hv' : v = false := by rw [← hv, hs]
+    subst hv'
+    simp only [Bool.false_eq_true, ↓reduceIte]
     refine specR_callNIM (C := C) cfX ExM.fHasFvar [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv cfO]
       ExM.hasFvarBody [BitVec.ofNat 64 coreWalkFuel, Enc.idxW o] (by decide) rfl (by decide) hhf
       ⟨rfl, by simp +decide [Env.get, cfParams, ctxEnv], trivial⟩ (ExM.PostB C) (fun _ _ _ _ hp => hp.2)
@@ -1347,7 +1350,9 @@ theorem cf_spec (C : Ctx) (hok : CtxOK C) (hcF : ExF.CodesF C (ExF.bodyF C))
       simp only [↓reduceIte]
       exact specR_returnI _ (optWG Enc.idxW none) rfl
         (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  · simp only [↓reduceIte]
+  · have hv' : v = true := by rw [← hv, hs]
+    subst hv'
+    simp only [↓reduceIte]
     exact hcall s (by decide) (by simp +decide [Env.get, cfParams, ctxEnv])
 
 end
