@@ -211,3 +211,4 @@ import ConPanqueque.T.Str.StrCtor
 import ConPanqueque.T.Core.ProjLit
 import ConPanqueque.T.Core.ReduceProj
 import ConPanqueque.T.Core.IotaTwin
+import ConPanqueque.T.Core.FindRule
