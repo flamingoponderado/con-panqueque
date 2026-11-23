@@ -909,6 +909,77 @@ def fIota := ofString "iotaRecAt"
 @[simp] theorem wt_iK_ne_pH : iK ≠ pH := by decide
 @[simp] theorem wt_pH_ne_iK : pH ≠ iK := by decide
 
+@[simp] theorem wv_lFl_ne_sE : lFl ≠ sE := by decide
+@[simp] theorem wv_sE_ne_lFl : sE ≠ lFl := by decide
+@[simp] theorem wv_lFl_ne_sH : lFl ≠ sH := by decide
+@[simp] theorem wv_sH_ne_lFl : sH ≠ lFl := by decide
+@[simp] theorem wv_lFl_ne_kFu : lFl ≠ kFu := by decide
+@[simp] theorem wv_kFu_ne_lFl : kFu ≠ lFl := by decide
+@[simp] theorem wv_lFl_ne_kD : lFl ≠ kD := by decide
+@[simp] theorem wv_kD_ne_lFl : kD ≠ lFl := by decide
+@[simp] theorem wv_lFl_ne_kC : lFl ≠ kC := by decide
+@[simp] theorem wv_kC_ne_lFl : kC ≠ lFl := by decide
+@[simp] theorem wv_lDh_ne_sE : lDh ≠ sE := by decide
+@[simp] theorem wv_sE_ne_lDh : sE ≠ lDh := by decide
+@[simp] theorem wv_lDh_ne_sH : lDh ≠ sH := by decide
+@[simp] theorem wv_sH_ne_lDh : sH ≠ lDh := by decide
+@[simp] theorem wv_lDh_ne_kFu : lDh ≠ kFu := by decide
+@[simp] theorem wv_kFu_ne_lDh : kFu ≠ lDh := by decide
+@[simp] theorem wv_lDh_ne_kD : lDh ≠ kD := by decide
+@[simp] theorem wv_kD_ne_lDh : kD ≠ lDh := by decide
+@[simp] theorem wv_lDh_ne_kC : lDh ≠ kC := by decide
+@[simp] theorem wv_kC_ne_lDh : kC ≠ lDh := by decide
+@[simp] theorem wv_lDt_ne_sE : lDt ≠ sE := by decide
+@[simp] theorem wv_sE_ne_lDt : sE ≠ lDt := by decide
+@[simp] theorem wv_lDt_ne_sH : lDt ≠ sH := by decide
+@[simp] theorem wv_sH_ne_lDt : sH ≠ lDt := by decide
+@[simp] theorem wv_lDt_ne_kFu : lDt ≠ kFu := by decide
+@[simp] theorem wv_kFu_ne_lDt : kFu ≠ lDt := by decide
+@[simp] theorem wv_lDt_ne_kD : lDt ≠ kD := by decide
+@[simp] theorem wv_kD_ne_lDt : kD ≠ lDt := by decide
+@[simp] theorem wv_lDt_ne_kC : lDt ≠ kC := by decide
+@[simp] theorem wv_kC_ne_lDt : kC ≠ lDt := by decide
+@[simp] theorem wv_lDg_ne_sE : lDg ≠ sE := by decide
+@[simp] theorem wv_sE_ne_lDg : sE ≠ lDg := by decide
+@[simp] theorem wv_lDg_ne_sH : lDg ≠ sH := by decide
+@[simp] theorem wv_sH_ne_lDg : sH ≠ lDg := by decide
+@[simp] theorem wv_lDg_ne_kFu : lDg ≠ kFu := by decide
+@[simp] theorem wv_kFu_ne_lDg : kFu ≠ lDg := by decide
+@[simp] theorem wv_lDg_ne_kD : lDg ≠ kD := by decide
+@[simp] theorem wv_kD_ne_lDg : kD ≠ lDg := by decide
+@[simp] theorem wv_lDg_ne_kC : lDg ≠ kC := by decide
+@[simp] theorem wv_kC_ne_lDg : kC ≠ lDg := by decide
+@[simp] theorem wv_lDi_ne_sE : lDi ≠ sE := by decide
+@[simp] theorem wv_sE_ne_lDi : sE ≠ lDi := by decide
+@[simp] theorem wv_lDi_ne_sH : lDi ≠ sH := by decide
+@[simp] theorem wv_sH_ne_lDi : sH ≠ lDi := by decide
+@[simp] theorem wv_lDi_ne_kFu : lDi ≠ kFu := by decide
+@[simp] theorem wv_kFu_ne_lDi : kFu ≠ lDi := by decide
+@[simp] theorem wv_lDi_ne_kD : lDi ≠ kD := by decide
+@[simp] theorem wv_kD_ne_lDi : kD ≠ lDi := by decide
+@[simp] theorem wv_lDi_ne_kC : lDi ≠ kC := by decide
+@[simp] theorem wv_kC_ne_lDi : kC ≠ lDi := by decide
+@[simp] theorem wv_lRp_ne_sE : lRp ≠ sE := by decide
+@[simp] theorem wv_sE_ne_lRp : sE ≠ lRp := by decide
+@[simp] theorem wv_lRp_ne_sH : lRp ≠ sH := by decide
+@[simp] theorem wv_sH_ne_lRp : sH ≠ lRp := by decide
+@[simp] theorem wv_lRp_ne_kFu : lRp ≠ kFu := by decide
+@[simp] theorem wv_kFu_ne_lRp : kFu ≠ lRp := by decide
+@[simp] theorem wv_lRp_ne_kD : lRp ≠ kD := by decide
+@[simp] theorem wv_kD_ne_lRp : kD ≠ lRp := by decide
+@[simp] theorem wv_lRp_ne_kC : lRp ≠ kC := by decide
+@[simp] theorem wv_kC_ne_lRp : kC ≠ lRp := by decide
+@[simp] theorem wv_lRn_ne_sE : lRn ≠ sE := by decide
+@[simp] theorem wv_sE_ne_lRn : sE ≠ lRn := by decide
+@[simp] theorem wv_lRn_ne_sH : lRn ≠ sH := by decide
+@[simp] theorem wv_sH_ne_lRn : sH ≠ lRn := by decide
+@[simp] theorem wv_lRn_ne_kFu : lRn ≠ kFu := by decide
+@[simp] theorem wv_kFu_ne_lRn : kFu ≠ lRn := by decide
+@[simp] theorem wv_lRn_ne_kD : lRn ≠ kD := by decide
+@[simp] theorem wv_kD_ne_lRn : kD ≠ lRn := by decide
+@[simp] theorem wv_lRn_ne_kC : lRn ≠ kC := by decide
+@[simp] theorem wv_kC_ne_lRn : kC ≠ lRn := by decide
+
 def ioParams : List MlS := [kFu, kD, iC, iU, iQ, iA, iK]
 def wstLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, tC, tU, tW, tQ, tT, tLp, tLl, tM, tA, tLen, tO, tR]
 
@@ -939,5 +1010,182 @@ def wstCore (C : Ctx) : ProgHOL 64 :=
     wstDone
 
 def wstBody (C : Ctx) : ProgHOL 64 := prologue wstLocals (wstCore C)
+
+
+section
+variable {σ : Type}
+
+theorem wst_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ wstLocals → (ctxEnv C ++ stParams.zip vals).get x = none :=
+  Knot.params_none C wstLocals stParams vals (by decide) (by decide)
+
+theorem viewConst_run (h : EIdx) (s : AState) : viewConst h s = .ok (s.store.viewConst h, s) := rfl
+
+theorem wst_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
+    (hok : CtxOK C) (Bio : ProgHOL 64)
+    (hcodeG : C.code.lookup fMemoGet = some ([(pG, .one), (pLen, .one)], memoGetBody, .one))
+    (hcodeP : C.code.lookup fMemoProbe = some ([(pG, .one), (pLen, .one)], memoProbeBody, .one))
+    (hcg : C.code.lookup ExG.fGaa = some ([(pFu, .one), (pH, .one)], ExG.gaaBody C, .one))
+    (hcm : C.code.lookup ExK.fMka = some ([(ExK.pF, .one), (ExK.pP, .one), (ExK.pI, .one), (ExK.pN, .one)],
+      ExK.mkaBody, .one))
+    (hcI : C.code.lookup fInternApp = some ([(lEf, .one), (lEa, .one)], internAppBody, .one))
+    (hcio : C.code.lookup fIota = some (ioParams.map (fun p => (p, ShapeHOL.one)), Bio, .one))
+    (s : AState) (d : Nat) (h e : EIdx)
+    (hIota : ∀ (H : List (BitVec 64)) s1 o (sargs : List EIdx) c us q cv mI rP isK rules, C.H <+: H →
+      BlkAt H o (sargs.map Enc.idxW) → C.fe.find? c = some (.recInfo cv mI rP isK rules) →
+      CIE C.EB C.EH q (.recInfo cv mI rP isK rules) → mI + 1 ≤ sargs.length →
+      SpecR (σ := σ) (Pre (ctxH C H) s1 (ioParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW c, Enc.idxW us,
+        ecell C q, cellA C o, BitVec.ofNat 64 (mI + 1)])) Bio s1
+        (iotaRecAt mode (knot mode C n) C.fe d c us cv mI rP isK rules (takeEidx sargs.toArray (mI + 1)))
+        (UD.PostO (ctxH C H))) :
+    SpecR (σ := σ) (Pre C s (stParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW h, Enc.idxW e]))
+      (wstBody C) s (whnfStuck mode (knot mode C n) C.fe d h e) (PostWS C) := by
+  refine specR_prologue (postWS_locals C) (wst_none C _) ?_
+  unfold wstCore whnfStuck
+  have hdone : ∀ {s' : AState} {Γ : Env} {M : Mem} {D : List MlS} {H' : List (BitVec 64)}, C.H <+: H' →
+      Γ.get sE = some (Enc.idxW e) →
+      SpecR (σ := σ) (Inv (ctxH C H') s' Γ M D) wstDone s' (pure (WhnfStep.done e)) (PostWS C) :=
+    fun hp hE => specR_returnI _ (encWS (.done e)) (by simp [wstDone, sev, vv, hE, encWS]) (fun t ht =>
+      ⟨_, hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  refine Knot.specR_tagIteV sH h 3 (by decide) (by decide) (by simp +decide [Env.get, stParams, ctxEnv])
+    (fun htg => ?_) (fun htg => ?_)
+  swap
+  · rw [if_neg (show ¬ (h.tag == ETag.const) = true by simpa [ETag.const] using htg)]
+    refine hdone (H' := C.H) (List.prefix_refl _) ?_
+    simp +decide [Env.get, stParams, ctxEnv]
+  rw [if_pos (show (h.tag == ETag.const) = true by simp [htg, ETag.const])]
+  refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
+  refine specR_assignI lDh (vv sH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, stParams, ctxEnv]) ?_
+  refine specR_viewP h (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
+    (fun v P hv htn _ => ?_)
+  have h3 : v.tagN = 3 := by rw [htn, htg]; rfl
+  obtain ⟨c, us, rfl⟩ := UD.tagN_const h3
+  have hvc : s.store.viewConst h = some (c, us) := viewConst_of_view (by rw [htg]; rfl) hv
+  refine specR_runBind (by rw [viewConst_run, hvc]) ?_
+  refine specR_loadI' tC (vv lRp) P (P + BitVec.ofNat 64 0) (Enc.idxW c) (by decide) (by simp) (by simp)
+    (by simpa [encEView, Enc.encConst] using wordsAt_mem0 P (Enc.idxW c) [Enc.idxW us] []) ?_
+  refine specR_loadI' tU _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW us) (by decide) (by simp +decide [sev]) rfl
+    (by simpa [encEView, Enc.encConst] using wordsAt_mem1 P (Enc.idxW c) (Enc.idxW us) [] []) ?_
+  refine specR_dropM ?_
+  refine specR_envFindI hok hcodeG hcodeP tW (vv tC) c (by decide) (by simp) (by simp +decide [Env.get, ctxEnv]) ?_
+  have hrel := find_rel hok c
+  revert hrel
+  rcases hfind : C.fe.find? c with _ | ci
+  · intro hrel; simp only at hrel
+    rw [hrel]; simp only [hfind]
+    refine specR_ifI _ 1 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    refine hdone (H' := C.H) (List.prefix_refl _) ?_
+    simp +decide [Env.get, stParams, ctxEnv]
+  intro ⟨o, hm, hci⟩
+  rw [hm]; simp only [hfind]
+  refine specR_atEntry fun t ht => ?_
+  have hoE : o < C.EN := Nat.lt_of_lt_of_le (cie_lt hci) ht.sr.env.1.len
+  refine specR_ifI _ 0 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact ecell_succ_ne hok hoE)
+    (fun h => absurd rfl h) (fun _ => ?_)
+  refine specR_assignI tQ _ (ecell C o) (by decide) (by simp [sev, optWG]; exact ecell_succ_sub C o) ?_
+  refine specR_envLoadI tT (vv tQ) o _ (by decide) (by simp) (UD.cie_tag hci) ?_
+  cases ci with
+  | recInfo cv mI rP isK rules =>
+    refine specR_ifI _ 0 (by simp +decide [sev, UD.ciTag, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    have hci' := hci
+    obtain ⟨⟨_, ⟨w, hw, o', hw', hblk⟩, _⟩, _, hmi, _⟩ := hci
+    subst hw'
+    refine specR_envLoadI tLp (.op .add [vv tQ, .const 16]) (o + 2) _ (by decide)
+      (by simp [sev, vv]; exact UD.ecell_add16 C o) (by simpa using hw) ?_
+    have hl0 : C.EH[o']? = some (BitVec.ofNat 64 cv.levelParams.length) := by
+      have := hblk.1; simpa [IConstantInfo.toConstantVal] using this
+    refine specR_envLoadI tLl (vv tLp) o' _ (by decide) (by simp; rfl) hl0 ?_
+    refine specR_assignI lFl (vv lFls) C.FLs (by decide) (by simp +decide [Env.get, stParams, ctxEnv]) ?_
+    refine specR_assignI lDh (vv tU) (Enc.idxW us) (by decide) (by simp) ?_
+    refine specR_lsviewPI us (by simp) (by simp) (by simp +decide [Env.get, stParams, ctxEnv]) (by decide)
+      (fun vl Pl hvl _ hvll => ?_)
+    refine specR_runBind (viewLsLen_run us s vl hvl) ?_
+    dsimp only
+    have hvl' : vl.length < 2 ^ 61 := by simpa using hvll
+    have hlp : cv.levelParams.length < 2 ^ 61 := by
+      have h1 := blkAt_len (show BlkAt C.EH o' (cv.levelParams.map Enc.idxW) from hblk)
+      have h2 := ht.sr.env.1.len; have h3 := hok.envLay
+      simp only [List.length_map] at h1; omega
+    by_cases hl : vl.length = cv.levelParams.length
+    · rw [if_neg (by simpa using hl)]
+      refine specR_ifI _ 0 (by simp [sev, hl, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
+        (fun _ => ?_)
+      refine specR_envLoadI tM (.op .add [vv tQ, .const 32]) (o + 4) _ (by decide)
+        (by simp [sev, vv]; exact UD.ecell_add32 C o) hmi.1 ?_
+      refine specR_dropM ?_
+      refine specR_callNIH tA ExG.fGaa [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv sE] (ExG.gaaBody C)
+        [BitVec.ofNat 64 coreWalkFuel, Enc.idxW e] (by decide) rfl (by decide) hcg
+        ⟨rfl, by simp +decide [sev, Env.get, stParams, ctxEnv], trivial⟩
+        (PostA C) (fun a w _ H2 => ∃ o2, w = cellA C o2 ∧ BlkAt H2 o2 (a.map Enc.idxW))
+        (fun a w s' st ⟨H2, o2, hp, hw, hb, hsr⟩ => ⟨H2, hp, ⟨o2, hw, hb⟩, hsr⟩)
+        (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu [pFu, pH] _ rfl hlk)
+          (ExG.gaa_spec C hok hcg coreWalkFuel CV.coreWalkFuel_lt C.H e s))
+        (fun args w s2 H2 hp2 ⟨o2, hw, hb⟩ => ?_)
+      subst hw
+      obtain ⟨hlo, hlv⟩ := blkAt_get0 hb
+      have hw0 : (ctxH C H2).H[o2]? = some (BitVec.ofNat 64 args.length) := by
+        show H2[o2]? = _; rw [List.getElem?_eq_getElem hlo, hlv]; simp
+      refine UD.specR_heapLoadI' (C := ctxH C H2) tLen (vv tA) o2 _ hw0 (by decide) (by simp; rfl) ?_
+      refine specR_atEntry fun t2 ht2 => ?_
+      have hn59 : args.length < 2 ^ 59 := by
+        obtain ⟨H3, hp3, ha3⟩ := ht2.sr.heap
+        have := ha3.len; have hbl := blkAt_len hb; have := hp3.length_le; have := hok.heapCap
+        rw [List.length_map] at hbl; simp only [ctxH] at *; omega
+      have hmi63 := hmi.2
+      have hwlt := word_lt_iff args.length (mI + 1) (by unfold B; omega) (by unfold B; omega)
+      have hadd : BitVec.ofNat 64 mI + 1#64 = BitVec.ofNat 64 (mI + 1) := word_add1_eq mI
+      by_cases hle : mI + 1 ≤ args.length
+      · rw [if_pos (by simpa using hle)]
+        refine specR_ifI _ 0 (by simp [sev, hadd, Flapjack.Compiler.Encoders.Asm.wordCmpHOL,
+          (not_congr hwlt).mpr (by omega)]) (fun h => absurd rfl h) (fun _ => ?_)
+        refine specR_callNIH (C := ctxH C H2) tO fIota ioParams
+          [vv kFu, vv kD, vv tC, vv tU, vv tQ, vv tA, .op .add [vv tM, .const 1]] Bio
+          [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW c, Enc.idxW us, ecell C o, cellA C o2,
+            BitVec.ofNat 64 (mI + 1)] (by decide) rfl (by decide) hcio
+          ⟨by simp +decide [Env.get, stParams, ctxEnv], by simp +decide [Env.get, stParams, ctxEnv], by simp,
+            by simp, by simp, by simp, by simp [sev, hadd], trivial⟩
+          (UD.PostO (ctxH C H2)) (fun r w _ _ => w = optW r) (fun r w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+          (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ioParams _ rfl hlk)
+            (hIota H2 s2 o2 args c us o cv mI rP isK rules hp2 hb hfind hci' hle))
+          (fun r w s3 H3 hp3 hw => ?_)
+        subst hw
+        rcases r with _ | e2
+        · refine specR_ifI _ 1 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+            (fun h => absurd h (by decide))
+          refine hdone (H' := H3) (hp2.trans hp3) ?_
+          simp +decide [Env.get, stParams, ctxEnv]
+        · have hne : optW (some e2) ≠ 0 := WB.idxW_succ_ne e2
+          refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
+            (fun h => absurd rfl h) (fun _ => ?_)
+          refine ILP.callE_spec (C := ctxH C H3) tR ExK.fMka [ExK.pF, ExK.pP, ExK.pI, ExK.pN]
+            [.op .sub [vv tO, .const 1], vv tA, .op .add [vv tM, .const 1], vv tLen] ExK.mkaBody
+            [Enc.idxW e2, cellA C o2, BitVec.ofNat 64 (mI + 1), BitVec.ofNat 64 args.length] (by decide) rfl
+            (by decide) hcm ⟨by simp [sev, optWG, BitVec.add_sub_cancel], by simp, by simp [sev, hadd], by simp, trivial⟩
+            (ExK.mkAppNFrom_spec ra (ctxH C H3) (ctxOK_H hok _) hcm hcI o2 args.toArray
+              (by simpa using (blkAt_mono hb hp3 : BlkAt (ctxH C H3).H o2 _)) (by simpa using hn59) (mI + 1) (by simpa using hle) e2 s3)
+            (fun e3 s4 => ?_)
+          exact specR_returnI _ (encWS (.cont e3)) (by simp [sev, vv, encWS]) (fun t ht =>
+            ⟨H3, hp2.trans hp3, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      · rw [if_neg (by simpa using hle)]
+        refine specR_ifI _ 1 (by simp [sev, hadd, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hwlt.mpr (by omega)])
+          (fun _ => ?_) (fun h => absurd h (by decide))
+        refine hdone (H' := H2) hp2 ?_
+        simp +decide [Env.get, stParams, ctxEnv]
+    · rw [if_pos (by simpa using hl)]
+      have hne : BitVec.ofNat 64 vl.length ≠ BitVec.ofNat 64 cv.levelParams.length := fun x =>
+        hl ((UD.ofNat_eq_iff_small _ _ (by omega) (by omega)).mp x)
+      refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun _ => ?_)
+        (fun h => absurd h (by decide))
+      refine hdone (H' := C.H) (List.prefix_refl _) ?_
+      simp +decide [Env.get, stParams, ctxEnv]
+  | _ =>
+    refine specR_ifI _ 1 (by simp +decide [sev, UD.ciTag, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    refine hdone (H' := C.H) (List.prefix_refl _) ?_
+    simp +decide [Env.get, stParams, ctxEnv]
+
+end
 
 end ConPanqueque.T.WC
