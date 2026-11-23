@@ -565,3 +565,15 @@ Pancake has no division instruction, and resource-limit declines are allowed (so
 - Callee specs still open: `fabScopeOk` (needs the seen-set design point above) and `familyNeverZeroAt`.
 - The knot entries `inferIO`, `whnf` and `defeq` are callee specs, as everywhere.
 - **Remaining for ι:** `iotaFam` (the verified-mode certificate), `fabScopeOk` and `familyNeverZeroAt`.
+
+### Progress (2026-11-23, evening): `familyNeverZeroAt`
+
+- `fz_spec` (`T/Core/FamilyNZ.lean`) is proved. The port reads the stored `neverZero` bit, then calls `formerResSort` (`fs_spec`).
+  - If the type ends in a sort, it calls `formerNeverZero` (`fn_spec`, `T/Core/FormerNZ.lean`): the substituted never-zero walk `nzS` (`zs_spec`).
+  - Otherwise the level parameters are copied from the environment to a fresh block. Then `instLPFast` (`ilpf_spec`) and `formerSortLoop` (`fq_spec`, `T/Core/FormerLoop.lean`: knot `whnf`, `internFVar`, `instantiate1Fast`, recursion on the binder count) run, followed by `nz0` on the level.
+- The twin's read caches (`readLevelM`, `readNamesM`, `readLevelsM`) change only fields that `SR` ignores (`readLevelM_runC`, `readLevelsM_runC`).
+- Twin-side preconditions are hypotheses, as elsewhere:
+  - the denotations and the cache invariants at entry;
+  - `hsd`: the stored sort's level denotes;
+  - `hsl`: after the instantiation and the loop, the level denotes and the level store and cache invariants hold.
+- When `re_spec`/`io_spec` are composed, their unconditional `hFz` callee hypothesis must be restricted to states satisfying the invariant family.
