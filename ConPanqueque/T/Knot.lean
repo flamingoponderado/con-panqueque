@@ -211,6 +211,57 @@ theorem entry_zero {α : Type} {C : Ctx} {s : AState} (vs : List (BitVec 64)) (c
   exact specR_ifI _ 1 (by simp +decide [sev, Env.get, kParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
     (fun _ => specR_hangI) (fun h => absurd h (by decide))
 
+theorem uofNat_eq (k : Nat) : UInt32.ofNat k = (UInt32.ofNat k) := rfl
+
+/-- `whnf` at fuel `n + 1`, as a callee: the stuck-tag shortcut, then the memoized entry. -/
+theorem whnf_succ {C : Ctx} (hok : CtxOK C)
+    (hcodeG : C.code.lookup fMemoGet = some ([(pG, .one), (pLen, .one)], memoGetBody, .one))
+    (hcodeP : C.code.lookup fMemoProbe = some ([(pG, .one), (pLen, .one)], memoProbeBody, .one))
+    (hcodeS : C.code.lookup fMemoSet = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoSetBody, .one))
+    (hcodeI : C.code.lookup fMemoIns = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoInsBody, .one))
+    (fB : MlS) (B : ProgHOL 64) (hcB : C.code.lookup fB = some (kParams.map (fun p => (p, ShapeHOL.one)), B, .one))
+    {s : AState} (n d : Nat) (hn : n + 1 < 2 ^ 64) (e : EIdx) (body : AM EIdx)
+    (hbody : ∀ u : PState σ, SR C s u → u.locals.lookup kFu = some (.val (.word (BitVec.ofNat 64 n))) →
+      u.locals.lookup kD = some (.val (.word (BitVec.ofNat 64 d))) →
+      u.locals.lookup kE = some (.val (.word (Enc.idxW e))) → SpecR (· = u) B s body (PostK C)) :
+    SpecR (σ := σ) (Pre C s (kParams.zip [BitVec.ofNat 64 (n + 1), BitVec.ofNat 64 d, Enc.idxW e]))
+      (whnfE C fB) s (if whnfStuckTag e then pure e else memoTwin .whnf e body whnfSet) (PostK C) := by
+  refine specR_prologue (postK_locals C) (kParams_none C _) ?_
+  have hne : BitVec.ofNat 64 (n + 1) ≠ 0 := Ex.ofNat_ne_zero (n + 1) (by omega) hn
+  refine specR_ifI _ 0 (by simp +decide [sev, Env.get, kParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
+    (fun h => absurd rfl h) (fun _ => ?_)
+  have hE : (ctxEnv C ++ kParams.zip [BitVec.ofNat 64 (n + 1), BitVec.ofNat 64 d, Enc.idxW e]).get kE =
+      some (Enc.idxW e) := by simp +decide [Env.get, kParams, ctxEnv]
+  have stuckRet : SpecR (σ := σ) (Inv C s (ctxEnv C ++ kParams.zip [BitVec.ofNat 64 (n + 1), BitVec.ofNat 64 d,
+      Enc.idxW e]) [] (ctxLocals ++ kLocals)) (.return (vv kE)) s (pure e) (PostK C) :=
+    specR_returnI _ (Enc.idxW e) (by simp [sev_vv, hE]) (fun t ht => ⟨C.H, List.prefix_refl _, rfl,
+      sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  unfold stuckChain
+  refine specR_tagIteV kE e 2 (by decide) (by decide) hE (fun ht => ?_) (fun h2 => ?_)
+  · have : whnfStuckTag e = true := by simp [whnfStuckTag, ht, ETag.sort]
+    rw [if_pos this]; exact stuckRet
+  refine specR_tagIteV kE e 1 (by decide) (by decide) hE (fun ht => ?_) (fun h1 => ?_)
+  · have : whnfStuckTag e = true := by simp [whnfStuckTag, ht, ETag.sort, ETag.fvar]
+    rw [if_pos this]; exact stuckRet
+  refine specR_tagIteV kE e 5 (by decide) (by decide) hE (fun ht => ?_) (fun h5 => ?_)
+  · have : whnfStuckTag e = true := by simp [whnfStuckTag, ht, ETag.sort, ETag.fvar, ETag.lam]
+    rw [if_pos this]; exact stuckRet
+  refine specR_tagIteV kE e 6 (by decide) (by decide) hE (fun ht => ?_) (fun h6 => ?_)
+  · have : whnfStuckTag e = true := by simp [whnfStuckTag, ht, ETag.sort, ETag.fvar, ETag.lam, ETag.forallE]
+    rw [if_pos this]; exact stuckRet
+  refine specR_tagIteV kE e 8 (by decide) (by decide) hE (fun ht => ?_) (fun h8 => ?_)
+  · have : whnfStuckTag e = true := by
+      simp [whnfStuckTag, ht, ETag.sort, ETag.fvar, ETag.lam, ETag.forallE, ETag.lit]
+    rw [if_pos this]; exact stuckRet
+  have : whnfStuckTag e = false := by
+    simp only [whnfStuckTag, ETag.sort, ETag.fvar, ETag.lam, ETag.forallE, ETag.lit, beq_iff_eq]
+    rw [if_neg (by simpa using h2), if_neg (by simpa using h1), if_neg (by simpa using h5),
+      if_neg (by simpa using h6), if_neg (by simpa using h8)]
+  rw [if_neg (by rw [this]; decide)]
+  exact memoEntry_spec hok .whnf hcodeG hcodeP hcodeS hcodeI fB B hcB whnfSet (fun _ _ _ => rfl) n d e body hbody
+    (by simp +decide [Env.get, kParams, ctxEnv]) (by simp +decide [Env.get, kParams, ctxEnv]) hE
+    (by simp +decide [Env.get, kParams, ctxEnv]) (by decide)
+
 end
 
 end ConPanqueque.T.Knot
