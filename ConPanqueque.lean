@@ -90,6 +90,7 @@ import ConPanqueque.T.Ex.InstList
 import ConPanqueque.T.Ex.InstListGo
 import ConPanqueque.V.EApp2
 import ConPanqueque.T.Intern
+import ConPanqueque.T.LIntern
 import ConPanqueque.T.MemoModel
 import ConPanqueque.T.MemoRep
 import ConPanqueque.T.Memo

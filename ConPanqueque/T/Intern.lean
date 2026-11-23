@@ -529,6 +529,21 @@ structure CtxOK (C : Ctx) : Prop where
   sepProj : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 3 18
   b0Proj : C.L.base 18 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.proj.toUInt64.toBitVec * 67108864
   b1Proj : C.L.base 18 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.proj.toUInt64.toBitVec * 67108864
+  sepLZ : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 0 3
+  b0LZ : C.L.base 3 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + LTag.zero.toUInt64.toBitVec * 67108864
+  b1LZ : C.L.base 3 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + LTag.zero.toUInt64.toBitVec * 67108864
+  sepLS : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 1 4
+  b0LS : C.L.base 4 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + LTag.succ.toUInt64.toBitVec * 67108864
+  b1LS : C.L.base 4 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + LTag.succ.toUInt64.toBitVec * 67108864
+  sepLM : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 2 5
+  b0LM : C.L.base 5 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + LTag.max.toUInt64.toBitVec * 67108864
+  b1LM : C.L.base 5 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + LTag.max.toUInt64.toBitVec * 67108864
+  sepLI : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 2 6
+  b0LI : C.L.base 6 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + LTag.imax.toUInt64.toBitVec * 67108864
+  b1LI : C.L.base 6 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + LTag.imax.toUInt64.toBitVec * 67108864
+  sepLP : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 1 7
+  b0LP : C.L.base 7 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + LTag.param.toUInt64.toBitVec * 67108864
+  b1LP : C.L.base 7 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + LTag.param.toUInt64.toBitVec * 67108864
 
 def fInternApp := ofString "internApp"
 
