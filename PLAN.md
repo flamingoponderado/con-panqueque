@@ -458,3 +458,13 @@ Next: Core bodies bottom-up (constant instantiation `constTyAt`/`constValAt` wit
    - point the intern code's key local at a second, large key region (if the V-level cons-table specs are parametric in the key address), or
    - generalize the key-buffer size `KN` in `SR`/`CtxOK`.
 4. **Then** `natBinOpResult`, `reduceNat`, `whnfStep`/`whnfLoop`/`whnfBody`.
+
+### Progress (2026-11-24, bignums started)
+
+- **Comparison.** `bigCmp` on two literal handles (`T/Big/Cmp.lean`): limb count, then a counted top-down verdict loop.
+- **Literal copy.** `litToHeap` copies a literal's limbs into a fresh value-heap block (`T/Big/LitCopy.lean`). It re-views the handle for every limb, because a heap store forgets store-row facts.
+- **Addition.** Heap-block addition (`T/Big/Add.lean`, `add_spec`): two carry loops, the final carry, and a canonical length. The proof goes through `T/Big/AddMath.lean` (carry-chain arithmetic, the 64-bit add-with-carry) and `limbs_eq_digits` (written digits are the canonical limbs).
+- **Remaining for `reduceNat`.**
+  - Arithmetic: `sub`, `mul`, `div`/`mod`, `gcd`, `pow`, bitwise operations, shifts, `log2`.
+  - Literal interning from a heap block, with the large key region.
+  - Then `natBinOpResult` and `reduceNat`.
