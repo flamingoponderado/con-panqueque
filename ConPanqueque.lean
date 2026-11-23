@@ -219,3 +219,4 @@ import ConPanqueque.T.Core.RuleBody
 import ConPanqueque.T.Core.NatLitCtor
 import ConPanqueque.T.Core.LitMajor
 import ConPanqueque.T.Core.CtorView
+import ConPanqueque.T.Core.MajorTests
