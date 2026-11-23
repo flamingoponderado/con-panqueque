@@ -33,6 +33,8 @@ def kA := ofString "ka"
 def kB := ofString "kb"
 def lSv := ofString "ksv"
 def dParams : List MlS := [kFu, kD, kA, kB]
+def kC := ofString "kc"
+def wcParams : List MlS := [kFu, kC, kD, kE]
 
 section
 variable {σ : Type}
@@ -465,6 +467,245 @@ theorem defeqE_succ {C : Ctx} (hok : CtxOK C) {fB : MlS} {B : ProgHOL 64} (hc : 
       refine specR_leaveNoneI (vv lSv) (by simp +decide [sev, Env.get]) ?_
       refine specR_returnI _ (boolW x) (by simp +decide [sev, Env.get]) (fun t ht => ?_)
       exact ⟨H', hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
+
+/-! ## The `whnfCore` entry point -/
+
+def whnfCoreCore (fB : MlS) : ProgHOL 64 :=
+  .seq (.call (some (some (.local, lY), none)) fB [.op .sub [vv kFu, .const 1], vv kC, vv kD, vv kE]) (.return (vv lY))
+
+theorem wcParams_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ kLocals → (ctxEnv C ++ wcParams.zip vals).get x = none :=
+  params_none C kLocals wcParams vals (by decide) (by decide)
+
+/-- The body's spec for `whnfCore`, as a callee. -/
+def WCBodySpec (C : Ctx) (B : ProgHOL 64) (s : AState) (n : Nat) (c : Bool) (d : Nat) (e : EIdx) (body : AM EIdx) :
+    Prop :=
+  ∀ u : PState σ, SR C s u → u.locals.lookup kFu = some (.val (.word (BitVec.ofNat 64 n))) →
+    u.locals.lookup kC = some (.val (.word (boolW c))) →
+    u.locals.lookup kD = some (.val (.word (BitVec.ofNat 64 d))) →
+    u.locals.lookup kE = some (.val (.word (Enc.idxW e))) → SpecR (· = u) B s body (PostK C)
+
+theorem whnfCore_succ {C : Ctx} {fB : MlS} {B : ProgHOL 64}
+    (hcB : C.code.lookup fB = some (wcParams.map (fun p => (p, ShapeHOL.one)), B, .one))
+    {s : AState} (n : Nat) (hn : n + 1 < 2 ^ 64) (c : Bool) (d : Nat) (e : EIdx) (body : AM EIdx)
+    (hbody : WCBodySpec (σ := σ) C B s n c d e body) :
+    SpecR (σ := σ) (Pre C s (wcParams.zip [BitVec.ofNat 64 (n + 1), boolW c, BitVec.ofNat 64 d, Enc.idxW e]))
+      (prologue kLocals (fuelCheck (whnfCoreCore fB))) s body (PostK C) := by
+  refine specR_prologue (postK_locals C) (wcParams_none C _) ?_
+  have hne : BitVec.ofNat 64 (n + 1) ≠ 0 := Ex.ofNat_ne_zero (n + 1) (by omega) hn
+  refine specR_ifI _ 0 (by simp +decide [sev, Env.get, wcParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
+    (fun h => absurd rfl h) (fun _ => ?_)
+  refine specR_congr (m' := body >>= fun x => pure x) (by simp only [bind_pure]) ?_
+  refine specR_callNIH lY fB wcParams [.op .sub [vv kFu, .const 1], vv kC, vv kD, vv kE] B
+    [BitVec.ofNat 64 n, boolW c, BitVec.ofNat 64 d, Enc.idxW e] (by decide) rfl (by decide) hcB
+    ⟨by simp +decide [sev, Env.get, wcParams, ctxEnv]; exact Ex.ofNat_succ_sub_one n,
+      by simp +decide [sev, Env.get, wcParams, ctxEnv], by simp +decide [sev, Env.get, wcParams, ctxEnv],
+      by simp +decide [sev, Env.get, wcParams, ctxEnv], trivial⟩
+    (PostK C) (fun a w _ _ => w = Enc.idxW a) (fun a w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+    (fun u hu _ hlk => hbody u hu (hlk 0 (by decide)) (hlk 1 (by decide)) (hlk 2 (by decide)) (hlk 3 (by decide)))
+    (fun x w s' H' hp hw => ?_)
+  subst hw
+  refine specR_returnI _ (Enc.idxW x) (by simp +decide [sev, Env.get]) (fun t ht => ?_)
+  exact ⟨H', hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
+
+/-- Any entry at fuel `0` hangs, whatever its parameter list. -/
+theorem entry_zeroP {α : Type} {C : Ctx} {s : AState} (ps : List MlS) (vs : List (BitVec 64)) (core : ProgHOL 64)
+    (m : AM α) (R : α → BitVec 64 → AState → PState σ → Prop)
+    (hR : ∀ a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)), R a w s' st → R a w s' { st with locals := L })
+    (hnone : ∀ x, x ∈ kLocals → (ctxEnv C ++ ps.zip (0 :: vs)).get x = none)
+    (hfu : (ctxEnv C ++ ps.zip (0 :: vs)).get kFu = some 0) :
+    SpecR (σ := σ) (Pre C s (ps.zip (0 :: vs))) (prologue kLocals (fuelCheck core)) s m R := by
+  refine specR_prologue hR hnone ?_
+  exact specR_ifI _ 1 (by simp only [sev, sev_vv]; erw [hfu]; rfl)
+    (fun _ => specR_hangI) (fun h => absurd h (by decide))
+
+/-! ## The knot -/
+
+def fWC := ofString "whnfCore"
+def fW := ofString "whnf"
+def fI := ofString "infer"
+def fD := ofString "defeq"
+def fDE := ofString "defeqE"
+def fIO := ofString "inferIO"
+def fWCB := ofString "whnfCoreBody"
+def fWB := ofString "whnfBody"
+def fIB := ofString "inferBody"
+def fDB := ofString "defeqBody"
+def fIOB := ofString "inferBodyIO"
+
+/-- The bodies' Pancake code, per context; it must not depend on the heap image or the saved memos. -/
+structure KBodies where
+  wc : Ctx → ProgHOL 64
+  w : Ctx → ProgHOL 64
+  i : Ctx → ProgHOL 64
+  d : Ctx → ProgHOL 64
+  io : Ctx → ProgHOL 64
+  inv_saved : ∀ C sv, wc { C with saved := sv } = wc C ∧ w { C with saved := sv } = w C ∧
+    i { C with saved := sv } = i C ∧ d { C with saved := sv } = d C ∧ io { C with saved := sv } = io C
+
+def wcE : ProgHOL 64 := prologue kLocals (fuelCheck (whnfCoreCore fWCB))
+def dE (C : Ctx) : ProgHOL 64 := prologue kLocals (fuelCheck (defeqCore C fDB))
+def dEE (C : Ctx) : ProgHOL 64 := prologue kLocals (fuelCheck (defeqECore C fDB))
+
+def pmap (ps : List MlS) : List (MlS × ShapeHOL) := ps.map (fun p => (p, ShapeHOL.one))
+
+structure KCodes (C : Ctx) (Bs : KBodies) : Prop where
+  g : C.code.lookup fMemoGet = some ([(pG, .one), (pLen, .one)], memoGetBody, .one)
+  p : C.code.lookup fMemoProbe = some ([(pG, .one), (pLen, .one)], memoProbeBody, .one)
+  s : C.code.lookup fMemoSet = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoSetBody, .one)
+  i : C.code.lookup fMemoIns = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoInsBody, .one)
+  ewc : C.code.lookup fWC = some (pmap wcParams, wcE, .one)
+  ew : C.code.lookup fW = some (pmap kParams, whnfE C fWB, .one)
+  ei : C.code.lookup fI = some (pmap kParams, inferE C fIB, .one)
+  ed : C.code.lookup fD = some (pmap dParams, dE C, .one)
+  ede : C.code.lookup fDE = some (pmap dParams, dEE C, .one)
+  eio : C.code.lookup fIO = some (pmap kParams, inferIOE C fIOB, .one)
+  bwc : C.code.lookup fWCB = some (pmap wcParams, Bs.wc C, .one)
+  bw : C.code.lookup fWB = some (pmap kParams, Bs.w C, .one)
+  bi : C.code.lookup fIB = some (pmap kParams, Bs.i C, .one)
+  bd : C.code.lookup fDB = some (pmap dParams, Bs.d C, .one)
+  bio : C.code.lookup fIOB = some (pmap kParams, Bs.io C, .one)
+
+theorem kcodes_saved {C : Ctx} {Bs : KBodies} (hc : KCodes C Bs) (sv : Option ModeMemos) :
+    KCodes { C with saved := sv } Bs := by
+  obtain ⟨e1, e2, e3, e4, e5⟩ := Bs.inv_saved C sv
+  exact ⟨hc.g, hc.p, hc.s, hc.i, hc.ewc, hc.ew, hc.ei, hc.ed, hc.ede, hc.eio,
+    by rw [e1]; exact hc.bwc, by rw [e2]; exact hc.bw, by rw [e3]; exact hc.bi, by rw [e4]; exact hc.bd,
+    by rw [e5]; exact hc.bio⟩
+
+/-- A spec in callee form: any entry state representing `s` with the parameters bound. -/
+def Callee (C : Ctx) (ps : List MlS) (vs : List (BitVec 64)) (B : ProgHOL 64) (s : AState) {α : Type} (m : AM α)
+    (R : α → BitVec 64 → AState → PState σ → Prop) : Prop :=
+  ∀ u : PState σ, SR C s u → (∀ i (hi : i < ps.length) (hv : i < vs.length),
+    u.locals.lookup ps[i] = some (.val (.word vs[i]))) → SpecR (· = u) B s m R
+
+theorem callee_of_pre {C : Ctx} {ps : List MlS} {vs : List (BitVec 64)} {B : ProgHOL 64} {s : AState} {α : Type}
+    {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop} (hl : vs.length = ps.length)
+    (h : SpecR (Pre C s (ps.zip vs)) B s m R) : Callee C ps vs B s m R :=
+  fun u hu hlk => specR_of_pre u (pre_of_lookups hu ps vs hl (fun i hi => hlk i hi (by omega))) h
+
+def knot (mode : ConLeche.CheckMode) (C : Ctx) (n : Nat) : CoreFnsA := coreKnot mode C.side C.fe id n
+
+/-- The six entry points at fuel `n`, at every context. -/
+def EntrySpecs (mode : ConLeche.CheckMode) (TI : Ctx → AState → Prop) (Bs : KBodies) (n : Nat) : Prop :=
+  ∀ C, CtxOK C → KCodes C Bs → ∀ s, TI C s →
+    (∀ c d e, Callee (σ := σ) C wcParams [BitVec.ofNat 64 n, boolW c, BitVec.ofNat 64 d, Enc.idxW e] wcE s
+      ((knot mode C n).whnfCore c d e) (PostK C)) ∧
+    (∀ d e, Callee (σ := σ) C kParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (whnfE C fWB) s
+      ((knot mode C n).whnf d e) (PostK C)) ∧
+    (∀ d e, Callee (σ := σ) C kParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (inferE C fIB) s
+      ((knot mode C n).infer d e) (PostK C)) ∧
+    (∀ d a b, Callee (σ := σ) C dParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b] (dE C) s
+      ((knot mode C n).defeq d a b) (PostB C)) ∧
+    (∀ d a b, Callee (σ := σ) C dParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b] (dEE C) s
+      ((knot mode C n).defeqE d a b) (PostB C)) ∧
+    (∀ d e, Callee (σ := σ) C kParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (inferIOE C fIOB) s
+      ((knot mode C n).inferIO d e) (PostK C))
+
+/-- The five bodies at fuel `n` (each recursing into the knot at fuel `n`), at every context. -/
+def BodySpecs (mode : ConLeche.CheckMode) (TI : Ctx → AState → Prop) (Bs : KBodies) (n : Nat) : Prop :=
+  ∀ C, CtxOK C → KCodes C Bs → ∀ s, TI C s →
+    (∀ c d e, Callee (σ := σ) C wcParams [BitVec.ofNat 64 n, boolW c, BitVec.ofNat 64 d, Enc.idxW e] (Bs.wc C) s
+      (whnfCoreBody mode (knot mode C n) C.fe c d e) (PostK C)) ∧
+    (∀ d e, Callee (σ := σ) C kParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (Bs.w C) s
+      (whnfBody (knot mode C n) C.fe d e) (PostK C)) ∧
+    (∀ d e, Callee (σ := σ) C kParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (Bs.i C) s
+      (inferBody (knot mode C n) C.fe d e) (PostK C)) ∧
+    (∀ d a b, Callee (σ := σ) C dParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b] (Bs.d C) s
+      (defeqBody mode C.side (knot mode C n) C.fe d a b) (PostB C)) ∧
+    (∀ d e, Callee (σ := σ) C kParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (Bs.io C) s
+      (inferBodyIO (CoreFnsA.ioView (knot mode C n)) C.fe d e) (PostK C))
+
+/-- **The knot**: the entry points refine the twin's knot at every fuel, given that each body refines its
+twin from the entry points one level down, and that the twin invariant survives entering the eager tower. -/
+theorem knot_all (mode : ConLeche.CheckMode) (TI : Ctx → AState → Prop) (Bs : KBodies)
+    (hTI : ∀ C s, C.saved = none → TI C s → TI { C with saved := some s.caches.modeMemos } (eagerIn s))
+    (hbody : ∀ n, n < 2 ^ 62 → EntrySpecs (σ := σ) mode TI Bs n → BodySpecs (σ := σ) mode TI Bs n) :
+    ∀ n, n ≤ 2 ^ 62 → EntrySpecs (σ := σ) mode TI Bs n := by
+  intro n
+  induction n with
+  | zero =>
+    intro _ C hok hc s hs
+    refine ⟨fun c d e => ?_, fun d e => ?_, fun d e => ?_, fun d a b => ?_, fun d a b => ?_, fun d e => ?_⟩
+    all_goals refine callee_of_pre rfl ?_
+    · exact entry_zeroP wcParams _ _ _ _ (postK_locals C) (wcParams_none C _) (by simp +decide [Env.get, wcParams, ctxEnv])
+    · exact entry_zeroP kParams _ _ _ _ (postK_locals C) (kParams_none C _) (by simp +decide [Env.get, kParams, ctxEnv])
+    · exact entry_zeroP kParams _ _ _ _ (postK_locals C) (kParams_none C _) (by simp +decide [Env.get, kParams, ctxEnv])
+    · exact entry_zeroP dParams _ _ _ _ (postB_locals C) (dParams_none C _) (by simp +decide [Env.get, dParams, ctxEnv])
+    · exact entry_zeroP dParams _ _ _ _ (postB_locals C) (dParams_none C _) (by simp +decide [Env.get, dParams, ctxEnv])
+    · exact entry_zeroP kParams _ _ _ _ (postK_locals C) (kParams_none C _) (by simp +decide [Env.get, kParams, ctxEnv])
+  | succ n ih =>
+    intro hn C hok hc s hs
+    have hB := hbody n (by omega) (ih (by omega))
+    have hn64 : n + 1 < 2 ^ 64 := by omega
+    obtain ⟨bwc, bw, bi, bd, bio⟩ := hB C hok hc s hs
+    have dcodes : DCodes C fDB (Bs.d C) := ⟨hc.g, hc.p, hc.s, hc.i, hc.bd⟩
+    refine ⟨fun c d e => ?_, fun d e => ?_, fun d e => ?_, fun d a b => ?_, fun d a b => ?_, fun d e => ?_⟩
+    all_goals refine callee_of_pre rfl ?_
+    · exact whnfCore_succ hc.bwc n hn64 c d e _ (fun u hu h1 h2 h3 h4 =>
+        bwc c d e u hu (fun i hi hv => by
+          have : i < 4 := hi
+          rcases (by omega : i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3) with rfl | rfl | rfl | rfl
+          · exact h1
+          · exact h2
+          · exact h3
+          · exact h4))
+    · exact whnf_succ hok hc.g hc.p hc.s hc.i fWB (Bs.w C) hc.bw n d hn64 e _ (fun u hu h1 h2 h3 =>
+        bw d e u hu (fun i hi hv => by
+          have : i < 3 := hi
+          rcases (by omega : i = 0 ∨ i = 1 ∨ i = 2) with rfl | rfl | rfl
+          · exact h1
+          · exact h2
+          · exact h3))
+    · exact entry_succ hok .infer hc.g hc.p hc.s hc.i fIB (Bs.i C) hc.bi inferSet (fun _ _ _ => rfl) n d hn64 e _
+        (fun u hu h1 h2 h3 => bi d e u hu (fun i hi hv => by
+          have : i < 3 := hi
+          rcases (by omega : i = 0 ∨ i = 1 ∨ i = 2) with rfl | rfl | rfl
+          · exact h1
+          · exact h2
+          · exact h3))
+    · exact defeq_succ hok dcodes n d hn64 a b _ (fun u hu h1 h2 h3 h4 =>
+        bd d a b u hu (fun i hi hv => by
+          have : i < 4 := hi
+          rcases (by omega : i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3) with rfl | rfl | rfl | rfl
+          · exact h1
+          · exact h2
+          · exact h3
+          · exact h4))
+    · refine defeqE_succ hok dcodes n d hn64 a b _ (fun hsv => ?_) (fun hsv => ?_)
+      · have hok' := ctxOK_saved hok (some s.caches.modeMemos)
+        have hc' := kcodes_saved hc (some s.caches.modeMemos)
+        obtain ⟨-, -, -, bd', -⟩ := hB _ hok' hc' _ (hTI C s hsv hs)
+        intro u hu h1 h2 h3 h4
+        have e4 := (Bs.inv_saved C (some s.caches.modeMemos)).2.2.2.1
+        have := bd' d a b u hu (fun i hi hv => by
+          have : i < 4 := hi
+          rcases (by omega : i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3) with rfl | rfl | rfl | rfl
+          · exact h1
+          · exact h2
+          · exact h3
+          · exact h4)
+        rw [e4] at this
+        exact this
+      · have hside : C.side = true := hsv
+        intro u hu h1 h2 h3 h4
+        have := bd d a b u hu (fun i hi hv => by
+          have : i < 4 := hi
+          rcases (by omega : i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3) with rfl | rfl | rfl | rfl
+          · exact h1
+          · exact h2
+          · exact h3
+          · exact h4)
+        unfold knot at this
+        rw [hside] at this
+        exact this
+    · exact entry_succ hok .inferIO hc.g hc.p hc.s hc.i fIOB (Bs.io C) hc.bio inferIOSet (fun _ _ _ => rfl) n d hn64 e _
+        (fun u hu h1 h2 h3 => bio d e u hu (fun i hi hv => by
+          have : i < 3 := hi
+          rcases (by omega : i = 0 ∨ i = 1 ∨ i = 2) with rfl | rfl | rfl
+          · exact h1
+          · exact h2
+          · exact h3))
 
 end
 
