@@ -199,3 +199,4 @@ import ConPanqueque.T.Ex.Append
 import ConPanqueque.T.Ex.AppendFn
 import ConPanqueque.T.Core.Spine
 import ConPanqueque.T.Core.Beta
+import ConPanqueque.T.Core.AppIota
