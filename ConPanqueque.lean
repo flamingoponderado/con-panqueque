@@ -230,3 +230,4 @@ import ConPanqueque.T.Core.RescueTwin
 import ConPanqueque.T.Core.Rescue
 import ConPanqueque.T.Core.RescueK
 import ConPanqueque.T.Core.RescueEta
+import ConPanqueque.T.Core.RescueAnd
