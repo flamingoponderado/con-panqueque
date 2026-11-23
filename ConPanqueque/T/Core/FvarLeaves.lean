@@ -987,6 +987,238 @@ theorem specR_flCallI {α : Type} {C : Ctx} (hok : CtxOK C) (hc : FlCodes C) {n 
     (by simp [sev, Env.get, hxn.1]; exact (cellA_add8 C o : _)) ?_
   exact hk as H' pa' ps' (cellA C o) hp' ha' hsn'
 
+theorem specR_flArm2I {C : Ctx} (hok : CtxOK C) (hc : FlCodes C) {n : Nat} (ih : FlRec (σ := σ) C n)
+    {H0 H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} (acc : List (Nat × EIdx))
+    (seen : Std.HashMap EIdx Unit) (c1 c2 : EIdx) (pa ps : BitVec 64)
+    (hD : flK1 ∈ D ∧ flK2 ∈ D ∧ flA2 ∈ D ∧ flS2 ∈ D ∧ flO ∈ D) (hp : C.H <+: H) (h0 : H0 <+: H)
+    (hacc : AccRep C H pa acc) (hseen : SeenRep C H ps seen) (hF : Γ.get flF = some (BitVec.ofNat 64 (n + 1)))
+    (hA : Γ.get flA = some pa) (hN : Γ.get flN = some ps) (hC1 : Γ.get flC1 = some (Enc.idxW c1))
+    (hC2 : Γ.get flC2 = some (Enc.idxW c2)) :
+    SpecR (σ := σ) (Inv (ctxH C H) s Γ M D) (flArm2 C) s
+      (fvarLeavesGo acc seen n c1 >>= fun x => match x with | (acc, seen) => fvarLeavesGo acc seen n c2)
+      (PostFl (ctxH C H0) s) := by
+  unfold flArm2 flRetK
+  refine specR_flCallI hok hc ih flK1 (vv flA) (vv flC1) (vv flN) acc seen c1 pa ps ⟨hD.1, hD.2.2.1, hD.2.2.2.1⟩
+    ⟨by decide, by decide⟩ hp hacc hseen hF (by simp [hA]) (by simp [hC1]) (by simp [hN])
+    (fun as1 H1 pa1 ps1 w1 hp1 ha1 hs1 => ?_)
+  obtain ⟨a1, s1⟩ := as1
+  dsimp only
+  refine specR_bindPure ?_
+  refine specR_flCallI hok hc ih flK2 (vv flA2) (vv flC2) (vv flS2) a1 s1 c2 pa1 ps1 ⟨hD.2.1, hD.2.2.1, hD.2.2.2.1⟩
+    ⟨by decide, by decide⟩ (hp.trans hp1) ha1 hs1 (by simp [Env.get, hF]) (by simp [Env.get]) (by simp [Env.get, hC2])
+    (by simp [Env.get]) (fun as2 H2 pa2 ps2 w2 hp2 ha2 hs2 => ?_)
+  exact specR_flRetI hok (vv flA2) (vv flS2) as2 pa2 ps2 hD.2.2.2.2 (fun w => by simp [Env.get])
+    (fun w => by simp [Env.get]) ha2 hs2 (h0.trans (hp1.trans hp2))
+
+theorem specR_flArm3I {C : Ctx} (hok : CtxOK C) (hc : FlCodes C) {n : Nat} (ih : FlRec (σ := σ) C n)
+    {H0 H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} (acc : List (Nat × EIdx))
+    (seen : Std.HashMap EIdx Unit) (c1 c2 c3 : EIdx) (pa ps : BitVec 64)
+    (hD : flK1 ∈ D ∧ flK2 ∈ D ∧ flK3 ∈ D ∧ flA2 ∈ D ∧ flS2 ∈ D ∧ flO ∈ D) (hp : C.H <+: H) (h0 : H0 <+: H)
+    (hacc : AccRep C H pa acc) (hseen : SeenRep C H ps seen) (hF : Γ.get flF = some (BitVec.ofNat 64 (n + 1)))
+    (hA : Γ.get flA = some pa) (hN : Γ.get flN = some ps) (hC1 : Γ.get flC1 = some (Enc.idxW c1))
+    (hC2 : Γ.get flC2 = some (Enc.idxW c2)) (hC3 : Γ.get flC3 = some (Enc.idxW c3)) :
+    SpecR (σ := σ) (Inv (ctxH C H) s Γ M D) (flArm3 C) s
+      (fvarLeavesGo acc seen n c1 >>= fun x => match x with
+        | (acc, seen) => (fvarLeavesGo acc seen n c2 >>= fun y => match y with
+          | (acc, seen) => fvarLeavesGo acc seen n c3))
+      (PostFl (ctxH C H0) s) := by
+  unfold flArm3 flRetK
+  refine specR_flCallI hok hc ih flK1 (vv flA) (vv flC1) (vv flN) acc seen c1 pa ps ⟨hD.1, hD.2.2.2.1, hD.2.2.2.2.1⟩
+    ⟨by decide, by decide⟩ hp hacc hseen hF (by simp [hA]) (by simp [hC1]) (by simp [hN])
+    (fun as1 H1 pa1 ps1 w1 hp1 ha1 hs1 => ?_)
+  obtain ⟨a1, s1⟩ := as1
+  dsimp only
+  refine specR_flCallI hok hc ih flK2 (vv flA2) (vv flC2) (vv flS2) a1 s1 c2 pa1 ps1 ⟨hD.2.1, hD.2.2.2.1, hD.2.2.2.2.1⟩
+    ⟨by decide, by decide⟩ (hp.trans hp1) ha1 hs1 (by simp [Env.get, hF]) (by simp [Env.get]) (by simp [Env.get, hC2])
+    (by simp [Env.get]) (fun as2 H2 pa2 ps2 w2 hp2 ha2 hs2 => ?_)
+  obtain ⟨a2, s2⟩ := as2
+  dsimp only
+  refine specR_bindPure ?_
+  refine specR_flCallI hok hc ih flK3 (vv flA2) (vv flC3) (vv flS2) a2 s2 c3 pa2 ps2 ⟨hD.2.2.1, hD.2.2.2.1, hD.2.2.2.2.1⟩
+    ⟨by decide, by decide⟩ ((hp.trans hp1).trans hp2) ha2 hs2 (by simp [Env.get, hF]) (by simp [Env.get])
+    (by simp [Env.get, hC3]) (by simp [Env.get]) (fun as3 H3 pa3 ps3 w3 hp3 ha3 hs3 => ?_)
+  exact specR_flRetI hok (vv flA2) (vv flS2) as3 pa3 ps3 hD.2.2.2.2.2 (fun w => by simp [Env.get])
+    (fun w => by simp [Env.get]) ha3 hs3 (h0.trans (hp1.trans (hp2.trans hp3)))
+
+theorem fl_spec (C : Ctx) (hok : CtxOK C) (hc : FlCodes C) : ∀ n, n < 2 ^ 64 → FlRec (σ := σ) C n := by
+  intro n
+  induction n with
+  | zero =>
+    intro _ acc seen h H s pa ps hp hacc hseen
+    refine specR_prologue (postFl_locals _ _) (fl_none _ _) ?_
+    unfold flCore
+    rw [fvarLeavesGo_zero]
+    exact specR_ifI _ 1 (by simp +decide [sev, Env.get, flParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun _ => specR_hangI) (fun h => absurd h (by decide))
+  | succ n ih =>
+  intro hn acc seen h H s pa ps hp hacc hseen
+  have ih' := ih (by omega)
+  obtain ⟨xs, hm, he⟩ := id hseen
+  refine specR_prologue (postFl_locals _ _) (fl_none _ _) ?_
+  unfold flCore
+  rw [fvarLeavesGo_succ]
+  have hne := ofNat_succ_ne n (by omega)
+  refine specR_ifI _ 0 (by simp +decide [sev, Env.get, flParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
+    (fun h => absurd rfl h) (fun _ => ?_)
+  refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
+  refine specR_assignI lDh (vv flH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, flParams, ctxEnv]) ?_
+  refine specR_derivedEI (C := ctxH C H) h (by simp) (by simp <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide) ?_
+  have hb15 : (ConLeche.fvarOfData (s.store.derived h)).toNat < 2 ^ 15 := by
+    simp only [ConLeche.fvarOfData, UInt64.toNat_mod]; simp; omega
+  have hbt : (ConLeche.fvarOfData (s.store.derived h)).toBitVec =
+      BitVec.ofNat 64 (ConLeche.fvarOfData (s.store.derived h)).toNat := by
+    apply BitVec.eq_of_toNat_eq; simp
+  refine specR_assignI flB _ (ConLeche.fvarOfData (s.store.derived h)).toBitVec (by decide)
+    (by simp [sev]; exact ExF.fvarOfData_word _) ?_
+  generalize hbdef : (ConLeche.fvarOfData (s.store.derived h)).toNat = b at hb15 hbt
+  rw [hbt]
+  by_cases hb0 : b = 0
+  · subst hb0
+    refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    simp only [beq_self_eq_true, ↓reduceIte]
+    exact specR_flRetI hok (vv flA) (vv flS) (acc, seen) pa ps (by decide) (fun w => by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv])
+      (fun w => by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) hacc hseen (List.prefix_refl _)
+  have hbne : BitVec.ofNat 64 b ≠ 0 := by intro e; have := congrArg BitVec.toNat e; simp at this; omega
+  refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hbne) (fun h => absurd rfl h)
+    (fun _ => ?_)
+  simp only [show (b == 0) = false by simpa using hb0, Bool.false_eq_true, ↓reduceIte]
+  refine specR_callPure (C := ctxH C H) flL fMl mlParams [vv flS, vv flH, .const 0] mlBody
+    [ps, Enc.idxW h, 0] (xs.lookup (Enc.idxW h, 0)) (by decide) rfl (by decide) hc.ml
+    ⟨by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv], by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv], rfl, trivial⟩
+    (PostWV (ctxH C H) s) (fun o w s' H' => w = optWG boolW o ∧ H' = H)
+    (fun o w s' st ⟨h1, h2, h3⟩ => ⟨H, List.prefix_refl _, ⟨h2, rfl⟩, by subst h1; exact h3⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu mlParams _ rfl hlk)
+      (ml_spec C hok hc.ml (Enc.idxW h) 0 xs ps H s (mnodes_toH hm)))
+    (fun w H' _ ⟨hw, hH'⟩ => ?_)
+  subst hw; subst H'
+  rw [he h]
+  cases hlk : xs.lookup (Enc.idxW h, 0) with
+  | some v =>
+    have hne1 : boolW v + 1 ≠ 0 := by cases v <;> decide
+    refine specR_ifI _ 1 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne1) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    simp only [Option.map_some]
+    exact specR_flRetI hok (vv flA) (vv flS) (acc, seen) pa ps (by decide) (fun w => by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv])
+      (fun w => by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) hacc hseen (List.prefix_refl _)
+  | none =>
+  refine specR_ifI _ 0 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
+    (fun _ => ?_)
+  simp only [Option.map_none]
+  refine specR_mlInsI hok flN (vv flH) (.const 0) (.const 1) (vv flS) (Enc.idxW h) 0 ps true xs (by decide)
+    (fun w => by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) (fun w => rfl) (fun w => rfl) (fun w => by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) hm (fun H1 oN hp1 hm1 => ?_)
+  have hseen1 : SeenRep C H1 (cellA C oN) (seen.insert h ()) := seenRep_insert he h hm1
+  have hacc1 : AccRep C H1 pa acc := accRep_mono hp1 hacc
+  refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
+  refine specR_assignI lDh (vv flH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) ?_
+  refine specR_viewP (C := ctxH C H1) h (by simp) (by simp +decide [Env.get] <;> rfl)
+    (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide) (fun v P hv htn hsh => ?_)
+  refine specR_congr (view_bind_eq h v _ s hv) ?_
+  rcases v with i | ⟨idx, ty⟩ | u | ⟨cn, cus⟩ | ⟨f, a⟩ | ⟨ty, b⟩ | ⟨ty, b⟩ | ⟨ty, v, b⟩ | l | ⟨pn, pi, sub⟩
+  · -- bvar
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    exact specR_flRetI hok (vv flA) (vv flN) (acc, seen.insert h ()) pa (cellA C oN) (by decide)
+      (fun w => by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) (fun w => by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) hacc1 hseen1 hp1
+  · -- fvar
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+    sorry
+  · -- sort
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    exact specR_flRetI hok (vv flA) (vv flN) (acc, seen.insert h ()) pa (cellA C oN) (by decide)
+      (fun w => by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) (fun w => by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) hacc1 hseen1 hp1
+  · -- const
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    exact specR_flRetI hok (vv flA) (vv flN) (acc, seen.insert h ()) pa (cellA C oN) (by decide)
+      (fun w => by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) (fun w => by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) hacc1 hseen1 hp1
+  · -- app
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+    refine specR_loadI' flC1 (vv lRp) P (P + BitVec.ofNat 64 0) (Enc.idxW f) (by decide) (by simp) (by simp)
+      (by simpa [encEView, Enc.encApp] using wordsAt_mem0 P _ _ []) ?_
+    refine specR_loadI' flC2 _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW a) (by decide) (by simp +decide [sev]) rfl
+      (by simpa [encEView, Enc.encApp] using wordsAt_mem1 P _ _ [] []) ?_
+    simp only [fvarLeavesGoArmApp]
+    exact specR_flArm2I hok hc ih' acc (seen.insert h ()) _ _ pa (cellA C oN) ⟨by decide, by decide, by decide, by decide, by decide⟩ (hp.trans hp1) hp1 hacc1 hseen1
+      (by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) (by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) (by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) (by simp +decide [Env.get]) (by simp +decide [Env.get])
+  · -- lam
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+    refine specR_loadI' flC1 (vv lRp) P (P + BitVec.ofNat 64 0) (Enc.idxW ty) (by decide) (by simp) (by simp)
+      (by simpa [encEView, Enc.encBind] using wordsAt_mem0 P _ _ []) ?_
+    refine specR_loadI' flC2 _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW b) (by decide) (by simp +decide [sev]) rfl
+      (by simpa [encEView, Enc.encBind] using wordsAt_mem1 P _ _ [] []) ?_
+    simp only [fvarLeavesGoArmBind]
+    exact specR_flArm2I hok hc ih' acc (seen.insert h ()) _ _ pa (cellA C oN) ⟨by decide, by decide, by decide, by decide, by decide⟩ (hp.trans hp1) hp1 hacc1 hseen1
+      (by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) (by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) (by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) (by simp +decide [Env.get]) (by simp +decide [Env.get])
+  · -- forallE
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+    refine specR_loadI' flC1 (vv lRp) P (P + BitVec.ofNat 64 0) (Enc.idxW ty) (by decide) (by simp) (by simp)
+      (by simpa [encEView, Enc.encBind] using wordsAt_mem0 P _ _ []) ?_
+    refine specR_loadI' flC2 _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW b) (by decide) (by simp +decide [sev]) rfl
+      (by simpa [encEView, Enc.encBind] using wordsAt_mem1 P _ _ [] []) ?_
+    simp only [fvarLeavesGoArmBind]
+    exact specR_flArm2I hok hc ih' acc (seen.insert h ()) _ _ pa (cellA C oN) ⟨by decide, by decide, by decide, by decide, by decide⟩ (hp.trans hp1) hp1 hacc1 hseen1
+      (by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) (by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) (by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) (by simp +decide [Env.get]) (by simp +decide [Env.get])
+  · -- letE
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+    refine specR_loadI' flC1 (vv lRp) P (P + BitVec.ofNat 64 0) (Enc.idxW ty) (by decide) (by simp) (by simp)
+      (by simpa [encEView, Enc.encLet] using wordsAt_mem0 P _ _ []) ?_
+    refine specR_loadI' flC2 _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW v) (by decide) (by simp +decide [sev]) rfl
+      (by simpa [encEView, Enc.encLet] using wordsAt_mem1 P _ _ [Enc.idxW b] []) ?_
+    refine specR_loadI' flC3 _ (P + 16) (P + BitVec.ofNat 64 (8 * 2)) (Enc.idxW b) (by decide) (by simp +decide [sev]) rfl
+      (by simpa [encEView, Enc.encLet] using (wordsAt_get P [Enc.idxW ty, Enc.idxW v, Enc.idxW b] 2 (by simp) [] : (P + BitVec.ofNat 64 (8 * 2), Enc.idxW b) ∈ _)) ?_
+    simp only [fvarLeavesGoArmLet]
+    exact specR_flArm3I hok hc ih' acc (seen.insert h ()) _ _ _ pa (cellA C oN) ⟨by decide, by decide, by decide, by decide, by decide, by decide⟩ (hp.trans hp1) hp1 hacc1 hseen1
+      (by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) (by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) (by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) (by simp +decide [Env.get]) (by simp +decide [Env.get]) (by simp +decide [Env.get])
+  · -- lit
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    exact specR_flRetI hok (vv flA) (vv flN) (acc, seen.insert h ()) pa (cellA C oN) (by decide)
+      (fun w => by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) (fun w => by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) hacc1 hseen1 hp1
+  · -- proj
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+    refine specR_loadI' flC1 _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW sub) (by decide) (by simp +decide [sev]) rfl
+      (by simpa [encEView, Enc.encProj] using wordsAt_mem1 P (Enc.idxW pn) (Enc.idxW sub) (Enc.limbs pi) []) ?_
+    unfold flRetK
+    refine specR_bindPure ?_
+    refine specR_flCallI hok hc ih' flK1 (vv flA) (vv flC1) (vv flN) acc (seen.insert h ()) sub pa (cellA C oN)
+      ⟨by decide, by decide, by decide⟩ ⟨by decide, by decide⟩ (hp.trans hp1) hacc1 hseen1 (by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) (by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv])
+      (by simp +decide [Env.get]) (by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, flParams, ctxEnv]) (fun as1 H2 pa2 ps2 w2 hp2 ha2 hs2 => ?_)
+    exact specR_flRetI hok (vv flA2) (vv flS2) as1 pa2 ps2 (by decide) (fun w => by simp [Env.get]) (fun w => by simp [Env.get])
+      ha2 hs2 (hp1.trans hp2)
+
 end
 
 end ConPanqueque.T.WC
