@@ -214,4 +214,65 @@ theorem prepareMajor_view (mode : ConLeche.CheckMode) (r : CoreFnsA) (fe : IFEnv
   · simp only [ite_true] at h
     exact majorToCtor_view mode r fe d c true rules m s mv s' h
 
+/-- The ι step's fire certificate (`fam`), as the twin computes it. -/
+def iotaFam (mode : ConLeche.CheckMode) (r : CoreFnsA) (fe : IFEnv) (depth : Nat) (cv : IConstantVal) (us : LsIdx)
+    (mI rP : Nat) (isK : Bool) (args : List EIdx) (usj : LsIdx) (cvj : IConstantVal) (cnP : Nat) (induct : NIdx)
+    (rl : IRecRule) (margs : List EIdx) : AM Bool :=
+  if !mode.verifiedChecks then pure true
+  else if iotaNoCert fe isK induct
+      (recFireLevelCount rl cvj.levelParams) then pure true
+  else do
+    let cmpL ← recFireLevels rl cv.levelParams us cvj.levelParams
+    if ← iotaCase3At r fe isK induct cmpL then do
+      if ← liftFueled "level comparison" (← lvlsEq? usj cmpL) then do
+        let cmpA ← recFireArgs rl cnP cv.levelParams us args rP
+        if ← defEqList r fe depth (margs.take cnP) cmpA then do
+          let tyC ← constTyAt cvj usj
+          if ← iotaCertsFull r fe depth tyC margs then
+            iotaIndexOk r fe depth mI rP cnP tyC
+              margs ((args.take mI).drop rP)
+          else pure false
+        else pure false
+      else pure false
+    else pure true
+
+/-- The ι step past the major's classification. -/
+def iotaTail (mode : ConLeche.CheckMode) (r : CoreFnsA) (fe : IFEnv) (depth : Nat) (c : NIdx) (us : LsIdx)
+    (cv : IConstantVal) (mI rP : Nat) (isK : Bool) (rules : List IRecRule) (args : List EIdx) :
+    MajorView → AM (Option EIdx)
+  | .ctor major cj usj cvj cnP _ induct =>
+    match findRule rules cj with
+    | some rl => do
+      let margs ← getAppArgs coreWalkFuel major
+      if margs.length = cnP + rl.nfields then do
+        let fam ← iotaFam mode r fe depth cv us mI rP isK args usj cvj cnP induct rl margs
+        if fam then do
+          let body ← ruleBodyAt c rl.ctor cv.levelParams rl.rhs
+            (rP + rl.nfields) us
+          let p := if rP < args.length then rP else args.length
+          let q := if cnP < margs.length then cnP else margs.length
+          let x ← instantiateListFast coreWalkFuel body
+            (iotaVals args.toArray p margs.toArray q) 0
+          pure (some x)
+        else pure none
+      else pure none
+    | none => pure none
+  | .stuck _ => pure none
+
+theorem ite_bind' {α β : Type} (c : Prop) [Decidable c] (a b : AM α) (k : α → AM β) :
+    ((if c then a else b) >>= k) = if c then a >>= k else b >>= k := by
+  split <;> rfl
+
+theorem iotaRecAt_eq (mode : ConLeche.CheckMode) (r : CoreFnsA) (fe : IFEnv) (depth : Nat) (c : NIdx) (us : LsIdx)
+    (cv : IConstantVal) (mI rP : Nat) (isK : Bool) (rules : List IRecRule) (sargs : Array EIdx) :
+    iotaRecAt mode r fe depth c us cv mI rP isK rules sargs =
+      (peelPis (mI + 1) cv.type >>= fun o => match o with
+        | none => pure none
+        | some _ => internE (.bvar 0) >>= fun b0 =>
+          prepareMajor mode r fe depth c isK rules (sargs.toList.getD mI b0) >>= fun mv =>
+            iotaTail mode r fe depth c us cv mI rP isK rules sargs.toList mv) := by
+  unfold iotaRecAt iotaTail
+  simp only [iotaFam, bind_assoc, ite_bind', pure_bind]
+  rfl
+
 end ConPanqueque.T.WC
