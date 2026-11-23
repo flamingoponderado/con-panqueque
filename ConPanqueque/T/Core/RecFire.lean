@@ -278,7 +278,7 @@ theorem rgL_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
     obtain ⟨l, hl⟩ := Option.isSome_iff_exists.mp (hden 0 (by simp))
     obtain ⟨X, hx, hX⟩ := readLevelM_runC u s l hrl hl
     simp only [substLevelsAt, bind_assoc, pure_bind]
-    refine specR_quiet hx rfl rfl ⟨rfl, rfl, rfl, rfl, rfl⟩ rfl ?_
+    refine specR_quiet hx rfl rfl ⟨rfl, rfl, rfl, rfl, rfl⟩ rfl (fun hc => cachesOK_readLC hc X hX) ?_
     refine specR_callNIH (C := ctxH C H) rgH fSubstLH substMParams [vv rgW, vv rgK, vv rgU] (substLHBody C)
       [Enc.idxW u, cellA C ko, Enc.idxW us] (by decide) rfl (by decide) hc.slh
       ⟨by simp, by simp +decide [Env.get, rgParams, ctxEnv] <;> rfl, by simp +decide [Env.get, rgParams, ctxEnv], trivial⟩
@@ -366,7 +366,7 @@ theorem rgP_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       (fun h => absurd h (by decide))
     obtain ⟨c1, hn1, hc1, hN1⟩ := ILP.readNameM_eq p s pn hrn hq1
     simp only [substParamLevels, bind_assoc, pure_bind]
-    refine specR_quiet hn1 rfl rfl (by show MirrorEq c1 s.caches; rw [hc1]; exact ⟨rfl, rfl, rfl, rfl, rfl⟩) rfl ?_
+    refine specR_quiet hn1 rfl rfl (by show MirrorEq c1 s.caches; rw [hc1]; exact ⟨rfl, rfl, rfl, rfl, rfl⟩) rfl (fun hc => cachesOK_caches hc c1 hc1 hN1) ?_
     refine specR_allocI (C := ctxH C H) rgB (.const 16) 2 (by decide) (by decide) (fun _ => rfl)
       (fun H1 ws hpa hws hroom => ?_)
     have hj1 : H1.length < (ctxH (ctxH C H) (H1 ++ ws)).H.length := by
@@ -831,16 +831,16 @@ theorem rf_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
   have hvs : denoteLList s.store.ls uh = some vs := by have := hus; simp only [denoteLs, hv] at this; exact this
   have hu : s.store.lss.view us = some uh := hv
   obtain ⟨c1, hn1, hc1, hN1⟩ := ILP.readNamesM_eq lps s ks hrn hks
-  obtain ⟨X, hx⟩ := readLevelsM_runC us (withC s c1) vs
+  obtain ⟨X, hx, hXo⟩ := readLevelsM_runCok us (withC s c1) vs
     (by show ReadLsCacheOK c1.readLsC s.store; rw [hc1]; exact hrls) hus
   rcases hf : rl.fire with _ | ⟨lv, pins⟩ | lv
   · -- plain
     obtain ⟨pns, hpns⟩ := hpl hf
     have hft : C.EH[qr + 2]? = some 0 := by have := hrule.2.2.1; rw [hf] at this; exact this
     simp only [recFireLevels, hf]
-    refine specR_quiet hn1 rfl rfl (by show MirrorEq c1 s.caches; rw [hc1]; exact ⟨rfl, rfl, rfl, rfl, rfl⟩) rfl ?_
+    refine specR_quiet hn1 rfl rfl (by show MirrorEq c1 s.caches; rw [hc1]; exact ⟨rfl, rfl, rfl, rfl, rfl⟩) rfl (fun hc => cachesOK_caches hc c1 hc1 hN1) ?_
     refine specR_quiet hx rfl rfl
-      (by show MirrorEq { c1 with readLsC := X } c1; exact ⟨rfl, rfl, rfl, rfl, rfl⟩) rfl ?_
+      (by show MirrorEq { c1 with readLsC := X } c1; exact ⟨rfl, rfl, rfl, rfl, rfl⟩) rfl (fun hc => cachesOK_readLsC hc X hXo) ?_
     refine specR_envLoadI (C := ctxH C H) rfKl (vv rfKs) ok _ (by decide)
       (by simp +decide [Env.get, rfParams, ctxEnv]; rfl) hl0 ?_
     refine specR_assignI lCn _ (BitVec.ofNat 64 (lps.length + 1)) (by decide)
@@ -931,9 +931,9 @@ theorem rf_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     obtain ⟨hft, ⟨w3, hw3, olv, hw3', hblv⟩, -⟩ := hfe
     subst hw3'
     simp only [recFireLevels, hf]
-    refine specR_quiet hn1 rfl rfl (by show MirrorEq c1 s.caches; rw [hc1]; exact ⟨rfl, rfl, rfl, rfl, rfl⟩) rfl ?_
+    refine specR_quiet hn1 rfl rfl (by show MirrorEq c1 s.caches; rw [hc1]; exact ⟨rfl, rfl, rfl, rfl, rfl⟩) rfl (fun hc => cachesOK_caches hc c1 hc1 hN1) ?_
     refine specR_quiet hx rfl rfl
-      (by show MirrorEq { c1 with readLsC := X } c1; exact ⟨rfl, rfl, rfl, rfl, rfl⟩) rfl ?_
+      (by show MirrorEq { c1 with readLsC := X } c1; exact ⟨rfl, rfl, rfl, rfl, rfl⟩) rfl (fun hc => cachesOK_readLsC hc X hXo) ?_
     refine specR_envLoadI (C := ctxH C H) rfKl (vv rfKs) ok _ (by decide)
       (by simp +decide [Env.get, rfParams, ctxEnv]; rfl) hl0 ?_
     refine specR_assignI lCn _ (BitVec.ofNat 64 (lps.length + 1)) (by decide)
@@ -1027,9 +1027,9 @@ theorem rf_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     obtain ⟨hft, w3, hw3, olv, hw3', hblv⟩ := hfe
     subst hw3'
     simp only [recFireLevels, hf]
-    refine specR_quiet hn1 rfl rfl (by show MirrorEq c1 s.caches; rw [hc1]; exact ⟨rfl, rfl, rfl, rfl, rfl⟩) rfl ?_
+    refine specR_quiet hn1 rfl rfl (by show MirrorEq c1 s.caches; rw [hc1]; exact ⟨rfl, rfl, rfl, rfl, rfl⟩) rfl (fun hc => cachesOK_caches hc c1 hc1 hN1) ?_
     refine specR_quiet hx rfl rfl
-      (by show MirrorEq { c1 with readLsC := X } c1; exact ⟨rfl, rfl, rfl, rfl, rfl⟩) rfl ?_
+      (by show MirrorEq { c1 with readLsC := X } c1; exact ⟨rfl, rfl, rfl, rfl, rfl⟩) rfl (fun hc => cachesOK_readLsC hc X hXo) ?_
     refine specR_envLoadI (C := ctxH C H) rfKl (vv rfKs) ok _ (by decide)
       (by simp +decide [Env.get, rfParams, ctxEnv]; rfl) hl0 ?_
     refine specR_assignI lCn _ (BitVec.ofNat 64 (lps.length + 1)) (by decide)

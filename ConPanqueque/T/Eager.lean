@@ -80,7 +80,7 @@ theorem sr_mode {C : Ctx} {s s' : AState} {t u : PState σ} (sv : Option ModeMem
       s'.caches.ruleBodyC = s.caches.ruleBodyC)
     (hm : u.memory = t.memory) (hd : u.memaddrs = t.memaddrs) (hc : u.code = t.code)
     (hgl : ∀ y, y ≠ gEo → u.globals.lookup y = t.globals.lookup y)
-    (hmode : ModeAt u { C with saved := sv } s'.caches) : SR { C with saved := sv } s' u := by
+    (hmode : ModeAt u { C with saved := sv } s'.caches) (hco : CachesOK s') : SR { C with saved := sv } s' u := by
   obtain ⟨e7, e8, e9⟩ := hfix
   have hrep : SRep u C.L C.FLn C.FLl C.FLs C.FLe s'.store := by
     rw [hst]
@@ -95,7 +95,7 @@ theorem sr_mode {C : Ctx} {s s' : AState} {t u : PState σ} (sv : Option ModeMem
     fun k => by rw [hme]; exact memoAtN_frame (h.memoN k) (fun _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd,
     fun k => ?_, hmode,
     envAt_frame h.env (fun _ _ _ => by rw [hm]) (fun _ _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd
-      ⟨hgl _ (by decide), hgl _ (by decide)⟩, (hpn.trans h.pins), heapEx_frame h.heap (fun _ _ => by rw [hm]) hd (hgl _ (by decide)), by rw [hst]; exact h.twf, by rw [hst]; exact h.envd⟩
+      ⟨hgl _ (by decide), hgl _ (by decide)⟩, (hpn.trans h.pins), heapEx_frame h.heap (fun _ _ => by rw [hm]) hd (hgl _ (by decide)), by rw [hst]; exact h.twf, by rw [hst]; exact h.envd, hco⟩
   have := cacheAt_frame (h.cache k) (u := u) (fun _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd
   cases k <;> simp only [CacheAt] at this ⊢ <;> first | trivial | (rw [e7]; exact this) | (rw [e8]; exact this) |
     (rw [e9]; exact this)
@@ -119,7 +119,7 @@ theorem setG_other (t : PState σ) (g y : MlS) (v : ValueHOL 64) (h : y ≠ g) :
 theorem step_setEo {C : Ctx} {s s' : AState} {Γ : Env} {M : Mem} {D : List MlS} (sv : Option ModeMemos)
     (v : BitVec 64) (hst : s'.store = s.store) (hme : s'.memos = s.memos) (hpn : s'.pins = s.pins)
     (hfix : s'.caches.constTyC = s.caches.constTyC ∧ s'.caches.constValC = s.caches.constValC ∧
-      s'.caches.ruleBodyC = s.caches.ruleBodyC)
+      s'.caches.ruleBodyC = s.caches.ruleBodyC) (hco : CachesOK s → CachesOK s')
     (hmode : ∀ t : PState σ, SR C s t →
       ModeAt (setKvarHOLFinite .global gEo (.val (.word v)) t) { C with saved := sv } s'.caches) :
     Step (Inv (σ := σ) C s Γ M D) (.assign .global gEo (.const v)) (Inv { C with saved := sv } s' Γ M D) := by
@@ -128,7 +128,7 @@ theorem step_setEo {C : Ctx} {s s' : AState} {Γ : Env} {M : Mem} {D : List MlS}
   rw [assign_ok t .global gEo _ (.val (.word v)) (eval_const t v)
     (by simp [isValidValueHOLFinite, lookupKvarHOLFinite, g, shapeOfHOLExact, shapeEqHOL])]
   refine Or.inr ⟨rfl, ⟨sr_mode sv ht.sr hst hme hpn hfix (setG_memory t _ _) (setG_memaddrs t _ _) (setG_code t _ _)
-    (fun y hy => setG_other t _ y _ hy) (hmode t ht.sr), fun y w hy => ?_, fun a w ha => ?_, fun y hy => ?_⟩⟩
+    (fun y hy => setG_other t _ y _ hy) (hmode t ht.sr) (hco ht.sr.cok), fun y w hy => ?_, fun a w ha => ?_, fun y hy => ?_⟩⟩
   · rw [setG_locals]; exact ht.env y w hy
   · rw [setG_memory, setG_memaddrs]; exact ht.mem a w ha
   · rw [setG_locals]; exact ht.decl y hy
@@ -164,7 +164,7 @@ theorem specR_enterPlainI {β : Type} {C : Ctx} (hok : CtxOK C) (hsv : C.saved =
     exact Or.inr ⟨rfl, inv_set ht lEo 0⟩
   intro t ht
   rw [ite_word t (vv lEo) _ _ 0 (inv_ev ht (by simp [sev, Env.get])), if_neg (by simp)]
-  refine step_seq (step_setEo (s := s) (s' := eagerIn s) (some s.caches.modeMemos) C.EO rfl rfl rfl ⟨rfl, rfl, rfl⟩ (fun u hu => ?_))
+  refine step_seq (step_setEo (s := s) (s' := eagerIn s) (some s.caches.modeMemos) C.EO rfl rfl rfl ⟨rfl, rfl, rfl⟩ (fun h => cachesOK_congr h rfl ⟨rfl, rfl, rfl, rfl, rfl⟩) (fun u hu => ?_))
     (step_assignI x (.const 1) 1 hx rfl) t ht
   obtain ⟨_, h1, h2⟩ := modeAt_none hsv hu.mode
   refine ⟨setG_same u _ _, ?_, ?_⟩
@@ -198,7 +198,7 @@ theorem specR_leaveSomeI {β : Type} {C : Ctx} (hok : CtxOK C) {mm : ModeMemos} 
   refine specR_runBind (leaveEager_some_run s mm) (specR_step ?_ hk)
   intro t ht
   rw [leaveBlk, ite_word t e _ _ w (inv_ev ht he), if_pos hw]
-  refine step_setEo (s := s) (s' := eagerOut s mm) none 0 rfl rfl rfl ⟨rfl, rfl, rfl⟩ (fun u hu => ?_) t ht
+  refine step_setEo (s := s) (s' := eagerOut s mm) none 0 rfl rfl rfl ⟨rfl, rfl, rfl⟩ (fun h => cachesOK_congr h rfl ⟨rfl, rfl, rfl, rfl, rfl⟩) (fun u hu => ?_) t ht
   obtain ⟨_, h1, h2, _⟩ := modeAt_some hsv hu.mode
   refine ⟨setG_same u _ _, ?_, ?_⟩
   · exact sideAt_ctx _ h2 (setG_memory u _ _) (setG_memaddrs u _ _)

@@ -5,6 +5,7 @@ import ConRon.Arena.Env
 import ConRon.Arena.Pins
 import ConRon.Arena.WF
 import ConRon.Arena.Denote
+import ConRon.Bridge.StateOK
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena
@@ -391,6 +392,55 @@ theorem envAt_frame {C : Ctx} {t u : PState σ} (h : EnvAt t C)
     memoAtG_frame hm (hT true) (hTd true) hd, memoAtG_frame hm' (hT false) (hTd false) hd,
     by rw [hg.1]; exact hl⟩
 
+/-- The twin-only read and comparison caches agree with the store's denotations. -/
+structure CachesOK (s : AState) : Prop where
+  rn : ConRon.Bridge.ReadNCacheOK s.caches.readNC s.store
+  rl : ConRon.Bridge.ReadLCacheOK s.caches.readLC s.store
+  rls : ConRon.Bridge.ReadLsCacheOK s.caches.readLsC s.store
+  le : ConRon.Bridge.LvlEqCacheOK s.caches.lvlEqC s.store
+  les : ConRon.Bridge.LvlsEqCacheOK s.caches.lvlsEqC s.store
+
+theorem cachesOK_ext {s s' : AState} (h : CachesOK s) (hx : Ext s.store s'.store) (hc : s'.caches = s.caches) :
+    CachesOK s' := by
+  obtain ⟨rn, rl, rls, le, les⟩ := h
+  refine ⟨fun k x hk => ?_, fun k u hk => ?_, fun k us hk => ?_, fun k r hk => ?_, fun k r hk => ?_⟩
+  · rw [hc] at hk; exact hx.lss.ls.ns _ _ (rn k x hk)
+  · rw [hc] at hk; exact hx.lss.ls.lvl _ _ (rl k u hk)
+  · rw [hc] at hk; exact hx.lss.lst _ _ (rls k us hk)
+  · rw [hc] at hk; obtain ⟨u, v, h1, h2, h3⟩ := le k r hk
+    exact ⟨u, v, hx.lss.ls.lvl _ _ h1, hx.lss.ls.lvl _ _ h2, h3⟩
+  · rw [hc] at hk; obtain ⟨u, v, h1, h2, h3⟩ := les k r hk
+    exact ⟨u, v, hx.lss.lst _ _ h1, hx.lss.lst _ _ h2, h3⟩
+
+theorem cachesOK_congr {s s' : AState} (h : CachesOK s) (hs : s'.store = s.store)
+    (hc : s'.caches.readNC = s.caches.readNC ∧ s'.caches.readLC = s.caches.readLC ∧
+      s'.caches.readLsC = s.caches.readLsC ∧ s'.caches.lvlEqC = s.caches.lvlEqC ∧
+      s'.caches.lvlsEqC = s.caches.lvlsEqC) : CachesOK s' := by
+  obtain ⟨c1, c2, c3, c4, c5⟩ := hc
+  obtain ⟨rn, rl, rls, le, les⟩ := h
+  exact ⟨by rw [c1, hs]; exact rn, by rw [c2, hs]; exact rl, by rw [c3, hs]; exact rls, by rw [c4, hs]; exact le,
+    by rw [c5, hs]; exact les⟩
+
+theorem cachesOK_readLC {s : AState} (h : CachesOK s) (X : Std.HashMap LIdx ConLeche.Level)
+    (hX : ConRon.Bridge.ReadLCacheOK X s.store) : CachesOK { s with caches := { s.caches with readLC := X } } :=
+  ⟨h.rn, hX, h.rls, h.le, h.les⟩
+
+theorem cachesOK_readLsC {s : AState} (h : CachesOK s) (X : Std.HashMap LsIdx (List ConLeche.Level))
+    (hX : ConRon.Bridge.ReadLsCacheOK X s.store) : CachesOK { s with caches := { s.caches with readLsC := X } } :=
+  ⟨h.rn, h.rl, hX, h.le, h.les⟩
+
+theorem cachesOK_caches {s : AState} (h : CachesOK s) (c : Caches)
+    (hc : c = { s.caches with readNC := c.readNC }) (hN : ConRon.Bridge.ReadNCacheOK c.readNC s.store) :
+    CachesOK { s with caches := c } := by
+  obtain ⟨rn, rl, rls, le, les⟩ := h
+  refine ⟨hN, ?_, ?_, ?_, ?_⟩ <;> rw [hc] <;> assumption
+
+theorem cachesOK_cachesLs {s : AState} (h : CachesOK s) (c : Caches)
+    (hc : c = { s.caches with readLsC := c.readLsC }) (hX : ConRon.Bridge.ReadLsCacheOK c.readLsC s.store) :
+    CachesOK { s with caches := c } := by
+  obtain ⟨rn, rl, rls, le, les⟩ := h
+  refine ⟨?_, ?_, hX, ?_, ?_⟩ <;> rw [hc] <;> assumption
+
 /-- The environment's stored constants denote in the twin store: their level-parameter names and their types. -/
 def EnvDen (fe : IFEnv) (st : EStore) : Prop :=
   ∀ c ci, fe.find? c = some ci → (∀ n ∈ ci.toConstantVal.levelParams, (denoteN st.ns n).isSome = true) ∧
@@ -435,6 +485,8 @@ structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   twf : StoreWF s.store
   /-- The environment's constants denote in the twin store. -/
   envd : EnvDen C.fe s.store
+  /-- The twin-only caches are correct. -/
+  cok : CachesOK s
 
 theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u.memory = t.memory)
     (hd : u.memaddrs = t.memaddrs) (hg : u.globals = t.globals) (hc : u.code = t.code) : SR C s u :=
@@ -448,7 +500,7 @@ theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u
     modeAt_frame h.mode (fun _ _ _ _ => by rw [hm]) (fun _ _ _ _ => by rw [hm]) hd (by rw [hg]),
     envAt_frame h.env (fun _ _ _ => by rw [hm]) (fun _ _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd
       ⟨by rw [hg], by rw [hg]⟩, h.pins,
-    heapEx_frame h.heap (fun _ _ => by rw [hm]) hd (by rw [hg]), h.twf, h.envd⟩
+    heapEx_frame h.heap (fun _ _ => by rw [hm]) hd (by rw [hg]), h.twf, h.envd, h.cok⟩
 
 theorem eval_gv (t : PState σ) (g : MlS) (w : BitVec 64) (h : t.globals.lookup g = some (.val (.word w))) :
     EV t (.var .global g) = some (.val (.word w)) := by

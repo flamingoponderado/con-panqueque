@@ -103,7 +103,8 @@ theorem sr_upd_region {C : Ctx} (hok : CtxOK C) (r : Region) {s s' : AState} {t 
     (hsN : ∀ k, Region.n k = r → MemoAtN u (C.mG (.n k)) (C.mg (.n k)) (memoSelN k s'.memos))
     (hoC : ∀ k, Region.c k ≠ r → MirrorEq s'.caches s.caches)
     (hsC : ∀ k, Region.c k = r → CacheAt u C s'.caches k)
-    (hrM : ∀ b k, Region.m b k ≠ r) (hrE : ∀ b, envR b ≠ r) (hoM : MirrorEq s'.caches s.caches) : SR C s' u := by
+    (hrM : ∀ b k, Region.m b k ≠ r) (hrE : ∀ b, envR b ≠ r) (hoM : MirrorEq s'.caches s.caches) (hco : CachesOK s') :
+    SR C s' u := by
   refine ⟨hst ▸ srep_frame hsr.rep ⟨hfr _ (hok.flMemo r _ (Or.inl rfl)), hfr _ (hok.flMemo r _ (Or.inr (Or.inl rfl))),
       hfr _ (hok.flMemo r _ (Or.inr (Or.inr (Or.inl rfl)))), hfr _ (hok.flMemo r _ (Or.inr (Or.inr (Or.inr rfl))))⟩ hd
       (fun kk tier hk1 hk2 => ⟨fun mm hm => hfr _ (hok.dirMemo r kk tier mm hk1 hk2 hm),
@@ -116,7 +117,7 @@ theorem sr_upd_region {C : Ctx} (hok : CtxOK C) (r : Region) {s s' : AState} {t 
     envAt_frame hsr.env (fun b c hc => hfr c (hok.memoDis (envR b) r c (hrE b) hc))
       (fun b kk hkk => hfr _ (hok.mdescMemo r (envR b) kk hkk)) (fun i hi => hfr _ (hok.envMemo r i hi)) hd
       ⟨by rw [hg], by rw [hg]⟩, (hpn.trans hsr.pins),
-    heapEx_frame hsr.heap (fun i hi => hfr _ (hok.heapMemo r i hi)) hd (by rw [hg]), by rw [hst]; exact hsr.twf, by rw [hst]; exact hsr.envd⟩
+    heapEx_frame hsr.heap (fun i hi => hfr _ (hok.heapMemo r i hi)) hd (by rw [hg]), by rw [hst]; exact hsr.twf, by rw [hst]; exact hsr.envd, hco⟩
   · by_cases e : Region.e k = r
     · exact hsE k e
     · rw [hoE k e]
@@ -241,7 +242,7 @@ theorem specR_memoClearI {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoK) (cle
       (fun k' e => by injection e with e; subst e; show MemoAt _ _ _ (memoSel k' (memoUpd k' s.memos ∅)); rw [memoSel_upd_same]; exact hmem)
       (fun k' e => by simp at e)
       (fun _ _ => mirrorEq_refl _) (fun _ e => by simp at e)
-      (fun _ _ => by simp) (fun _ => by simp) (mirrorEq_refl _)
+      (fun _ _ => by simp) (fun _ => by simp) (mirrorEq_refl _) (cachesOK_congr ht.sr.cok rfl ⟨rfl, rfl, rfl, rfl, rfl⟩)
   rw [he]
   rcases hk t4 (inv_after_clear ht hsr' hl4 hj4) with hs | ⟨w, hr', a, s', hk', hR⟩
   · exact Or.inl hs
@@ -270,7 +271,7 @@ theorem specR_memoClearNI {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoNK) (c
         injection e with e; subst e; show MemoAtN _ _ _ (memoSelN k' (memoUpdN k' s.memos ∅)); rw [memoSelN_upd_same]
         exact ⟨hmem, fun _ _ h => by simp at h⟩)
       (fun _ _ => mirrorEq_refl _) (fun _ e => by simp at e)
-      (fun _ _ => by simp) (fun _ => by simp) (mirrorEq_refl _)
+      (fun _ _ => by simp) (fun _ => by simp) (mirrorEq_refl _) (cachesOK_congr ht.sr.cok rfl ⟨rfl, rfl, rfl, rfl, rfl⟩)
   rw [he]
   rcases hk t4 (inv_after_clear ht hsr' hl4 hj4) with hs | ⟨w, hr', a, s', hk', hR⟩
   · exact Or.inl hs

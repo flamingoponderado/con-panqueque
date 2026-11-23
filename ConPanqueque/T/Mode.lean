@@ -222,7 +222,7 @@ theorem specR_modeSetI {β : Type} {C : Ctx} (hok : CtxOK C) (k : ModeKE) (setOp
     envAt_frame hsr.env (fun b c hc => hfr c (hok.memoDis (envR b) _ c (by simp) hc))
       (fun b kk hkk => hfr _ (hok.mdescMemo _ (envR b) kk hkk)) (fun i hi => hfr _ (hok.envMemo _ i hi)) hd'
       ⟨by rw [hg], by rw [hg]⟩, hsr.pins,
-    heapEx_frame hsr.heap (fun i hi => hfr _ (hok.heapMemo _ i hi)) hd' (by rw [hg]), hsr.twf, hsr.envd⟩⟩
+    heapEx_frame hsr.heap (fun i hi => hfr _ (hok.heapMemo _ i hi)) hd' (by rw [hg]), hsr.twf, hsr.envd, cachesOK_congr hsr.cok rfl (by refine ⟨?_, ?_, ?_, ?_, ?_⟩ <;> cases k <;> rfl)⟩⟩
 
 end
 

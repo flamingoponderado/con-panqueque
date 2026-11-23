@@ -183,8 +183,8 @@ theorem gs_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
         (fun _ => specR_hangI) (fun h => absurd h (by decide))
     · obtain ⟨hdu, hwf3, hrl3⟩ := hsl ty s2 u s3 hrun2 hrun3
       obtain ⟨l, hl⟩ := Option.isSome_iff_exists.mp hdu
-      obtain ⟨X, hx, _⟩ := readLevelM_runC u s3 l hrl3 hl
-      refine specR_quiet hx rfl rfl ⟨rfl, rfl, rfl, rfl, rfl⟩ rfl ?_
+      obtain ⟨X, hx, hX⟩ := readLevelM_runC u s3 l hrl3 hl
+      refine specR_quiet hx rfl rfl ⟨rfl, rfl, rfl, rfl, rfl⟩ rfl (fun hc => cachesOK_readLC hc X hX) ?_
       have hne : ¬ Enc.idxW u + 1 = 0 := lidxW_add_one_ne u
       refine specR_ifI _ 0 (by simp +decide [sev, Env.get, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
         (fun h => absurd rfl h) (fun _ => ?_)
@@ -213,8 +213,8 @@ theorem gs_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       (fun _ => ?_) (fun h => absurd h (by decide))
     dsimp only
     obtain ⟨l, hl⟩ := Option.isSome_iff_exists.mp (hsd u hrun)
-    obtain ⟨X, hx, _⟩ := readLevelM_runC u s l hrl hl
-    refine specR_quiet hx rfl rfl ⟨rfl, rfl, rfl, rfl, rfl⟩ rfl ?_
+    obtain ⟨X, hx, hX⟩ := readLevelM_runC u s l hrl hl
+    refine specR_quiet hx rfl rfl ⟨rfl, rfl, rfl, rfl, rfl⟩ rfl (fun hc => cachesOK_readLC hc X hX) ?_
     refine specR_envLoadI (C := ctxH C H1) fzX (.const (ecell C (C.PO + pinCount + 1))) (C.PO + pinCount + 1)
       (Enc.idxW C.pins.zeroLevel) (by decide) rfl (pin_zeroLevel_cell (ctxOK_H hok H1)) ?_
     rw [isAlwaysZero_eq]

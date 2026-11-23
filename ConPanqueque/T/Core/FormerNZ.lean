@@ -122,6 +122,24 @@ theorem readLevelM_runC (h : LIdx) (s : AState) (l : ConLeche.Level) (hrl : Read
     exact ⟨s.caches.readLC, by simp [hc, get, getThe, MonadStateOf.get, StateT.get, bind, StateT.bind, pure,
       StateT.pure, Except.bind, Except.pure], hrl⟩
 
+theorem readLevelsM_runCok (h : LsIdx) (s : AState) (l : List ConLeche.Level)
+    (hrl : ReadLsCacheOK s.caches.readLsC s.store) (hd : denoteLs s.store.lss h = some l) :
+    ∃ X, readLevelsM h s = .ok (l, { s with caches := { s.caches with readLsC := X } }) ∧ ReadLsCacheOK X s.store := by
+  unfold readLevelsM
+  rcases hc : s.caches.readLsC[h]? with _ | l'
+  · refine ⟨s.caches.readLsC.insert h l, ?_, ?_⟩
+    · simp [hc, hd, get, getThe, MonadStateOf.get, StateT.get, set, StateT.set, bind, StateT.bind, pure, StateT.pure,
+        Except.bind, Except.pure]
+    · intro k u hk
+      simp only [Std.HashMap.getElem?_insert] at hk
+      split at hk
+      · rename_i e; simp at e; subst e; simp at hk; subst hk; exact hd
+      · exact hrl k u hk
+  · have := hrl h l' hc
+    rw [hd] at this; cases this
+    exact ⟨s.caches.readLsC, by simp [hc, get, getThe, MonadStateOf.get, StateT.get, bind, StateT.bind, pure,
+      StateT.pure, Except.bind, Except.pure], hrl⟩
+
 theorem readLevelsM_runC (h : LsIdx) (s : AState) (l : List ConLeche.Level)
     (hrl : ReadLsCacheOK s.caches.readLsC s.store) (hd : denoteLs s.store.lss h = some l) :
     ∃ X, readLevelsM h s = .ok (l, { s with caches := { s.caches with readLsC := X } }) := by
@@ -191,22 +209,24 @@ theorem fn_spec (C : Ctx) (hcs : C.code.lookup fFs = some ([(fsT, ShapeHOL.one)]
     (fun r w s1 H1 hp1 ⟨hrun, hs1, hw⟩ => ?_)
   subst s1 hw
   rcases r with _ | u
-  · obtain ⟨c1, hn1, hc1, _⟩ := ILP.readNamesM_eq cvT.levelParams s ks hrn hks
-    obtain ⟨X, hx⟩ := readLevelsM_runC us (withC s c1) vs (by show ReadLsCacheOK c1.readLsC s.store; rw [hc1]; exact hrls) hus
+  · obtain ⟨c1, hn1, hc1, hN1⟩ := ILP.readNamesM_eq cvT.levelParams s ks hrn hks
+    obtain ⟨X, hx, hXo⟩ := readLevelsM_runCok us (withC s c1) vs (by show ReadLsCacheOK c1.readLsC s.store; rw [hc1]; exact hrls) hus
     refine LLeq.specR_ofRun (R' := PostB C) (am_run_bind rfl (am_run_bind hn1 (am_run_bind hx rfl))) ?_
-      (fun w st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, LLeq.sr_congrS hsr rfl rfl (hmir c1 hc1 X) rfl⟩)
+      (fun w st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, LLeq.sr_congrS hsr rfl rfl (hmir c1 hc1 X) rfl
+        (cachesOK_cachesLs (cachesOK_caches hsr.cok c1 hc1 hN1) { c1 with readLsC := X } rfl hXo)⟩)
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
       (fun _ => ?_) (fun h => absurd h (by decide))
     exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   · obtain ⟨l, hl⟩ := Option.isSome_iff_exists.mp (hsd u hrun)
-    obtain ⟨X1, hx1, _⟩ := readLevelM_runC u s l hrl hl
-    obtain ⟨c1, hn1, hc1, _⟩ := ILP.readNamesM_eq cvT.levelParams
+    obtain ⟨X1, hx1, hX1⟩ := readLevelM_runC u s l hrl hl
+    obtain ⟨c1, hn1, hc1, hN1⟩ := ILP.readNamesM_eq cvT.levelParams
       { s with caches := { s.caches with readLC := X1 } } ks hrn hks
-    obtain ⟨X, hx⟩ := readLevelsM_runC us (withC { s with caches := { s.caches with readLC := X1 } } c1) vs
+    obtain ⟨X, hx, hXo⟩ := readLevelsM_runCok us (withC { s with caches := { s.caches with readLC := X1 } } c1) vs
       (by show ReadLsCacheOK c1.readLsC s.store; rw [hc1]; exact hrls) hus
     have hmir2 : MirrorEq { c1 with readLsC := X } s.caches := by rw [hc1]; exact ⟨rfl, rfl, rfl, rfl, rfl⟩
     refine LLeq.specR_ofRun (R' := PostB C) (am_run_bind (am_run_bind hx1 rfl) (am_run_bind hn1 (am_run_bind hx rfl))) ?_
-      (fun w st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, LLeq.sr_congrS hsr rfl rfl hmir2 rfl⟩)
+      (fun w st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, LLeq.sr_congrS hsr rfl rfl hmir2 rfl
+        (cachesOK_cachesLs (cachesOK_caches (cachesOK_readLC hsr.cok X1 hX1) c1 hc1 hN1) { c1 with readLsC := X } rfl hXo)⟩)
     have hne : ¬ Enc.idxW u + 1 = 0 := lidxW_add_one_ne u
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
       (fun h => absurd rfl h) (fun _ => ?_)

@@ -86,6 +86,7 @@ theorem specR_defeqSetI {β : Type} {C : Ctx} (hok : CtxOK C)
     (fun u u' hsr hmem hfr hd hg hc => ?_) hcodeS hcodeI x (modeD C .defeq) (.const 2) ev hx (sev_modeD hok _ _) rfl hev
     (by simp [encEE]) (fun u hM => words_kb2 hM) hk
   refine sr_upd_mode hok .defeq hsr hfr hd hg hc rfl rfl rfl ⟨rfl, rfl, rfl⟩ ?_
+    (cachesOK_congr hsr.cok rfl ⟨rfl, rfl, rfl, rfl, rfl⟩)
   exact modeAt_setG hok hsr.mode .defeq hmem (fun k' hk' => by cases k' <;> first | rfl | exact absurd rfl hk')
     rfl hfr hd (by rw [hg])
 

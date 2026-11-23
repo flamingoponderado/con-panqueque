@@ -200,13 +200,13 @@ open ConPanqueque.T.LSub
 /-- `SR` ignores the level substitution memos and the caches. -/
 theorem sr_lpl {C : Ctx} {s s' : AState} {t : PState σ} (h : SR C s t) (h1 : s'.store = s.store)
     (h2 : s'.memos = { s.memos with instLPLC := s'.memos.instLPLC, instLPLsC := s'.memos.instLPLsC })
-    (h3 : MirrorEq s'.caches s.caches) (h4 : s'.pins = s.pins) : SR C s' t := by
+    (h3 : MirrorEq s'.caches s.caches) (h4 : s'.pins = s.pins) (hco : CachesOK s') : SR C s' t := by
   have e1 : ∀ k, memoSel k s'.memos = memoSel k s.memos := fun k => by rw [h2]; cases k <;> rfl
   have e2 : ∀ k, memoSelN k s'.memos = memoSelN k s.memos := fun k => by rw [h2]; cases k <;> rfl
   exact ⟨by rw [h1]; exact h.rep, h.gdir, h.gfln, h.gfll, h.gfls, h.gfle, h.gkb, h.code, h.kbuf,
     fun k => by rw [e1]; exact h.memo k, fun k => by rw [e2]; exact h.memoN k,
     fun k => cacheAt_mirror (h.cache k) h3,
-    modeAt_mirror h.mode h3, h.env, h4.trans h.pins, h.heap, by rw [h1]; exact h.twf, by rw [h1]; exact h.envd⟩
+    modeAt_mirror h.mode h3, h.env, h4.trans h.pins, h.heap, by rw [h1]; exact h.twf, by rw [h1]; exact h.envd, hco⟩
 
 /-- Moving a spec from the computation the port performs to the twin's, run by run. -/
 theorem specR_transfer {α : Type} {P : PState σ → Prop} {c : ProgHOL 64} {s : AState} {m m' : AM α}
@@ -288,11 +288,16 @@ theorem substLH_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
     obtain ⟨s3, h3, e3, p3, m3, c3, r3, ml3⟩ := substLMemoAt_run ks vs s u l hd hrl hm hwf h s'' hrun'
     refine ⟨s3, h3, fun w st ⟨H', hp, hw, hsr, _, ⟨ls', es, g⟩, _⟩ => ?_⟩
     have es3 : s3.store = withL s.store ls' := by rw [e3, es]
-    refine ⟨H', hp, hw, sr_lpl hsr e3 ?_ ?_ ?_, by rw [e3]; exact q1, by rw [e3]; exact q2, by rw [es3]; exact g,
+    refine ⟨H', hp, hw, sr_lpl hsr e3 ?_ ?_ ?_ ?_, by rw [e3]; exact q1, by rw [e3]; exact q2, by rw [es3]; exact g,
       by rw [es3]; rfl, p3, m3, c3, r3, ml3, by rw [e3]; exact q9⟩
     · rw [m3, q6]
     · rw [c3, q7]; exact mirrorEq_refl _
     · rw [p3, q8]
+    · have hc' : s3.caches = { s''.caches with readLC := s3.caches.readLC } := by rw [c3, q7]
+      exact ⟨fun k x hk => by rw [hc'] at hk; rw [e3]; exact hsr.cok.rn k x hk, r3,
+        fun k x hk => by rw [hc'] at hk; rw [e3]; exact hsr.cok.rls k x hk,
+        fun k x hk => by rw [hc'] at hk; rw [e3]; exact hsr.cok.le k x hk,
+        fun k x hk => by rw [hc'] at hk; rw [e3]; exact hsr.cok.les k x hk⟩
 
 /-- The memo-free core: substitute at any level representation, then re-intern. -/
 theorem substLH_core (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
@@ -335,10 +340,10 @@ theorem substLH_core (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
 theorem specR_quiet {α β : Type} {C : Ctx} {s s' : AState} {Γ : Env} {M : Mem} {D : List MlS} {c : ProgHOL 64}
     {m0 : AM α} {a : α} {k : α → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
     (hrun : m0 s = .ok (a, s')) (h1 : s'.store = s.store) (h2 : s'.memos = s.memos)
-    (h3 : MirrorEq s'.caches s.caches) (h4 : s'.pins = s.pins)
+    (h3 : MirrorEq s'.caches s.caches) (h4 : s'.pins = s.pins) (h5 : CachesOK s → CachesOK s')
     (h : SpecR (Inv C s' Γ M D) c s' (k a) R) : SpecR (Inv C s Γ M D) c s (m0 >>= k) R := by
   intro t ht
-  have ht' : Inv C s' Γ M D t := ⟨LLeq.sr_congrS ht.sr h1 h2 h3 h4, ht.env, ht.mem, ht.decl⟩
+  have ht' : Inv C s' Γ M D t := ⟨LLeq.sr_congrS ht.sr h1 h2 h3 h4 (h5 ht.sr.cok), ht.env, ht.mem, ht.decl⟩
   rcases h t ht' with hs | ⟨w, hr, b, s2, hm, hq⟩
   · exact Or.inl hs
   · refine Or.inr ⟨w, hr, b, s2, ?_, hq⟩

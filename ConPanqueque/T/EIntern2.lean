@@ -58,7 +58,7 @@ theorem sort_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (ho
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (by rw [← KB0]; exact hok.kbMdesc (envR b) k 0 hk (by decide)))
         (fun i hi => hm _ (hok.envOut i hi) (by rw [← KB0]; exact hok.kbEnv i 0 hi (by decide))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (by rw [← KB0]; exact hok.kbHeap i 0 hi (by decide))) hd
-        (by rw [hg]), (internNodeE_wf ht.sr.twf (viewOK_sort hv) hrun).1, envDen_ext ht.sr.envd (internNodeE_wf ht.sr.twf (viewOK_sort hv) hrun).2⟩
+        (by rw [hg]), (internNodeE_wf ht.sr.twf (viewOK_sort hv) hrun).1, envDen_ext ht.sr.envd (internNodeE_wf ht.sr.twf (viewOK_sort hv) hrun).2, cachesOK_ext ht.sr.cok (internNodeE_wf ht.sr.twf (viewOK_sort hv) hrun).2 rfl⟩
 
 def fInternConst := ofString "internConst"
 def constBody : ProgHOL 64 := prologue constScratch eInternConst
@@ -106,7 +106,7 @@ theorem const_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (h
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
         (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
-        (by rw [hg]), (internNodeE_wf ht.sr.twf (viewOK_const hv) hrun).1, envDen_ext ht.sr.envd (internNodeE_wf ht.sr.twf (viewOK_const hv) hrun).2⟩
+        (by rw [hg]), (internNodeE_wf ht.sr.twf (viewOK_const hv) hrun).1, envDen_ext ht.sr.envd (internNodeE_wf ht.sr.twf (viewOK_const hv) hrun).2, cachesOK_ext ht.sr.cok (internNodeE_wf ht.sr.twf (viewOK_const hv) hrun).2 rfl⟩
 
 def fInternFVar := ofString "internFVar"
 def fvarLocals : List MlS := lEn :: fvarScratch
@@ -185,6 +185,6 @@ theorem fvar_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (ho
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
         (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
-        (by rw [hg]), (internNodeE_wf ht.sr.twf (viewOK_fvar hv) hrun).1, envDen_ext ht.sr.envd (internNodeE_wf ht.sr.twf (viewOK_fvar hv) hrun).2⟩
+        (by rw [hg]), (internNodeE_wf ht.sr.twf (viewOK_fvar hv) hrun).1, envDen_ext ht.sr.envd (internNodeE_wf ht.sr.twf (viewOK_fvar hv) hrun).2, cachesOK_ext ht.sr.cok (internNodeE_wf ht.sr.twf (viewOK_fvar hv) hrun).2 rfl⟩
 
 end ConPanqueque.T

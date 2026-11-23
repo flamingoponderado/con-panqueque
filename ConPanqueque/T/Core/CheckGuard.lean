@@ -542,7 +542,7 @@ theorem cg_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
     refine specR_dropM ?_
     obtain ⟨ul, hul⟩ := Option.isSome_iff_exists.mp (hQd s3 w u hq3 hvs)
     obtain ⟨X, hx, hX⟩ := readLevelM_runC u s3 ul (hQr s3 hq3) hul
-    refine specR_quiet hx rfl rfl ⟨rfl, rfl, rfl, rfl, rfl⟩ rfl ?_
+    refine specR_quiet hx rfl rfl ⟨rfl, rfl, rfl, rfl, rfl⟩ rfl (fun hc => cachesOK_readLC hc X hX) ?_
     have hq4 := hQrd s3 X hq3 hX
     refine specR_callPure (C := ctxH C H3) cgZ fZw zwParams [vv cgG, vv cgU] zwBody [Enc.idxW gh, Enc.idxW u]
       (ConLeche.Level.zeroWhereZero gs ul) (by decide) rfl (by decide) hc.zw.zw

@@ -379,7 +379,8 @@ theorem sa_spec (C : Ctx) (hok : CtxOK C) (hc : SaCodes C) (s : AState) (hwf : L
       obtain ⟨X, hx, hxok⟩ := readLevelsM_runC' us (withC s c1) vs (by show ReadLsCacheOK c1.readLsC s.store; rw [hc1]; exact hrls) hdl
       refine LLeq.specR_ofRun (R' := fun r w s' st => s' = s ∧ ∃ H', H <+: H' ∧ optPW (ctxH C H) H' s r w ∧ SR (ctxH C H') s st)
         (am_run_bind hn1 (am_run_bind hx rfl)) ?_
-        (fun w st ⟨_, H', hp, hw, hsr⟩ => ⟨⟨rfl, rfl, rfl, ?_, ?_⟩, H', hp, hw, LLeq.sr_congrS hsr rfl rfl ?_ rfl⟩)
+        (fun w st ⟨_, H', hp, hw, hsr⟩ => ⟨⟨rfl, rfl, rfl, ?_, ?_⟩, H', hp, hw, LLeq.sr_congrS hsr rfl rfl ?_ rfl
+          (cachesOK_cachesLs (cachesOK_caches hsr.cok c1 hc1 hok1) { c1 with readLsC := X } rfl hxok)⟩)
       rotate_left
       · rw [hc1]; exact ⟨rfl, rfl, rfl, rfl, rfl⟩
       · refine ⟨hok1, ?_, hxok⟩

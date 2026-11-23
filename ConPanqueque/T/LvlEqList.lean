@@ -238,6 +238,49 @@ theorem readLevelsM_run (h : LsIdx) (s : AState) (l : List Level) (hrl : ReadLsC
     rw [hd] at this; cases this
     exact ⟨s, by simp [hc, get, getThe, MonadStateOf.get, StateT.get, bind, StateT.bind, pure, StateT.pure, Except.bind, Except.pure], rfl, rfl, hrl, rfl, mirrorEq_refl _, rfl⟩
 
+theorem readLevelsM_cok (h : LsIdx) (s : AState) (l : List Level) (hco : CachesOK s)
+    (hd : denoteLs s.store.lss h = some l) :
+    ∃ s1, readLevelsM h s = .ok (l, s1) ∧ CachesOK s1 ∧ s1.store = s.store := by
+  unfold readLevelsM
+  rcases hc : s.caches.readLsC[h]? with _ | l'
+  · refine ⟨{ s with caches := { s.caches with readLsC := s.caches.readLsC.insert h l } }, ?_, ?_, rfl⟩
+    · simp [hc, hd, get, getThe, MonadStateOf.get, StateT.get, set, StateT.set, bind, StateT.bind, pure, StateT.pure, Except.bind, Except.pure]
+    · refine ⟨hco.rn, hco.rl, fun k u hk => ?_, hco.le, hco.les⟩
+      simp only [Std.HashMap.getElem?_insert] at hk
+      split at hk
+      · rename_i e; simp at e; subst e; simp at hk; subst hk; exact hd
+      · exact hco.rls k u hk
+  · have := hco.rls h l' hc
+    rw [hd] at this; cases this
+    exact ⟨s, by simp [hc, get, getThe, MonadStateOf.get, StateT.get, bind, StateT.bind, pure, StateT.pure, Except.bind, Except.pure], hco, rfl⟩
+
+theorem lvlsEqQ_cok (u v : LsIdx) (s : AState) (lu lv : List Level) (hu : denoteLs s.store.lss u = some lu)
+    (hv : denoteLs s.store.lss v = some lv) (hco : CachesOK s) :
+    ∃ s', lvlsEq? u v s = .ok (Level.isEquivList lu lv, s') ∧ CachesOK s' := by
+  unfold lvlsEq?
+  rcases hc : s.caches.lvlsEqC[(u, v)]? with _ | r
+  · obtain ⟨s1, h1, ok1, e1⟩ := readLevelsM_cok u s lu hco hu
+    obtain ⟨s2, h2, ok2, e2⟩ := readLevelsM_cok v s1 lv ok1 (by rw [e1]; exact hv)
+    rcases hq : Level.isEquivList lu lv with _ | r
+    · refine ⟨s2, ?_, ok2⟩
+      simp [hc, h1, h2, hq, get, getThe, MonadStateOf.get, StateT.get, bind, StateT.bind, pure, StateT.pure,
+        Except.bind, Except.pure]
+    · refine ⟨{ s2 with caches := { s2.caches with lvlsEqC := s2.caches.lvlsEqC.insert (u, v) r } }, ?_,
+        ⟨ok2.rn, ok2.rl, ok2.rls, ok2.le, fun k b hk => ?_⟩⟩
+      · simp [hc, h1, h2, hq, get, getThe, MonadStateOf.get, StateT.get, set, StateT.set, bind, StateT.bind, pure,
+          StateT.pure, Except.bind, Except.pure]
+      · simp only [Std.HashMap.getElem?_insert] at hk
+        split at hk
+        · rename_i e; simp at e; subst e; simp at hk; subst hk
+          exact ⟨lu, lv, by rw [e2, e1]; exact hu, by rw [e2, e1]; exact hv, hq⟩
+        · exact ok2.les k b hk
+  · obtain ⟨u', v', hu', hv', hq⟩ := hco.les (u, v) r hc
+    rw [hu] at hu'; cases hu'
+    rw [hv] at hv'; cases hv'
+    refine ⟨s, ?_, hco⟩
+    simp [hc, hq, get, getThe, MonadStateOf.get, StateT.get, bind, StateT.bind, pure, StateT.pure, Except.bind,
+      Except.pure]
+
 theorem lvlsEqQ_run (u v : LsIdx) (s : AState) (lu lv : List Level) (hu : denoteLs s.store.lss u = some lu)
     (hv : denoteLs s.store.lss v = some lv)
     (hrl : ReadLsCacheOK s.caches.readLsC s.store) (hle : LvlsEqCacheOK s.caches.lvlsEqC s.store) :
@@ -297,7 +340,9 @@ theorem lvlsEqQ_spec (C : Ctx) (hok : CtxOK C)
   have hsp := lsGo_spec (σ := σ) C hok hcS hcN hcM hcC hcB hcI hcR hcE hcT hcL hcV hcG H u v ua ub lu lv s hua hub
     hu' hv' _ 0 rfl (Nat.zero_le _) (Nat.zero_le _)
   simp only [List.drop_zero] at hsp
-  exact specR_ofRun hrun hsp (fun w st ⟨hw, hsr⟩ => ⟨e1, e2, hw, sr_congrS hsr e1 e2 e3 e4⟩)
+  exact specR_ofRun hrun hsp (fun w st ⟨hw, hsr⟩ => ⟨e1, e2, hw, sr_congrS hsr e1 e2 e3 e4 (by
+      obtain ⟨s'', hr'', hc''⟩ := lvlsEqQ_cok u v s lu lv hu hv hsr.cok
+      rw [hrun] at hr''; simp only [Except.ok.injEq, Prod.mk.injEq] at hr''; rw [hr''.2]; exact hc'')⟩)
 
 end
 

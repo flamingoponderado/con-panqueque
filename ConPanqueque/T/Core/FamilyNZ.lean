@@ -581,9 +581,10 @@ theorem fza_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
       exact specR_returnI _ 0 rfl (fun t ht => ⟨H3, hPF.trans hp3, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     · obtain ⟨hdu, hwf3, hrl3⟩ := hsl ty s2 u s3 hrun2 hrun3
       obtain ⟨l, hl⟩ := Option.isSome_iff_exists.mp hdu
-      obtain ⟨X, hx, _⟩ := readLevelM_runC u s3 l hrl3 hl
+      obtain ⟨X, hx, hX⟩ := readLevelM_runC u s3 l hrl3 hl
       refine LLeq.specR_ofRun (R' := PostB C) (am_run_bind hx rfl) ?_
-        (fun w st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, LLeq.sr_congrS hsr rfl rfl ⟨rfl, rfl, rfl, rfl, rfl⟩ rfl⟩)
+        (fun w st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, LLeq.sr_congrS hsr rfl rfl ⟨rfl, rfl, rfl, rfl, rfl⟩ rfl
+          (cachesOK_readLC hsr.cok X hX)⟩)
       have hne : ¬ Enc.idxW u + 1 = 0 := lidxW_add_one_ne u
       refine specR_ifI _ 0 (by simp +decide [sev, Env.get, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
         (fun h => absurd rfl h) (fun _ => ?_)

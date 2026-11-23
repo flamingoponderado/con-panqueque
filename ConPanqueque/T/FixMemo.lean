@@ -108,6 +108,7 @@ theorem specR_fixSetI {β : Type} {C : Ctx} (hok : CtxOK C) (k : FixK)
     (by simp [encNL]) (fun u hM => words_kbNL hM) hk
   refine sr_upd_fix hok k.toK hsr hfr hd hg hc rfl rfl rfl ?_ (fun k'' hk'' => k.cacheAt_upd_ne k'' hk'' _ _ _ _)
     (by cases k <;> exact ⟨rfl, rfl⟩)
+    (cachesOK_congr hsr.cok rfl (by refine ⟨?_, ?_, ?_, ?_, ?_⟩ <;> cases k <;> rfl))
   show CacheAt u' C (k.upd s.caches _) k.toK
   rw [k.cacheAt_sel, k.sel_upd]; exact hmem
 

@@ -36,6 +36,49 @@ theorem readLevelM_run (h : LIdx) (s : AState) (l : Level) (hrl : ReadLCacheOK s
     rw [hd] at this; cases this
     exact ⟨s, by simp [hc, get, getThe, MonadStateOf.get, StateT.get, bind, StateT.bind, pure, StateT.pure, Except.bind, Except.pure], rfl, rfl, hrl, rfl, mirrorEq_refl _, rfl⟩
 
+theorem readLevelM_cok (h : LIdx) (s : AState) (l : Level) (hco : CachesOK s)
+    (hd : denoteL s.store.ls h = some l) :
+    ∃ s1, readLevelM h s = .ok (l, s1) ∧ CachesOK s1 ∧ s1.store = s.store ∧ s1.caches.lvlEqC = s.caches.lvlEqC := by
+  unfold readLevelM
+  rcases hc : s.caches.readLC[h]? with _ | l'
+  · refine ⟨{ s with caches := { s.caches with readLC := s.caches.readLC.insert h l } }, ?_, ?_, rfl, rfl⟩
+    · simp [hc, hd, get, getThe, MonadStateOf.get, StateT.get, set, StateT.set, bind, StateT.bind, pure, StateT.pure, Except.bind, Except.pure]
+    · refine ⟨hco.rn, fun k u hk => ?_, hco.rls, hco.le, hco.les⟩
+      simp only [Std.HashMap.getElem?_insert] at hk
+      split at hk
+      · rename_i e; simp at e; subst e; simp at hk; subst hk; exact hd
+      · exact hco.rl k u hk
+  · have := hco.rl h l' hc
+    rw [hd] at this; cases this
+    exact ⟨s, by simp [hc, get, getThe, MonadStateOf.get, StateT.get, bind, StateT.bind, pure, StateT.pure, Except.bind, Except.pure], hco, rfl, rfl⟩
+
+theorem lvlEqQ_cok (u v : LIdx) (s : AState) (lu lv : Level) (hu : denoteL s.store.ls u = some lu)
+    (hv : denoteL s.store.ls v = some lv) (hco : CachesOK s) :
+    ∃ s', lvlEq? u v s = .ok (Level.isEquiv lu lv, s') ∧ CachesOK s' := by
+  unfold lvlEq?
+  rcases hc : s.caches.lvlEqC[(u, v)]? with _ | r
+  · obtain ⟨s1, h1, ok1, e1, q1⟩ := readLevelM_cok u s lu hco hu
+    obtain ⟨s2, h2, ok2, e2, q2⟩ := readLevelM_cok v s1 lv ok1 (by rw [e1]; exact hv)
+    rcases hq : Level.isEquiv lu lv with _ | r
+    · refine ⟨s2, ?_, ok2⟩
+      simp [hc, h1, h2, hq, get, getThe, MonadStateOf.get, StateT.get, bind, StateT.bind, pure, StateT.pure,
+        Except.bind, Except.pure]
+    · refine ⟨{ s2 with caches := { s2.caches with lvlEqC := s2.caches.lvlEqC.insert (u, v) r } }, ?_,
+        ⟨ok2.rn, ok2.rl, ok2.rls, fun k b hk => ?_, ok2.les⟩⟩
+      · simp [hc, h1, h2, hq, get, getThe, MonadStateOf.get, StateT.get, set, StateT.set, bind, StateT.bind, pure,
+          StateT.pure, Except.bind, Except.pure]
+      · simp only [Std.HashMap.getElem?_insert] at hk
+        split at hk
+        · rename_i e; simp at e; subst e; simp at hk; subst hk
+          exact ⟨lu, lv, by rw [e2, e1]; exact hu, by rw [e2, e1]; exact hv, hq⟩
+        · exact ok2.le k b hk
+  · obtain ⟨u', v', hu', hv', hq⟩ := hco.le (u, v) r hc
+    rw [hu] at hu'; cases hu'
+    rw [hv] at hv'; cases hv'
+    refine ⟨s, ?_, hco⟩
+    simp [hc, hq, get, getThe, MonadStateOf.get, StateT.get, bind, StateT.bind, pure, StateT.pure, Except.bind,
+      Except.pure]
+
 theorem lvlEqQ_run (u v : LIdx) (s : AState) (lu lv : Level) (hu : denoteL s.store.ls u = some lu)
     (hv : denoteL s.store.ls v = some lv)
     (hrl : ReadLCacheOK s.caches.readLC s.store) (hle : LvlEqCacheOK s.caches.lvlEqC s.store) :
@@ -64,13 +107,14 @@ section
 variable {σ : Type}
 
 theorem sr_congrS {C : Ctx} {s s' : AState} {t : PState σ} (h : SR C s t) (h1 : s'.store = s.store)
-    (h2 : s'.memos = s.memos) (h3 : MirrorEq s'.caches s.caches) (h4 : s'.pins = s.pins) : SR C s' t := by
+    (h2 : s'.memos = s.memos) (h3 : MirrorEq s'.caches s.caches) (h4 : s'.pins = s.pins) (hco : CachesOK s') :
+    SR C s' t := by
   obtain ⟨s1, m1, c1, p1⟩ := s'
   obtain ⟨s0, m0, c0, p0⟩ := s
   simp only at h1 h2 h3 h4; subst h1 h2 h4
   exact ⟨h.rep, h.gdir, h.gfln, h.gfll, h.gfls, h.gfle, h.gkb, h.code, h.kbuf, h.memo, h.memoN,
     fun k => cacheAt_mirror (h.cache k) h3,
-    modeAt_mirror h.mode h3, h.env, h.pins, h.heap, h.twf, h.envd⟩
+    modeAt_mirror h.mode h3, h.env, h.pins, h.heap, h.twf, h.envd, hco⟩
 
 theorem specR_ofRun {α : Type} {P : PState σ → Prop} {c : ProgHOL 64} {s s' : AState} {m : AM α} {a : α}
     {R R' : α → BitVec 64 → AState → PState σ → Prop} (hrun : m s = .ok (a, s'))
@@ -101,7 +145,9 @@ theorem lvlEqQ_spec (C : Ctx) (hok : CtxOK C)
   obtain ⟨s', hrun, e1, e2, e3, e4⟩ := lvlEqQ_run u v s lu lv hu hv hrl hle
   exact specR_ofRun hrun (eqv_spec C hok hcS hcN hcM hcC hcB hcI hcR hcE hcT hcL H lu lv _ _ s
       (lrep_arena _ _ _ u _ lu hu) (lrep_arena _ _ _ v _ lv hv))
-    (fun w st ⟨hw, hsr⟩ => ⟨e1, e2, hw, sr_congrS hsr e1 e2 e3 e4⟩)
+    (fun w st ⟨hw, hsr⟩ => ⟨e1, e2, hw, sr_congrS hsr e1 e2 e3 e4 (by
+      obtain ⟨s'', hr'', hc''⟩ := lvlEqQ_cok u v s lu lv hu hv hsr.cok
+      rw [hrun] at hr''; simp only [Except.ok.injEq, Prod.mk.injEq] at hr''; rw [hr''.2]; exact hc'')⟩)
 
 end
 

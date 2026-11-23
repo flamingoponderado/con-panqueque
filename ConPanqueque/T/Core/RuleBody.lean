@@ -307,6 +307,7 @@ theorem specR_rbSetI {β : Type} {C : Ctx} (hok : CtxOK C)
     (by simp [encRB]) (fun u hM => words_kbRB hM) hk
   exact sr_upd_fix hok .ruleBody hsr hfr hd hg hc rfl rfl rfl hmem
     (fun k'' hk'' => by cases k'' <;> first | rfl | exact absurd rfl hk'') ⟨rfl, rfl⟩
+    (cachesOK_congr hsr.cok rfl ⟨rfl, rfl, rfl, rfl, rfl⟩)
 
 end
 
