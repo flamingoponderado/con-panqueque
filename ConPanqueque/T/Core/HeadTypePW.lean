@@ -19,6 +19,7 @@ open ConPanqueque.T ConPanqueque.T.Ex ConPanqueque.T.Knot ConPanqueque.T.Big
 open ConPanqueque.V.Enc
 open ConLeche (Level Name)
 
+def htF := ofString "phtp_htf"
 def htR := ofString "phtp_htr"
 def htD := ofString "phtp_htd"
 def htH := ofString "phtp_hth"
@@ -37,6 +38,53 @@ def htJ := ofString "phtp_htj"
 def htX := ofString "phtp_htx"
 def fHtp := ofString "headTypePW"
 
+@[simp] theorem phtp_htF_ne_htR : htF ≠ htR := by decide
+@[simp] theorem phtp_htF_ne_htD : htF ≠ htD := by decide
+@[simp] theorem phtp_htF_ne_htH : htF ≠ htH := by decide
+@[simp] theorem phtp_htF_ne_htN : htF ≠ htN := by decide
+@[simp] theorem phtp_htF_ne_htI : htF ≠ htI := by decide
+@[simp] theorem phtp_htF_ne_htU : htF ≠ htU := by decide
+@[simp] theorem phtp_htF_ne_htP : htF ≠ htP := by decide
+@[simp] theorem phtp_htF_ne_htQ : htF ≠ htQ := by decide
+@[simp] theorem phtp_htF_ne_htLp : htF ≠ htLp := by decide
+@[simp] theorem phtp_htF_ne_htLl : htF ≠ htLl := by decide
+@[simp] theorem phtp_htF_ne_htT : htF ≠ htT := by decide
+@[simp] theorem phtp_htF_ne_htV : htF ≠ htV := by decide
+@[simp] theorem phtp_htF_ne_htW : htF ≠ htW := by decide
+@[simp] theorem phtp_htF_ne_htS : htF ≠ htS := by decide
+@[simp] theorem phtp_htF_ne_htJ : htF ≠ htJ := by decide
+@[simp] theorem phtp_htF_ne_htX : htF ≠ htX := by decide
+@[simp] theorem phtp_htF_ne_lFl : htF ≠ lFl := by decide
+@[simp] theorem phtp_lFl_ne_htF : lFl ≠ htF := by decide
+@[simp] theorem phtp_htF_ne_lDh : htF ≠ lDh := by decide
+@[simp] theorem phtp_lDh_ne_htF : lDh ≠ htF := by decide
+@[simp] theorem phtp_htF_ne_lDt : htF ≠ lDt := by decide
+@[simp] theorem phtp_lDt_ne_htF : lDt ≠ htF := by decide
+@[simp] theorem phtp_htF_ne_lDg : htF ≠ lDg := by decide
+@[simp] theorem phtp_lDg_ne_htF : lDg ≠ htF := by decide
+@[simp] theorem phtp_htF_ne_lDi : htF ≠ lDi := by decide
+@[simp] theorem phtp_lDi_ne_htF : lDi ≠ htF := by decide
+@[simp] theorem phtp_htF_ne_lRp : htF ≠ lRp := by decide
+@[simp] theorem phtp_lRp_ne_htF : lRp ≠ htF := by decide
+@[simp] theorem phtp_htF_ne_lRn : htF ≠ lRn := by decide
+@[simp] theorem phtp_lRn_ne_htF : lRn ≠ htF := by decide
+@[simp] theorem phtp_htF_ne_lFle : htF ≠ lFle := by decide
+@[simp] theorem phtp_lFle_ne_htF : lFle ≠ htF := by decide
+@[simp] theorem phtp_htF_ne_lKb : htF ≠ lKb := by decide
+@[simp] theorem phtp_lKb_ne_htF : lKb ≠ htF := by decide
+@[simp] theorem phtp_htF_ne_lDir : htF ≠ lDir := by decide
+@[simp] theorem phtp_lDir_ne_htF : lDir ≠ htF := by decide
+@[simp] theorem phtp_htF_ne_lFln : htF ≠ lFln := by decide
+@[simp] theorem phtp_lFln_ne_htF : lFln ≠ htF := by decide
+@[simp] theorem phtp_htF_ne_lFll : htF ≠ lFll := by decide
+@[simp] theorem phtp_lFll_ne_htF : lFll ≠ htF := by decide
+@[simp] theorem phtp_htF_ne_lFls : htF ≠ lFls := by decide
+@[simp] theorem phtp_lFls_ne_htF : lFls ≠ htF := by decide
+@[simp] theorem phtp_htF_ne_kFu : htF ≠ kFu := by decide
+@[simp] theorem phtp_kFu_ne_htF : kFu ≠ htF := by decide
+@[simp] theorem phtp_htF_ne_kD : htF ≠ kD := by decide
+@[simp] theorem phtp_kD_ne_htF : kD ≠ htF := by decide
+@[simp] theorem phtp_htR_ne_htF : htR ≠ htF := by decide
 @[simp] theorem phtp_htR_ne_htD : htR ≠ htD := by decide
 @[simp] theorem phtp_htR_ne_htH : htR ≠ htH := by decide
 @[simp] theorem phtp_htR_ne_htN : htR ≠ htN := by decide
@@ -82,6 +130,7 @@ def fHtp := ofString "headTypePW"
 @[simp] theorem phtp_kFu_ne_htR : kFu ≠ htR := by decide
 @[simp] theorem phtp_htR_ne_kD : htR ≠ kD := by decide
 @[simp] theorem phtp_kD_ne_htR : kD ≠ htR := by decide
+@[simp] theorem phtp_htD_ne_htF : htD ≠ htF := by decide
 @[simp] theorem phtp_htD_ne_htR : htD ≠ htR := by decide
 @[simp] theorem phtp_htD_ne_htH : htD ≠ htH := by decide
 @[simp] theorem phtp_htD_ne_htN : htD ≠ htN := by decide
@@ -127,6 +176,7 @@ def fHtp := ofString "headTypePW"
 @[simp] theorem phtp_kFu_ne_htD : kFu ≠ htD := by decide
 @[simp] theorem phtp_htD_ne_kD : htD ≠ kD := by decide
 @[simp] theorem phtp_kD_ne_htD : kD ≠ htD := by decide
+@[simp] theorem phtp_htH_ne_htF : htH ≠ htF := by decide
 @[simp] theorem phtp_htH_ne_htR : htH ≠ htR := by decide
 @[simp] theorem phtp_htH_ne_htD : htH ≠ htD := by decide
 @[simp] theorem phtp_htH_ne_htN : htH ≠ htN := by decide
@@ -172,6 +222,7 @@ def fHtp := ofString "headTypePW"
 @[simp] theorem phtp_kFu_ne_htH : kFu ≠ htH := by decide
 @[simp] theorem phtp_htH_ne_kD : htH ≠ kD := by decide
 @[simp] theorem phtp_kD_ne_htH : kD ≠ htH := by decide
+@[simp] theorem phtp_htN_ne_htF : htN ≠ htF := by decide
 @[simp] theorem phtp_htN_ne_htR : htN ≠ htR := by decide
 @[simp] theorem phtp_htN_ne_htD : htN ≠ htD := by decide
 @[simp] theorem phtp_htN_ne_htH : htN ≠ htH := by decide
@@ -217,6 +268,7 @@ def fHtp := ofString "headTypePW"
 @[simp] theorem phtp_kFu_ne_htN : kFu ≠ htN := by decide
 @[simp] theorem phtp_htN_ne_kD : htN ≠ kD := by decide
 @[simp] theorem phtp_kD_ne_htN : kD ≠ htN := by decide
+@[simp] theorem phtp_htI_ne_htF : htI ≠ htF := by decide
 @[simp] theorem phtp_htI_ne_htR : htI ≠ htR := by decide
 @[simp] theorem phtp_htI_ne_htD : htI ≠ htD := by decide
 @[simp] theorem phtp_htI_ne_htH : htI ≠ htH := by decide
@@ -262,6 +314,7 @@ def fHtp := ofString "headTypePW"
 @[simp] theorem phtp_kFu_ne_htI : kFu ≠ htI := by decide
 @[simp] theorem phtp_htI_ne_kD : htI ≠ kD := by decide
 @[simp] theorem phtp_kD_ne_htI : kD ≠ htI := by decide
+@[simp] theorem phtp_htU_ne_htF : htU ≠ htF := by decide
 @[simp] theorem phtp_htU_ne_htR : htU ≠ htR := by decide
 @[simp] theorem phtp_htU_ne_htD : htU ≠ htD := by decide
 @[simp] theorem phtp_htU_ne_htH : htU ≠ htH := by decide
@@ -307,6 +360,7 @@ def fHtp := ofString "headTypePW"
 @[simp] theorem phtp_kFu_ne_htU : kFu ≠ htU := by decide
 @[simp] theorem phtp_htU_ne_kD : htU ≠ kD := by decide
 @[simp] theorem phtp_kD_ne_htU : kD ≠ htU := by decide
+@[simp] theorem phtp_htP_ne_htF : htP ≠ htF := by decide
 @[simp] theorem phtp_htP_ne_htR : htP ≠ htR := by decide
 @[simp] theorem phtp_htP_ne_htD : htP ≠ htD := by decide
 @[simp] theorem phtp_htP_ne_htH : htP ≠ htH := by decide
@@ -352,6 +406,7 @@ def fHtp := ofString "headTypePW"
 @[simp] theorem phtp_kFu_ne_htP : kFu ≠ htP := by decide
 @[simp] theorem phtp_htP_ne_kD : htP ≠ kD := by decide
 @[simp] theorem phtp_kD_ne_htP : kD ≠ htP := by decide
+@[simp] theorem phtp_htQ_ne_htF : htQ ≠ htF := by decide
 @[simp] theorem phtp_htQ_ne_htR : htQ ≠ htR := by decide
 @[simp] theorem phtp_htQ_ne_htD : htQ ≠ htD := by decide
 @[simp] theorem phtp_htQ_ne_htH : htQ ≠ htH := by decide
@@ -397,6 +452,7 @@ def fHtp := ofString "headTypePW"
 @[simp] theorem phtp_kFu_ne_htQ : kFu ≠ htQ := by decide
 @[simp] theorem phtp_htQ_ne_kD : htQ ≠ kD := by decide
 @[simp] theorem phtp_kD_ne_htQ : kD ≠ htQ := by decide
+@[simp] theorem phtp_htLp_ne_htF : htLp ≠ htF := by decide
 @[simp] theorem phtp_htLp_ne_htR : htLp ≠ htR := by decide
 @[simp] theorem phtp_htLp_ne_htD : htLp ≠ htD := by decide
 @[simp] theorem phtp_htLp_ne_htH : htLp ≠ htH := by decide
@@ -442,6 +498,7 @@ def fHtp := ofString "headTypePW"
 @[simp] theorem phtp_kFu_ne_htLp : kFu ≠ htLp := by decide
 @[simp] theorem phtp_htLp_ne_kD : htLp ≠ kD := by decide
 @[simp] theorem phtp_kD_ne_htLp : kD ≠ htLp := by decide
+@[simp] theorem phtp_htLl_ne_htF : htLl ≠ htF := by decide
 @[simp] theorem phtp_htLl_ne_htR : htLl ≠ htR := by decide
 @[simp] theorem phtp_htLl_ne_htD : htLl ≠ htD := by decide
 @[simp] theorem phtp_htLl_ne_htH : htLl ≠ htH := by decide
@@ -487,6 +544,7 @@ def fHtp := ofString "headTypePW"
 @[simp] theorem phtp_kFu_ne_htLl : kFu ≠ htLl := by decide
 @[simp] theorem phtp_htLl_ne_kD : htLl ≠ kD := by decide
 @[simp] theorem phtp_kD_ne_htLl : kD ≠ htLl := by decide
+@[simp] theorem phtp_htT_ne_htF : htT ≠ htF := by decide
 @[simp] theorem phtp_htT_ne_htR : htT ≠ htR := by decide
 @[simp] theorem phtp_htT_ne_htD : htT ≠ htD := by decide
 @[simp] theorem phtp_htT_ne_htH : htT ≠ htH := by decide
@@ -532,6 +590,7 @@ def fHtp := ofString "headTypePW"
 @[simp] theorem phtp_kFu_ne_htT : kFu ≠ htT := by decide
 @[simp] theorem phtp_htT_ne_kD : htT ≠ kD := by decide
 @[simp] theorem phtp_kD_ne_htT : kD ≠ htT := by decide
+@[simp] theorem phtp_htV_ne_htF : htV ≠ htF := by decide
 @[simp] theorem phtp_htV_ne_htR : htV ≠ htR := by decide
 @[simp] theorem phtp_htV_ne_htD : htV ≠ htD := by decide
 @[simp] theorem phtp_htV_ne_htH : htV ≠ htH := by decide
@@ -577,6 +636,7 @@ def fHtp := ofString "headTypePW"
 @[simp] theorem phtp_kFu_ne_htV : kFu ≠ htV := by decide
 @[simp] theorem phtp_htV_ne_kD : htV ≠ kD := by decide
 @[simp] theorem phtp_kD_ne_htV : kD ≠ htV := by decide
+@[simp] theorem phtp_htW_ne_htF : htW ≠ htF := by decide
 @[simp] theorem phtp_htW_ne_htR : htW ≠ htR := by decide
 @[simp] theorem phtp_htW_ne_htD : htW ≠ htD := by decide
 @[simp] theorem phtp_htW_ne_htH : htW ≠ htH := by decide
@@ -622,6 +682,7 @@ def fHtp := ofString "headTypePW"
 @[simp] theorem phtp_kFu_ne_htW : kFu ≠ htW := by decide
 @[simp] theorem phtp_htW_ne_kD : htW ≠ kD := by decide
 @[simp] theorem phtp_kD_ne_htW : kD ≠ htW := by decide
+@[simp] theorem phtp_htS_ne_htF : htS ≠ htF := by decide
 @[simp] theorem phtp_htS_ne_htR : htS ≠ htR := by decide
 @[simp] theorem phtp_htS_ne_htD : htS ≠ htD := by decide
 @[simp] theorem phtp_htS_ne_htH : htS ≠ htH := by decide
@@ -667,6 +728,7 @@ def fHtp := ofString "headTypePW"
 @[simp] theorem phtp_kFu_ne_htS : kFu ≠ htS := by decide
 @[simp] theorem phtp_htS_ne_kD : htS ≠ kD := by decide
 @[simp] theorem phtp_kD_ne_htS : kD ≠ htS := by decide
+@[simp] theorem phtp_htJ_ne_htF : htJ ≠ htF := by decide
 @[simp] theorem phtp_htJ_ne_htR : htJ ≠ htR := by decide
 @[simp] theorem phtp_htJ_ne_htD : htJ ≠ htD := by decide
 @[simp] theorem phtp_htJ_ne_htH : htJ ≠ htH := by decide
@@ -712,6 +774,7 @@ def fHtp := ofString "headTypePW"
 @[simp] theorem phtp_kFu_ne_htJ : kFu ≠ htJ := by decide
 @[simp] theorem phtp_htJ_ne_kD : htJ ≠ kD := by decide
 @[simp] theorem phtp_kD_ne_htJ : kD ≠ htJ := by decide
+@[simp] theorem phtp_htX_ne_htF : htX ≠ htF := by decide
 @[simp] theorem phtp_htX_ne_htR : htX ≠ htR := by decide
 @[simp] theorem phtp_htX_ne_htD : htX ≠ htD := by decide
 @[simp] theorem phtp_htX_ne_htH : htX ≠ htH := by decide
@@ -758,9 +821,9 @@ def fHtp := ofString "headTypePW"
 @[simp] theorem phtp_htX_ne_kD : htX ≠ kD := by decide
 @[simp] theorem phtp_kD_ne_htX : kD ≠ htX := by decide
 
-def htParams : List MlS := [htR, htD, htH, htN]
+def htParams : List MlS := [htF, htR, htD, htH, htN]
 def htLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, htI, htU, htP, htQ, htLp, htLl, htT, htV, htW, htS, htJ, htX]
-def htBody (C : Ctx) : ProgHOL 64 := prologue htLocals (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv htH)) (.seq eViewP (.ite (.cmp .equal (vv lDg) (.const 3)) (.seq (.assign .local htI (.load .one (vv lRp))) (.seq (.assign .local htU (.load .one (.op .add [(vv lRp), (.const 8)]))) (envFindP C htP (vv htI) (.ite (.cmp .equal (vv htP) (.const 0)) (.return (.const 0)) (.seq (.assign .local htQ (.op .sub [(vv htP), (.const 1)])) (.seq (.assign .local htLp (.load .one (.op .add [(vv htQ), (.const 16)]))) (.seq (.assign .local htLl (.load .one (vv htLp))) (.seq (.assign .local htT (.load .one (.op .add [(vv htQ), (.const 24)]))) (.seq (.assign .local lFl (vv lFls)) (.seq (.assign .local lDh (vv htU)) (.seq lsViewP (.ite (.cmp .notEqual (vv lRn) (vv htLl)) (.return (.const 0)) (.seq (.call (some (some (.local, htV), none)) fPv [(vv htN), (vv htT)]) (.seq (.call (some (some (.local, htW), none)) fRw [(vv htV)]) (.ite (.cmp .equal (vv htW) (.const 0)) (.return (.const 0)) (.seq (.call (some (some (.local, htS), none)) fSa [(.op .add [(vv htLp), (.const 8)]), (vv htLl), (vv htU), (vv htW)]) (.return (vv htS)))))))))))))))))) (.ite (.cmp .equal (vv lDg) (.const 1)) (.seq (.assign .local htT (.load .one (vv lRp))) (.seq (.call (some (some (.local, htV), none)) fPv [(vv htN), (vv htT)]) (.seq (.call (some (some (.local, htW), none)) fRw [(vv htV)]) (.return (vv htW))))) (.ite (.cmp .equal (vv lDg) (.const 0)) (.ite (.cmp .equal (vv lRn) (.const 0)) (.seq (.assign .local htJ (.const 0)) (.ite (.cmp .lower (vv htJ) (vv htD)) (.seq (.call (some (some (.local, htX), none)) fBd [(.op .sub [(.op .sub [(vv htD), (.const 1)]), (vv htJ)]), (vv htR)]) (.ite (.cmp .equal (vv htX) (.const 0)) (.return (.const 0)) (.seq (.call (some (some (.local, htV), none)) fPv [(vv htN), (.op .sub [(vv htX), (.const 1)])]) (.seq (.call (some (some (.local, htW), none)) fRw [(vv htV)]) (.return (vv htW)))))) (.return (.const 0)))) (.ite (.cmp .equal (vv lRn) (.const 1)) (.seq (.assign .local htJ (.load .one (vv lRp))) (.ite (.cmp .lower (vv htJ) (vv htD)) (.seq (.call (some (some (.local, htX), none)) fBd [(.op .sub [(.op .sub [(vv htD), (.const 1)]), (vv htJ)]), (vv htR)]) (.ite (.cmp .equal (vv htX) (.const 0)) (.return (.const 0)) (.seq (.call (some (some (.local, htV), none)) fPv [(vv htN), (.op .sub [(vv htX), (.const 1)])]) (.seq (.call (some (some (.local, htW), none)) fRw [(vv htV)]) (.return (vv htW)))))) (.return (.const 0)))) hang)) (.return (.const 0))))))))
+def htBody (C : Ctx) : ProgHOL 64 := prologue htLocals (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv htH)) (.seq eViewP (.ite (.cmp .equal (vv lDg) (.const 3)) (.seq (.assign .local htI (.load .one (vv lRp))) (.seq (.assign .local htU (.load .one (.op .add [(vv lRp), (.const 8)]))) (envFindP C htP (vv htI) (.ite (.cmp .equal (vv htP) (.const 0)) (.return (.const 0)) (.seq (.assign .local htQ (.op .sub [(vv htP), (.const 1)])) (.seq (.assign .local htLp (.load .one (.op .add [(vv htQ), (.const 16)]))) (.seq (.assign .local htLl (.load .one (vv htLp))) (.seq (.assign .local htT (.load .one (.op .add [(vv htQ), (.const 24)]))) (.seq (.assign .local lFl (vv lFls)) (.seq (.assign .local lDh (vv htU)) (.seq lsViewP (.ite (.cmp .notEqual (vv lRn) (vv htLl)) (.return (.const 0)) (.seq (.call (some (some (.local, htV), none)) fPv [(vv htF), (vv htN), (vv htT)]) (.seq (.call (some (some (.local, htW), none)) fRw [(vv htV)]) (.ite (.cmp .equal (vv htW) (.const 0)) (.return (.const 0)) (.seq (.call (some (some (.local, htS), none)) fSa [(.op .add [(vv htLp), (.const 8)]), (vv htLl), (vv htU), (vv htW)]) (.return (vv htS)))))))))))))))))) (.ite (.cmp .equal (vv lDg) (.const 1)) (.seq (.assign .local htT (.load .one (vv lRp))) (.seq (.call (some (some (.local, htV), none)) fPv [(vv htF), (vv htN), (vv htT)]) (.seq (.call (some (some (.local, htW), none)) fRw [(vv htV)]) (.return (vv htW))))) (.ite (.cmp .equal (vv lDg) (.const 0)) (.ite (.cmp .equal (vv lRn) (.const 0)) (.seq (.assign .local htJ (.const 0)) (.ite (.cmp .lower (vv htJ) (vv htD)) (.seq (.call (some (some (.local, htX), none)) fBd [(.op .sub [(.op .sub [(vv htD), (.const 1)]), (vv htJ)]), (vv htR)]) (.ite (.cmp .equal (vv htX) (.const 0)) (.return (.const 0)) (.seq (.call (some (some (.local, htV), none)) fPv [(vv htF), (vv htN), (.op .sub [(vv htX), (.const 1)])]) (.seq (.call (some (some (.local, htW), none)) fRw [(vv htV)]) (.return (vv htW)))))) (.return (.const 0)))) (.ite (.cmp .equal (vv lRn) (.const 1)) (.seq (.assign .local htJ (.load .one (vv lRp))) (.ite (.cmp .lower (vv htJ) (vv htD)) (.seq (.call (some (some (.local, htX), none)) fBd [(.op .sub [(.op .sub [(vv htD), (.const 1)]), (vv htJ)]), (vv htR)]) (.ite (.cmp .equal (vv htX) (.const 0)) (.return (.const 0)) (.seq (.call (some (some (.local, htV), none)) fPv [(vv htF), (vv htN), (.op .sub [(vv htX), (.const 1)])]) (.seq (.call (some (some (.local, htW), none)) fRw [(vv htV)]) (.return (vv htW)))))) (.return (.const 0)))) hang)) (.return (.const 0))))))))
 
 structure SaCodesFull (C : Ctx) : Prop where
   self : C.code.lookup fSa = some (saParams.map (fun p => (p, ShapeHOL.one)), saBody C, .one)
@@ -778,15 +841,15 @@ structure HtCodes (C : Ctx) : Prop where
 section
 variable {σ : Type}
 
-theorem ht_spec (C : Ctx) (hok : CtxOK C) (hc : HtCodes C) (s : AState) (hwf : LStoreWF s.store.ls) (hrd : RdOK s)
+theorem ht_spec (C : Ctx) (hok : CtxOK C) (hc : HtCodes C) (fuel : Nat) (hf : fuel < 2 ^ 62) (s : AState) (hwf : LStoreWF s.store.ls) (hrd : RdOK s)
     (hSD : ∀ h u, s.store.view h = some (.sort u) → ∃ l, denoteL s.store.ls u = some l)
     (hLP : ∀ c ci, C.fe.find? c = some ci → ∃ ks, Frontend.denoteNList s.store.ns ci.toConstantVal.levelParams = some ks)
     (hLPl : ∀ c ci, C.fe.find? c = some ci → ci.toConstantVal.levelParams.length < 2 ^ 60)
     (hLS : ∀ us uh, s.store.lss.view us = some uh → ∃ vs, denoteLs s.store.lss us = some vs ∧ ∃ hl : vs.length = uh.length,
       ∀ j (hj : j < uh.length), denoteL s.store.ls uh[j] = some (vs[j]'(by rw [hl]; exact hj))) :
     ∀ (H : List (BitVec 64)) (root : EIdx) (d : Nat) (h : EIdx) (n : Nat), C.H <+: H → d < 2 ^ 63 → n < 2 ^ 64 →
-      SpecR (σ := σ) (Pre (ctxH C H) s (htParams.zip [Enc.idxW root, BitVec.ofNat 64 d, Enc.idxW h, BitVec.ofNat 64 n]))
-        (htBody C) s (headTypePW C.fe coreWalkFuel root d h n) (PostSA (ctxH C H) s) := by
+      SpecR (σ := σ) (Pre (ctxH C H) s (htParams.zip [BitVec.ofNat 64 fuel, Enc.idxW root, BitVec.ofNat 64 d, Enc.idxW h, BitVec.ofNat 64 n]))
+        (htBody C) s (headTypePW C.fe fuel root d h n) (PostSA (ctxH C H) s) := by
   intro H root d h n hpH hd hn
   refine specR_prologue (postSA_locals _ s) (Knot.params_none _ htLocals htParams _ (by decide) (by decide)) ?_
   unfold headTypePW
@@ -833,13 +896,13 @@ theorem ht_spec (C : Ctx) (hok : CtxOK C) (hc : HtCodes C) (s : AState) (hwf : L
         try dsimp only
         exact specR_returnI _ 0 rfl (fun t ht => ⟨rdStep_refl hrd, H0, hp0, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
       refine specR_ifI _ 0 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact idxW_add_one_ne D) (fun h => absurd rfl h) (fun _ => ?_)
-      show SpecR _ _ _ (peelPisW C.fe coreWalkFuel n D >>= fun res => residualPW res) _
-      refine specR_callNIH (C := ctxH C H0) htV fPv pvParams [vv htN, .op .sub [vv htX, .const 1]] (pvBody C) [BitVec.ofNat 64 n, Enc.idxW D]
-        (by decide) rfl (by decide) hc.pv.self ⟨by simp +decide [Env.get, htParams, ctxEnv], by simp +decide [sev, Env.get, htParams, ctxEnv, optWG] <;> first | rfl | exact BitVec.add_sub_cancel _ _, trivial⟩
-        (fun r_ w s' st => peelPisW C.fe coreWalkFuel n D s = .ok (r_, s') ∧ UD.PostO (ctxH C H0) r_ w s' st)
-        (fun r_ w s' H' => w = optW r_ ∧ peelPisW C.fe coreWalkFuel n D s = .ok (r_, s'))
+      show SpecR _ _ _ (peelPisW C.fe fuel n D >>= fun res => residualPW res) _
+      refine specR_callNIH (C := ctxH C H0) htV fPv pvParams [vv htF, vv htN, .op .sub [vv htX, .const 1]] (pvBody C) [BitVec.ofNat 64 fuel, BitVec.ofNat 64 n, Enc.idxW D]
+        (by decide) rfl (by decide) hc.pv.self ⟨by simp +decide [Env.get, htParams, ctxEnv], by simp +decide [Env.get, htParams, ctxEnv], by simp +decide [sev, Env.get, htParams, ctxEnv, optWG] <;> first | rfl | exact BitVec.add_sub_cancel _ _, trivial⟩
+        (fun r_ w s' st => peelPisW C.fe fuel n D s = .ok (r_, s') ∧ UD.PostO (ctxH C H0) r_ w s' st)
+        (fun r_ w s' H' => w = optW r_ ∧ peelPisW C.fe fuel n D s = .ok (r_, s'))
         (fun r_ w s' st ⟨hr, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hr⟩, hsr⟩)
-        (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu pvParams _ rfl hlk) (pv_spec C hok hc.pv n H0 D s (hpH.trans hp0) hn)))
+        (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu pvParams _ rfl hlk) (pv_spec C hok hc.pv fuel hf n H0 D s (hpH.trans hp0) hn)))
         (fun res w1 s1 H1 hp1 ⟨hw1, hrun1⟩ => ?_)
       have hs1 := RO.peelPisW _ _ _ _ s res s1 hrun1
       subst s1; subst hw1
@@ -887,13 +950,13 @@ theorem ht_spec (C : Ctx) (hok : CtxOK C) (hc : HtCodes C) (s : AState) (hwf : L
         try dsimp only
         exact specR_returnI _ 0 rfl (fun t ht => ⟨rdStep_refl hrd, H0, hp0, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
       refine specR_ifI _ 0 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact idxW_add_one_ne D) (fun h => absurd rfl h) (fun _ => ?_)
-      show SpecR _ _ _ (peelPisW C.fe coreWalkFuel n D >>= fun res => residualPW res) _
-      refine specR_callNIH (C := ctxH C H0) htV fPv pvParams [vv htN, .op .sub [vv htX, .const 1]] (pvBody C) [BitVec.ofNat 64 n, Enc.idxW D]
-        (by decide) rfl (by decide) hc.pv.self ⟨by simp +decide [Env.get, htParams, ctxEnv], by simp +decide [sev, Env.get, htParams, ctxEnv, optWG] <;> first | rfl | exact BitVec.add_sub_cancel _ _, trivial⟩
-        (fun r_ w s' st => peelPisW C.fe coreWalkFuel n D s = .ok (r_, s') ∧ UD.PostO (ctxH C H0) r_ w s' st)
-        (fun r_ w s' H' => w = optW r_ ∧ peelPisW C.fe coreWalkFuel n D s = .ok (r_, s'))
+      show SpecR _ _ _ (peelPisW C.fe fuel n D >>= fun res => residualPW res) _
+      refine specR_callNIH (C := ctxH C H0) htV fPv pvParams [vv htF, vv htN, .op .sub [vv htX, .const 1]] (pvBody C) [BitVec.ofNat 64 fuel, BitVec.ofNat 64 n, Enc.idxW D]
+        (by decide) rfl (by decide) hc.pv.self ⟨by simp +decide [Env.get, htParams, ctxEnv], by simp +decide [Env.get, htParams, ctxEnv], by simp +decide [sev, Env.get, htParams, ctxEnv, optWG] <;> first | rfl | exact BitVec.add_sub_cancel _ _, trivial⟩
+        (fun r_ w s' st => peelPisW C.fe fuel n D s = .ok (r_, s') ∧ UD.PostO (ctxH C H0) r_ w s' st)
+        (fun r_ w s' H' => w = optW r_ ∧ peelPisW C.fe fuel n D s = .ok (r_, s'))
         (fun r_ w s' st ⟨hr, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hr⟩, hsr⟩)
-        (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu pvParams _ rfl hlk) (pv_spec C hok hc.pv n H0 D s (hpH.trans hp0) hn)))
+        (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu pvParams _ rfl hlk) (pv_spec C hok hc.pv fuel hf n H0 D s (hpH.trans hp0) hn)))
         (fun res w1 s1 H1 hp1 ⟨hw1, hrun1⟩ => ?_)
       have hs1 := RO.peelPisW _ _ _ _ s res s1 hrun1
       subst s1; subst hw1
@@ -921,12 +984,12 @@ theorem ht_spec (C : Ctx) (hok : CtxOK C) (hc : HtCodes C) (s : AState) (hwf : L
     refine specR_loadI' htT (vv lRp) P (P + BitVec.ofNat 64 0) (Enc.idxW ty) (by decide) (by simp) (by simp)
       (by simpa [encEView, Enc.encFVar] using wordsAt_mem0 P (Enc.idxW ty) (limbs i) []) ?_
     refine specR_dropM ?_
-    refine specR_callNIH (C := ctxH C H) htV fPv pvParams [vv htN, vv htT] (pvBody C) [BitVec.ofNat 64 n, Enc.idxW ty]
-      (by decide) rfl (by decide) hc.pv.self ⟨by simp +decide [Env.get, htParams, ctxEnv], by simp +decide [sev, Env.get, htParams, ctxEnv, optWG] <;> first | rfl | exact BitVec.add_sub_cancel _ _, trivial⟩
-      (fun r_ w s' st => peelPisW C.fe coreWalkFuel n ty s = .ok (r_, s') ∧ UD.PostO (ctxH C H) r_ w s' st)
-      (fun r_ w s' H' => w = optW r_ ∧ peelPisW C.fe coreWalkFuel n ty s = .ok (r_, s'))
+    refine specR_callNIH (C := ctxH C H) htV fPv pvParams [vv htF, vv htN, vv htT] (pvBody C) [BitVec.ofNat 64 fuel, BitVec.ofNat 64 n, Enc.idxW ty]
+      (by decide) rfl (by decide) hc.pv.self ⟨by simp +decide [Env.get, htParams, ctxEnv], by simp +decide [Env.get, htParams, ctxEnv], by simp +decide [sev, Env.get, htParams, ctxEnv, optWG] <;> first | rfl | exact BitVec.add_sub_cancel _ _, trivial⟩
+      (fun r_ w s' st => peelPisW C.fe fuel n ty s = .ok (r_, s') ∧ UD.PostO (ctxH C H) r_ w s' st)
+      (fun r_ w s' H' => w = optW r_ ∧ peelPisW C.fe fuel n ty s = .ok (r_, s'))
       (fun r_ w s' st ⟨hr, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hr⟩, hsr⟩)
-      (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu pvParams _ rfl hlk) (pv_spec C hok hc.pv n H ty s hpH hn)))
+      (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu pvParams _ rfl hlk) (pv_spec C hok hc.pv fuel hf n H ty s hpH hn)))
       (fun res w1 s1 H1 hp1 ⟨hw1, hrun1⟩ => ?_)
     have hs1 := RO.peelPisW _ _ _ _ s res s1 hrun1
     subst s1; subst hw1
@@ -994,12 +1057,12 @@ theorem ht_spec (C : Ctx) (hok : CtxOK C) (hc : HtCodes C) (s : AState) (hwf : L
       exact specR_returnI _ 0 rfl (fun t ht => ⟨rdStep_refl hrd, H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlen]) (fun h => absurd rfl h) (fun _ => ?_)
     rw [if_pos hlen]
-    refine specR_callNIH (C := ctxH C H) htV fPv pvParams [vv htN, vv htT] (pvBody C) [BitVec.ofNat 64 n, Enc.idxW ci.toConstantVal.type]
-      (by decide) rfl (by decide) hc.pv.self ⟨by simp +decide [Env.get, htParams, ctxEnv], by simp +decide [sev, Env.get, htParams, ctxEnv, optWG] <;> first | rfl | exact BitVec.add_sub_cancel _ _, trivial⟩
-      (fun r_ w s' st => peelPisW C.fe coreWalkFuel n ci.toConstantVal.type s = .ok (r_, s') ∧ UD.PostO (ctxH C H) r_ w s' st)
-      (fun r_ w s' H' => w = optW r_ ∧ peelPisW C.fe coreWalkFuel n ci.toConstantVal.type s = .ok (r_, s'))
+    refine specR_callNIH (C := ctxH C H) htV fPv pvParams [vv htF, vv htN, vv htT] (pvBody C) [BitVec.ofNat 64 fuel, BitVec.ofNat 64 n, Enc.idxW ci.toConstantVal.type]
+      (by decide) rfl (by decide) hc.pv.self ⟨by simp +decide [Env.get, htParams, ctxEnv], by simp +decide [Env.get, htParams, ctxEnv], by simp +decide [sev, Env.get, htParams, ctxEnv, optWG] <;> first | rfl | exact BitVec.add_sub_cancel _ _, trivial⟩
+      (fun r_ w s' st => peelPisW C.fe fuel n ci.toConstantVal.type s = .ok (r_, s') ∧ UD.PostO (ctxH C H) r_ w s' st)
+      (fun r_ w s' H' => w = optW r_ ∧ peelPisW C.fe fuel n ci.toConstantVal.type s = .ok (r_, s'))
       (fun r_ w s' st ⟨hr, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hr⟩, hsr⟩)
-      (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu pvParams _ rfl hlk) (pv_spec C hok hc.pv n H ci.toConstantVal.type s hpH hn)))
+      (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu pvParams _ rfl hlk) (pv_spec C hok hc.pv fuel hf n H ci.toConstantVal.type s hpH hn)))
       (fun res w1 s1 H1 hp1 ⟨hw1, hrun1⟩ => ?_)
     have hs1 := RO.peelPisW _ _ _ _ s res s1 hrun1
     subst s1; subst hw1
