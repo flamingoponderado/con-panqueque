@@ -571,8 +571,8 @@ structure CtxOK (C : Ctx) : Prop where
   /-- The ghost environment tables represent `C.fe`. -/
   envRel : EnvRel C
   pinsRel : PinsE C
-  /-- The value heap holds fewer than `2^59` words (spines and blocks stay below `mkAppN`'s bound). -/
-  heapCap : C.HN < 2 ^ 59
+  /-- The value heap holds fewer than `2^58` words (blocks stay below `mkAppN`'s bound, limb shifts below `2^64`). -/
+  heapCap : C.HN < 2 ^ 58
   /-- Environment-heap pointers plus one are nonzero (`find?` answers `0` for a miss). -/
   envLay : C.EB.toNat + 8 * C.EN + 8 < 2 ^ 64
 
