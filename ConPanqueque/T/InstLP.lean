@@ -1038,4 +1038,87 @@ theorem constI_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
 
 end
 
+theorem get_tagN (t : ETables) (i : EIdx) (v : ENodeView) (h : t.get i = some v) : v.tagN = i.tag.toNat := by
+  unfold ETables.get at h
+  repeat' split at h
+  all_goals first
+    | (simp at h; done)
+    | (rename_i hb; obtain ⟨r, -, rfl⟩ := Option.map_eq_some_iff.mp h
+       simp only [beq_iff_eq] at hb; rw [hb]; rfl)
+    | (rename_i hb _; obtain ⟨r, -, rfl⟩ := Option.map_eq_some_iff.mp h
+       simp only [beq_iff_eq] at hb; rw [hb]; rfl)
+
+theorem view_tagN (st : EStore) (i : EIdx) (v : ENodeView) (h : st.view i = some v) : v.tagN = i.tag.toNat := by
+  unfold EStore.view at h
+  split at h
+  · exact get_tagN _ _ _ h
+  · split at h
+    · exact get_tagN _ _ _ h
+    · simp at h
+
+theorem view_of_denoteE (st : EStore) (h : EIdx) (hd : (denoteE st h).isSome = true) : ∃ v, st.view h = some v := by
+  unfold denoteE at hd
+  generalize st.nodeCount + 1 = f at hd
+  cases f with
+  | zero => simp [denoteEAux] at hd
+  | succ f =>
+    simp only [denoteEAux] at hd
+    cases e : st.view h with
+    | none => rw [e] at hd; simp at hd
+    | some v => exact ⟨v, rfl⟩
+
+theorem lp_bit (w : UInt64) : (w.toBitVec &&& 1 = 0) ↔ ConLeche.lpOfData w = false := by
+  simp only [ConLeche.lpOfData, beq_eq_false_iff_ne, ne_eq]
+  constructor
+  · intro h e
+    have := congrArg BitVec.toNat h
+    simp [BitVec.toNat_and] at this
+    have h1 : (1 : BitVec 64).toNat = 2 ^ 1 - 1 := rfl
+    rw [UInt64.toNat_inj.symm] at e
+    simp [UInt64.toNat_mod] at e
+    omega
+  · intro h
+    apply BitVec.eq_of_toNat_eq
+    simp [BitVec.toNat_and]
+    have : w.toNat % 2 ≠ 1 := fun e => h (UInt64.toNat_inj.mp (by simp [UInt64.toNat_mod, e]))
+    have h2 : w.toNat % 2 = 0 := by omega
+    simpa using h2
+
+section
+variable {σ : Type}
+open ConRon.Bridge.ExprOps
+
+theorem params_noneILP (vals : List (BitVec 64)) (C : Ctx) :
+    ∀ x, x ∈ inst1Locals → (ctxEnv C ++ ilpParams.zip vals).get x = none := by
+  intro x hx
+  have hnot : x ∉ ilpParams := by
+    simp only [inst1Locals, List.mem_cons, List.not_mem_nil, or_false] at hx
+    rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> decide
+  have hc : (ctxEnv C).get x = none := by
+    simp only [inst1Locals, List.mem_cons, List.not_mem_nil, or_false] at hx
+    rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> rfl
+  have hz : ∀ (ps : List MlS) (vs : List (BitVec 64)), x ∉ ps → Env.get (ps.zip vs) x = none := by
+    intro ps vs hp
+    induction ps generalizing vs with
+    | nil => rfl
+    | cons p ps ih =>
+      cases vs with
+      | nil => rfl
+      | cons v vs =>
+        simp only [List.mem_cons, not_or] at hp
+        simp only [List.zip_cons_cons, Env.get, hp.1, ite_false]; exact ih vs hp.2
+  have happ : ∀ (A B : Env), A.get x = none → B.get x = none → (A ++ B).get x = none := by
+    intro A B hA hB
+    induction A with
+    | nil => exact hB
+    | cons p A ih =>
+      obtain ⟨y, v⟩ := p
+      simp only [List.cons_append, Env.get] at hA ⊢
+      split at hA
+      · simp at hA
+      · rename_i e; simp only [e, ite_false]; exact ih hA
+  exact happ _ _ hc (hz _ _ hnot)
+
+end
+
 end ConPanqueque.T.ILP
