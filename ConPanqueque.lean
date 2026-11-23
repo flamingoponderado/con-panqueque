@@ -133,6 +133,7 @@ import ConPanqueque.T.InstLP
 import ConPanqueque.T.InstLPFast
 import ConPanqueque.T.Ex.Prepend
 import ConPanqueque.T.Ex.StripPis
+import ConPanqueque.T.Ex.BinderPair
 import ConPanqueque.T.CallN
 import ConPanqueque.V.DerWrite
 import ConPanqueque.LevelFns
