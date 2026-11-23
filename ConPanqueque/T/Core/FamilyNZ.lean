@@ -409,9 +409,9 @@ def fzZ := ofString "fzz"
 
 def fzLocals : List MlS := [fzN, fzT, fzR, fzX, fzP, fzL, fzB, fzY, fzA, fzI, fzS, fzZ, lCn, lSrc, lDst, lCi, lCz]
 
-def fzCore (C : Ctx) : ProgHOL 64 :=
-  .seq (.assign .local fzN (.load .one (.op .add [vv fzQ, .const 72])))
-  (.ite (vv fzN) (.return (.const 1))
+def fFza := ofString "formerNeverZeroAt"
+
+def fzaCore (C : Ctx) : ProgHOL 64 :=
   (.seq (.assign .local fzT (.load .one (.op .add [vv fzQ, .const 24])))
   (.seq (.call (some (some (.local, fzR), none)) fFs [vv fzT])
   (.ite (.cmp .notEqual (vv fzR) (.const 0))
@@ -431,9 +431,16 @@ def fzCore (C : Ctx) : ProgHOL 64 :=
   (.seq (.call (some (some (.local, fzS), none)) fFsl [vv kFu, .const 0, .op .add [vv fzA, vv fzI], vv fzY])
   (.ite (.cmp .equal (vv fzS) (.const 0)) (.return (.const 0))
   (.seq (.call (some (some (.local, fzZ), none)) fNz0 [.op .sub [vv fzS, .const 1]])
-    (.return (vv fzZ))))))))))))))))))))
+    (.return (vv fzZ)))))))))))))))))))
 
-def fzBody (C : Ctx) : ProgHOL 64 := prologue fzLocals (fzCore C)
+def fzaBody (C : Ctx) : ProgHOL 64 := prologue fzLocals (fzaCore C)
+
+def fzCore : ProgHOL 64 :=
+  .seq (.assign .local fzN (.load .one (.op .add [vv fzQ, .const 72])))
+  (.ite (vv fzN) (.return (.const 1))
+  (.seq (.call (some (some (.local, fzX), none)) fFza [vv kFu, vv kD, vv fzQ, vv fzU]) (.return (vv fzX))))
+
+def fzBody : ProgHOL 64 := prologue fzLocals fzCore
 
 structure FzCodes (C : Ctx) : Prop where
   fs : C.code.lookup fFs = some ([(fsT, ShapeHOL.one)], fsBody, .one)
@@ -446,6 +453,7 @@ structure FzCodes (C : Ctx) : Prop where
   ilpf : C.code.lookup fInstLPF = some (ilpParams.map (fun p => (p, ShapeHOL.one)), ilpfBody C, .one)
   ilp : CodesILP C (ilpBody C)
   fq : FqCodes C
+  fza : C.code.lookup fFza = some (fzParams.map (fun p => (p, ShapeHOL.one)), fzaBody C, .one)
 
 section
 variable {σ : Type}
@@ -458,7 +466,7 @@ theorem fz_ecell72 (C : Ctx) (o : Nat) : ecell C o + 72 = ecell C (o + 9) := by 
 theorem fz_ecell48 (C : Ctx) (o : Nat) : ecell C o + 48 = ecell C (o + 6) := by simpa using ecell_add C o 6
 theorem fz_ecell56 (C : Ctx) (o : Nat) : ecell C o + 56 = ecell C (o + 7) := by simpa using ecell_add C o 7
 
-theorem fz_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
+theorem fza_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C) (hc : FzCodes C) (hn : n < 2 ^ 64)
     (hW : ∀ (H : List (BitVec 64)) s1, C.H <+: H → ∀ d e', Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d e')
@@ -476,24 +484,13 @@ theorem fz_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       (denoteL s3.store.ls u).isSome = true ∧ LStoreWF s3.store.ls ∧ ReadLCacheOK s3.caches.readLC s3.store)
     (hlen : cvT.levelParams.length + 1 < 2 ^ 60) (hK : caps.nparams + caps.nIdx < 2 ^ 63) :
     SpecR (σ := σ) (Pre C s (fzParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, ecell C o, Enc.idxW us]))
-      (fzBody C) s (familyNeverZeroAt (knot mode C n) cvT caps us) (PostB C) := by
-  obtain ⟨hcv, -, -, -, ⟨hnpW, -⟩, ⟨hniW, -⟩, -, hnz⟩ := hci
+      (fzaBody C) s (formerNeverZeroAt (knot mode C n) cvT caps us) (PostB C) := by
+  obtain ⟨hcv, -, -, -, ⟨hnpW, -⟩, ⟨hniW, -⟩, -, -⟩ := hci
   have hcv' : CVE C.EB C.EH (o + 1) cvT := hcv
   obtain ⟨_, ⟨wl, hwl, o', hwl', hblk⟩, hty⟩ := id hcv'
   subst hwl'
   refine specR_prologue (postB_locals C) (fz_none C _) ?_
-  unfold fzCore
-  refine specR_envLoadI fzN (.op .add [vv fzQ, .const 72]) (o + 9) _ (by decide)
-    (by simp +decide [sev, Env.get, fzParams, ctxEnv]; exact fz_ecell72 C o) hnz ?_
-  unfold familyNeverZeroAt
-  by_cases hz : caps.neverZero = true
-  · rw [if_pos hz]
-    refine specR_ifI _ (boolW caps.neverZero) (by simp +decide [sev, Env.get]) (fun _ => ?_)
-      (fun h => absurd h (by simp [boolW, hz]))
-    exact specR_returnI _ 1 rfl (fun t ht => ⟨C.H, List.prefix_refl _, by simp [boolW], sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_neg hz]
-  refine specR_ifI _ (boolW caps.neverZero) (by simp +decide [sev, Env.get])
-    (fun h => absurd h (by simp [boolW, hz])) (fun _ => ?_)
+  unfold fzaCore
   refine specR_envLoadI fzT (.op .add [vv fzQ, .const 24]) (o + 3) _ (by decide)
     (by simp +decide [sev, Env.get, fzParams, ctxEnv]; exact fn_ecell24 C o) (by simpa [Nat.add_assoc] using hty) ?_
   refine specR_congr (m' := formerResSort cvT.type >>= fun r =>
@@ -619,6 +616,51 @@ theorem fz_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     subst hw
     exact specR_returnI _ (boolW b) (by simp [Env.get])
       (fun t ht => ⟨H2, hp1.trans hp2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+theorem fz_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
+    (hok : CtxOK C) (hc : FzCodes C) (hn : n < 2 ^ 64)
+    (hW : ∀ (H : List (BitVec 64)) s1, C.H <+: H → ∀ d e', Callee (σ := σ) (ctxH C H) kParams
+      [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d e')
+      (PostK (ctxH C H)))
+    (s : AState) (d : Nat) (cvT : IConstantVal) (caps : IIndCaps) (o : Nat)
+    (hci : CIE C.EB C.EH o (.indInfo cvT caps)) (us : LsIdx)
+    (hwf : LStoreWF s.store.ls) (hst : StateOK s)
+    (ks : List ConLeche.Name) (hks : Frontend.denoteNList s.store.ns cvT.levelParams = some ks)
+    (vs : List ConLeche.Level) (hus : denoteLs s.store.lss us = some vs)
+    (hrn : ReadNCacheOK s.caches.readNC s.store) (hrl : ReadLCacheOK s.caches.readLC s.store)
+    (hrls : ReadLsCacheOK s.caches.readLsC s.store) (hden : (denoteE s.store cvT.type).isSome = true)
+    (hsd : ∀ u, formerResSort cvT.type s = .ok (some u, s) → (denoteL s.store.ls u).isSome = true)
+    (hsl : ∀ ty s2 u s3, instLPFast coreWalkFuel cvT.levelParams us cvT.type s = .ok (ty, s2) →
+      formerSortLoop (knot mode C n) 0 (caps.nparams + caps.nIdx) ty s2 = .ok (some u, s3) →
+      (denoteL s3.store.ls u).isSome = true ∧ LStoreWF s3.store.ls ∧ ReadLCacheOK s3.caches.readLC s3.store)
+    (hlen : cvT.levelParams.length + 1 < 2 ^ 60) (hK : caps.nparams + caps.nIdx < 2 ^ 63) :
+    SpecR (σ := σ) (Pre C s (fzParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, ecell C o, Enc.idxW us]))
+      fzBody s (familyNeverZeroAt (knot mode C n) cvT caps us) (PostB C) := by
+  have hnz : C.EH[o + 9]? = some (boolW caps.neverZero) := hci.2.2.2.2.2.2.2
+  refine specR_prologue (postB_locals C) (fz_none C _) ?_
+  unfold fzCore
+  refine specR_envLoadI fzN (.op .add [vv fzQ, .const 72]) (o + 9) _ (by decide)
+    (by simp +decide [sev, Env.get, fzParams, ctxEnv]; exact fz_ecell72 C o) hnz ?_
+  unfold familyNeverZeroAt
+  by_cases hz : caps.neverZero = true
+  · rw [if_pos hz]
+    refine specR_ifI _ (boolW caps.neverZero) (by simp +decide [sev, Env.get]) (fun _ => ?_)
+      (fun h => absurd h (by simp [boolW, hz]))
+    exact specR_returnI _ 1 rfl (fun t ht => ⟨C.H, List.prefix_refl _, by simp [boolW], sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  rw [if_neg hz]
+  refine specR_ifI _ (boolW caps.neverZero) (by simp +decide [sev, Env.get])
+    (fun h => absurd h (by simp [boolW, hz])) (fun _ => ?_)
+  refine specR_bindPure ?_
+  refine specR_callNIH fzX fFza fzParams [vv kFu, vv kD, vv fzQ, vv fzU] (fzaBody C)
+    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, ecell C o, Enc.idxW us] (by decide) rfl (by decide) hc.fza
+    ⟨by simp +decide [Env.get, fzParams, ctxEnv], by simp +decide [Env.get, fzParams, ctxEnv],
+      by simp +decide [Env.get, fzParams, ctxEnv], by simp +decide [Env.get, fzParams, ctxEnv], trivial⟩
+    (PostB C) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu fzParams _ rfl hlk)
+      (fza_spec ra mode n C hok hc hn hW s d cvT caps o hci us hwf hst ks hks vs hus hrn hrl hrls hden hsd hsl hlen hK))
+    (fun b w s1 H1 hp1 hw => ?_)
+  subst hw
+  exact specR_returnI _ (boolW b) (by simp) (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 end
 
