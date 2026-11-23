@@ -110,4 +110,68 @@ theorem cr_row (x y i : Nat) (hy : y < B ^ (limbs y).length) :
 theorem Pm_full (x y : Nat) : Pm x y (limbs x).length = x * y := by
   unfold Pm; rw [Nat.mod_eq_of_lt ((limbs_length_lt_iff x _).mp (Nat.le_refl _))]
 
+/-- The result cells during row `i` at column `j`. -/
+def Rl (x y N i j : Nat) : List (BitVec 64) :=
+  (List.range N).map fun k => BitVec.ofNat 64 (if k < i + j then dg (Tm x y i j) k else dg (Pm x y i) k)
+
+theorem Rl_length (x y N i j : Nat) : (Rl x y N i j).length = N := by simp [Rl]
+
+theorem Rl_get (x y N i j k : Nat) (hk : k < N) :
+    (Rl x y N i j)[k]'(by rw [Rl_length]; exact hk) =
+      BitVec.ofNat 64 (if k < i + j then dg (Tm x y i j) k else dg (Pm x y i) k) := by
+  simp [Rl]
+
+theorem Rl_step (x y N i j : Nat) (h : i + j < N) :
+    (Rl x y N i j).set (i + j) (BitVec.ofNat 64 (dg (Tm x y i (j + 1)) (i + j))) = Rl x y N i (j + 1) := by
+  apply List.ext_getElem
+  · simp [Rl_length]
+  · intro k h1 h2
+    rw [List.getElem_set]
+    have hk : k < N := by simpa [Rl_length] using h2
+    rw [Rl_get x y N i (j + 1) k hk]
+    split
+    · rename_i e; subst e; simp
+    · rename_i e
+      rw [Rl_get x y N i j k hk]
+      by_cases hl : k < i + j
+      · rw [if_pos hl, if_pos (by omega), Tm_succ, digit_low _ _ _ _ hl]
+      · rw [if_neg hl, if_neg (by omega)]
+
+theorem Rl_read (x y N i j : Nat) (h : i + j < N) :
+    (Rl x y N i j)[i + j]? = some (BitVec.ofNat 64 (dg (Pm x y i) (i + j))) := by
+  rw [List.getElem?_eq_getElem (by rw [Rl_length]; exact h), Rl_get x y N i j _ h, if_neg (by omega)]
+
+theorem Rl_row (x y N i : Nat) (hy : y < B ^ (limbs y).length) (h : i + (limbs y).length < N) :
+    (Rl x y N i (limbs y).length).set (i + (limbs y).length) (BitVec.ofNat 64 (cr x y i (limbs y).length)) =
+      Rl x y N (i + 1) 0 := by
+  apply List.ext_getElem
+  · simp [Rl_length]
+  · intro k h1 h2
+    have hk : k < N := by simpa [Rl_length] using h2
+    rw [List.getElem_set, Rl_get x y N (i + 1) 0 k hk, Tm_zero]
+    have e : (if k < i + 1 + 0 then dg (Pm x y (i + 1)) k else dg (Pm x y (i + 1)) k) = dg (Pm x y (i + 1)) k := by
+      split <;> rfl
+    rw [e]
+    split
+    · rename_i e2; subst e2; rw [cr_row x y i hy, Pm_succ x y i hy]
+    · rename_i e2
+      rw [Rl_get x y N i _ k hk]
+      by_cases hl : k < i + (limbs y).length
+      · rw [if_pos hl, Pm_succ x y i hy]
+      · rw [if_neg hl, dg_big _ _ (Nat.lt_of_lt_of_le (Pm_lt x y i hy) (Nat.pow_le_pow_right Bpos (by omega))),
+          dg_big _ _ (Nat.lt_of_lt_of_le (Pm_lt x y (i + 1) hy) (Nat.pow_le_pow_right Bpos (by omega)))]
+
+theorem Rl_init (x y N : Nat) : Rl x y N 0 0 = List.replicate N 0 := by
+  apply List.ext_getElem
+  · simp [Rl_length]
+  · intro k h1 h2
+    have hk : k < N := by simpa [Rl_length] using h1
+    rw [Rl_get x y N 0 0 k hk]
+    simp [Pm, dg, Nat.mod_one]
+
+theorem Rl_final (x y N k : Nat) (hk : k < N) :
+    (Rl x y N (limbs x).length 0)[k]? = some (BitVec.ofNat 64 (dg (x * y) k)) := by
+  rw [List.getElem?_eq_getElem (by rw [Rl_length]; exact hk), Rl_get x y N _ 0 k hk, Tm_zero, Pm_full]
+  split <;> rfl
+
 end ConPanqueque.T.Big
