@@ -104,4 +104,28 @@ theorem specR_forI {α : Type} {s : AState} {m : AM α} {R : α → BitVec 64 �
         · exact Or.inr ⟨hn', i + 1, by omega, hq⟩)
   exact W t ⟨0, Nat.zero_le _, ht⟩
 
+/-- The counted loop as a `Step` (for a loop nested in another loop's body). -/
+theorem step_forI {D : List MlS} {M : Mem} {s : AState} (c : ExpHOL 64) (body : ProgHOL 64) (n : Nat)
+    (K : Nat → Ctx) (G : Nat → Env)
+    (hc : ∀ i, i ≤ n → ∃ w, sev (G i) c = some w ∧ (w ≠ 0 ↔ i < n))
+    (hb : ∀ i, i < n → Step (Inv (σ := σ) (K i) s (G i) M D) body (Inv (K (i + 1)) s (G (i + 1)) M D)) :
+    Step (Inv (σ := σ) (K 0) s (G 0) M D) (.while c body) (Inv (K n) s (G n) M D) := by
+  intro t ht
+  exact while_stop (σ := σ) c body (fun u => ∃ i, i ≤ n ∧ Inv (K i) s (G i) M D u) (Inv (K n) s (G n) M D)
+    (by
+      intro u hu
+      obtain ⟨i, hi, hu⟩ := hu
+      obtain ⟨w, hw, hiff⟩ := hc i hi
+      refine ⟨w, ?_, fun h0 => ?_, fun hn _ => ?_⟩
+      · simp only [evalHOLFinite]; exact inv_ev hu hw
+      · have : i = n := by
+          rcases Nat.lt_or_ge i n with hlt | hge
+          · exact absurd h0 (hiff.mpr hlt)
+          · omega
+        subst this; exact hu
+      · have hlt := hiff.mp hn
+        rcases hb i hlt _ (inv_decClock hu) with hs | ⟨hn', hq⟩
+        · exact Or.inl hs
+        · exact Or.inr ⟨hn', i + 1, by omega, hq⟩) t ⟨0, Nat.zero_le _, ht⟩
+
 end ConPanqueque.T
