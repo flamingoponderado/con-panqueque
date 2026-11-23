@@ -228,43 +228,43 @@ section
 variable {σ : Type}
 
 /-- A fresh level-handle block, the heap extended, any final state. -/
-def PostAL (C : Ctx) (xs : List LIdx) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
-  ∃ H' o, C.H <+: H' ∧ w = cellA C o ∧ BlkAt H' o (xs.map Enc.idxW) ∧ SR (ctxH C H') s' st
+def PostAL (C : Ctx) (L : Nat) (xs : List LIdx) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
+  ∃ H' o, C.H <+: H' ∧ L ≤ o ∧ w = cellA C o ∧ BlkAt H' o (xs.map Enc.idxW) ∧ SR (ctxH C H') s' st
 
-theorem postAL_locals (C : Ctx) : ∀ (a : List LIdx) w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
-    PostAL C a w s' st → PostAL C a w s' { st with locals := L } :=
-  fun _ _ _ _ _ ⟨H', o, hp, hw, hb, hsr⟩ => ⟨H', o, hp, hw, hb, sr_of_eq hsr rfl rfl rfl rfl⟩
+theorem postAL_locals (C : Ctx) (L0 : Nat) : ∀ (a : List LIdx) w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
+    PostAL C L0 a w s' st → PostAL C L0 a w s' { st with locals := L } :=
+  fun _ _ _ _ _ ⟨H', o, hp, h0, hw, hb, hsr⟩ => ⟨H', o, hp, h0, hw, hb, sr_of_eq hsr rfl rfl rfl rfl⟩
 
 theorem rg_none (C : Ctx) (vals : List (BitVec 64)) :
     ∀ x, x ∈ rgLocals → (ctxEnv C ++ rgParams.zip vals).get x = none :=
   Knot.params_none C rgLocals rgParams vals (by decide) (by decide)
 
 theorem rgL_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : RgCodes C)
-    (ko : Nat) (khs : List NIdx) (ks : List ConLeche.Name) (us : LsIdx) (uh : List LIdx) (vs : List ConLeche.Level) :
+    (ko : Nat) (khs : List NIdx) (ks : List ConLeche.Name) (us : LsIdx) (uh : List LIdx) (vs : List ConLeche.Level) (L : Nat) :
     ∀ (src : List LIdx) (qs : Nat) (H : List (BitVec 64)) (acc : List LIdx) (oa : Nat) (s : AState), C.H <+: H →
       (∀ j (hj : j < src.length), C.EH[qs + j]? = some (Enc.idxW src[j])) → BlkAt H oa (acc.map Enc.idxW) →
       BlkAt H ko (khs.map Enc.idxW) → Frontend.denoteNList s.store.ns khs = some ks →
       s.store.lss.view us = some uh → denoteLList s.store.ls uh = some vs → StoreWF s.store →
       ReadLCacheOK s.caches.readLC s.store → (∀ j (hj : j < src.length), (denoteL s.store.ls src[j]).isSome = true) →
-      src.length < 2 ^ 60 →
+      src.length < 2 ^ 60 → L ≤ oa → L ≤ H.length →
       SpecR (σ := σ) (Pre (ctxH C H) s (rgParams.zip [boolW false, ecell C qs, BitVec.ofNat 64 src.length, cellA C ko,
         Enc.idxW us, cellA C oa])) (rgBody C) s (substLevelsAt ks vs src >>= fun hs => pure (acc ++ hs))
-        (PostAL (ctxH C H)) := by
+        (PostAL (ctxH C H) L) := by
   intro src
   induction src with
   | nil =>
-    intro qs H acc oa s hp hsrc hb hko hks hu hvs hwf hrl hden hlen
-    refine specR_prologue (postAL_locals _) (rg_none _ _) ?_
+    intro qs H acc oa s hp hsrc hb hko hks hu hvs hwf hrl hden hlen hLo hLH
+    refine specR_prologue (postAL_locals _ _) (rg_none _ _) ?_
     unfold rgCore
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, rgParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
       (fun _ => ?_) (fun h => absurd h (by decide))
     simp only [substLevelsAt, pure_bind, List.append_nil]
     exact specR_returnI _ (cellA C oa) (by simp +decide [Env.get, rgParams, ctxEnv] <;> rfl)
-      (fun t ht => ⟨H, oa, List.prefix_refl _, rfl, hb, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      (fun t ht => ⟨H, oa, List.prefix_refl _, hLo, rfl, hb, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   | cons u src ih =>
-    intro qs H acc oa s hp hsrc hb hko hks hu hvs hwf hrl hden hlen
+    intro qs H acc oa s hp hsrc hb hko hks hu hvs hwf hrl hden hlen hLo hLH
     have hok1 := ctxOK_H hok H
-    refine specR_prologue (postAL_locals _) (rg_none _ _) ?_
+    refine specR_prologue (postAL_locals _ _) (rg_none _ _) ?_
     unfold rgCore
     have hne := ofNat_succ_ne src.length (by simp at hlen; omega)
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, rgParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
@@ -291,9 +291,9 @@ theorem rgL_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
           (lrep_arena _ _ _ u _ l hl)))
       (fun h w s2 H2 hp2 ⟨hw, wf2, ⟨ls2, es2, g2⟩, x2⟩ => ?_)
     subst hw es2
-    refine ExPre.specR_callApp (C := ctxH C H2) (ctxOK_H hok H2) hc.app rgA2 (vv rgA) (vv rgH) oa
+    refine ExPre.specR_callAppF (C := ctxH C H2) (ctxOK_H hok H2) hc.app rgA2 (vv rgA) (vv rgH) oa
       (acc.map Enc.idxW) (Enc.idxW h) (by decide) (blkAt_mono hb hp2)
-      (by simp +decide [Env.get, rgParams, ctxEnv]; rfl) (by simp) (fun H3 o3 hp3 hb3 => ?_)
+      (by simp +decide [Env.get, rgParams, ctxEnv]; rfl) (by simp) (fun H3 o3 hp3 h03 hb3 => ?_)
     have hb3' : BlkAt H3 o3 ((acc ++ [h]).map Enc.idxW) := by simpa using hb3
     refine specR_congr (m' := (substLevelsAt ks vs src >>= fun hs => pure ((acc ++ [h]) ++ hs)) >>= fun r => pure r)
       (by simp) ?_
@@ -306,8 +306,8 @@ theorem rgL_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
         by simp +decide [sev, Env.get, rgParams, ctxEnv]; exact Ex.ofNat_succ_sub_one _,
         by simp +decide [Env.get, rgParams, ctxEnv] <;> rfl, by simp +decide [Env.get, rgParams, ctxEnv],
         by simp <;> rfl, trivial⟩
-      (PostAL (ctxH C H3)) (fun a w _ H4 => ∃ o4, w = cellA C o4 ∧ BlkAt H4 o4 (a.map Enc.idxW))
-      (fun a w s' st ⟨H4, o4, hp4, hw, hb4, hsr⟩ => ⟨H4, hp4, ⟨o4, hw, hb4⟩, hsr⟩)
+      (PostAL (ctxH C H3) L) (fun a w _ H4 => ∃ o4, L ≤ o4 ∧ w = cellA C o4 ∧ BlkAt H4 o4 (a.map Enc.idxW))
+      (fun a w s' st ⟨H4, o4, hp4, hL4, hw, hb4, hsr⟩ => ⟨H4, hp4, ⟨o4, hL4, hw, hb4⟩, hsr⟩)
       (fun u' hu' _ hlk => Knot.specR_of_pre u' (pre_of_lookups hu' rgParams _ rfl hlk)
         (ih (qs + 1) H3 (acc ++ [h]) o3 _ (hp.trans (hp2.trans hp3))
           (fun j hj => by have h' := hsrc (j + 1) (by simp; omega); rw [show qs + (j + 1) = qs + 1 + j by omega] at h'; simpa using h')
@@ -318,42 +318,43 @@ theorem rgL_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
             obtain ⟨l', hl'⟩ := Option.isSome_iff_exists.mp (hden (j + 1) (by simp; omega))
             simp only [List.getElem_cons_succ] at hl'
             rw [denoteL_ext hl' x2]; rfl)
-          (by simp at hlen; omega)))
-      (fun r w s4 H4 hp4 ⟨o4, hw, hb4⟩ => ?_)
+          (by simp at hlen; omega) (by have e1 := hp2.length_le; simp only [ctxH] at e1 h03; omega)
+          (by have e1 := hp2.length_le; have e2 := hp3.length_le; simp only [ctxH] at e1 e2; omega)))
+      (fun r w s4 H4 hp4 ⟨o4, hL4, hw, hb4⟩ => ?_)
     subst hw
     exact specR_returnI _ (cellA C o4) (by simp)
-      (fun t ht => ⟨H4, o4, hp2.trans (hp3.trans hp4), rfl, by simpa using hb4, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      (fun t ht => ⟨H4, o4, hp2.trans (hp3.trans hp4), hL4, rfl, by simpa using hb4, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 theorem rgP_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : RgCodes C)
-    (ko : Nat) (khs : List NIdx) (ks : List ConLeche.Name) (us : LsIdx) (uh : List LIdx) (vs : List ConLeche.Level) :
+    (ko : Nat) (khs : List NIdx) (ks : List ConLeche.Name) (us : LsIdx) (uh : List LIdx) (vs : List ConLeche.Level) (L : Nat) :
     ∀ (src : List NIdx) (pns : List ConLeche.Name) (qs : Nat) (H : List (BitVec 64)) (acc : List LIdx) (oa : Nat)
       (s : AState), C.H <+: H →
       (∀ j (hj : j < src.length), C.EH[qs + j]? = some (Enc.idxW src[j])) → BlkAt H oa (acc.map Enc.idxW) →
       BlkAt H ko (khs.map Enc.idxW) → Frontend.denoteNList s.store.ns khs = some ks →
       s.store.lss.view us = some uh → denoteLList s.store.ls uh = some vs → StoreWF s.store →
       ReadNCacheOK s.caches.readNC s.store → Frontend.denoteNList s.store.ns src = some pns →
-      src.length < 2 ^ 60 →
+      src.length < 2 ^ 60 → L ≤ oa → L ≤ H.length →
       SpecR (σ := σ) (Pre (ctxH C H) s (rgParams.zip [boolW true, ecell C qs, BitVec.ofNat 64 src.length, cellA C ko,
         Enc.idxW us, cellA C oa])) (rgBody C) s (substParamLevels ks vs src >>= fun hs => pure (acc ++ hs))
-        (PostAL (ctxH C H)) := by
+        (PostAL (ctxH C H) L) := by
   intro src
   induction src with
   | nil =>
-    intro pns qs H acc oa s hp hsrc hb hko hks hu hvs hwf hrn hsn hlen
-    refine specR_prologue (postAL_locals _) (rg_none _ _) ?_
+    intro pns qs H acc oa s hp hsrc hb hko hks hu hvs hwf hrn hsn hlen hLo hLH
+    refine specR_prologue (postAL_locals _ _) (rg_none _ _) ?_
     unfold rgCore
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, rgParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
       (fun _ => ?_) (fun h => absurd h (by decide))
     simp only [substParamLevels, pure_bind, List.append_nil]
     exact specR_returnI _ (cellA C oa) (by simp +decide [Env.get, rgParams, ctxEnv] <;> rfl)
-      (fun t ht => ⟨H, oa, List.prefix_refl _, rfl, hb, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      (fun t ht => ⟨H, oa, List.prefix_refl _, hLo, rfl, hb, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   | cons p src ih =>
-    intro pns qs H acc oa s hp hsrc hb hko hks hu hvs hwf hrn hsn hlen
+    intro pns qs H acc oa s hp hsrc hb hko hks hu hvs hwf hrn hsn hlen hLo hLH
     rcases hq1 : denoteN s.store.ns p with _ | pn
     · simp [Frontend.denoteNList, hq1] at hsn
     rcases hq2 : Frontend.denoteNList s.store.ns src with _ | pns'
     · simp [Frontend.denoteNList, hq1, hq2] at hsn
-    refine specR_prologue (postAL_locals _) (rg_none _ _) ?_
+    refine specR_prologue (postAL_locals _ _) (rg_none _ _) ?_
     unfold rgCore
     have hne := ofNat_succ_ne src.length (by simp at hlen; omega)
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, rgParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
@@ -399,9 +400,9 @@ theorem rgP_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       (fun h w s2 H2 hp2 ⟨hw, wf2, ⟨ls2, es2, g2⟩, x2⟩ => ?_)
     subst hw es2
     have hp2' : H <+: H2 := hpH.trans hp2
-    refine ExPre.specR_callApp (C := ctxH C H2) (ctxOK_H hok H2) hc.app rgA2 (vv rgA) (vv rgH) oa
+    refine ExPre.specR_callAppF (C := ctxH C H2) (ctxOK_H hok H2) hc.app rgA2 (vv rgA) (vv rgH) oa
       (acc.map Enc.idxW) (Enc.idxW h) (by decide) (blkAt_mono hb hp2')
-      (by simp +decide [Env.get, rgParams, ctxEnv]; rfl) (by simp) (fun H3 o3 hp3 hb3 => ?_)
+      (by simp +decide [Env.get, rgParams, ctxEnv]; rfl) (by simp) (fun H3 o3 hp3 h03 hb3 => ?_)
     have hb3' : BlkAt H3 o3 ((acc ++ [h]).map Enc.idxW) := by simpa using hb3
     refine specR_congr (m' := (substParamLevels ks vs src >>= fun hs => pure ((acc ++ [h]) ++ hs)) >>= fun r => pure r)
       (by simp) ?_
@@ -414,8 +415,8 @@ theorem rgP_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
         by simp +decide [sev, Env.get, rgParams, ctxEnv]; exact Ex.ofNat_succ_sub_one _,
         by simp +decide [Env.get, rgParams, ctxEnv] <;> rfl, by simp +decide [Env.get, rgParams, ctxEnv],
         by simp <;> rfl, trivial⟩
-      (PostAL (ctxH C H3)) (fun a w _ H4 => ∃ o4, w = cellA C o4 ∧ BlkAt H4 o4 (a.map Enc.idxW))
-      (fun a w s' st ⟨H4, o4, hp4, hw, hb4, hsr⟩ => ⟨H4, hp4, ⟨o4, hw, hb4⟩, hsr⟩)
+      (PostAL (ctxH C H3) L) (fun a w _ H4 => ∃ o4, L ≤ o4 ∧ w = cellA C o4 ∧ BlkAt H4 o4 (a.map Enc.idxW))
+      (fun a w s' st ⟨H4, o4, hp4, hL4, hw, hb4, hsr⟩ => ⟨H4, hp4, ⟨o4, hL4, hw, hb4⟩, hsr⟩)
       (fun u' hu' _ hlk => Knot.specR_of_pre u' (pre_of_lookups hu' rgParams _ rfl hlk)
         (ih pns' (qs + 1) H3 (acc ++ [h]) o3 _ (hp.trans (hp2'.trans hp3))
           (fun j hj => by have h' := hsrc (j + 1) (by simp; omega); rw [show qs + (j + 1) = qs + 1 + j by omega] at h'; simpa using h')
@@ -423,12 +424,13 @@ theorem rgP_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
           (by show Frontend.denoteNList ls2.ns khs = some ks; rw [g2.2]; exact hks)
           hu (denoteLList_ext x2.lss.ls uh vs hvs) wf2 (ReadNCacheOK.mono hN1 x2)
           (by show Frontend.denoteNList ls2.ns src = some pns'; rw [g2.2]; exact hq2)
-          (by simp at hlen; omega)))
-      (fun r w s4 H4 hp4 ⟨o4, hw, hb4⟩ => ?_)
+          (by simp at hlen; omega) (by have e1 := hp2'.length_le; simp only [ctxH] at e1 h03; omega)
+          (by have e1 := hp2'.length_le; have e2 := hp3.length_le; simp only [ctxH] at e1 e2; omega)))
+      (fun r w s4 H4 hp4 ⟨o4, hL4, hw, hb4⟩ => ?_)
     subst hw
     simp [Frontend.denoteNList, hq1, hq2] at hsn
     exact specR_returnI _ (cellA C o4) (by simp)
-      (fun t ht => ⟨H4, o4, hp2'.trans (hp3.trans hp4), rfl, by simpa using hb4, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      (fun t ht => ⟨H4, o4, hp2'.trans (hp3.trans hp4), hL4, rfl, by simpa using hb4, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 end
 

@@ -32,7 +32,7 @@ theorem append_spec {α : Type} (C : Ctx) (hok : CtxOK C) {H : List (BitVec 64)}
     (hy : Γ.get lY = some (cellA C oy)) (hx : Γ.get x = some xv) (hblk : BlkAt H oy xs)
     (hxn : x ≠ lCn ∧ x ≠ lW ∧ x ≠ lSrc ∧ x ≠ lDst ∧ x ≠ lCi) (hz : Γ.get lCz = none)
     (hz2 : lY ≠ lCn ∧ lY ≠ lW ∧ lY ≠ lSrc ∧ lY ≠ lDst ∧ lY ≠ lCi)
-    (hR : ∀ H' o (t : PState σ), H <+: H' → BlkAt H' o (xs ++ [xv]) → SR (ctxH C H') s t →
+    (hR : ∀ H' o (t : PState σ), H <+: H' → H.length ≤ o → BlkAt H' o (xs ++ [xv]) → SR (ctxH C H') s t →
       R a (cellA C o) s t) :
     SpecR (Inv (σ := σ) (ctxH C H) s Γ M D) (appendP C x) s (pure a) R := by
   have hlen := blkAt_len hblk
@@ -79,7 +79,7 @@ theorem append_spec {α : Type} (C : Ctx) (hok : CtxOK C) {H : List (BitVec 64)}
     intro k; rw [← hF, fillI_get?]
   have hGg : ∀ k, k ≠ H2.length + 1 + xs.length → G[k]? = F[k]? := by
     intro k hk; rw [← hG]; exact List.getElem?_set_ne (Ne.symm hk)
-  refine hR G H2.length _ ?_ ?_ (sr_of_eq ht.sr rfl rfl rfl rfl)
+  refine hR G H2.length _ ?_ hH12 ?_ (sr_of_eq ht.sr rfl rfl rfl rfl)
   · refine hp2'.trans (prefix_of_get? (by rw [← hG]; show _ ≤ (F.set _ _).length; simp; omega) (fun k hk => ?_))
     rw [hGg k (by omega), hFg k, if_neg (by omega), ← hB]
     show ((H2 ++ ws).set _ _)[k]? = _
