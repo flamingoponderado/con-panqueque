@@ -121,6 +121,52 @@ theorem readAt (t u : PanSemStateFiniteExact 64 σ) (L : Layout) (kb tag tier id
     · exact ⟨_, by rw [lookup_resVar_other _ _ _ _ (by decide), lfr _ (by decide) (by decide)]; lk [u1]; exact hdg⟩
     · exact ⟨_, by rw [lookup_resVar_other _ _ _ _ (by decide), lfr _ (by decide) (by decide)]; lk [u1]; exact hdi⟩
 
+
+theorem readAtC (t u : PanSemStateFiniteExact 64 σ) (L : Layout) (kb tag tier idx : Nat) (enc : α → List (BitVec 64))
+    (dW : δ → BitVec 64 × BitVec 64) (hdef : dW default = (0, 0)) (tb : Tbl α ι δ) (mkI : Nat → ι)
+    (hT : TabAt u L (kb + tag) tier enc dW tb mkI) (htier : tier < 2) (htag : kb + tag < 19) (hidx : idx < 2 ^ 30)
+    (hdir : u.locals.lookup lDir = some (.val (.word L.DIR)))
+    (hdt : u.locals.lookup lDt = some (.val (.word (BitVec.ofNat 64 tier))))
+    (hdg : u.locals.lookup lDg = some (.val (.word (BitVec.ofNat 64 tag))))
+    (hdi : u.locals.lookup lDi = some (.val (.word (BitVec.ofNat 64 idx))))
+    (h1 : ∃ w, u.locals.lookup lDo1 = some (.val (.word w))) (h2 : ∃ w, u.locals.lookup lDo2 = some (.val (.word w)))
+    (hm : u.memory = t.memory) (hd : u.memaddrs = t.memaddrs) (hc : u.code = t.code) (hg : u.globals = t.globals)
+    (hta : u.topAddr = t.topAddr) (hck : u.clock = t.clock)
+    (hfr : ∀ y, y ≠ lDo1 → y ≠ lDo2 → y ≠ lDt → y ≠ lDg → y ≠ lDi → u.locals.lookup y = t.locals.lookup y) :
+    Stop (evaluateHOLFiniteState u (.dec lDG .one (descE lDir kb) (derReadC lDG))).1 ∨
+      (idx < tb.nodes.size ∧ DRes t (dW (tb.derAt idx)) (evaluateHOLFiniteState u (.dec lDG .one (descE lDir kb) (derReadC lDG)))) := by
+  obtain ⟨hdesc, hcap, rows, ders, slots, hu, hR⟩ := hT
+  have he : @evalHOLExact 64 σ _ u.toExact (fun a => Classical.propDecidable (u.memaddrs a)) (descE lDir kb) =
+      some (.val (.word (descAddr L (kb + tag) tier))) := by
+    unfold descE
+    rw [eval_add2 u _ _ _ _ (eval_vv u lDir _ hdir) (eval_shl u _ _ _ (eval_add3 u _ _ _ _ _ _
+      (eval_mul2 u _ _ _ _ (eval_vv u lDt _ hdt) (eval_const u 19)) (eval_vv u lDg _ hdg) (eval_const u _)) (by decide))]
+    congr 3; unfold descAddr; congr 1
+    apply BitVec.eq_of_toNat_eq
+    simp [BitVec.toNat_shiftLeft, BitVec.toNat_add, BitVec.toNat_mul, Nat.shiftLeft_eq]
+    omega
+  rw [dec_word_eq u lDG _ _ _ he]
+  let u1 := setVarHOLFinite lDG (.val (.word (descAddr L (kb + tag) tier))) u
+  rcases derReadC_spec u1 enc dW hdef (L.geo (kb + tag) tier) tb rows ders slots hu mkI
+    (descAddr L (kb + tag) tier) (L.base (kb + tag) tier) lDG idx (tierRepV_frame hR (fun _ _ => rfl) rfl) (fun k hk => hdesc k hk) hcap (lookup_setVar_same _ _ _)
+    ⟨by decide, by decide⟩ (by lk [u1]; exact hdi) (by omega)
+    (by obtain ⟨w, hw⟩ := h1; exact ⟨w, by lk [u1]; exact hw⟩) (by obtain ⟨w, hw⟩ := h2; exact ⟨w, by lk [u1]; exact hw⟩)
+    with hs | ⟨hlt, Lc, e, l1, l2, lfr⟩
+  · left; exact hs
+  right
+  refine ⟨by rw [← Array.length_toList, hR.rel.nodes]; exact hlt, ?_⟩
+  rw [e]
+  refine ⟨rfl, hm, hd, hc, hg, hta, hck, ?_, ?_, fun y y1 y2 y3 y4 y5 => ?_, fun y hy => ?_⟩
+  · rw [lookup_resVar_other _ _ _ _ (by decide)]; exact l1
+  · rw [lookup_resVar_other _ _ _ _ (by decide)]; exact l2
+  · by_cases eg : y = lDG
+    · subst eg; rw [lookup_resVar_same]; exact hfr _ (by decide) (by decide) (by decide) (by decide) (by decide)
+    · rw [lookup_resVar_other _ _ _ _ eg, lfr y y1 y2]; lk [u1]; exact hfr y y1 y2 y3 y4 y5
+  · rcases hy with rfl | rfl | rfl
+    · exact ⟨_, by rw [lookup_resVar_other _ _ _ _ (by decide), lfr _ (by decide) (by decide)]; lk [u1]; exact hdt⟩
+    · exact ⟨_, by rw [lookup_resVar_other _ _ _ _ (by decide), lfr _ (by decide) (by decide)]; lk [u1]; exact hdg⟩
+    · exact ⟨_, by rw [lookup_resVar_other _ _ _ _ (by decide), lfr _ (by decide) (by decide)]; lk [u1]; exact hdi⟩
+
 end
 
 open Enc in
@@ -339,6 +385,108 @@ theorem storeDerived_gen (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : B
   · simp only [bw, htag, ↓reduceIte, ne_eq, not_true_eq_false]
     rw [hdead (Or.inl (by omega))]
     exact zeros_spec t u uo1 uo2 rfl rfl rfl rfl rfl rfl ufr (fun y hy => by rcases hy with rfl | rfl | rfl <;> first | exact ⟨_, lt⟩ | exact ⟨_, lg⟩ | exact ⟨_, li⟩)
+
+end
+
+/-- The interns' checked derived read: as `storeDerived`, but a handle that does not decode halts — a tag past the
+store's `nt`, a dead scratch tier, an index past the table, or the store's own shape test `bad` (an expression word
+with tag 4 that is not wide; any wide level word). -/
+def storeDerivedC (kb nt : Nat) (bad : ExpHOL 64) : ProgHOL 64 :=
+  .seq decodeH
+   (.ite bad hang
+   (.ite (.cmp .lower (vv lDg) (.const (BitVec.ofNat 64 nt)))
+     (.ite (vv lDt)
+       (.ite (.load .one (vv lFl)) (.dec lDG .one (descE lDir kb) (derReadC lDG)) hang)
+       (.dec lDG .one (descE lDir kb) (derReadC lDG)))
+     hang))
+
+def badE : ExpHOL 64 :=
+  .op .and [.cmp .equal (vv lDg) (.const 4),
+    .cmp .equal (.op .and [.shift .lsr (vv lDh) (.const 30), .const 1]) (.const 0)]
+def badL : ExpHOL 64 := .op .and [.shift .lsr (vv lDh) (.const 30), .const 1]
+def badN : ExpHOL 64 := .const 0
+
+section
+variable {σ : Type} {k : IdxKind}
+
+theorem storeDerivedC_gen (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitVec 64) (on : Bool) (kb nt : Nat)
+    (hnt : nt < 16) (i : Idx k) (res : BitVec 64 × BitVec 64) (V W : Prop) (bad : ExpHOL 64) (wc : BitVec 64)
+    (hh : t.locals.lookup lDh = some (.val (.word (Enc.idxW i))))
+    (hdir : t.locals.lookup lDir = some (.val (.word L.DIR))) (hfl : t.locals.lookup lFl = some (.val (.word FL)))
+    (hflm : t.memaddrs FL ∧ t.memory FL = .word (if on then 1 else 0))
+    (ht : ∃ w, t.locals.lookup lDt = some (.val (.word w))) (hg : ∃ w, t.locals.lookup lDg = some (.val (.word w)))
+    (hi : ∃ w, t.locals.lookup lDi = some (.val (.word w)))
+    (h1 : ∃ w, t.locals.lookup lDo1 = some (.val (.word w))) (h2 : ∃ w, t.locals.lookup lDo2 = some (.val (.word w)))
+    (hbad : ∀ u : PanSemStateFiniteExact 64 σ, u.locals.lookup lDg = some (.val (.word (BitVec.ofNat 64 i.tag.toNat))) →
+      u.locals.lookup lDh = some (.val (.word (Enc.idxW i))) →
+      @evalHOLExact 64 σ _ u.toExact (fun a => Classical.propDecidable (u.memaddrs a)) bad = some (.val (.word wc)))
+    (hW : wc = 0 → W)
+    (harm : i.tag.toNat < nt → (i.tier.toNat = 0 ∨ on = true) → W → ∀ u : PanSemStateFiniteExact 64 σ,
+      u.memory = t.memory → u.memaddrs = t.memaddrs → u.code = t.code → u.globals = t.globals →
+      u.topAddr = t.topAddr → u.clock = t.clock →
+      u.locals.lookup lDir = some (.val (.word L.DIR)) →
+      u.locals.lookup lDt = some (.val (.word (BitVec.ofNat 64 i.tier.toNat))) →
+      u.locals.lookup lDg = some (.val (.word (BitVec.ofNat 64 i.tag.toNat))) →
+      u.locals.lookup lDi = some (.val (.word (BitVec.ofNat 64 i.idxNat))) →
+      (∃ w, u.locals.lookup lDo1 = some (.val (.word w))) → (∃ w, u.locals.lookup lDo2 = some (.val (.word w))) →
+      (∀ y, y ≠ lDo1 → y ≠ lDo2 → y ≠ lDt → y ≠ lDg → y ≠ lDi → u.locals.lookup y = t.locals.lookup y) →
+      Stop (evaluateHOLFiniteState u (.dec lDG .one (descE lDir kb) (derReadC lDG))).1 ∨
+        (V ∧ DRes t res (evaluateHOLFiniteState u (.dec lDG .one (descE lDir kb) (derReadC lDG))))) :
+    Stop (evaluateHOLFiniteState t (storeDerivedC kb nt bad)).1 ∨
+      (V ∧ DRes t res (evaluateHOLFiniteState t (storeDerivedC kb nt bad))) := by
+  obtain ⟨L1, e1, lt, lg, li, lfr⟩ := decodeH_spec t i hh ht hg hi
+  unfold storeDerivedC
+  rw [seq_normal _ e1]
+  let u : PanSemStateFiniteExact 64 σ := { t with locals := L1 }
+  have uo1 : ∃ w, u.locals.lookup lDo1 = some (.val (.word w)) := by
+    obtain ⟨w, hw⟩ := h1; exact ⟨w, by show L1.lookup _ = _; rw [lfr _ (by decide) (by decide) (by decide)]; exact hw⟩
+  have uo2 : ∃ w, u.locals.lookup lDo2 = some (.val (.word w)) := by
+    obtain ⟨w, hw⟩ := h2; exact ⟨w, by show L1.lookup _ = _; rw [lfr _ (by decide) (by decide) (by decide)]; exact hw⟩
+  have ufr : ∀ y, y ≠ lDo1 → y ≠ lDo2 → y ≠ lDt → y ≠ lDg → y ≠ lDi → u.locals.lookup y = t.locals.lookup y :=
+    fun y _ _ a b c => lfr y a b c
+  have udir : u.locals.lookup lDir = some (.val (.word L.DIR)) := by
+    show L1.lookup _ = _; rw [lfr _ (by decide) (by decide) (by decide)]; exact hdir
+  have tagw : i.tag.toNat < 2 ^ 32 := i.tag.toNat_lt
+  have uh : u.locals.lookup lDh = some (.val (.word (Enc.idxW i))) := by
+    show L1.lookup _ = _; rw [lfr _ (by decide) (by decide) (by decide)]; exact hh
+  rw [ite_word u _ _ _ _ (hbad u lg uh)]
+  by_cases hwc : wc ≠ 0
+  · simp only [hwc, ↓reduceIte, ne_eq, not_false_eq_true]
+    left; exact Or.inl (hang_spec _ _ rfl)
+  simp only [hwc, ↓reduceIte, ne_eq, not_true_eq_false]
+  replace hwc : wc = 0 := Classical.not_not.mp hwc
+  have hw := hW hwc
+  have hcmp : @evalHOLExact 64 σ _ u.toExact (fun a => Classical.propDecidable (u.memaddrs a))
+      (.cmp .lower (vv lDg) (.const (BitVec.ofNat 64 nt))) = some (.val (.word (bw (i.tag.toNat < nt)))) := by
+    rw [ConsLoop.eval_cmp_of u .lower _ _ _ _ (eval_vv u lDg _ lg) (eval_const u _)]
+    have e : (BitVec.ofNat 64 i.tag.toNat < BitVec.ofNat 64 nt) ↔ i.tag.toNat < nt := by
+      rw [BitVec.lt_def, toNat_ofNat_lt _ (by omega), toNat_ofNat_lt _ (by omega)]
+    by_cases h : i.tag.toNat < nt
+    · simp [bw, h, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, e.mpr h]
+    · have : ¬ BitVec.ofNat 64 i.tag.toNat < BitVec.ofNat 64 nt := fun x => h (e.mp x)
+      simp [bw, h, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, this]
+  rw [ite_word u _ _ _ _ hcmp]
+  by_cases htag : i.tag.toNat < nt
+  · simp only [bw, htag, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
+    have htl := Idx.tier_lt i
+    rw [ite_word u _ _ _ _ (eval_vv u lDt _ lt)]
+    rcases (by omega : i.tier.toNat = 0 ∨ i.tier.toNat = 1) with h0 | h0
+    · simp only [h0, show BitVec.ofNat 64 0 = 0 from rfl, ne_eq, not_true_eq_false, ↓reduceIte]
+      exact harm htag (Or.inl h0) hw u rfl rfl rfl rfl rfl rfl udir lt lg li uo1 uo2 ufr
+    · simp only [h0, show ¬ BitVec.ofNat 64 1 = 0 from by decide, ne_eq, not_false_eq_true, ↓reduceIte]
+      have hld : @evalHOLExact 64 σ _ u.toExact (fun a => Classical.propDecidable (u.memaddrs a))
+          (.load .one (vv lFl)) = some (.val (.word (if on then 1 else 0))) := by
+        rw [eval_load_word u _ _ (eval_vv u lFl _ (by show L1.lookup _ = _; rw [lfr _ (by decide) (by decide) (by decide)]; exact hfl))
+          hflm.1]
+        show some (ValueHOL.val (t.memory FL)) = _; rw [hflm.2]
+      rw [ite_word u _ _ _ _ hld]
+      cases hon : on
+      · simp only [Bool.false_eq_true, ↓reduceIte, ne_eq, not_true_eq_false]
+        left; exact Or.inl (hang_spec _ _ rfl)
+      · simp only [↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
+        exact harm htag (Or.inr hon) hw u rfl rfl rfl rfl rfl rfl udir (by rw [h0] at lt; rw [h0]; exact lt) lg li uo1 uo2 ufr
+  · simp only [bw, htag, ↓reduceIte, ne_eq, not_true_eq_false]
+    left; exact Or.inl (hang_spec _ _ rfl)
 
 end
 
@@ -638,6 +786,358 @@ theorem eDerived_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitV
     · have e : et.derAt i = et.projs.derAt i.idxNat := by simp [ETables.derAt, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj]
       rw [e]; exact readAt t u L 9 9 _ _ Enc.encProj dWN rfl _ _ (tabAt_eq hT9 um ud) htl (by decide) hidx udir udt
         hgm udi uo1 uo2 um ud uc ug uta uck ufr
+
+end
+
+
+
+
+theorem wideBit_iff {k : IdxKind} (i : Idx k) : (Enc.idxW i >>> (30 : Nat)) &&& 1 ≠ 0 ↔ i.isWide = true := by
+  have hw : (Enc.idxW i).toNat = i.word.toNat := by simp [Enc.idxW]
+  have hlt : i.word.toNat < 2 ^ 32 := i.word.toNat_lt
+  have e1 : ((Enc.idxW i >>> (30 : Nat)) &&& 1 ≠ 0) ↔ i.word.toNat / 1073741824 % 2 = 1 := by
+    rw [Ne, ← BitVec.toNat_inj]
+    simp only [BitVec.toNat_and, BitVec.toNat_ushiftRight, hw, Nat.shiftRight_eq_div_pow]
+    have e : (1 : BitVec 64).toNat = 2 ^ 1 - 1 := rfl
+    rw [e, Nat.and_two_pow_sub_one_eq_mod]; simp
+  rw [e1]
+  simp only [Idx.isWide, beq_iff_eq]
+  constructor
+  · intro h; apply UInt32.toNat_inj.mp; simp [UInt32.toNat_div, UInt32.toNat_mod]; omega
+  · intro h; have := congrArg UInt32.toNat h; simp [UInt32.toNat_div, UInt32.toNat_mod] at this; omega
+
+section
+variable {σ : Type}
+
+theorem eDerivedC_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitVec 64) (st : EStore)
+    (hR : ERep t L FL st) (i : EIdx)
+    (hh : t.locals.lookup lDh = some (.val (.word (Enc.idxW i))))
+    (hdir : t.locals.lookup lDir = some (.val (.word L.DIR))) (hfl : t.locals.lookup lFl = some (.val (.word FL)))
+    (ht : ∃ w, t.locals.lookup lDt = some (.val (.word w))) (hg : ∃ w, t.locals.lookup lDg = some (.val (.word w)))
+    (hi : ∃ w, t.locals.lookup lDi = some (.val (.word w)))
+    (h1 : ∃ w, t.locals.lookup lDo1 = some (.val (.word w))) (h2 : ∃ w, t.locals.lookup lDo2 = some (.val (.word w))) :
+    Stop (evaluateHOLFiniteState t (storeDerivedC 9 10 badE)).1 ∨
+      ((st.view i).isSome = true ∧ DRes t (dWN (st.derived i)) (evaluateHOLFiniteState t (storeDerivedC 9 10 badE))) := by
+  have hidx : i.idxNat < 2 ^ 30 := by
+    simp only [Idx.idxNat, Idx.index]; split <;> simp [UInt32.toNat_mod] <;> omega
+  refine storeDerivedC_gen t L FL st.scratchOn 9 10 (by decide) i _ _ (i.tag.toNat = 4 → i.isWide = true) badE (bw (i.tag.toNat = 4) &&& bw (i.isWide = false)) hh hdir hfl hR.fl ht hg hi h1 h2
+    ?_ ?_ ?_
+  · -- the shape test's value
+    intro u hg' hh'
+    unfold badE
+    rw [eval_and2' u _ _ _ _ (ConsLoop.eval_cmp_of u .equal _ _ _ _ (eval_vv u lDg _ hg') (eval_const u _))
+      (ConsLoop.eval_cmp_of u .equal _ _ _ _ (eval_and2' u _ _ _ _ (eval_shr u _ _ _ (eval_vv u lDh _ hh') (by decide))
+        (eval_const u 1)) (eval_const u _))]
+    have tw : i.tag.toNat < 2 ^ 32 := i.tag.toNat_lt
+    have e4 : (BitVec.ofNat 64 i.tag.toNat = 4) ↔ i.tag.toNat = 4 := ⟨fun e => by
+      have := congrArg BitVec.toNat e; simp at this; omega, fun e => by rw [e]; rfl⟩
+    have ew := wideBit_iff i
+    by_cases h4 : i.tag.toNat = 4 <;> by_cases hw : i.isWide = true <;>
+      simp_all [bw, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+  · intro h h4; cases hw : i.isWide
+    · simp [bw, h4, hw] at h
+    · rfl
+  · intro htag hlive hw u um ud uc ug uta uck udir udt udg udi uo1 uo2 ufr
+    have pick : ∃ (tr : UInt32) (et : ETables), st.derived i = et.derAt i ∧ st.view i = et.get i ∧
+        TabAt t L 9 i.tier.toNat Enc.encBVar dWN et.bvars (mkN ETag.bvar tr) ∧
+        TabAt t L 10 i.tier.toNat Enc.encFVar dWN et.fvars (mkN ETag.fvar tr) ∧
+        TabAt t L 11 i.tier.toNat Enc.encSort dWN et.sorts (mkN ETag.sort tr) ∧
+        TabAt t L 12 i.tier.toNat Enc.encConst dWN et.consts (mkN ETag.const tr) ∧
+        TabAt t L 13 i.tier.toNat Enc.encApp dWN et.apps (mkW tr) ∧
+        TabAt t L 14 i.tier.toNat Enc.encBind dWN et.lams (mkN ETag.lam tr) ∧
+        TabAt t L 15 i.tier.toNat Enc.encBind dWN et.foralls (mkN ETag.forallE tr) ∧
+        TabAt t L 16 i.tier.toNat Enc.encLet dWN et.lets (mkN ETag.letE tr) ∧
+        TabAt t L 17 i.tier.toNat Enc.encLit dWN et.lits (mkN ETag.lit tr) ∧
+        TabAt t L 18 i.tier.toNat Enc.encProj dWN et.projs (mkN ETag.proj tr) := by
+      have htl := Idx.tier_lt i
+      rcases (by omega : i.tier.toNat = 0 ∨ i.tier.toNat = 1) with h0 | h0
+      · have e0 : i.tier = 0 := UInt32.toNat_inj.mp (by rw [h0]; rfl)
+        refine ⟨0, st.pers, ?_, ?_, ?_⟩
+        · simp only [EStore.derived, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
+        · simp only [EStore.view, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
+        · rw [h0]; exact ⟨hR.p0, hR.p1, hR.p2, hR.p3, hR.p4, hR.p5, hR.p6, hR.p7, hR.p8, hR.p9⟩
+      · have hnp : ¬ i.isPersistent = true := by
+          simp only [Idx.isPersistent, beq_iff_eq]; intro e; rw [e] at h0; simp at h0
+        have hon : st.scratchOn = true := by rcases hlive with h | h; omega; exact h
+        refine ⟨1, st.scr, ?_, ?_, ?_⟩
+        · simp only [EStore.derived]; rw [if_neg hnp, hon]; rfl
+        · simp only [EStore.view]; rw [if_neg hnp, hon]; rfl
+        · rw [h0]; exact ⟨hR.s0, hR.s1, hR.s2, hR.s3, hR.s4, hR.s5, hR.s6, hR.s7, hR.s8, hR.s9⟩
+    obtain ⟨tr, et, hdl, hvw, hT0, hT1, hT2, hT3, hT4, hT5, hT6, hT7, hT8, hT9⟩ := pick
+    rw [hdl]
+    have htl := Idx.tier_lt i
+    obtain ⟨m, hm, hmt⟩ := tag_cases i 10 htag
+    have hgm : u.locals.lookup lDg = some (.val (.word (BitVec.ofNat 64 m))) := by
+      rw [show (BitVec.ofNat 64 m) = BitVec.ofNat 64 i.tag.toNat by rw [hmt]; simp; rw [Nat.mod_eq_of_lt (by omega)]]
+      exact udg
+    rcases (by omega : m = 0 ∨ m = 1 ∨ m = 2 ∨ m = 3 ∨ m = 4 ∨ m = 5 ∨ m = 6 ∨ m = 7 ∨ m = 8 ∨ m = 9) with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+    · have e : et.derAt i = et.bvars.derAt i.idxNat := by simp [ETables.derAt, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj]
+      rw [e]
+      rcases readAtC t u L 9 0 _ _ Enc.encBVar dWN rfl _ _ (tabAt_eq hT0 um ud) htl (by decide) hidx udir udt
+        hgm udi uo1 uo2 um ud uc ug uta uck ufr with hs | ⟨hlt, hr⟩
+      · exact Or.inl hs
+      refine Or.inr ⟨?_, hr⟩
+      rw [hvw]; simp [ETables.get, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj, Tbl.node?, Array.getElem?_eq_getElem hlt]
+    · have e : et.derAt i = et.fvars.derAt i.idxNat := by simp [ETables.derAt, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj]
+      rw [e]
+      rcases readAtC t u L 9 1 _ _ Enc.encFVar dWN rfl _ _ (tabAt_eq hT1 um ud) htl (by decide) hidx udir udt
+        hgm udi uo1 uo2 um ud uc ug uta uck ufr with hs | ⟨hlt, hr⟩
+      · exact Or.inl hs
+      refine Or.inr ⟨?_, hr⟩
+      rw [hvw]; simp [ETables.get, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj, Tbl.node?, Array.getElem?_eq_getElem hlt]
+    · have e : et.derAt i = et.sorts.derAt i.idxNat := by simp [ETables.derAt, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj]
+      rw [e]
+      rcases readAtC t u L 9 2 _ _ Enc.encSort dWN rfl _ _ (tabAt_eq hT2 um ud) htl (by decide) hidx udir udt
+        hgm udi uo1 uo2 um ud uc ug uta uck ufr with hs | ⟨hlt, hr⟩
+      · exact Or.inl hs
+      refine Or.inr ⟨?_, hr⟩
+      rw [hvw]; simp [ETables.get, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj, Tbl.node?, Array.getElem?_eq_getElem hlt]
+    · have e : et.derAt i = et.consts.derAt i.idxNat := by simp [ETables.derAt, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj]
+      rw [e]
+      rcases readAtC t u L 9 3 _ _ Enc.encConst dWN rfl _ _ (tabAt_eq hT3 um ud) htl (by decide) hidx udir udt
+        hgm udi uo1 uo2 um ud uc ug uta uck ufr with hs | ⟨hlt, hr⟩
+      · exact Or.inl hs
+      refine Or.inr ⟨?_, hr⟩
+      rw [hvw]; simp [ETables.get, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj, Tbl.node?, Array.getElem?_eq_getElem hlt]
+    · have e : et.derAt i = et.apps.derAt i.idxNat := by simp [ETables.derAt, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj]
+      rw [e]
+      rcases readAtC t u L 9 4 _ _ Enc.encApp dWN rfl _ _ (tabAt_eq hT4 um ud) htl (by decide) hidx udir udt
+        hgm udi uo1 uo2 um ud uc ug uta uck ufr with hs | ⟨hlt, hr⟩
+      · exact Or.inl hs
+      refine Or.inr ⟨?_, hr⟩
+      rw [hvw]; simp [ETables.get, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj, Tbl.node?, Array.getElem?_eq_getElem hlt, hw (by rw [hmt]; rfl)]
+    · have e : et.derAt i = et.lams.derAt i.idxNat := by simp [ETables.derAt, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj]
+      rw [e]
+      rcases readAtC t u L 9 5 _ _ Enc.encBind dWN rfl _ _ (tabAt_eq hT5 um ud) htl (by decide) hidx udir udt
+        hgm udi uo1 uo2 um ud uc ug uta uck ufr with hs | ⟨hlt, hr⟩
+      · exact Or.inl hs
+      refine Or.inr ⟨?_, hr⟩
+      rw [hvw]; simp [ETables.get, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj, Tbl.node?, Array.getElem?_eq_getElem hlt]
+    · have e : et.derAt i = et.foralls.derAt i.idxNat := by simp [ETables.derAt, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj]
+      rw [e]
+      rcases readAtC t u L 9 6 _ _ Enc.encBind dWN rfl _ _ (tabAt_eq hT6 um ud) htl (by decide) hidx udir udt
+        hgm udi uo1 uo2 um ud uc ug uta uck ufr with hs | ⟨hlt, hr⟩
+      · exact Or.inl hs
+      refine Or.inr ⟨?_, hr⟩
+      rw [hvw]; simp [ETables.get, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj, Tbl.node?, Array.getElem?_eq_getElem hlt]
+    · have e : et.derAt i = et.lets.derAt i.idxNat := by simp [ETables.derAt, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj]
+      rw [e]
+      rcases readAtC t u L 9 7 _ _ Enc.encLet dWN rfl _ _ (tabAt_eq hT7 um ud) htl (by decide) hidx udir udt
+        hgm udi uo1 uo2 um ud uc ug uta uck ufr with hs | ⟨hlt, hr⟩
+      · exact Or.inl hs
+      refine Or.inr ⟨?_, hr⟩
+      rw [hvw]; simp [ETables.get, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj, Tbl.node?, Array.getElem?_eq_getElem hlt]
+    · have e : et.derAt i = et.lits.derAt i.idxNat := by simp [ETables.derAt, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj]
+      rw [e]
+      rcases readAtC t u L 9 8 _ _ Enc.encLit dWN rfl _ _ (tabAt_eq hT8 um ud) htl (by decide) hidx udir udt
+        hgm udi uo1 uo2 um ud uc ug uta uck ufr with hs | ⟨hlt, hr⟩
+      · exact Or.inl hs
+      refine Or.inr ⟨?_, hr⟩
+      rw [hvw]; simp [ETables.get, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj, Tbl.node?, Array.getElem?_eq_getElem hlt]
+    · have e : et.derAt i = et.projs.derAt i.idxNat := by simp [ETables.derAt, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj]
+      rw [e]
+      rcases readAtC t u L 9 9 _ _ Enc.encProj dWN rfl _ _ (tabAt_eq hT9 um ud) htl (by decide) hidx udir udt
+        hgm udi uo1 uo2 um ud uc ug uta uck ufr with hs | ⟨hlt, hr⟩
+      · exact Or.inl hs
+      refine Or.inr ⟨?_, hr⟩
+      rw [hvw]; simp [ETables.get, hmt, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj, Tbl.node?, Array.getElem?_eq_getElem hlt]
+
+theorem lDerivedC_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitVec 64) (st : LStore)
+    (hR : LRep t L FL st) (i : LIdx)
+    (hh : t.locals.lookup lDh = some (.val (.word (Enc.idxW i))))
+    (hdir : t.locals.lookup lDir = some (.val (.word L.DIR))) (hfl : t.locals.lookup lFl = some (.val (.word FL)))
+    (ht : ∃ w, t.locals.lookup lDt = some (.val (.word w))) (hg : ∃ w, t.locals.lookup lDg = some (.val (.word w)))
+    (hi : ∃ w, t.locals.lookup lDi = some (.val (.word w)))
+    (h1 : ∃ w, t.locals.lookup lDo1 = some (.val (.word w))) (h2 : ∃ w, t.locals.lookup lDo2 = some (.val (.word w))) :
+    Stop (evaluateHOLFiniteState t (storeDerivedC 3 5 badL)).1 ∨
+      ((st.view i).isSome = true ∧ DRes t (dWL (st.derived i)) (evaluateHOLFiniteState t (storeDerivedC 3 5 badL))) := by
+  have hidx : i.idxNat < 2 ^ 30 := by
+    simp only [Idx.idxNat, Idx.index]; split <;> simp [UInt32.toNat_mod] <;> omega
+  refine storeDerivedC_gen t L FL st.scratchOn 3 5 (by decide) i _ _ (i.isWide = false) badL ((Enc.idxW i >>> (30 : Nat)) &&& 1) hh hdir hfl hR.fl ht hg hi h1 h2
+    ?_ ?_ ?_
+  · -- the shape test's value
+    intro u hg' hh'
+    unfold badL
+    exact eval_and2' u _ _ _ _ (eval_shr u _ _ _ (eval_vv u lDh _ hh') (by decide)) (eval_const u 1)
+  · intro h; cases e : i.isWide
+    · rfl
+    · exact absurd h ((wideBit_iff i).mpr e)
+  · intro htag hlive hw u um ud uc ug uta uck udir udt udg udi uo1 uo2 ufr
+    have pick : ∃ (tr : UInt32) (et : LTables), st.derived i = et.derAt i ∧ st.view i = et.get i ∧
+        TabAt t L 3 i.tier.toNat Enc.encZero dWL et.zeros (mkN LTag.zero tr) ∧
+        TabAt t L 4 i.tier.toNat Enc.encSucc dWL et.succs (mkN LTag.succ tr) ∧
+        TabAt t L 5 i.tier.toNat Enc.encBinL dWL et.maxs (mkN LTag.max tr) ∧
+        TabAt t L 6 i.tier.toNat Enc.encBinL dWL et.imaxs (mkN LTag.imax tr) ∧
+        TabAt t L 7 i.tier.toNat Enc.encParam dWL et.params (mkN LTag.param tr) := by
+      have htl := Idx.tier_lt i
+      rcases (by omega : i.tier.toNat = 0 ∨ i.tier.toNat = 1) with h0 | h0
+      · have e0 : i.tier = 0 := UInt32.toNat_inj.mp (by rw [h0]; rfl)
+        refine ⟨0, st.pers, ?_, ?_, ?_⟩
+        · simp only [LStore.derived, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
+        · simp only [LStore.view, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
+        · rw [h0]; exact ⟨hR.pz, hR.ps, hR.pm, hR.pi, hR.pp⟩
+      · have hnp : ¬ i.isPersistent = true := by
+          simp only [Idx.isPersistent, beq_iff_eq]; intro e; rw [e] at h0; simp at h0
+        have hon : st.scratchOn = true := by rcases hlive with h | h; omega; exact h
+        refine ⟨1, st.scr, ?_, ?_, ?_⟩
+        · simp only [LStore.derived]; rw [if_neg hnp, hon]; rfl
+        · simp only [LStore.view]; rw [if_neg hnp, hon]; rfl
+        · rw [h0]; exact ⟨hR.sz, hR.ss, hR.sm, hR.si, hR.sp⟩
+    obtain ⟨tr, et, hdl, hvw, hT0, hT1, hT2, hT3, hT4⟩ := pick
+    rw [hdl]
+    have htl := Idx.tier_lt i
+    obtain ⟨m, hm, hmt⟩ := tag_cases i 5 htag
+    have hgm : u.locals.lookup lDg = some (.val (.word (BitVec.ofNat 64 m))) := by
+      rw [show (BitVec.ofNat 64 m) = BitVec.ofNat 64 i.tag.toNat by rw [hmt]; simp; rw [Nat.mod_eq_of_lt (by omega)]]
+      exact udg
+    rcases (by omega : m = 0 ∨ m = 1 ∨ m = 2 ∨ m = 3 ∨ m = 4) with rfl | rfl | rfl | rfl | rfl
+    · have e : et.derAt i = et.zeros.derAt i.idxNat := by simp [LTables.derAt, hmt, LTag.zero, LTag.succ, LTag.max, LTag.imax, LTag.param]
+      rw [e]
+      rcases readAtC t u L 3 0 _ _ Enc.encZero dWL rfl _ _ (tabAt_eq hT0 um ud) htl (by decide) hidx udir udt
+        hgm udi uo1 uo2 um ud uc ug uta uck ufr with hs | ⟨hlt, hr⟩
+      · exact Or.inl hs
+      refine Or.inr ⟨?_, hr⟩
+      rw [hvw]; simp [LTables.get, hmt, LTag.zero, LTag.succ, LTag.max, LTag.imax, LTag.param, Tbl.node?, Array.getElem?_eq_getElem hlt]
+    · have e : et.derAt i = et.succs.derAt i.idxNat := by simp [LTables.derAt, hmt, LTag.zero, LTag.succ, LTag.max, LTag.imax, LTag.param]
+      rw [e]
+      rcases readAtC t u L 3 1 _ _ Enc.encSucc dWL rfl _ _ (tabAt_eq hT1 um ud) htl (by decide) hidx udir udt
+        hgm udi uo1 uo2 um ud uc ug uta uck ufr with hs | ⟨hlt, hr⟩
+      · exact Or.inl hs
+      refine Or.inr ⟨?_, hr⟩
+      rw [hvw]; simp [LTables.get, hmt, LTag.zero, LTag.succ, LTag.max, LTag.imax, LTag.param, Tbl.node?, Array.getElem?_eq_getElem hlt]
+    · have e : et.derAt i = et.maxs.derAt i.idxNat := by simp [LTables.derAt, hmt, LTag.zero, LTag.succ, LTag.max, LTag.imax, LTag.param]
+      rw [e]
+      rcases readAtC t u L 3 2 _ _ Enc.encBinL dWL rfl _ _ (tabAt_eq hT2 um ud) htl (by decide) hidx udir udt
+        hgm udi uo1 uo2 um ud uc ug uta uck ufr with hs | ⟨hlt, hr⟩
+      · exact Or.inl hs
+      refine Or.inr ⟨?_, hr⟩
+      rw [hvw]; simp [LTables.get, hmt, LTag.zero, LTag.succ, LTag.max, LTag.imax, LTag.param, Tbl.node?, Array.getElem?_eq_getElem hlt]
+    · have e : et.derAt i = et.imaxs.derAt i.idxNat := by simp [LTables.derAt, hmt, LTag.zero, LTag.succ, LTag.max, LTag.imax, LTag.param]
+      rw [e]
+      rcases readAtC t u L 3 3 _ _ Enc.encBinL dWL rfl _ _ (tabAt_eq hT3 um ud) htl (by decide) hidx udir udt
+        hgm udi uo1 uo2 um ud uc ug uta uck ufr with hs | ⟨hlt, hr⟩
+      · exact Or.inl hs
+      refine Or.inr ⟨?_, hr⟩
+      rw [hvw]; simp [LTables.get, hmt, LTag.zero, LTag.succ, LTag.max, LTag.imax, LTag.param, Tbl.node?, Array.getElem?_eq_getElem hlt]
+    · have e : et.derAt i = et.params.derAt i.idxNat := by simp [LTables.derAt, hmt, LTag.zero, LTag.succ, LTag.max, LTag.imax, LTag.param]
+      rw [e]
+      rcases readAtC t u L 3 4 _ _ Enc.encParam dWL rfl _ _ (tabAt_eq hT4 um ud) htl (by decide) hidx udir udt
+        hgm udi uo1 uo2 um ud uc ug uta uck ufr with hs | ⟨hlt, hr⟩
+      · exact Or.inl hs
+      refine Or.inr ⟨?_, hr⟩
+      rw [hvw]; simp [LTables.get, hmt, LTag.zero, LTag.succ, LTag.max, LTag.imax, LTag.param, Tbl.node?, Array.getElem?_eq_getElem hlt, hw]
+
+theorem nDerivedC_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitVec 64) (st : NStore)
+    (hR : NRep t L FL st) (i : NIdx)
+    (hh : t.locals.lookup lDh = some (.val (.word (Enc.idxW i))))
+    (hdir : t.locals.lookup lDir = some (.val (.word L.DIR))) (hfl : t.locals.lookup lFl = some (.val (.word FL)))
+    (ht : ∃ w, t.locals.lookup lDt = some (.val (.word w))) (hg : ∃ w, t.locals.lookup lDg = some (.val (.word w)))
+    (hi : ∃ w, t.locals.lookup lDi = some (.val (.word w)))
+    (h1 : ∃ w, t.locals.lookup lDo1 = some (.val (.word w))) (h2 : ∃ w, t.locals.lookup lDo2 = some (.val (.word w))) :
+    Stop (evaluateHOLFiniteState t (storeDerivedC 0 3 badN)).1 ∨
+      ((st.view i).isSome = true ∧ DRes t (dWN (st.derived i)) (evaluateHOLFiniteState t (storeDerivedC 0 3 badN))) := by
+  have hidx : i.idxNat < 2 ^ 30 := by
+    simp only [Idx.idxNat, Idx.index]; split <;> simp [UInt32.toNat_mod] <;> omega
+  refine storeDerivedC_gen t L FL st.scratchOn 0 3 (by decide) i _ _ True badN 0 hh hdir hfl hR.fl ht hg hi h1 h2
+    ?_ ?_ ?_
+  · -- the shape test's value
+    intro u _ _; rfl
+  · intro _; trivial
+  · intro htag hlive hw u um ud uc ug uta uck udir udt udg udi uo1 uo2 ufr
+    have pick : ∃ (tr : UInt32) (et : NTables), st.derived i = et.derAt i ∧ st.view i = et.get i ∧
+        TabAt t L 0 i.tier.toNat Enc.encAnon dWN et.anons (mkN NTag.anonymous tr) ∧
+        TabAt t L 1 i.tier.toNat Enc.encStr dWN et.strs (mkN NTag.str tr) ∧
+        TabAt t L 2 i.tier.toNat Enc.encNum dWN et.nums (mkN NTag.num tr) := by
+      have htl := Idx.tier_lt i
+      rcases (by omega : i.tier.toNat = 0 ∨ i.tier.toNat = 1) with h0 | h0
+      · have e0 : i.tier = 0 := UInt32.toNat_inj.mp (by rw [h0]; rfl)
+        refine ⟨0, st.pers, ?_, ?_, ?_⟩
+        · simp only [NStore.derived, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
+        · simp only [NStore.view, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
+        · rw [h0]; exact ⟨hR.pa, hR.ps, hR.pn⟩
+      · have hnp : ¬ i.isPersistent = true := by
+          simp only [Idx.isPersistent, beq_iff_eq]; intro e; rw [e] at h0; simp at h0
+        have hon : st.scratchOn = true := by rcases hlive with h | h; omega; exact h
+        refine ⟨1, st.scr, ?_, ?_, ?_⟩
+        · simp only [NStore.derived]; rw [if_neg hnp, hon]; rfl
+        · simp only [NStore.view]; rw [if_neg hnp, hon]; rfl
+        · rw [h0]; exact ⟨hR.sa, hR.ss, hR.sn⟩
+    obtain ⟨tr, et, hdl, hvw, hT0, hT1, hT2⟩ := pick
+    rw [hdl]
+    have htl := Idx.tier_lt i
+    obtain ⟨m, hm, hmt⟩ := tag_cases i 3 htag
+    have hgm : u.locals.lookup lDg = some (.val (.word (BitVec.ofNat 64 m))) := by
+      rw [show (BitVec.ofNat 64 m) = BitVec.ofNat 64 i.tag.toNat by rw [hmt]; simp; rw [Nat.mod_eq_of_lt (by omega)]]
+      exact udg
+    rcases (by omega : m = 0 ∨ m = 1 ∨ m = 2) with rfl | rfl | rfl
+    · have e : et.derAt i = et.anons.derAt i.idxNat := by simp [NTables.derAt, hmt, NTag.anonymous, NTag.str, NTag.num]
+      rw [e]
+      rcases readAtC t u L 0 0 _ _ Enc.encAnon dWN rfl _ _ (tabAt_eq hT0 um ud) htl (by decide) hidx udir udt
+        hgm udi uo1 uo2 um ud uc ug uta uck ufr with hs | ⟨hlt, hr⟩
+      · exact Or.inl hs
+      refine Or.inr ⟨?_, hr⟩
+      rw [hvw]; simp [NTables.get, hmt, NTag.anonymous, NTag.str, NTag.num, Tbl.node?, Array.getElem?_eq_getElem hlt]
+    · have e : et.derAt i = et.strs.derAt i.idxNat := by simp [NTables.derAt, hmt, NTag.anonymous, NTag.str, NTag.num]
+      rw [e]
+      rcases readAtC t u L 0 1 _ _ Enc.encStr dWN rfl _ _ (tabAt_eq hT1 um ud) htl (by decide) hidx udir udt
+        hgm udi uo1 uo2 um ud uc ug uta uck ufr with hs | ⟨hlt, hr⟩
+      · exact Or.inl hs
+      refine Or.inr ⟨?_, hr⟩
+      rw [hvw]; simp [NTables.get, hmt, NTag.anonymous, NTag.str, NTag.num, Tbl.node?, Array.getElem?_eq_getElem hlt]
+    · have e : et.derAt i = et.nums.derAt i.idxNat := by simp [NTables.derAt, hmt, NTag.anonymous, NTag.str, NTag.num]
+      rw [e]
+      rcases readAtC t u L 0 2 _ _ Enc.encNum dWN rfl _ _ (tabAt_eq hT2 um ud) htl (by decide) hidx udir udt
+        hgm udi uo1 uo2 um ud uc ug uta uck ufr with hs | ⟨hlt, hr⟩
+      · exact Or.inl hs
+      refine Or.inr ⟨?_, hr⟩
+      rw [hvw]; simp [NTables.get, hmt, NTag.anonymous, NTag.str, NTag.num, Tbl.node?, Array.getElem?_eq_getElem hlt]
+
+theorem lsDerivedC_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitVec 64) (st : LsStore)
+    (hR : LsRep t L FL st) (i : LsIdx)
+    (hh : t.locals.lookup lDh = some (.val (.word (Enc.idxW i))))
+    (hdir : t.locals.lookup lDir = some (.val (.word L.DIR))) (hfl : t.locals.lookup lFl = some (.val (.word FL)))
+    (ht : ∃ w, t.locals.lookup lDt = some (.val (.word w))) (hg : ∃ w, t.locals.lookup lDg = some (.val (.word w)))
+    (hi : ∃ w, t.locals.lookup lDi = some (.val (.word w)))
+    (h1 : ∃ w, t.locals.lookup lDo1 = some (.val (.word w))) (h2 : ∃ w, t.locals.lookup lDo2 = some (.val (.word w))) :
+    Stop (evaluateHOLFiniteState t (storeDerivedC 8 1 badN)).1 ∨
+      ((st.view i).isSome = true ∧ DRes t (dWL (st.derived i)) (evaluateHOLFiniteState t (storeDerivedC 8 1 badN))) := by
+  have hidx : i.idxNat < 2 ^ 30 := by
+    simp only [Idx.idxNat, Idx.index]; split <;> simp [UInt32.toNat_mod] <;> omega
+  refine storeDerivedC_gen t L FL st.scratchOn 8 1 (by decide) i _ _ True badN 0 hh hdir hfl hR.fl ht hg hi h1 h2
+    ?_ ?_ ?_
+  · -- the shape test's value
+    intro u _ _; rfl
+  · intro _; trivial
+  · intro htag hlive hw u um ud uc ug uta uck udir udt udg udi uo1 uo2 ufr
+    have pick : ∃ (tr : UInt32) (et : LsTables), st.derived i = et.derAt i ∧ st.view i = et.get i ∧
+        TabAt t L 8 i.tier.toNat Enc.encList dWL et.lists (mkN LsTag.list tr) := by
+      have htl := Idx.tier_lt i
+      rcases (by omega : i.tier.toNat = 0 ∨ i.tier.toNat = 1) with h0 | h0
+      · have e0 : i.tier = 0 := UInt32.toNat_inj.mp (by rw [h0]; rfl)
+        refine ⟨0, st.pers, ?_, ?_, ?_⟩
+        · simp only [LsStore.derived, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
+        · simp only [LsStore.view, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
+        · rw [h0]; exact hR.pl
+      · have hnp : ¬ i.isPersistent = true := by
+          simp only [Idx.isPersistent, beq_iff_eq]; intro e; rw [e] at h0; simp at h0
+        have hon : st.scratchOn = true := by rcases hlive with h | h; omega; exact h
+        refine ⟨1, st.scr, ?_, ?_, ?_⟩
+        · simp only [LsStore.derived]; rw [if_neg hnp, hon]; rfl
+        · simp only [LsStore.view]; rw [if_neg hnp, hon]; rfl
+        · rw [h0]; exact hR.sl
+    obtain ⟨tr, et, hdl, hvw, hT0⟩ := pick
+    rw [hdl]
+    have htl := Idx.tier_lt i
+    have hm0 : i.tag = LsTag.list := UInt32.toNat_inj.mp (by simp [LsTag.list]; omega)
+    have hgm : u.locals.lookup lDg = some (.val (.word (BitVec.ofNat 64 0))) := by
+      rw [show (BitVec.ofNat 64 0) = BitVec.ofNat 64 i.tag.toNat by rw [hm0]; rfl]; exact udg
+    have e : et.derAt i = et.lists.derAt i.idxNat := by simp [LsTables.derAt, hm0]
+    rw [e]
+    rcases readAtC t u L 8 0 _ _ Enc.encList dWL rfl _ _ (tabAt_eq hT0 um ud) htl (by decide) hidx udir udt
+      hgm udi uo1 uo2 um ud uc ug uta uck ufr with hs | ⟨hlt, hr⟩
+    · exact Or.inl hs
+    refine Or.inr ⟨?_, hr⟩
+    rw [hvw]; simp [LsTables.get, hm0, Tbl.node?, Array.getElem?_eq_getElem hlt]
 
 end
 
