@@ -190,3 +190,4 @@ import ConPanqueque.T.Big.RawNat
 import ConPanqueque.T.Big.ReduceNat
 import ConPanqueque.T.LoopT
 import ConPanqueque.T.Core.Whnf
+import ConPanqueque.T.Core.WcChain
