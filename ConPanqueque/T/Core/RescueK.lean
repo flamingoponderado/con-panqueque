@@ -1064,7 +1064,102 @@ theorem rk_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
   refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hL]) (fun h => absurd rfl h)
     (fun _ => ?_)
   rw [if_pos ⟨hT, hL⟩]
-  sorry
+  refine specR_callNIH (C := ctxH C H2) kqTa ExG.fGaa [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv kqTm]
+    (ExG.gaaBody C) [BitVec.ofNat 64 coreWalkFuel, Enc.idxW tm] (by decide) rfl (by decide) hc.gaa
+    ⟨rfl, by simp, trivial⟩
+    (PostA (ctxH C H2)) (fun a w _ H3 => ∃ o3, w = cellA C o3 ∧ BlkAt H3 o3 (a.map Enc.idxW))
+    (fun a w s' st ⟨H3, o3, hp, hw, hb, hsr⟩ => ⟨H3, hp, ⟨o3, hw, hb⟩, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu [pFu, pH] _ rfl hlk)
+      (ExG.gaa_spec (ctxH C H2) hok2 hc.gaa coreWalkFuel CV.coreWalkFuel_lt H2 tm s2))
+    (fun targs w s3 H3 hp3 ⟨oa, hw, hba⟩ => ?_)
+  subst hw
+  have hp13 : C.H <+: H3 := hp12.trans hp3
+  have hok3 := ctxOK_H hok H3
+  refine UD.specR_heapLoadI' (C := ctxH C H3) kqTl (vv kqTa) oa _ hba.1 (by decide) (by simp; rfl) ?_
+  refine specR_envLoadI (C := ctxH C H3) kqNp (.op .add [vv rkJ, .const 32]) (qj + 4) _ (by decide)
+    (by simp +decide [sev, Env.get, rkParams, ctxEnv]; exact UD.ecell_add32 C qj) hnp.1 ?_
+  refine specR_atEntry fun t3 ht3 => ?_
+  have htl := blk_small0 hok3 ht3.sr hba
+  simp only [List.length_map] at htl
+  have hnp2 := hnp.2
+  have hlw := word_lt_iff targs.length cnP (by unfold B; omega) (by unfold B; omega)
+  by_cases hle : cnP ≤ targs.length
+  swap
+  · refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw.mpr (by omega)]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    rw [if_neg hle]
+    exact hretM hp13 (by simp +decide [Env.get, rkParams, ctxEnv])
+  refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; omega) (fun h => absurd rfl h)
+    (fun _ => ?_)
+  rw [if_pos hle]
+  refine specR_envLoadI (C := ctxH C H3) kqRc (vv rkR) qr _ (by decide) (by simp +decide [Env.get, rkParams, ctxEnv]; rfl)
+    hrule.1 ?_
+  refine ILP.callE_spec (C := ctxH C H3) kqHd fInternConst [lEn, lEus] [vv kqRc, vv kqUs] constBody
+    [Enc.idxW rl.ctor, Enc.idxW ust] (by decide) rfl (by decide) hc.ic ⟨by simp, by simp, trivial⟩
+    (by exact const_body_spec ra (ctxH C H3) hok3 s3 _ _) (fun hd s4 => ?_)
+  refine ILP.callE_spec (C := ctxH C H3) kqFab ExK.fMka [ExK.pF, ExK.pP, ExK.pI, ExK.pN]
+    [vv kqHd, vv kqTa, .const 0, vv kqNp] ExK.mkaBody [Enc.idxW hd, cellA C oa, BitVec.ofNat 64 0, BitVec.ofNat 64 cnP]
+    (by decide) rfl (by decide) hc.mka ⟨by simp, by simp, rfl, by simp, trivial⟩
+    (ExK.mkAppN_take_spec ra (ctxH C H3) hok3 hc.mka hc.ia oa targs hba (by omega) cnP hle hd s4) (fun fab s5 => ?_)
+  refine specR_callNIH (C := ctxH C H3) kqFs fFab fbParams [vv kD, vv kqFab, vv rkM] Bfab
+    [BitVec.ofNat 64 d, Enc.idxW fab, Enc.idxW m] (by decide) rfl (by decide) hc.fab
+    ⟨by simp +decide [Env.get, rkParams, ctxEnv], by simp, by simp +decide [Env.get, rkParams, ctxEnv], trivial⟩
+    (PostB (ctxH C H3)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu fbParams _ rfl hlk) (hFab H3 s5 fab m hp13))
+    (fun fs w s6 H4 hp4 hw => ?_)
+  subst hw
+  have hp14 : C.H <+: H4 := hp13.trans hp4
+  cases fs
+  · refine specR_ifI _ 1 (by simp [sev, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+    simp only [Bool.false_eq_true, ite_false]
+    exact hretM hp14 (by simp +decide [Env.get, rkParams, ctxEnv])
+  refine specR_ifI _ 0 (by simp [sev, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+  simp only [ite_true]
+  refine Big.specR_callKC (C := ctxH C H4) kqK2 fIO kParams [vv kFu, vv kD, vv kqFab] (inferIOE C fIOB)
+    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW fab] (by decide) rfl (by decide) hc.io
+    ⟨by simp +decide [Env.get, rkParams, ctxEnv], by simp +decide [Env.get, rkParams, ctxEnv], by simp, trivial⟩
+    (hIO H4 s6 hp14 fab) (fun k2 s7 H5 hp5 _ => ?_)
+  have hp15 : C.H <+: H5 := hp14.trans hp5
+  refine specR_callNIH (C := ctxH C H5) kqDf fD dParams [vv kFu, vv kD, vv kqTm, vv kqK2] (dE C)
+    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW tm, Enc.idxW k2] (by decide) rfl (by decide) hc.d
+    ⟨by simp +decide [Env.get, rkParams, ctxEnv], by simp +decide [Env.get, rkParams, ctxEnv], by simp, by simp,
+      trivial⟩
+    (PostB (ctxH C H5)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+    (fun u hu _ hlk => hD H5 s7 hp15 tm k2 u hu (fun i hi _ => hlk i (by omega)))
+    (fun df w s8 H6 hp6 hw => ?_)
+  subst hw
+  have hp16 : C.H <+: H6 := hp15.trans hp6
+  cases df
+  · refine specR_ifI _ 1 (by simp [sev, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+    simp only [Bool.false_eq_true, ite_false]
+    exact hretM hp16 (by simp +decide [Env.get, rkParams, ctxEnv])
+  refine specR_ifI _ 0 (by simp [sev, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+  simp only [ite_true]
+  cases hv : mode.verifiedChecks
+  · simp only [rkCert, Bool.false_eq_true, ite_false, Bool.not_false, ite_true, pure_bind]
+    exact specR_returnI _ (Enc.idxW fab) (by simp)
+      (fun t ht => ⟨H6, hp16, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  · simp only [rkCert, ite_true, Bool.not_true, Bool.false_eq_true, ite_false]
+    refine specR_callNIH (C := ctxH C H6) kqIr fPi piParams [vv kFu, vv kD, vv kqFab, vv rkM] (piBody C)
+      [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW fab, Enc.idxW m] (by decide) rfl (by decide) hc.pi
+      ⟨by simp +decide [Env.get, rkParams, ctxEnv], by simp +decide [Env.get, rkParams, ctxEnv], by simp,
+        by simp +decide [Env.get, rkParams, ctxEnv], trivial⟩
+      (PostB (ctxH C H6)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu piParams _ rfl hlk)
+        (pi_spec mode n (ctxH C H6) (ctxOK_H hok H6) hc.io hc.w hc.eqv s8 d fab m
+          (fun H s9 hp e' => hIO H s9 (hp16.trans hp) e') (fun H s9 hp e' => hW H s9 (hp16.trans hp) e')
+          (fun H s9 u v hp => hLE H s9 u v (hp16.trans hp))))
+      (fun ir w s9 H7 hp7 hw => ?_)
+    subst hw
+    have hp17 : C.H <+: H7 := hp16.trans hp7
+    cases ir
+    · refine specR_ifI _ 1 (by simp [sev, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+      simp only [Bool.false_eq_true, ite_false]
+      exact hretM hp17 (by simp +decide [Env.get, rkParams, ctxEnv])
+    · refine specR_ifI _ 0 (by simp [sev, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+      simp only [ite_true]
+      exact specR_returnI _ (Enc.idxW fab) (by simp)
+        (fun t ht => ⟨H7, hp17, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 end
 
