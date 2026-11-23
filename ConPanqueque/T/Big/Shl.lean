@@ -717,6 +717,27 @@ def gZi := ofString "gzi"
 @[simp] theorem gZi_ne_lCn : gZi ≠ lCn := by decide
 @[simp] theorem lCn_ne_gZi : lCn ≠ gZi := by decide
 
+@[simp] theorem lSrc_ne_lDst'' : lSrc ≠ lDst := by decide
+@[simp] theorem lSrc_ne_lCi'' : lSrc ≠ lCi := by decide
+@[simp] theorem lSrc_ne_lCz'' : lSrc ≠ lCz := by decide
+@[simp] theorem lSrc_ne_lCn'' : lSrc ≠ lCn := by decide
+@[simp] theorem lDst_ne_lSrc'' : lDst ≠ lSrc := by decide
+@[simp] theorem lDst_ne_lCi'' : lDst ≠ lCi := by decide
+@[simp] theorem lDst_ne_lCz'' : lDst ≠ lCz := by decide
+@[simp] theorem lDst_ne_lCn'' : lDst ≠ lCn := by decide
+@[simp] theorem lCi_ne_lSrc'' : lCi ≠ lSrc := by decide
+@[simp] theorem lCi_ne_lDst'' : lCi ≠ lDst := by decide
+@[simp] theorem lCi_ne_lCz'' : lCi ≠ lCz := by decide
+@[simp] theorem lCi_ne_lCn'' : lCi ≠ lCn := by decide
+@[simp] theorem lCz_ne_lSrc'' : lCz ≠ lSrc := by decide
+@[simp] theorem lCz_ne_lDst'' : lCz ≠ lDst := by decide
+@[simp] theorem lCz_ne_lCi'' : lCz ≠ lCi := by decide
+@[simp] theorem lCz_ne_lCn'' : lCz ≠ lCn := by decide
+@[simp] theorem lCn_ne_lSrc'' : lCn ≠ lSrc := by decide
+@[simp] theorem lCn_ne_lDst'' : lCn ≠ lDst := by decide
+@[simp] theorem lCn_ne_lCi'' : lCn ≠ lCi := by decide
+@[simp] theorem lCn_ne_lCz'' : lCn ≠ lCz := by decide
+
 def fMul := ofString "bigMul"
 
 def shlZero : ProgHOL 64 :=
@@ -923,7 +944,111 @@ theorem shl_spec (C : Ctx) (hok : CtxOK C) (s : AState) (a b : Nat) (oa ob : Nat
       (mul_spec (ctxH C HP) (ctxOK_H hok _) s a (2 ^ r) oa H1.length hbaP hPblk hlim)))
     (fun tt w s' H2 hp2 ⟨htt, hs, o2, hw, hb2⟩ => ?_)
   subst htt hs hw
-  sorry
+  generalize htt : a * 2 ^ r = tt at hb2 hab
+  have hpos : tt ≠ 0 := by
+    rw [← htt]; exact Nat.mul_ne_zero (fun h => ha0' (by rw [h, limbs_zero]; rfl)) (Nat.pos_iff_ne_zero.mp (Nat.pow_pos (by decide)))
+  obtain ⟨hlo2, hlv2⟩ := blkAt_get0 hb2
+  have hw2 : (ctxH C H2).H[o2]? = some (BitVec.ofNat 64 (limbs tt).length) := by
+    show H2[o2]? = _; rw [List.getElem?_eq_getElem hlo2, hlv2]
+  refine UD.specR_heapLoadI' (C := ctxH C H2) gLt (vv gT) o2 _ hw2 (by decide) (by simp; rfl) ?_
+  refine specR_atEntry fun t1 ht1 => ?_
+  obtain ⟨H4, hp4, ha4⟩ := ht1.sr.heap
+  have hbl2' := blkAt_len hb2
+  have hlen4 := ha4.len
+  have hp4l := hp4.length_le
+  have hlt58 : (limbs tt).length < 2 ^ 58 := by simp only [ctxH] at hlen4 hp4l; omega
+  have hq58 : q < 2 ^ 58 := by
+    have : b < 2 ^ 64 := hbB'
+    omega
+  refine specR_assignI gCnt _ (BitVec.ofNat 64 ((limbs tt).length + q)) (by decide)
+    (by simp [sev]; rw [BitVec.ofNat_add_ofNat]) ?_
+  refine specR_allocI (C := ctxH C H2) gO (.panop .mul [.op .add [vv gCnt, .const 1], .const 8])
+    ((limbs tt).length + q + 1) (by omega) (by decide)
+    (fun v => by simp [sev, Env.get]; rw [word_add1_eq]; exact CV.mul8_eq _) (fun H3 ws3 hp3 hwl3 _ => ?_)
+  have hp3l : H2.length ≤ H3.length := hp3.length_le
+  have hj3 : H3.length < (ctxH (ctxH C H2) (H3 ++ ws3)).H.length := by show _ < (H3 ++ ws3).length; simp; omega
+  refine specR_heapStoreI (ctxOK_H hok _) (vv gO) (vv gCnt) _ hj3 (BitVec.ofNat 64 ((limbs tt).length + q))
+    (by simp; rfl) (by simp) ?_
+  let B1 := (H3 ++ ws3).set H3.length (BitVec.ofNat 64 ((limbs tt).length + q))
+  have hB1 : B1.length = H3.length + ((limbs tt).length + q + 1) := by simp [B1, hwl3]
+  refine specR_assignI gQz _ (cellA C (H3.length + 1 + 0)) (by decide) (by simp [sev]; exact cellA_add8 C _) ?_
+  refine specR_assignI gZi (.const 0) (BitVec.ofNat 64 0) (by decide) rfl ?_
+  let Γz : Env := [(gQ, BitVec.ofNat 64 q), (gO, cellA C H3.length), (gLt, BitVec.ofNat 64 (limbs tt).length),
+    (gT, cellA C o2)]
+  refine specR_envWeak (Γb := shlGz Γz C H3.length 0) (fun z v hz => ?_) ?_
+  · simp only [shlGz, Γz, Env.get_cons] at hz ⊢
+    by_cases e1 : z = gZi
+    · subst e1; simpa using hz
+    by_cases e2 : z = gQz
+    · subst e2; simpa using hz
+    by_cases e3 : z = gQ
+    · subst e3; simpa using hz
+    by_cases e4 : z = gO
+    · subst e4; simp at hz ⊢; exact hz
+    by_cases e5 : z = gLt
+    · subst e5; simpa using hz
+    by_cases e6 : z = gT
+    · subst e6; simpa using hz
+    simp [e1, e2, e3, e4, e5, e6, Env.get] at hz
+  refine shl_zero (C := C) hok q B1 H3.length (by rw [hB1]; omega) (by omega) (by decide) (by simp [Γz]) ?_
+  let Bz := fillI B1 (List.replicate q 0) (H3.length + 1) q
+  have hBz : Bz.length = B1.length := fillI_length _ _ _ q
+  refine specR_assignI lSrc _ (cellA C (o2 + 1 + 0)) (by decide) (by simp [sev, shlGz, Γz]; exact cellA_add8 C _) ?_
+  refine specR_assignI lDst (vv gQz) (cellA C (H3.length + 1 + q + 0)) (by decide) (by simp [shlGz]) ?_
+  refine specR_assignI lCi (.const 0) (BitVec.ofNat 64 0) (by decide) rfl ?_
+  refine specR_assignI lCn (vv gLt) (BitVec.ofNat 64 (limbs tt).length) (by decide) (by simp [shlGz, Γz]) ?_
+  let Γc : Env := [(lCn, BitVec.ofNat 64 (limbs tt).length), (gO, cellA C H3.length)]
+  refine specR_envWeak (Γb := (lCi, BitVec.ofNat 64 0) :: (lDst, cellA C (H3.length + 1 + q + 0)) ::
+    (lSrc, cellA C (o2 + 1 + 0)) :: Γc) (fun z v hz => ?_) ?_
+  · simp only [Γc, Env.get_cons] at hz ⊢
+    by_cases e1 : z = lCi
+    · subst e1; simpa using hz
+    by_cases e2 : z = lDst
+    · subst e2; simpa using hz
+    by_cases e3 : z = lSrc
+    · subst e3; simpa using hz
+    by_cases e4 : z = lCn
+    · subst e4; simpa using hz
+    by_cases e5 : z = gO
+    · subst e5; simp at hz; subst hz; simp [shlGz, Γz]
+    simp [e1, e2, e3, e4, e5, Env.get] at hz
+  have hsrc : ∀ j (hj : j < (limbs tt).length), Bz[o2 + 1 + j]? = some (limbs tt)[j] := by
+    intro j hj
+    rw [fillI_get?, if_neg (by omega)]
+    show ((H3 ++ ws3).set H3.length _)[o2 + 1 + j]? = _
+    rw [List.getElem?_set_ne (by omega), List.getElem?_append_left (by omega)]
+    have h1 := hb2.2 j hj
+    obtain ⟨r3, hr3⟩ := hp3
+    have hlt : o2 + 1 + j < H2.length := by have := blkAt_len hb2; omega
+    show H3[o2 + 1 + j]? = _
+    rw [← hr3]
+    show (H2 ++ r3)[o2 + 1 + j]? = _
+    rw [List.getElem?_append_left hlt]; exact h1
+  refine specR_copyI (C := C) hok Bz (limbs tt) (o2 + 1) (H3.length + 1 + q) (by decide) hsrc (by omega)
+    (by rw [hBz, hB1]; omega) (by omega) (by simp [Γc]) (by decide) (by simp [Γc, Env.get]) ?_
+  refine specR_returnI _ (cellA C H3.length) (by simp [Γc]) (fun t ht => ?_)
+  refine ⟨fillI Bz (limbs tt) (H3.length + 1 + q) (limbs tt).length, H3.length, ?_, rfl, ?_, rfl,
+    sr_of_eq ht.sr rfl rfl rfl rfl⟩
+  · have hc1 : C.H <+: H3 := hp1.trans (hpHP.trans (hp2.trans hp3))
+    exact CV.prefix_fillI _ _ _ C.H (by have := hc1.length_le; omega)
+      (CV.prefix_fillI _ _ _ C.H (by have := hc1.length_le; omega)
+        (prefix_set_ge (hc1.trans (List.prefix_append _ _)) _ (hc1.length_le) _) _) _
+  · rw [hab, limbs_mul_pow tt q hpos]
+    have hlf := fillI_length Bz (limbs tt) (H3.length + 1 + q)
+    constructor
+    · rw [fillI_get?, if_neg (by omega), fillI_get?, if_neg (by omega)]
+      show ((H3 ++ ws3).set H3.length _)[H3.length]? = _
+      rw [List.getElem?_set_self (by simp; omega)]; simp [Nat.add_comm]
+    · intro i hi
+      simp only [List.length_append, List.length_replicate] at hi
+      by_cases hiq : i < q
+      · rw [fillI_get?, if_neg (by omega), fillI_get?, if_pos ⟨by omega, by omega, by rw [hB1]; omega⟩]
+        simp [List.getElem_append_left (show i < (List.replicate q (0 : BitVec 64)).length by simp; exact hiq),
+          List.getD_eq_getElem?_getD, show H3.length + 1 + i - (H3.length + 1) = i by omega, hiq]
+      · rw [fillI_get?, if_pos ⟨by omega, by omega, by rw [hBz, hB1]; omega⟩]
+        rw [List.getElem_append_right (by simp; omega)]
+        simp [List.getD_eq_getElem?_getD, show H3.length + 1 + i - (H3.length + 1 + q) = i - q by omega,
+          List.getElem?_eq_getElem (show i - q < (limbs tt).length by omega)]
 
 end
 
