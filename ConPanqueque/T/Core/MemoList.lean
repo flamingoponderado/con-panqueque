@@ -286,6 +286,19 @@ theorem wsRep_insert {C : Ctx} {H : List (BitVec 64)} {p p' : BitVec 64} {memo :
     simp only [this]
     exact he h' d' hd'
 
+theorem mnodes_toH {C : Ctx} {H H' : List (BitVec 64)} :
+    ∀ {p : BitVec 64} {xs : List ((BitVec 64 × BitVec 64) × Bool)}, MNodes C H p xs → MNodes (ctxH C H') H p xs
+  | _, [], h => h
+  | _, ((_, _), _) :: xs, ⟨o, nx, h1, h0, h2, h3, h4, h5, h6⟩ => ⟨o, nx, h1, h0, h2, h3, h4, h5, mnodes_toH h6⟩
+
+theorem wsRep_toH {C : Ctx} {H H' : List (BitVec 64)} {p : BitVec 64} {memo : Std.HashMap (EIdx × Nat) Bool}
+    (h : WsRep C H p memo) : WsRep (ctxH C H') H p memo :=
+  let ⟨xs, hm, he⟩ := h; ⟨xs, mnodes_toH hm, he⟩
+
+theorem wsRep_ofH {C : Ctx} {H H' : List (BitVec 64)} {p : BitVec 64} {memo : Std.HashMap (EIdx × Nat) Bool}
+    (h : WsRep (ctxH C H') H p memo) : WsRep C H p memo :=
+  let ⟨xs, hm, he⟩ := h; ⟨xs, mnodes_H hm, he⟩
+
 end
 
 end ConPanqueque.T.WC
