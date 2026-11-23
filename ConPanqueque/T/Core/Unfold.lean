@@ -34,6 +34,11 @@ def uArgs := ofString "uargs"
 def uLen := ofString "ulen"
 def uR := ofString "ur"
 def fCV := ofString "constValAt"
+def uH := ofString "uh"
+def uW := ofString "uw"
+def uT := ofString "ut"
+def fUD := ofString "unfoldD"
+def fUnfold := ofString "unfoldDefinition"
 
 def udParams : List MlS := [uE, uN, uUs, uP]
 def udLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, uLp, uV, uLl, uCv, uArgs, uLen, uR]
@@ -187,6 +192,145 @@ theorem ud_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       hl ((ofNat_eq_iff_small _ _ (by omega) (by omega)).mp x)
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne])
       (fun _ => ?_) (fun h => absurd h (by decide))
+    refine specR_returnI _ 0 rfl (fun t ht => ?_)
+    exact ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
+
+/-! ## The head: `getAppFn`, the `const` view, the lookup -/
+
+def ufLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, uH, uN, uUs, uW, uP, uT, uR]
+
+def ufCore (C : Ctx) : ProgHOL 64 :=
+  .seq (.call (some (some (.local, uH), none)) fGetAppFn [.const (BitVec.ofNat 64 coreWalkFuel), vv uE])
+  (.ite (tagIsE uH 3)
+    (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv uH)) (.seq eViewP
+    (.seq (.assign .local uN (.load .one (vv lRp))) (.seq (.assign .local uUs (.load .one (.op .add [vv lRp, .const 8])))
+    (envFindP C uW (vv uN)
+    (.ite (.cmp .equal (vv uW) (.const 0)) (.return (.const 0))
+    (.seq (.assign .local uP (.op .sub [vv uW, .const 1])) (.seq (.assign .local uT (.load .one (vv uP)))
+    (.ite (.cmp .notEqual (vv uT) (.const 1)) (.return (.const 0))
+    (.seq (.call (some (some (.local, uR), none)) fUD [vv uE, vv uN, vv uUs, vv uP]) (.return (vv uR)))))))))))))
+    (.return (.const 0)))
+
+def ufBody (C : Ctx) : ProgHOL 64 := prologue ufLocals (ufCore C)
+
+theorem uf_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ ufLocals → (ctxEnv C ++ [uE].zip vals).get x = none :=
+  params_none C ufLocals [uE] vals (by decide) (by decide)
+
+theorem unfoldDefinition_eq (fe : IFEnv) (e : EIdx) :
+    unfoldDefinition fe e = (getAppFn coreWalkFuel e >>= fun hh =>
+      if hh.tag == ETag.const then
+        (view hh >>= fun v => match v with
+          | .const n us =>
+            match fe.find? n with
+            | some (.defnInfo cv value _) => unfoldD e n us cv value
+            | _ => pure none
+          | _ => pure none)
+      else pure none) := by
+  rfl
+
+def ciTag : IConstantInfo → Nat
+  | .axiomInfo _ => 0 | .defnInfo .. => 1 | .thmInfo _ => 2 | .indInfo .. => 3 | .ctorInfo .. => 4 | .recInfo .. => 5
+
+theorem cie_tag {EB : BitVec 64} {H : List (BitVec 64)} {o : Nat} {ci : IConstantInfo} (h : CIE EB H o ci) :
+    H[o]? = some (BitVec.ofNat 64 (ciTag ci)) := by
+  obtain ⟨_, h2⟩ := h
+  cases ci <;> simp only at h2 <;> first | exact h2 | exact h2.1
+
+theorem tagN_const {v : ENodeView} (h : v.tagN = 3) : ∃ n us, v = .const n us := by
+  cases v <;> simp [ENodeView.tagN] at h ⊢
+
+theorem uf_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : CodesILP C (ilpBody C))
+    (hcf : C.code.lookup fInstLPF = some (ILP.ilpParams.map (fun p => (p, ShapeHOL.one)), ilpfBody C, .one))
+    (hccv : C.code.lookup fCV = some (cvParams.map (fun p => (p, ShapeHOL.one)), cvBody C, .one))
+    (hcg : C.code.lookup ExG.fGaa = some ([(pFu, .one), (pH, .one)], ExG.gaaBody C, .one))
+    (hcm : C.code.lookup ExK.fMka = some ([(ExK.pF, .one), (ExK.pP, .one), (ExK.pI, .one), (ExK.pN, .one)],
+      ExK.mkaBody, .one))
+    (hcud : C.code.lookup fUD = some (udParams.map (fun p => (p, ShapeHOL.one)), udBody, .one))
+    (hcaf : C.code.lookup fGetAppFn = some ([(pFu, .one), (pH, .one)], getAppFnBody, .one))
+    (s : AState) (e : EIdx)
+    (hst : StateOK s) (hcn : ReadNCacheOK s.caches.readNC s.store) (hcl : ReadLCacheOK s.caches.readLC s.store)
+    (hcls : ReadLsCacheOK s.caches.readLsC s.store)
+    (hpre : ∀ hh n us cv value hint, getAppFn coreWalkFuel e s = .ok (hh, s) → s.store.view hh = some (.const n us) →
+      C.fe.find? n = some (.defnInfo cv value hint) → ∃ ks vsL,
+        Frontend.denoteNList s.store.ns cv.levelParams = some ks ∧ denoteLs s.store.lss us = some vsL ∧
+        (denoteE s.store value).isSome = true ∧ cv.levelParams.length + 1 < 2 ^ 60) :
+    SpecR (σ := σ) (Pre C s ([uE].zip [Enc.idxW e])) (ufBody C) s (unfoldDefinition C.fe e) (PostO C) := by
+  refine specR_prologue (postO_locals C) (uf_none C _) ?_
+  rw [unfoldDefinition_eq]
+  unfold ufCore
+  refine specR_callNIM uH fGetAppFn [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv uE] getAppFnBody
+    [BitVec.ofNat 64 coreWalkFuel, Enc.idxW e] (by decide) rfl (by decide) hcaf
+    ⟨rfl, by simp +decide [sev, Env.get, ctxEnv], trivial⟩
+    (fun a w s' st => getAppFn coreWalkFuel e s = .ok (a, s') ∧ Post C s a w s' st)
+    (fun a w s' st ⟨_, _, hs, hsr⟩ => hs ▸ hsr)
+    (fun u hu _ hlk => specR_run (fun t ht => by
+      subst ht
+      exact getAppFn_spec C hcaf coreWalkFuel e s CV.coreWalkFuel_lt t ⟨hu, hlk 0 (by decide), hlk 1 (by decide)⟩))
+    (fun hh w s' st ⟨hrun, hw, hs, _⟩ => ?_)
+  subst hw
+  have hs' : s = s' := hs.symm
+  subst hs'
+  refine Knot.specR_tagIteV uH hh 3 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
+  · have hb : (hh.tag == ETag.const) = true := by simp [htg, ETag.const]
+    rw [if_pos hb]
+    refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
+    refine specR_assignI lDh (vv uH) (Enc.idxW hh) (by decide) (by simp +decide [Env.get]) ?_
+    refine ILP.specR_viewIv hh (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
+      (fun v P hv htn _ => ?_)
+    have h3 : v.tagN = 3 := by rw [htn, htg]; rfl
+    obtain ⟨n, us, rfl⟩ := tagN_const h3
+    simp only
+    refine specR_loadI' uN (vv lRp) P (P + BitVec.ofNat 64 0) (Enc.idxW n) (by decide) (by simp [sev]) (by simp)
+      (by simpa [encEView, Enc.encConst] using wordsAt_mem0 P (Enc.idxW n) [Enc.idxW us] []) ?_
+    refine specR_loadI' uUs _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW us) (by decide) (by simp +decide [sev]) rfl
+      (by simpa [encEView, Enc.encConst] using wordsAt_mem1 P (Enc.idxW n) (Enc.idxW us) [] []) ?_
+    refine specR_envFindI hok hc.memoGet hc.memoProbe uW (vv uN) n (by decide) (by simp +decide [Env.get])
+      (by simp +decide [Env.get, ctxEnv]) ?_
+    have hrel := find_rel hok n
+    revert hrel
+    rcases hfind : C.fe.find? n with _ | ci
+    · intro hrel; simp only at hrel
+      rw [hrel]
+      refine specR_ifI _ 1 (by simp [sev, Env.get, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+        (fun _ => ?_) (fun h => absurd h (by decide))
+      refine specR_returnI _ 0 rfl (fun t ht => ?_)
+      exact ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
+    · intro ⟨o, hm, hci⟩
+      rw [hm]
+      refine specR_atEntry fun t ht => ?_
+      have hoE : o < C.EN := Nat.lt_of_lt_of_le (cie_lt hci) ht.sr.env.1.len
+      have hne := ecell_succ_ne hok hoE
+      refine specR_ifI _ 0 (by simp [sev, Env.get, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
+        (fun h => absurd rfl h) (fun _ => ?_)
+      refine specR_assignI uP _ (ecell C o) (by decide) (by simp [sev, Env.get, optWG]; exact ecell_succ_sub C o) ?_
+      refine specR_envLoadI uT (vv uP) o _ (by decide) (by simp +decide [Env.get]) (cie_tag hci) ?_
+      cases ci with
+      | defnInfo cv value hint =>
+        refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ciTag, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+          (fun h => absurd rfl h) (fun _ => ?_)
+        simp only
+        obtain ⟨ks, vsL, hks, hus, hden, hlen⟩ := hpre hh n us cv value hint hrun hv hfind
+        refine specR_congr (m' := unfoldD e n us cv value >>= fun r => pure r) (by simp) ?_
+        refine specR_callNIH uR fUD udParams [vv uE, vv uN, vv uUs, vv uP] udBody
+          [Enc.idxW e, Enc.idxW n, Enc.idxW us, ecell C o] (by decide) rfl (by decide) hcud
+          ⟨by simp +decide [sev, Env.get, ctxEnv], by simp +decide [sev, Env.get], by simp +decide [sev, Env.get],
+            by simp +decide [sev, Env.get], trivial⟩
+          (PostO C) (fun a w _ _ => w = optW a) (fun a w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+          (fun u hu _ hlk => specR_of_pre u (pre_of_lookups hu udParams _ rfl hlk)
+            (ud_spec ra C hok hc hcf hccv hcg hcm s e n us cv value hint o hci ks vsL hks hus hst hcn hcl hcls hden
+              hlen))
+          (fun r w s' H' hp hw => ?_)
+        subst hw
+        refine specR_returnI _ (optW r) (by simp +decide [Env.get]) (fun t ht => ?_)
+        exact ⟨H', hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
+      | _ =>
+        refine specR_ifI _ 1 (by simp +decide [sev, Env.get, ciTag, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+          (fun _ => ?_) (fun h => absurd h (by decide))
+        refine specR_returnI _ 0 rfl (fun t ht => ?_)
+        exact ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
+  · have hb : ¬ (hh.tag == ETag.const) = true := by simpa [ETag.const] using htg
+    rw [if_neg hb]
     refine specR_returnI _ 0 rfl (fun t ht => ?_)
     exact ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
 
