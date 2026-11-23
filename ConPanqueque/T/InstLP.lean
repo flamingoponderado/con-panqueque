@@ -199,4 +199,37 @@ def RecILP (C : Ctx) (B : ProgHOL 64) (ko : Nat) (khs : List NIdx) (ks : List Co
 
 end
 
+section
+variable {σ : Type}
+open ConRon.Bridge.ExprOps
+
+theorem callI_spec {β : Type} (C : Ctx) (B : ProgHOL 64)
+    (hcode : C.code.lookup fInstLP = some (ilpParams.map (fun p => (p, ShapeHOL.one)), B, .one))
+    (ko : Nat) (khs : List NIdx) (ks : List ConLeche.Name) (usH : LsIdx) (vsL : List ConLeche.Level) (n : Nat)
+    (ih : RecILP (σ := σ) C B ko khs ks usH vsL n) {H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem}
+    {rest : ProgHOL 64} {k : EIdx → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    (x arg : MlS) (h : EIdx) (hx : x ∈ DI)
+    (hfu : Γ.get pFu = some (BitVec.ofNat 64 (n + 1))) (harg : Γ.get arg = some (Enc.idxW h))
+    (hkp : Γ.get pKp = some (cellA C ko)) (hus : Γ.get pUs = some (Enc.idxW usH))
+    (hp : PInv s khs ks usH vsL) (hden : (denoteE s.store h).isSome = true) (hb : BlkAt H ko (khs.map Enc.idxW))
+    (hk : ∀ r s' H', H <+: H' → PInv s' khs ks usH vsL → (denoteE s'.store r).isSome = true →
+      Ext s.store s'.store → (∀ i v, s.store.view i = some v → s'.store.view i = some v) →
+      instLPGo ks vsL n h s = .ok (r, s') →
+      SpecR (Inv (ctxH C H') s' ((x, Enc.idxW r) :: Γ) [] DI) rest s' (k r) R) :
+    SpecR (Inv (ctxH C H) s Γ M DI) (.seq (callI x arg) rest) s (instLPGo ks vsL n h >>= k) R :=
+  specR_callNIH x fInstLP ilpParams [.op .sub [vv pFu, .const 1], vv arg, vv pKp, vv pUs] B
+    [BitVec.ofNat 64 n, Enc.idxW h, cellA C ko, Enc.idxW usH] (by decide) rfl hx hcode
+    ⟨by simp [sev, hfu]; exact ofNat_succ_sub_one n, by simp [harg], by simp [hkp], by simp [hus], trivial⟩
+    (fun a w s' st => instLPGo ks vsL n h s = .ok (a, s') ∧ PostILP (ctxH C H) a w s' st)
+    (fun a w s' _ => instLPGo ks vsL n h s = .ok (a, s') ∧ w = Enc.idxW a)
+    (fun a w s' st ⟨hr, H', hpH, hw, hsr⟩ => ⟨H', hpH, ⟨hr, hw⟩, hsr⟩)
+    (fun u hu _ hlk => specR_run (fun w hw => by
+      subst hw; exact ih H s h hp hden hb _ (pre_of_lookups hu ilpParams _ rfl hlk)))
+    (fun a w s' H' hpH ⟨hr, hw⟩ => by
+      subst hw
+      obtain ⟨p', d', x', v'⟩ := hp.after n h a hden hr
+      exact hk a s' H' hpH p' d' x' v' hr)
+
+end
+
 end ConPanqueque.T.ILP
