@@ -1363,7 +1363,96 @@ theorem shr_spec (C : Ctx) (hok : CtxOK C) (s : AState) (a b : Nat) (oa ob : Nat
     simp [sev]
     apply BitVec.eq_of_toNat_eq
     simp [BitVec.toNat_sub]; omega) ?_
-  sorry
+  have hbdm : 64 * (b / 64) + b % 64 = b := Nat.div_add_mod b 64
+  have hr64 : b % 64 < 64 := Nat.mod_lt _ (by decide)
+  have hqa := word_lt_iff (b / 64) (limbs a).length (by unfold B; omega) (by unfold B; omega)
+  by_cases hq : b / 64 < (limbs a).length
+  · refine specR_ifI _ 1 (by simp [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hqa.mpr hq])
+      (fun _ => ?_) (fun h => absurd h (by decide))
+    unfold shrMain
+    generalize hq' : b / 64 = q at hq hqa hbdm
+    generalize hr' : b % 64 = r at hr64 hbdm
+    generalize hn : (limbs a).length - q = n
+    have hn1 : 1 ≤ n := by omega
+    refine specR_assignI rCnt _ (BitVec.ofNat 64 n) (by decide) (by
+      simp [sev, Env.get]
+      rw [← hn, BitVec.ofNat_sub_ofNat_of_le _ _ (by omega) (by omega)]) ?_
+    refine specR_allocI rO (.panop .mul [.op .add [vv rCnt, .const 2], .const 8]) (n + 2) (by omega)
+      (by decide) (fun v => by
+        simp [sev, Env.get]
+        rw [show (2#64 : BitVec 64) = BitVec.ofNat 64 2 from rfl, BitVec.ofNat_add_ofNat]; exact CV.mul8_eq _)
+      (fun H' wsN hpre hwl hcap => ?_)
+    have hpl := hpre.length_le
+    let B0 := H' ++ wsN
+    have hB0 : B0.length = H'.length + (n + 2) := by simp [B0, hwl]
+    have hba' : BlkAt B0 oa (limbs a) := blkAt_mono hba (hpre.trans (List.prefix_append _ _))
+    refine specR_assignI rQa _ (cellA C (oa + 1 + q)) (by decide) (by
+      simp [sev, Env.get, shrParams, ctxEnv]
+      have m8 : BitVec.ofNat 64 q * 8#64 = BitVec.ofNat 64 (8 * q) := CV.mul8_eq q
+      rw [m8, BitVec.add_assoc, show (8#64 : BitVec 64) = BitVec.ofNat 64 8 from rfl, BitVec.ofNat_add_ofNat]
+      unfold cellA; rw [BitVec.add_assoc, BitVec.ofNat_add_ofNat]; congr 2; omega) ?_
+    refine specR_assignI rQo _ (cellA C (H'.length + 1 + 0)) (by decide) (by simp [sev]; exact cellA_add8 C _) ?_
+    refine specR_assignI rI (.const 0) (BitVec.ofNat 64 0) (by decide) rfl ?_
+    refine specR_assignI rNm1 _ (BitVec.ofNat 64 (n - 1)) (by decide)
+      (by simp [sev]; rw [show (1#64 : BitVec 64) = BitVec.ofNat 64 1 from rfl,
+        BitVec.ofNat_sub_ofNat_of_le _ _ (by omega) (by omega)]) ?_
+    let Γ0 : Env := [(rNm1, BitVec.ofNat 64 (n - 1)), (rR, BitVec.ofNat 64 r), (rR2, BitVec.ofNat 64 (63 - r)),
+      (rCnt, BitVec.ofNat 64 n), (rO, cellA C H'.length)]
+    refine specR_envWeak (Γb := shrG Γ0 C H'.length oa q 0) (fun z v hz => ?_) ?_
+    · simp only [shrG, Γ0, Env.get_cons, Nat.add_zero] at hz ⊢
+      by_cases e1 : z = rI
+      · subst e1; simpa using hz
+      by_cases e2 : z = rQo
+      · subst e2; simpa using hz
+      by_cases e3 : z = rQa
+      · subst e3; simpa using hz
+      by_cases e4 : z = rNm1
+      · subst e4; simpa using hz
+      by_cases e5 : z = rR
+      · subst e5; simpa using hz
+      by_cases e6 : z = rR2
+      · subst e6; simpa using hz
+      by_cases e7 : z = rCnt
+      · subst e7; simpa using hz
+      by_cases e8 : z = rO
+      · subst e8; simpa using hz
+      simp [e1, e2, e3, e4, e5, e6, e7, e8, Env.get] at hz
+    have hbl := blkAt_len hba
+    refine shr_loop hok a q r n B0 H'.length oa hr64 hba' (by omega) (by omega) hn1 (by rw [hB0]; omega) (by omega)
+      (by decide) (by simp [Γ0]) (by simp [Γ0]) (by simp [Γ0]) (by simp [Γ0, Env.get]) (by simp [Γ0, Env.get])
+      (by simp [Γ0, Env.get]) ?_
+    -- the last digit
+    have hlast : (fillI B0 (shrW a q r n) (H'.length + 1) (n - 1))[oa + 1 + q + (n - 1)]? =
+        some (BitVec.ofNat 64 (dg a ((limbs a).length - 1))) := by
+      rw [fill_lo B0 _ (H'.length + 1) _ _ (by omega), show oa + 1 + q + (n - 1) = oa + 1 + ((limbs a).length - 1) by omega,
+        hba'.2 _ (by omega), limbs_getElem a _ (by omega)]; rfl
+    refine UD.specR_heapLoadI' (C := ctxH C _) rU (vv rQa) _ _ hlast (by decide) (by simp [shrG]; rfl) ?_
+    have hdl : dg (a / 2 ^ (64 * q + r)) (n - 1) = dg a ((limbs a).length - 1) / 2 ^ r := by
+      rw [shr_digit a q r (n - 1) hr64, show n - 1 + q + 1 = (limbs a).length by omega,
+        dg_big a _ haB, Nat.zero_mul, Nat.add_zero, show n - 1 + q = (limbs a).length - 1 by omega]
+      exact Nat.mod_eq_of_lt (Nat.lt_of_le_of_lt (Nat.div_le_self _ _) (Nat.mod_lt _ Bpos))
+    have hrr : (BitVec.ofNat 64 r).toNat = r := by simp; omega
+    refine specR_assignI rD _ (BitVec.ofNat 64 (dg (a / 2 ^ (64 * q + r)) (n - 1))) (by decide) (by
+      simp [sev, vv, shrG, Γ0, hrr, show r < 64 from hr64]
+      rw [hdl]; apply BitVec.eq_of_toNat_eq
+      simp [Nat.shiftRight_eq_div_pow]
+      have h1 : a / B ^ ((limbs a).length - 1) % B < 18446744073709551616 :=
+        Nat.mod_lt (a / B ^ ((limbs a).length - 1)) Bpos
+      unfold dg
+      rw [Nat.mod_eq_of_lt h1, Nat.mod_eq_of_lt (Nat.lt_of_le_of_lt (Nat.div_le_self _ _) h1)]) ?_
+    have hl := fillI_length B0 (shrW a q r n) (H'.length + 1)
+    have hj : H'.length + 1 + (n - 1) < (ctxH C (fillI B0 (shrW a q r n) (H'.length + 1) (n - 1))).H.length := by
+      show _ < (fillI _ _ _ _).length; rw [hl, hB0]; omega
+    refine specR_heapStoreI (ctxOK_H hok _) (vv rQo) (vv rD) _ hj (BitVec.ofNat 64 (dg (a / 2 ^ (64 * q + r)) (n - 1)))
+      (by simp [shrG]; rfl) (by simp) ?_
+    change SpecR (Inv (ctxH C ((fillI B0 (shrW a q r n) (H'.length + 1) (n - 1)).set (H'.length + 1 + (n - 1)) _)) s _
+      [] _) _ _ _ _
+    rw [fillI_succ_eq _ _ _ _ _ (shrW_get a q r n (n - 1) (by omega)), show n - 1 + 1 = n by omega]
+    sorry
+  · refine specR_ifI _ 0 (by simp [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, (not_congr hqa).mpr hq])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    rw [shr_zero_res a b _ haB (by omega)]
+    exact zeroBlk_spec hok (by decide)
 
 end
 
