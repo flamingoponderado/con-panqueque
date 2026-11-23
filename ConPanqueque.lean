@@ -285,3 +285,4 @@ import ConPanqueque.T.Core.DefeqOffset
 import ConPanqueque.T.Core.DefeqBinders
 import ConPanqueque.T.Core.LitEq
 import ConPanqueque.T.Core.QuickDefEq
+import ConPanqueque.T.Core.NumArgs
