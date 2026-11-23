@@ -551,4 +551,150 @@ theorem pushCheapKey_rev (safe b : Bool) (e : EIdx) (ys : List EIdx) :
 
 end
 
+
+section
+variable {σ : Type}
+
+/-- A local the environment binds may be declared. -/
+theorem specR_declAdd {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {c : ProgHOL 64}
+    {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop} (x : MlS) (v : BitVec 64) (hx : Γ.get x = some v)
+    (h : SpecR (Inv C s Γ M (x :: D)) c s m R) : SpecR (Inv C s Γ M D) c s m R :=
+  fun t ht => h t ⟨ht.sr, ht.env, ht.mem, fun y hy => by
+    rcases List.mem_cons.mp hy with rfl | hy
+    · exact ⟨v, ht.env y v hx⟩
+    · exact ht.decl y hy⟩
+
+abbrev wclD : List MlS := cB :: cQ :: cP :: (ctxLocals ++ wclLocals)
+
+theorem wcl_rest (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx} (hok : CtxOK C) (Bs : ProgHOL 64)
+    (hcf : C.code.lookup fSCF = some (scParams.map (fun p => (p, ShapeHOL.one)), scBody .whnfCore C fSCF, .one))
+    (hcc : C.code.lookup fSCC = some (scParams.map (fun p => (p, ShapeHOL.one)), scBody .whnfCoreCheap C fSCC, .one))
+    (hcodeS : C.code.lookup fMemoSet = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoSetBody, .one))
+    (hcodeI : C.code.lookup fMemoIns = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoInsBody, .one))
+    (hcs : C.code.lookup fWCS = some (wcsParams.map (fun p => (p, ShapeHOL.one)), Bs, .one))
+    (hcl : C.code.lookup fWCL = some (wclParams.map (fun p => (p, ShapeHOL.one)), wclBody C, .one))
+    (Q : AState → Prop)
+    (hQs : ∀ s1 cheap d h e a s2, Q s1 → whnfCoreStep mode (knot mode C n) C.fe cheap d h e s1 = .ok (a, s2) → Q s2)
+    (hStep : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ cheap d h e,
+      SpecR (σ := σ) (Pre (ctxH C H) s1 (wcsParams.zip [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d,
+        Enc.idxW h, Enc.idxW e])) Bs s1 (whnfCoreStep mode (knot mode C n) C.fe cheap d h e) (PostWS (ctxH C H)))
+    (f' : Nat)
+    (hrec : ∀ (H : List (BitVec 64)) s1 cheap d e (xs ys : List EIdx) p q, C.H <+: H → Q s1 → LstAt C H p xs →
+      LstAt C H q ys → SpecR (σ := σ) (Pre (ctxH C H) s1 (wclParams.zip [BitVec.ofNat 64 n, boolW cheap,
+        BitVec.ofNat 64 d, Enc.idxW e, p, q, BitVec.ofNat 64 f'])) (wclBody C) s1
+        (whnfCoreLoop mode (knot mode C n) C.fe cheap d f' e xs.reverse.toArray ys.reverse.toArray) (PostK (ctxH C H)))
+    {H : List (BitVec 64)} {s : AState} {Γ : Env} (hpre : C.H <+: H) (hq : Q s)
+    (cheap : Bool) (d : Nat) (e h : EIdx) (xs ys : List EIdx) (p q : BitVec 64) (o : Option EIdx)
+    (hp : LstAt C H p xs) (hqL : LstAt C H q ys)
+    (hFu : Γ.get kFu = some (BitVec.ofNat 64 n)) (hC : Γ.get kC = some (boolW cheap))
+    (hD0 : Γ.get kD = some (BitVec.ofNat 64 d)) (hE : Γ.get kE = some (Enc.idxW e))
+    (hP : Γ.get cP = some p) (hQ : Γ.get cQ = some q) (hB : Γ.get cB = some (BitVec.ofNat 64 f'))
+    (hH : Γ.get cH = some (Enc.idxW h)) (hK : Γ.get cK = some (boolW (whnfCoreKey h e)))
+    (hX : Γ.get cX = some (optW o)) :
+    SpecR (σ := σ) (Inv (ctxH C H) s Γ [] wclD) (wclRest C) s
+      (match o with
+        | some x => whnfCoreStoreChain cheap xs.reverse.toArray #[] x >>= fun _ => pure x
+        | none => whnfCoreStep mode (knot mode C n) C.fe cheap d h e >>= fun st => match st with
+          | .done v =>
+            (if cheap then pure false else pure (whnfCoreStoresDone (whnfCoreKey h e) e v) : AM Bool) >>= fun stb =>
+            whnfCoreStoreChain cheap (pushKey stb e xs.reverse.toArray)
+              (pushCheapKey (whnfCoreCheapSafe h e) stb e ys.reverse.toArray) v >>= fun _ => pure v
+          | .cont e' =>
+            (if cheap then pure false else pure (whnfCoreKey h e) : AM Bool) >>= fun stb =>
+            whnfCoreLoop mode (knot mode C n) C.fe cheap d f' e' (pushKey stb e xs.reverse.toArray)
+              (pushCheapKey (whnfCoreCheapSafe h e) stb e ys.reverse.toArray)) (PostK C) := by
+  unfold wclRest
+  rcases o with _ | x
+  · -- a miss: one step
+    refine specR_ifI _ 0 (by simp [sev, hX, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
+      (fun _ => ?_)
+    refine specR_assignI cS (safeE cH kE) (boolW (whnfCoreCheapSafe h e)) (by decide) (sev_safe _ cH kE h e hH hE) ?_
+    refine specR_callNIH (C := ctxH C H) cT fWCS wcsParams [vv kFu, vv kC, vv kD, vv cH, vv kE] Bs
+      [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d, Enc.idxW h, Enc.idxW e] (by decide) rfl (by decide) hcs
+      ⟨by simp [hFu], by simp [hC], by simp [hD0], by simp [hH], by simp [hE], trivial⟩
+      (fun st w s' t' => whnfCoreStep mode (knot mode C n) C.fe cheap d h e s = .ok (st, s') ∧
+        PostWS (ctxH C H) st w s' t')
+      (fun st w s' _ => w = encWS st ∧ whnfCoreStep mode (knot mode C n) C.fe cheap d h e s = .ok (st, s'))
+      (fun st w s' t' ⟨hrun, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hrun⟩, hsr⟩)
+      (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu wcsParams _ rfl hlk)
+        (hStep H s hpre hq cheap d h e)))
+      (fun st w s1 H1 hp1 ⟨hw, hrun⟩ => ?_)
+    subst hw
+    have hq1 := hQs s cheap d h e st s1 hq hrun
+    have hpre1 : C.H <+: H1 := hpre.trans hp1
+    have hp1L : LstAt C H1 p xs := lstAt_mono hp1 p xs hp
+    have hq1L : LstAt C H1 q ys := lstAt_mono hp1 q ys hqL
+    refine specR_assignI cV _ (Enc.idxW (match st with | .done v => v | .cont e => e)) (by decide)
+      (by simp [sev]; exact encWS_shr st) ?_
+    cases st with
+    | done v =>
+      refine specR_ifI _ 0 (by simp [sev, encWS_and1, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
+      have estb : (if cheap then pure false else pure (whnfCoreStoresDone (whnfCoreKey h e) e v) : AM Bool) =
+          pure (!cheap && whnfCoreStoresDone (whnfCoreKey h e) e v) := by cases cheap <;> rfl
+      simp only [estb, pure_bind]
+      generalize hb : (!cheap && whnfCoreStoresDone (whnfCoreKey h e) e v) = b
+      refine specR_assignI (D := wclD) cStb _ (boolW b) (by decide) ?_ ?_
+      · rw [← hb]
+        exact sev_andE (sev_notE (by simpa [vv, sev] using hC))
+          (sev_storesDone _ cK kE cV _ e v (by simp [hK]) (by simp [hE]) (by simp))
+      refine specR_pushI (C0 := C) (H := H1) hok cP cND cStb kE b e p xs ⟨by decide, by decide, by decide⟩ (by decide)
+        (by decide) (by simp [hP]) hp1L (by simp) (by simp [hE]) hpre1 (fun H2 p2 w2 hpa hpb hl2 => ?_)
+      refine specR_pushI (C0 := C) (H := H2) hok cQ cND2 cStb kE b e q ys ⟨by decide, by decide, by decide⟩
+        (by decide) (by decide) (by simp [hQ]) (lstAt_mono hpb q ys hq1L) (by simp) (by simp [hE]) hpa
+        (fun H3 q3 w3 hpc hpd hl3 => ?_)
+      refine specR_assignI cQ _ (if whnfCoreCheapSafe h e then q3 else 0) (by decide)
+        (by simp [sev]; cases whnfCoreCheapSafe h e <;> simp [boolW]) ?_
+      have hl3' : LstAt C H3 (if whnfCoreCheapSafe h e then q3 else 0)
+          (if whnfCoreCheapSafe h e then (if b then e :: ys else ys) else []) := by
+        cases whnfCoreCheapSafe h e
+        · rfl
+        · exact hl3
+      rw [pushKey_rev, pushCheapKey_rev]
+      exact scRet_spec (σ := σ) (D := wclD) hok hcf hcc hcodeS hcodeI hpc cheap _ _ p2 _ v
+        (lstAt_mono hpd p2 _ hl2) hl3' (by simp [hC]) (by simp) (by simp) (by simp) (by decide)
+    | cont e' =>
+      refine specR_ifI _ 1 (by simp [sev, encWS_and1, boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
+      have estb : (if cheap then pure false else pure (whnfCoreKey h e) : AM Bool) =
+          pure (!cheap && whnfCoreKey h e) := by cases cheap <;> rfl
+      simp only [estb, pure_bind]
+      generalize hb : (!cheap && whnfCoreKey h e) = b
+      refine specR_assignI (D := wclD) cStb _ (boolW b) (by decide) ?_ ?_
+      · rw [← hb]
+        exact sev_andE (sev_notE (by simpa [vv, sev] using hC)) (by simpa [vv, sev] using hK)
+      refine specR_pushI (C0 := C) (H := H1) hok cP cND cStb kE b e p xs ⟨by decide, by decide, by decide⟩ (by decide)
+        (by decide) (by simp [hP]) hp1L (by simp) (by simp [hE]) hpre1 (fun H2 p2 w2 hpa hpb hl2 => ?_)
+      refine specR_pushI (C0 := C) (H := H2) hok cQ cND2 cStb kE b e q ys ⟨by decide, by decide, by decide⟩
+        (by decide) (by decide) (by simp [hQ]) (lstAt_mono hpb q ys hq1L) (by simp) (by simp [hE]) hpa
+        (fun H3 q3 w3 hpc hpd hl3 => ?_)
+      refine specR_assignI cQ _ (if whnfCoreCheapSafe h e then q3 else 0) (by decide)
+        (by simp [sev]; cases whnfCoreCheapSafe h e <;> simp [boolW]) ?_
+      have hl3' : LstAt C H3 (if whnfCoreCheapSafe h e then q3 else 0)
+          (if whnfCoreCheapSafe h e then (if b then e :: ys else ys) else []) := by
+        cases whnfCoreCheapSafe h e
+        · rfl
+        · exact hl3
+      rw [pushKey_rev, pushCheapKey_rev]
+      refine specR_congr (m' := whnfCoreLoop mode (knot mode C n) C.fe cheap d f' e'
+        (if b then e :: xs else xs).reverse.toArray
+        (if whnfCoreCheapSafe h e then (if b then e :: ys else ys) else []).reverse.toArray >>= fun r => pure r)
+        (by simp) ?_
+      refine Big.specR_callKH (C := ctxH C H3) cR fWCL wclParams [vv kFu, vv kC, vv kD, vv cV, vv cP, vv cQ, vv cB]
+        (wclBody C) [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d, Enc.idxW e', p2,
+          (if whnfCoreCheapSafe h e then q3 else 0), BitVec.ofNat 64 f'] (by decide) rfl (by decide) hcl
+        ⟨by simp [hFu], by simp [hC], by simp [hD0], by simp, by simp, by simp, by simp [hB], trivial⟩
+        (hrec H3 s1 cheap d e' _ _ p2 _ hpc hq1 (lstAt_mono hpd p2 _ hl2) hl3') (fun r s2 H4 hp4 => ?_)
+      refine specR_returnI _ (Enc.idxW r) (by simp) (fun t ht => ?_)
+      exact ⟨H4, hpc.trans hp4, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
+  · -- a memo hit
+    have hne : optW (some x) ≠ 0 := WB.idxW_succ_ne x
+    refine specR_ifI _ 1 (by simp [sev, hX, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    refine specR_assignI cQ (.const 0) 0 (by decide) rfl ?_
+    refine specR_assignI cV _ (Enc.idxW x) (by decide) (by simp [sev, hX, optWG, BitVec.add_sub_cancel]) ?_
+    exact scRet_spec (σ := σ) (Γ := (cV, Enc.idxW x) :: (cQ, 0) :: Γ) (D := wclD) (s := s) hok hcf hcc hcodeS hcodeI
+      hpre cheap xs [] p 0 x hp rfl (by simp [Env.get_cons, hC]) (by simp [Env.get_cons, hP]) (by simp [Env.get_cons])
+      (by simp [Env.get_cons]) (by decide)
+
+end
+
 end ConPanqueque.T.WC
