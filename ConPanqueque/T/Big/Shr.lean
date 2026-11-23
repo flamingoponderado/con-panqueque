@@ -1131,4 +1131,97 @@ def shrLocals : List MlS := [rLa, rLb, rBw, rQ, rR, rR2, rCnt, rNm1, rO, rQa, rQ
 def shrParams : List MlS := [rX, rY]
 def shrBody (C : Ctx) : ProgHOL 64 := prologue shrLocals (shrCore C)
 
+section
+variable {σ : Type}
+
+/-- The digits of `a >>> (64 q + r)`, `n` many. -/
+def shrW (a q r n : Nat) : List (BitVec 64) :=
+  (List.range n).map fun k => BitVec.ofNat 64 (dg (a / 2 ^ (64 * q + r)) k)
+
+theorem shrW_get (a q r n k : Nat) (hk : k < n) :
+    (shrW a q r n)[k]? = some (BitVec.ofNat 64 (dg (a / 2 ^ (64 * q + r)) k)) := by
+  simp [shrW, hk]
+
+theorem sev_shrE (Γ : Env) (u v : BitVec 64) (r : Nat) (hr : r < 64) (hu : Γ.get rU = some u)
+    (hv : Γ.get rV = some v) (hR : Γ.get rR = some (BitVec.ofNat 64 r))
+    (hR2 : Γ.get rR2 = some (BitVec.ofNat 64 (63 - r))) :
+    sev Γ (.op .add [.shift .lsr (vv rU) (vv rR), .shift .lsl (.shift .lsl (vv rV) (.const 1)) (vv rR2)]) =
+      some (u >>> r + (v <<< 1) <<< (63 - r)) := by
+  have hrr : (BitVec.ofNat 64 r).toNat = r := by simp; omega
+  have hrr2 : (BitVec.ofNat 64 (63 - r)).toNat = 63 - r := by simp; omega
+  simp [sev, vv, hu, hv, hR, hR2, hrr, hrr2, show r < 64 from hr, show 63 - r < 64 by omega]
+
+theorem fill_lo (B0 W : List (BitVec 64)) (o j k : Nat) (hk : k < o) : (fillI B0 W o j)[k]? = B0[k]? := by
+  rw [fillI_get?, if_neg (by omega)]
+
+def shrG (Γ0 : Env) (C : Ctx) (od oa q k : Nat) : Env :=
+  (rI, BitVec.ofNat 64 k) :: (rQo, cellA C (od + 1 + k)) :: (rQa, cellA C (oa + 1 + q + k)) :: Γ0
+
+theorem cellA_add8' (C : Ctx) (k : Nat) : cellA C k + 8 = cellA C (k + 1) := cellA_add8 C k
+
+theorem shr_loop {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ0 : Env} {D : List MlS} {rest : ProgHOL 64}
+    {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop} (a q r n : Nat) (B0 : List (BitVec 64)) (od oa : Nat)
+    (hr : r < 64) (hba : BlkAt B0 oa (limbs a)) (hla : oa + 1 + (limbs a).length ≤ od + 1)
+    (hn : n + q = (limbs a).length) (hn1 : 1 ≤ n) (hdst : od + 1 + n ≤ B0.length) (h61 : n < 2 ^ 61)
+    (hD : rU ∈ D ∧ rV ∈ D ∧ rD ∈ D ∧ rQa ∈ D ∧ rQo ∈ D ∧ rI ∈ D)
+    (hNm1 : Γ0.get rNm1 = some (BitVec.ofNat 64 (n - 1))) (hR : Γ0.get rR = some (BitVec.ofNat 64 r))
+    (hR2 : Γ0.get rR2 = some (BitVec.ofNat 64 (63 - r)))
+    (hnU : Γ0.get rU = none) (hnV : Γ0.get rV = none) (hnD : Γ0.get rD = none)
+    (hrest : SpecR (Inv (ctxH C (fillI B0 (shrW a q r n) (od + 1) (n - 1))) s (shrG Γ0 C od oa q (n - 1)) [] D)
+      rest s m R) :
+    SpecR (Inv (ctxH C (fillI B0 (shrW a q r n) (od + 1) 0)) s (shrG Γ0 C od oa q 0) [] D) (.seq shrLoop rest) s m R := by
+  obtain ⟨du, dv, dd, dqa, dqo, di⟩ := hD
+  have hl := fillI_length B0 (shrW a q r n) (od + 1)
+  refine specR_forI (σ := σ) (D := D) (M := []) _ _ rest (n - 1)
+    (fun k => ctxH C (fillI B0 (shrW a q r n) (od + 1) k)) (shrG Γ0 C od oa q)
+    (fun k hk => ⟨if Flapjack.Compiler.Encoders.Asm.wordCmpHOL .lower (BitVec.ofNat 64 k) (BitVec.ofNat 64 (n - 1))
+      then 1 else 0, by simp [sev, shrG, Env.get, hNm1], ?_⟩) (fun k hk => ?_) hrest
+  · have e := word_lt_iff k (n - 1) (by unfold B; omega) (by unfold B; omega)
+    by_cases h' : k < n - 1
+    · simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, e.mpr h', h']
+    · have : ¬ BitVec.ofNat 64 k < BitVec.ofNat 64 (n - 1) := fun x => h' (e.mp x)
+      simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, this, h']
+  have hu : (fillI B0 (shrW a q r n) (od + 1) k)[oa + 1 + q + k]? = some (BitVec.ofNat 64 (dg a (k + q))) := by
+    rw [fill_lo B0 _ (od + 1) k _ (by omega), show oa + 1 + q + k = oa + 1 + (k + q) by omega,
+      hba.2 (k + q) (by omega)]
+    rw [limbs_getElem a (k + q) (by omega)]; rfl
+  have hv : (fillI B0 (shrW a q r n) (od + 1) k)[oa + 1 + q + k + 1]? = some (BitVec.ofNat 64 (dg a (k + q + 1))) := by
+    rw [fill_lo B0 _ (od + 1) k _ (by omega), show oa + 1 + q + k + 1 = oa + 1 + (k + q + 1) by omega,
+      hba.2 (k + q + 1) (by omega)]
+    rw [limbs_getElem a (k + q + 1) (by omega)]; rfl
+  refine step_seq (step_heapLoadI' (C := ctxH C _) rU (vv rQa) _ _ hu du (by simp [shrG]; rfl)) ?_
+  refine step_seq (step_heapLoadI' (C := ctxH C _) rV _ _ _ hv dv (by simp [sev, shrG]; exact cellA_add8 C _)) ?_
+  have hd0 := Nat.mod_lt (a / B ^ (k + q)) Bpos
+  have hd1 := Nat.mod_lt (a / B ^ (k + q + 1)) Bpos
+  have hw := shr_word (dg a (k + q)) (dg a (k + q + 1)) r hd0 hd1 hr
+  rw [← shr_digit a q r k hr] at hw
+  have hrr : (BitVec.ofNat 64 r).toNat = r := by simp; omega
+  have hrr2 : (BitVec.ofNat 64 (63 - r)).toNat = 63 - r := by simp; omega
+  refine step_seq (step_assignI rD _ (BitVec.ofNat 64 (dg (a / 2 ^ (64 * q + r)) k)) dd ?_) ?_
+  · rw [sev_shrE _ (BitVec.ofNat 64 (dg a (k + q))) (BitVec.ofNat 64 (dg a (k + q + 1))) r hr (by simp) (by simp)
+      (by simp [shrG, hR]) (by simp [shrG, hR2])]
+    exact congrArg some hw
+  have hj : od + 1 + k < (ctxH C (fillI B0 (shrW a q r n) (od + 1) k)).H.length := by
+    show _ < (fillI _ _ _ _).length; rw [hl]; omega
+  refine step_seq (step_heapStoreI (ctxOK_H hok _) (vv rQo) (vv rD) _ hj (BitVec.ofNat 64 (dg (a / 2 ^ (64 * q + r)) k))
+    (by simp [shrG]; rfl) (by simp)) ?_
+  change Step (Inv (ctxH C ((fillI B0 (shrW a q r n) (od + 1) k).set (od + 1 + k) _)) s _ [] D) _ _
+  rw [fillI_succ_eq _ _ _ _ _ (shrW_get a q r n k (by omega))]
+  refine step_seq (step_assignI rQa _ (cellA C (oa + 1 + q + k + 1)) dqa (by simp [sev, shrG]; exact cellA_add8 C _)) ?_
+  refine step_seq (step_assignI rQo _ (cellA C (od + 1 + k + 1)) dqo (by simp [sev, shrG]; exact cellA_add8 C _)) ?_
+  refine step_mono (step_assignI rI _ (BitVec.ofNat 64 (k + 1)) di (by simp [sev, shrG]; exact word_add1_eq k))
+    (fun _ h => h) (fun t ht => inv_envMono ht (fun z v hz => ?_))
+  simp only [shrG, Env.get_cons] at hz ⊢
+  by_cases e1 : z = rI
+  · subst e1; simp_all
+  by_cases e2 : z = rQo
+  · subst e2; simp_all [Nat.add_assoc]
+  by_cases e3 : z = rQa
+  · subst e3; simp_all [Nat.add_assoc]
+  simp only [e1, e2, e3, ite_false] at hz
+  have f : ∀ w, Γ0.get w = none → z ≠ w := fun w hw e => by subst e; rw [hw] at hz; simp at hz
+  simp [e1, e2, e3, f _ hnU, f _ hnV, f _ hnD, hz]
+
+end
+
 end ConPanqueque.T.Big
