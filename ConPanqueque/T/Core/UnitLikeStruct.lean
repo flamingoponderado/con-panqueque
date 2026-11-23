@@ -73,7 +73,8 @@ theorem uls_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d' e')
       (PostK (ctxH C H)))
-    (hLE : ∀ (H : List (BitVec 64)) s1 (u v : LIdx), C.H <+: H →
+    (hLE : ∀ (H : List (BitVec 64)) s1 (u v : LIdx), C.H <+: H → (denoteL s1.store.ls u).isSome = true →
+      (denoteL s1.store.ls v).isSome = true →
       SpecR (σ := σ) (Pre (ctxH C H) s1 [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s1 (lvlEq? u v)
         (LLeq.PostOB (ctxH C H)))
     (hUL : ∀ (H : List (BitVec 64)) s1 d T, C.H <+: H → Q s1 → d < 2 ^ 64 →

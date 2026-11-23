@@ -605,7 +605,8 @@ theorem pi_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
     (hW : ∀ (H : List (BitVec 64)) s1, C.H <+: H → ∀ e', Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d e')
       (PostK (ctxH C H)))
-    (hLE : ∀ (H : List (BitVec 64)) s1 (u v : LIdx), C.H <+: H →
+    (hLE : ∀ (H : List (BitVec 64)) s1 (u v : LIdx), C.H <+: H → (denoteL s1.store.ls u).isSome = true →
+      (denoteL s1.store.ls v).isSome = true →
       SpecR (σ := σ) (Pre (ctxH C H) s1 [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s1 (lvlEq? u v)
         (LLeq.PostOB (ctxH C H))) :
     SpecR (σ := σ) (Pre C s (piParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b]))
@@ -652,7 +653,7 @@ theorem pi_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
     (LLeq.PostOB (ctxH C H3)) (fun o w _ H' => H' = H3 ∧ w = LLeq.obW o)
     (fun o w s' st ⟨hw, hsr⟩ => ⟨H3, List.prefix_refl _, ⟨rfl, hw⟩, hsr⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu [LEq.pLa, LEq.pLb] _ rfl hlk)
-      (hLE H3 s3 uT C.pins.zeroLevel hpX)) (fun o w s4 H4 _ ⟨eH, hw⟩ => ?_)
+      (hLE H3 s3 uT C.pins.zeroLevel hpX (sr_sortSome hu hv) (sr_zeroSome (C := ctxH C H3) hu))) (fun o w s4 H4 _ ⟨eH, hw⟩ => ?_)
   subst H4; subst hw
   rcases o with _ | okA
   · refine specR_ifI _ 1 (by simp [sev, LLeq.obW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => specR_hangI)
@@ -701,7 +702,7 @@ theorem pi_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
     (LLeq.PostOB (ctxH C H7)) (fun o w _ H' => H' = H7 ∧ w = LLeq.obW o)
     (fun o w s' st ⟨hw, hsr⟩ => ⟨H7, List.prefix_refl _, ⟨rfl, hw⟩, hsr⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu [LEq.pLa, LEq.pLb] _ rfl hlk)
-      (hLE H7 s7 uT C.pins.zeroLevel hpY)) (fun o w s8 H8 _ ⟨eH, hw⟩ => ?_)
+      (hLE H7 s7 uT C.pins.zeroLevel hpY (sr_sortSome hu hv) (sr_zeroSome (C := ctxH C H7) hu))) (fun o w s8 H8 _ ⟨eH, hw⟩ => ?_)
   subst H8; subst hw
   rcases o with _ | okB
   · refine specR_ifI _ 1 (by simp [sev, LLeq.obW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => specR_hangI)

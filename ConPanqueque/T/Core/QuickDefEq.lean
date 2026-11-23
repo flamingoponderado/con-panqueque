@@ -425,7 +425,8 @@ theorem qd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     (hD : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → Callee (σ := σ) (ctxH C H) dParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW a, Enc.idxW b] (dE C) s1 ((knot mode C n).defeq d' a b)
       (PostB (ctxH C H)))
-    (hLE : ∀ (H : List (BitVec 64)) s1 (u v : LIdx), C.H <+: H →
+    (hLE : ∀ (H : List (BitVec 64)) s1 (u v : LIdx), C.H <+: H → (denoteL s1.store.ls u).isSome = true →
+      (denoteL s1.store.ls v).isSome = true →
       SpecR (σ := σ) (Pre (ctxH C H) s1 [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s1 (lvlEq? u v)
         (LLeq.PostOB (ctxH C H)))
     (s : AState) (d : Nat) (hd : d < 2 ^ 64) (a b : EIdx) :
@@ -478,7 +479,7 @@ theorem qd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       (LLeq.PostOB C) (fun o w _ H' => H' = C.H ∧ w = LLeq.obW o)
       (fun o w s' st ⟨hw, hsr⟩ => ⟨C.H, List.prefix_refl _, ⟨rfl, hw⟩, hsr⟩)
       (fun u' hu _ hlk => Knot.specR_of_pre u' (pre_of_lookups hu [LEq.pLa, LEq.pLb] _ rfl hlk)
-        (hLE C.H s u v (List.prefix_refl _))) (fun o w s1 H1 _ ⟨eH, hw⟩ => ?_)
+        (hLE C.H s u v (List.prefix_refl _) (sr_sortSome hu hva) (sr_sortSome hu hvb))) (fun o w s1 H1 _ ⟨eH, hw⟩ => ?_)
     subst H1; subst hw
     rcases o with _ | ok
     · exact specR_ifI _ 1 (by simp [sev, LLeq.obW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => specR_hangI)

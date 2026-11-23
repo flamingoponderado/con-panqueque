@@ -1508,7 +1508,8 @@ theorem ra_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     (hFab : ∀ (H : List (BitVec 64)) s1 (f mj : EIdx), C.H <+: H →
       SpecR (σ := σ) (Pre (ctxH C H) s1 (fbParams.zip [BitVec.ofNat 64 d, Enc.idxW f, Enc.idxW mj])) Bfab s1
         (fabScopeOk d f mj) (PostB (ctxH C H)))
-    (hLE : ∀ (H : List (BitVec 64)) s1 (u v : LIdx), C.H <+: H →
+    (hLE : ∀ (H : List (BitVec 64)) s1 (u v : LIdx), C.H <+: H → (denoteL s1.store.ls u).isSome = true →
+      (denoteL s1.store.ls v).isSome = true →
       SpecR (σ := σ) (Pre (ctxH C H) s1 [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s1 (lvlEq? u v)
         (LLeq.PostOB (ctxH C H))) :
     SpecR (σ := σ) (Pre C s (rkParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, ecell C qr, ecell C qj, Enc.idxW T,
@@ -1733,7 +1734,7 @@ theorem ra_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu piParams _ rfl hlk)
         (pi_spec mode n (ctxH C H6) (ctxOK_H hok H6) hc.io hc.w hc.eqv s8 d fab m
           (fun H s9 hp e' => hIO H s9 (hp16.trans hp) e') (fun H s9 hp e' => hW H s9 (hp16.trans hp) e')
-          (fun H s9 u v hp => hLE H s9 u v (hp16.trans hp))))
+          (fun H s9 u v hp hu hv => hLE H s9 u v (hp16.trans hp) hu hv)))
       (fun ir w s9 H7 hp7 hw => ?_)
     subst hw
     have hp17 : C.H <+: H7 := hp16.trans hp7

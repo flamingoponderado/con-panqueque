@@ -109,4 +109,12 @@ theorem sr_recDen {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) {c : NId
     (∀ lv pins, rl.fire = .nested lv pins → ∀ p ∈ pins, (denoteE s.store p).isSome = true) :=
   h.envd.2.2.2 c cv mI rP isK rules hc rl hrl
 
+theorem sr_sortSome {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) {e : EIdx} {u : LIdx}
+    (hv : s.store.view e = some (.sort u)) : (denoteL s.store.ls u).isSome = true := by
+  obtain ⟨l, hl⟩ := sr_sortDen h e u hv; rw [hl]; rfl
+
+theorem sr_zeroSome {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) :
+    (denoteL s.store.ls C.pins.zeroLevel).isSome = true := by
+  rw [sr_zeroLevel h]; rfl
+
 end ConPanqueque.T

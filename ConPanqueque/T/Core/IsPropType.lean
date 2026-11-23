@@ -254,7 +254,8 @@ theorem ipy_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
     (hW : ∀ (H : List (BitVec 64)) s1, C.H <+: H → ∀ e', Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d e')
       (PostK (ctxH C H)))
-    (hLE : ∀ (H : List (BitVec 64)) s1 (u v : LIdx), C.H <+: H →
+    (hLE : ∀ (H : List (BitVec 64)) s1 (u v : LIdx), C.H <+: H → (denoteL s1.store.ls u).isSome = true →
+      (denoteL s1.store.ls v).isSome = true →
       SpecR (σ := σ) (Pre (ctxH C H) s1 [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s1 (lvlEq? u v)
         (LLeq.PostOB (ctxH C H))) :
     ∀ (H : List (BitVec 64)), C.H <+: H →
@@ -301,7 +302,7 @@ theorem ipy_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
     (LLeq.PostOB (ctxH C H2)) (fun o w _ H' => H' = H2 ∧ w = LLeq.obW o)
     (fun o w s' st ⟨hw, hsr⟩ => ⟨H2, List.prefix_refl _, ⟨rfl, hw⟩, hsr⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu [LEq.pLa, LEq.pLb] _ rfl hlk)
-      (hLE H2 s2 uT C.pins.zeroLevel hp02)) (fun o w s3 H3 _ ⟨eH, hw⟩ => ?_)
+      (hLE H2 s2 uT C.pins.zeroLevel hp02 (sr_sortSome hu hv) (sr_zeroSome (C := ctxH C H2) hu))) (fun o w s3 H3 _ ⟨eH, hw⟩ => ?_)
   subst H3; subst hw
   rcases o with _ | ok
   · refine specR_ifI _ 1 (by simp [sev, LLeq.obW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => specR_hangI)

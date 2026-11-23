@@ -148,7 +148,8 @@ theorem pri_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
     (hW : ∀ (H : List (BitVec 64)) s1, C.H <+: H → ∀ e', Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d e')
       (PostK (ctxH C H)))
-    (hLE : ∀ (H : List (BitVec 64)) s1 (u v : LIdx), C.H <+: H →
+    (hLE : ∀ (H : List (BitVec 64)) s1 (u v : LIdx), C.H <+: H → (denoteL s1.store.ls u).isSome = true →
+      (denoteL s1.store.ls v).isSome = true →
       SpecR (σ := σ) (Pre (ctxH C H) s1 [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s1 (lvlEq? u v)
         (LLeq.PostOB (ctxH C H))) :
     ∀ (H : List (BitVec 64)), C.H <+: H →
@@ -221,7 +222,7 @@ theorem pri_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu piParams _ rfl hlk)
       (pi_spec mode n (ctxH C H4) (ctxOK_H hok H4) hc.io hc.w hc.e s4 d a b
         (fun H' s' hp e' => hIO H' s' (hp04.trans hp) e') (fun H' s' hp e' => hW H' s' (hp04.trans hp) e')
-        (fun H' s' u v hp => hLE H' s' u v (hp04.trans hp))))
+        (fun H' s' u v hp hu hv => hLE H' s' u v (hp04.trans hp) hu hv)))
     (fun r w s5 H5 hp5 hw => ?_)
   exact specR_returnI _ w (by simp) (fun t ht => ⟨H5, hp1.trans (hp2.trans (hp3.trans (hp4.trans hp5))), hw, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
