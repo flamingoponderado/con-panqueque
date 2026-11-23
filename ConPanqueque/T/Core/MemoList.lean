@@ -299,6 +299,74 @@ theorem wsRep_ofH {C : Ctx} {H H' : List (BitVec 64)} {p : BitVec 64} {memo : St
     (h : WsRep (ctxH C H') H p memo) : WsRep C H p memo :=
   let ⟨xs, hm, he⟩ := h; ⟨xs, mnodes_H hm, he⟩
 
+/-! ## A handle-keyed boolean memo, and a leaf list -/
+
+def LbRep (C : Ctx) (H : List (BitVec 64)) (p : BitVec 64) (memo : Std.HashMap EIdx Bool) : Prop :=
+  ∃ xs, MNodes C H p xs ∧ ∀ h : EIdx, memo[h]? = xs.lookup (Enc.idxW h, 0)
+
+theorem lbRep_empty (C : Ctx) (H : List (BitVec 64)) : LbRep C H 0 ∅ :=
+  ⟨[], rfl, fun h => by simp [List.lookup]⟩
+
+theorem lbRep_mono {C : Ctx} {H H' : List (BitVec 64)} (hp : H <+: H') {p : BitVec 64}
+    {memo : Std.HashMap EIdx Bool} (h : LbRep C H p memo) : LbRep C H' p memo :=
+  let ⟨xs, hm, he⟩ := h; ⟨xs, mnodes_mono hp p xs hm, he⟩
+
+theorem lbRep_toH {C : Ctx} {H H' : List (BitVec 64)} {p : BitVec 64} {memo : Std.HashMap EIdx Bool}
+    (h : LbRep C H p memo) : LbRep (ctxH C H') H p memo :=
+  let ⟨xs, hm, he⟩ := h; ⟨xs, mnodes_toH hm, he⟩
+
+theorem lbRep_ofH {C : Ctx} {H H' : List (BitVec 64)} {p : BitVec 64} {memo : Std.HashMap EIdx Bool}
+    (h : LbRep (ctxH C H') H p memo) : LbRep C H p memo :=
+  let ⟨xs, hm, he⟩ := h; ⟨xs, mnodes_H hm, he⟩
+
+theorem lbRep_insert {C : Ctx} {H : List (BitVec 64)} {p' : BitVec 64} {memo : Std.HashMap EIdx Bool}
+    {xs : List ((BitVec 64 × BitVec 64) × Bool)} (he : ∀ h : EIdx, memo[h]? = xs.lookup (Enc.idxW h, 0))
+    (h : EIdx) (r : Bool) (hm : MNodes C H p' (((Enc.idxW h, 0), r) :: xs)) :
+    LbRep C H p' (memo.insert h r) := by
+  refine ⟨_, hm, fun h' => ?_⟩
+  rw [Std.HashMap.getElem?_insert]
+  simp only [List.lookup]
+  by_cases e : h = h'
+  · subst e; simp
+  · rw [if_neg (by simpa using e)]
+    have : ¬ ((Enc.idxW h', (0 : BitVec 64)) == (Enc.idxW h, 0)) = true := by
+      simp only [beq_iff_eq, Prod.mk.injEq, and_true]
+      intro e1; exact e (idxW_inj e1).symm
+    simp only [this]
+    exact he h'
+
+def accEnc (it : Nat × EIdx) : (BitVec 64 × BitVec 64) × Bool := ((BitVec.ofNat 64 it.1, Enc.idxW it.2), false)
+
+def AccRep (C : Ctx) (H : List (BitVec 64)) (p : BitVec 64) (acc : List (Nat × EIdx)) : Prop :=
+  MNodes C H p (acc.map accEnc) ∧ ∀ it, it ∈ acc → it.1 < 2 ^ 64
+
+theorem accRep_mono {C : Ctx} {H H' : List (BitVec 64)} (hp : H <+: H') {p : BitVec 64} {acc : List (Nat × EIdx)}
+    (h : AccRep C H p acc) : AccRep C H' p acc :=
+  ⟨mnodes_mono hp p _ h.1, h.2⟩
+
+theorem leafMem_lookup (acc : List (Nat × EIdx)) (hs : ∀ it, it ∈ acc → it.1 < 2 ^ 64) (idx : Nat) (ty : EIdx)
+    (hi : idx < 2 ^ 64) : leafMem acc idx ty = ((acc.map accEnc).lookup (BitVec.ofNat 64 idx, Enc.idxW ty)).isSome := by
+  induction acc with
+  | nil => rfl
+  | cons it rest ih =>
+    obtain ⟨i, t⟩ := it
+    have hi' : i < 2 ^ 64 := hs (i, t) (by simp)
+    simp only [leafMem, List.map_cons, accEnc, List.lookup]
+    by_cases e : i = idx ∧ t = ty
+    · obtain ⟨rfl, rfl⟩ := e; simp
+    · have h1 : ¬ ((BitVec.ofNat 64 idx, Enc.idxW ty) == (BitVec.ofNat 64 i, Enc.idxW t)) = true := by
+        simp only [beq_iff_eq, Prod.mk.injEq, not_and]
+        intro e1 e2
+        exact e ⟨((UD.ofNat_eq_iff_small _ _ hi hi').mp e1).symm, (idxW_inj e2).symm⟩
+      simp only [h1]
+      have h2 : (i == idx && t == ty) = false := by
+        simp only [Bool.and_eq_false_iff, beq_eq_false_iff_ne, ne_eq]
+        by_cases e3 : i = idx
+        · exact Or.inr (fun e4 => e ⟨e3, e4⟩)
+        · exact Or.inl e3
+      rw [h2, Bool.false_or]
+      exact ih (fun it hm => hs it (by simp [hm]))
+
 end
 
 end ConPanqueque.T.WC
