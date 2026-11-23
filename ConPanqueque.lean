@@ -286,3 +286,5 @@ import ConPanqueque.T.Core.DefeqBinders
 import ConPanqueque.T.Core.LitEq
 import ConPanqueque.T.Core.QuickDefEq
 import ConPanqueque.T.Core.NumArgs
+import ConPanqueque.T.Core.CtorTarget
+import ConPanqueque.T.Core.DefeqSpine
