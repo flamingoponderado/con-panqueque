@@ -2417,6 +2417,41 @@ def dkAL (C : Ctx) : ProgHOL 64 := (.seq (.assign .local dkW0 (.load .one (vv dk
 
 
 
+/-- `defeqStuck`'s string-literal arm, the literal on the left (`r.defeq depth c b`). -/
+def strArmL (r : CoreFnsA) (fe : IFEnv) (depth : Nat) (a b : EIdx) (l : ConLeche.Literal) (fo : EIdx) : AM Bool :=
+  match l with
+  | .strVal st =>
+    if fo.tag == ETag.const then do
+      match ← view fo with
+      | .const cO usO => do
+        let el ← emptyLevels
+        let sl ← pinStringOfList
+        if cO = sl ∧ usO = el ∧ fe.strLit = true then do
+          let c ← strLitToConstructor st
+          r.defeq depth c b
+        else stuckIrrel r fe depth a b
+      | _ => stuckIrrel r fe depth a b
+    else stuckIrrel r fe depth a b
+  | _ => stuckIrrel r fe depth a b
+
+/-- The literal on the right (`r.defeq depth a c`). -/
+def strArmR (r : CoreFnsA) (fe : IFEnv) (depth : Nat) (a b : EIdx) (l : ConLeche.Literal) (fo : EIdx) : AM Bool :=
+  match l with
+  | .strVal st =>
+    if fo.tag == ETag.const then do
+      match ← view fo with
+      | .const cO usO => do
+        let el ← emptyLevels
+        let sl ← pinStringOfList
+        if cO = sl ∧ usO = el ∧ fe.strLit = true then do
+          let c ← strLitToConstructor st
+          r.defeq depth a c
+        else stuckIrrel r fe depth a b
+      | _ => stuckIrrel r fe depth a b
+    else stuckIrrel r fe depth a b
+  | _ => stuckIrrel r fe depth a b
+
+
 structure DkCodes2 (C : Ctx) : Prop where
   gaf : C.code.lookup fGetAppFn = some ([(pFu, .one), (pH, .one)], getAppFnBody, .one)
   gaa : C.code.lookup ExG.fGaa = some ([(pFu, .one), (pH, .one)], ExG.gaaBody C, .one)
@@ -2639,6 +2674,291 @@ theorem dk_cc (d : Nat) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb
   refine specR_ifI _ 1 (by simp [sev, LLeq.obW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
   simp only [liftFueled, pure_bind, ↓reduceIte]
   exact specR_returnI _ 1 rfl (fun t ht => ⟨H, hbH, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+theorem dk_aa (d : Nat) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb) (hbH : Hb <+: H) (s : AState) (Γ : Env) (M : Mem)
+    (hFu : Γ.get kFu = some (BitVec.ofNat 64 n)) (hDd : Γ.get kD = some (BitVec.ofNat 64 d))
+    (hA : Γ.get dkA = some (Enc.idxW a)) (hB : Γ.get dkB = some (Enc.idxW b)) :
+    SpecR (σ := σ) (Inv (ctxH C H) s Γ M DK) dkAA s
+      (do
+        let aa ← getAppArgs coreWalkFuel a
+        let bb ← getAppArgs coreWalkFuel b
+        if aa.length = bb.length then do
+          let fa ← getAppFn coreWalkFuel a
+          let fb ← getAppFn coreWalkFuel b
+          if ← (knot mode C n).defeq d fa fb then do
+            if ← defEqList (knot mode C n) C.fe d aa bb then pure true
+            else stuckIrrel (knot mode C n) C.fe d a b
+          else stuckIrrel (knot mode C n) C.fe d a b
+        else stuckIrrel (knot mode C n) C.fe d a b) (PostB (ctxH C Hb)) := by
+  unfold dkAA
+  refine specR_callNIH (C := ctxH C H) dkXa ExG.fGaa [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv dkA] (ExG.gaaBody C)
+    [BitVec.ofNat 64 coreWalkFuel, Enc.idxW a] (by decide) rfl (by decide) hc2.gaa
+    ⟨rfl, by simp [hA], trivial⟩
+    (PostA (ctxH C H)) (fun xs w _ H1 => ∃ o1, w = cellA C o1 ∧ BlkAt H1 o1 (xs.map Enc.idxW))
+    (fun xs w s' st ⟨H1, o1, hp, hw, hb, hsr⟩ => ⟨H1, hp, ⟨o1, hw, hb⟩, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu [pFu, pH] _ rfl hlk)
+      (ExG.gaa_spec C hok hc2.gaa coreWalkFuel CV.coreWalkFuel_lt H a s))
+    (fun aa w s1 H1 hp1 ⟨o1, hw, hba⟩ => ?_)
+  subst hw
+  refine specR_callNIH (C := ctxH C H1) dkXb ExG.fGaa [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv dkB] (ExG.gaaBody C)
+    [BitVec.ofNat 64 coreWalkFuel, Enc.idxW b] (by decide) rfl (by decide) hc2.gaa
+    ⟨rfl, by simp [hB], trivial⟩
+    (PostA (ctxH C H1)) (fun xs w _ H2 => ∃ o2, w = cellA C o2 ∧ BlkAt H2 o2 (xs.map Enc.idxW))
+    (fun xs w s' st ⟨H2, o2, hp, hw, hb, hsr⟩ => ⟨H2, hp, ⟨o2, hw, hb⟩, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu [pFu, pH] _ rfl hlk)
+      (ExG.gaa_spec C hok hc2.gaa coreWalkFuel CV.coreWalkFuel_lt H1 b s1))
+    (fun bb w s2 H2 hp2 ⟨o2, hw, hbb⟩ => ?_)
+  subst hw
+  have hba2 := blkAt_mono hba hp2
+  have hbH2 : Hb <+: H2 := hbH.trans (hp1.trans hp2)
+  have hpH2 : C.H <+: H2 := hpb.trans hbH2
+  refine UD.specR_heapLoadI' (C := ctxH C H2) dkLa2 (vv dkXa) o1 _ (by have h := hba2.1; simp only [List.length_map] at h; exact h)
+    (by decide) (by simp <;> rfl) ?_
+  refine UD.specR_heapLoadI' (C := ctxH C H2) dkLb2 (vv dkXb) o2 _ (by have h := hbb.1; simp only [List.length_map] at h; exact h)
+    (by decide) (by simp <;> rfl) ?_
+  refine specR_atEntry fun t ht => ?_
+  have hsza := blk_small0 (ctxOK_H hok H2) ht.sr hba2
+  have hszb := blk_small0 (ctxOK_H hok H2) ht.sr hbb
+  simp only [List.length_map] at hsza hszb
+  by_cases hln : aa.length = bb.length
+  swap
+  · have hne : BitVec.ofNat 64 aa.length ≠ BitVec.ofNat 64 bb.length := by
+      intro x; apply hln
+      have := congrArg BitVec.toNat x
+      simp only [BitVec.toNat_ofNat] at this
+      rwa [Nat.mod_eq_of_lt (by omega), Nat.mod_eq_of_lt (by omega)] at this
+    refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun _ => ?_) (fun h => absurd h (by decide))
+    rw [if_neg hln]
+    exact dk_si mode n C hc hSI hEC d a b Hb H2 hpb (hbH2) s2 _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+  refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hln]) (fun h => absurd rfl h) (fun _ => ?_)
+  rw [if_pos hln]
+  refine specR_callNIM (C := ctxH C H2) dkFa fGetAppFn [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv dkA]
+    getAppFnBody [BitVec.ofNat 64 coreWalkFuel, Enc.idxW a] (by decide) rfl (by decide) hc2.gaf
+    ⟨rfl, by simp [hA], trivial⟩
+    (fun x w' s' st => getAppFn coreWalkFuel a s2 = .ok (x, s') ∧ Post (ctxH C H2) s2 x w' s' st)
+    (fun x w' s' st ⟨_, _, hs, hsr⟩ => hs ▸ hsr)
+    (fun u hu _ hlk => specR_run (fun t ht => by
+      subst ht
+      exact getAppFn_spec (ctxH C H2) hc2.gaf coreWalkFuel a s2 CV.coreWalkFuel_lt t ⟨hu, hlk 0 (by decide), hlk 1 (by decide)⟩))
+    (fun fa w' s' st ⟨hrun, hw, hs, _⟩ => ?_)
+  subst hw
+  have hs' : s2 = s' := hs.symm
+  subst hs'
+  refine specR_callNIM (C := ctxH C H2) dkFb fGetAppFn [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv dkB]
+    getAppFnBody [BitVec.ofNat 64 coreWalkFuel, Enc.idxW b] (by decide) rfl (by decide) hc2.gaf
+    ⟨rfl, by simp [hB], trivial⟩
+    (fun x w' s' st => getAppFn coreWalkFuel b s2 = .ok (x, s') ∧ Post (ctxH C H2) s2 x w' s' st)
+    (fun x w' s' st ⟨_, _, hs, hsr⟩ => hs ▸ hsr)
+    (fun u hu _ hlk => specR_run (fun t ht => by
+      subst ht
+      exact getAppFn_spec (ctxH C H2) hc2.gaf coreWalkFuel b s2 CV.coreWalkFuel_lt t ⟨hu, hlk 0 (by decide), hlk 1 (by decide)⟩))
+    (fun fb w' s' st ⟨hrun, hw, hs, _⟩ => ?_)
+  subst hw
+  have hs' : s2 = s' := hs.symm
+  subst hs'
+
+  refine specR_callNIH (C := ctxH C H2) dkQ fD dParams [vv kFu, vv kD, vv dkFa, vv dkFb] (dE C)
+    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW fa, Enc.idxW fb] (by decide) rfl (by decide) hc2.d
+    ⟨by simp [hFu], by simp [hDd], by simp, by simp, trivial⟩
+    (PostB (ctxH C H2)) (fun r_ w _ _ => w = boolW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+    (fun u hu _ hlk => hD H2 s2 d fa fb hpH2 u hu (fun i hi _ => hlk i (by omega)))
+    (fun q w s3 H3 hp3 hw => ?_)
+  subst hw
+  have hbH3 : Hb <+: H3 := hbH2.trans hp3
+  cases q
+  · refine specR_ifI _ 0 (by simp [boolW]) (fun h => absurd rfl h) (fun _ => ?_)
+    simp only [Bool.false_eq_true, ↓reduceIte]
+    exact dk_si mode n C hc hSI hEC d a b Hb H3 hpb (hbH3) s3 _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+  refine specR_ifI _ 1 (by simp [boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
+  simp only [↓reduceIte]
+  have hba3 := blkAt_mono hba2 hp3
+  have hbb3 := blkAt_mono hbb hp3
+  refine specR_callNIH (C := ctxH C H3) dkDl fDl dlParams
+    [vv kFu, vv kD, .op .add [vv dkXa, .const 8], vv dkLa2, .op .add [vv dkXb, .const 8], vv dkLb2] dlBody
+    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, cellA C (o1 + 1), BitVec.ofNat 64 aa.length, cellA C (o2 + 1),
+      BitVec.ofNat 64 bb.length] (by decide) rfl (by decide) hc2.dl.self
+    ⟨by simp [hFu], by simp [hDd], by simp [sev]; exact cellA_add8 C o1, by simp,
+      by simp [sev]; exact cellA_add8 C o2, by simp, trivial⟩
+    (PostB (ctxH C H3)) (fun r_ w _ _ => w = boolW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu dlParams _ rfl hlk)
+      (dl_spec mode n C hc2.dl d (fun H s1 hp a b => hD H s1 d a b hp) aa bb (o1 + 1) (o2 + 1) H3 s3 (hpH2.trans hp3)
+        (fun j hj => by have h := hba3.2 j (by simpa using hj); rw [List.getElem_map] at h; exact h)
+        (fun j hj => by have h := hbb3.2 j (by simpa using hj); rw [List.getElem_map] at h; exact h)
+        (by omega) (by omega)))
+    (fun r w s4 H4 hp4 hw => ?_)
+  subst hw
+  have hbH4 : Hb <+: H4 := hbH3.trans hp4
+  cases r
+  · refine specR_ifI _ 0 (by simp [boolW]) (fun h => absurd rfl h) (fun _ => ?_)
+    simp only [Bool.false_eq_true, ↓reduceIte]
+    exact dk_si mode n C hc hSI hEC d a b Hb H4 hpb (hbH4) s4 _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+  refine specR_ifI _ 1 (by simp [boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
+  simp only [↓reduceIte]
+  exact specR_returnI _ 1 rfl (fun t ht => ⟨H4, hbH4, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+theorem dk_la (d : Nat) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb) (hbH : Hb <+: H) (s : AState) (Γ : Env) (M : Mem)
+    (hFu : Γ.get kFu = some (BitVec.ofNat 64 n)) (hDd : Γ.get kD = some (BitVec.ofNat 64 d))
+    (hA : Γ.get dkA = some (Enc.idxW a)) (hB : Γ.get dkB = some (Enc.idxW b)) (l : ConLeche.Literal) (fo x : EIdx) (Pl Pp : BitVec 64)
+    (hPl : Γ.get dkPa = some Pl) (hPp : Γ.get dkPb = some Pp)
+    (hMl : ∀ y ∈ wordsAt Pl (encEView (.lit l)), y ∈ M) (hmp0 : (Pp + BitVec.ofNat 64 0, Enc.idxW fo) ∈ M)
+    (hv : s.store.view a = some (.lit l))
+    (hFle : Γ.get lFle = some C.FLe) (hDir : Γ.get lDir = some C.L.DIR) :
+    SpecR (σ := σ) (Inv (ctxH C H) s Γ M DK) (dkLA C) s (strArmL (knot mode C n) C.fe d a b l fo) (PostB (ctxH C Hb)) := by
+  unfold dkLA strArmL
+  have hpH : C.H <+: H := hpb.trans hbH
+  cases l with
+  | natVal m =>
+    refine specR_loadI' dkW0 (vv dkPa) Pl (Pl + BitVec.ofNat 64 0) 0 (by decide) (by simp [hPl]) (by simp)
+      (hMl _ (by simpa [encEView, Enc.encLit] using wordsAt_mem0 Pl 0 (limbs m) [])) ?_
+    refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    dsimp only
+    exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+  | strVal st =>
+    refine specR_loadI' dkW0 (vv dkPa) Pl (Pl + BitVec.ofNat 64 0) 1 (by decide) (by simp [hPl]) (by simp)
+      (hMl _ (by simpa [encEView, Enc.encLit] using wordsAt_mem0 Pl 1 (strW st) [])) ?_
+    refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+    dsimp only
+    refine specR_loadI' dkFo (vv dkPb) Pp (Pp + BitVec.ofNat 64 0) (Enc.idxW fo) (by decide) (by simp [hPp]) (by simp) hmp0 ?_
+    refine specR_dropM ?_
+    refine Knot.specR_tagIteV dkFo fo 3 (by decide) (by decide) (by simp) (fun htc => ?_) (fun htc => ?_)
+    swap
+    · rw [if_neg (show ¬ (fo.tag == ETag.const) = true by simpa [ETag.const] using htc)]
+      exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+    rw [if_pos (show (fo.tag == ETag.const) = true by simp [htc, ETag.const])]
+    refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp [hFle]) ?_
+    refine specR_assignI lDh (vv dkFo) (Enc.idxW fo) (by decide) (by simp) ?_
+    refine specR_viewP (C := ctxH C H) fo (by simp) (by simp; rfl)
+      (by simp [hDir]; rfl) (by decide) (fun v P hv2 htn _ => ?_)
+    refine specR_congr (Big.view_bind_eq fo v _ s hv2) ?_
+    have h3 : v.tagN = 3 := by rw [htn, htc]; rfl
+    obtain ⟨cO, usO, rfl⟩ := UD.tagN_const h3
+    dsimp only
+    refine specR_loadI' dkCo (vv lRp) P (P + BitVec.ofNat 64 0) (Enc.idxW cO) (by decide) (by simp) (by simp)
+      (by simpa [encEView, Enc.encConst] using wordsAt_mem0 P (Enc.idxW cO) [Enc.idxW usO] []) ?_
+    refine specR_loadI' dkUo _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW usO) (by decide) (by simp +decide [sev]) rfl
+      (by simpa [encEView, Enc.encConst] using wordsAt_mem1 P (Enc.idxW cO) (Enc.idxW usO) [] []) ?_
+    refine specR_dropM ?_
+    refine specR_pinXI (C := ctxH C H) (ctxOK_H hok H) emptyLevels 0 C.pins.emptyLevels _
+      (fun s hp => pinEmptyLevels_run (ctxOK_H hok H) hp) (pin_emptyLevels_cell (ctxOK_H hok H)) dkEl (by decide) ?_
+    unfold pinStringOfList
+    refine specR_pinAtI (C := ctxH C H) (ctxOK_H hok H) PIN_STRING_OF_LIST (by decide) dkSl (by decide) ?_
+    by_cases h1 : cO = (ctxH C H).pins.names[PIN_STRING_OF_LIST]'(by rw [(ctxOK_H hok H).pinsRel.1]; decide)
+    swap
+    · have hne : Enc.idxW cO ≠ Enc.idxW ((ctxH C H).pins.names[PIN_STRING_OF_LIST]'(by rw [(ctxOK_H hok H).pinsRel.1]; decide)) :=
+        fun e => h1 (Enc.idxW_inj e)
+      refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun h => absurd rfl h) (fun _ => ?_)
+      rw [if_neg (fun h => h1 h.1)]
+      exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+    refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, h1]) (fun _ => ?_) (fun h => absurd h (by decide))
+    by_cases h2 : usO = (ctxH C H).pins.emptyLevels
+    swap
+    · have hne : Enc.idxW usO ≠ Enc.idxW (ctxH C H).pins.emptyLevels := fun e => h2 (Enc.idxW_inj e)
+      refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun h => absurd rfl h) (fun _ => ?_)
+      rw [if_neg (fun h => h2 h.2.1)]
+      exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+    refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, h2]) (fun _ => ?_) (fun h => absurd h (by decide))
+    refine specR_gLitI dkLt (by decide) ?_
+    by_cases hsl : (ctxH C H).fe.strLit = true
+    swap
+    · have hf : (ctxH C H).fe.strLit = false := by simpa using hsl
+      refine specR_ifI _ 0 (by simp [sev, litW_and2, hf, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
+      rw [if_neg (fun h => hsl h.2.2)]
+      exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+    refine specR_ifI _ 2 (by simp [sev, litW_and2, hsl, boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
+    rw [if_pos ⟨h1, h2, hsl⟩]
+    refine specR_callKH (C := ctxH C H) dkC Str.fTc [Str.tcH] [vv dkA] (Str.tcBody C) [Enc.idxW a] (by decide) rfl (by decide)
+      hc2.tc ⟨by simp [hA], trivial⟩ (hTC H s a st hpH hv) (fun c s1 H1 hp1 => ?_)
+    refine specR_congr (m' := (knot mode C n).defeq d c b >>= fun r => pure r) (by simp) ?_
+    refine specR_callNIH (C := ctxH C H1) dkR2 fD dParams [vv kFu, vv kD, vv dkC, vv dkB] (dE C)
+      [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW c, Enc.idxW b] (by decide) rfl (by decide) hc2.d
+      ⟨by simp [hFu], by simp [hDd], by simp [hA, hB], by simp [hA, hB], trivial⟩
+      (PostB (ctxH C H1)) (fun r_ w _ _ => w = boolW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+      (fun u hu _ hlk => hD H1 s1 d c b (hpH.trans hp1) u hu (fun i hi _ => hlk i (by omega)))
+      (fun r w s2 H2 hp2 hw => ?_)
+    subst hw
+    exact specR_returnI _ (boolW r) (by simp) (fun t ht => ⟨H2, hbH.trans (hp1.trans hp2), rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+theorem dk_al (d : Nat) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb) (hbH : Hb <+: H) (s : AState) (Γ : Env) (M : Mem)
+    (hFu : Γ.get kFu = some (BitVec.ofNat 64 n)) (hDd : Γ.get kD = some (BitVec.ofNat 64 d))
+    (hA : Γ.get dkA = some (Enc.idxW a)) (hB : Γ.get dkB = some (Enc.idxW b)) (l : ConLeche.Literal) (fo x : EIdx) (Pl Pp : BitVec 64)
+    (hPl : Γ.get dkPb = some Pl) (hPp : Γ.get dkPa = some Pp)
+    (hMl : ∀ y ∈ wordsAt Pl (encEView (.lit l)), y ∈ M) (hmp0 : (Pp + BitVec.ofNat 64 0, Enc.idxW fo) ∈ M)
+    (hv : s.store.view b = some (.lit l))
+    (hFle : Γ.get lFle = some C.FLe) (hDir : Γ.get lDir = some C.L.DIR) :
+    SpecR (σ := σ) (Inv (ctxH C H) s Γ M DK) (dkAL C) s (strArmR (knot mode C n) C.fe d a b l fo) (PostB (ctxH C Hb)) := by
+  unfold dkAL strArmR
+  have hpH : C.H <+: H := hpb.trans hbH
+  cases l with
+  | natVal m =>
+    refine specR_loadI' dkW0 (vv dkPb) Pl (Pl + BitVec.ofNat 64 0) 0 (by decide) (by simp [hPl]) (by simp)
+      (hMl _ (by simpa [encEView, Enc.encLit] using wordsAt_mem0 Pl 0 (limbs m) [])) ?_
+    refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    dsimp only
+    exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+  | strVal st =>
+    refine specR_loadI' dkW0 (vv dkPb) Pl (Pl + BitVec.ofNat 64 0) 1 (by decide) (by simp [hPl]) (by simp)
+      (hMl _ (by simpa [encEView, Enc.encLit] using wordsAt_mem0 Pl 1 (strW st) [])) ?_
+    refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+    dsimp only
+    refine specR_loadI' dkFo (vv dkPa) Pp (Pp + BitVec.ofNat 64 0) (Enc.idxW fo) (by decide) (by simp [hPp]) (by simp) hmp0 ?_
+    refine specR_dropM ?_
+    refine Knot.specR_tagIteV dkFo fo 3 (by decide) (by decide) (by simp) (fun htc => ?_) (fun htc => ?_)
+    swap
+    · rw [if_neg (show ¬ (fo.tag == ETag.const) = true by simpa [ETag.const] using htc)]
+      exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+    rw [if_pos (show (fo.tag == ETag.const) = true by simp [htc, ETag.const])]
+    refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp [hFle]) ?_
+    refine specR_assignI lDh (vv dkFo) (Enc.idxW fo) (by decide) (by simp) ?_
+    refine specR_viewP (C := ctxH C H) fo (by simp) (by simp; rfl)
+      (by simp [hDir]; rfl) (by decide) (fun v P hv2 htn _ => ?_)
+    refine specR_congr (Big.view_bind_eq fo v _ s hv2) ?_
+    have h3 : v.tagN = 3 := by rw [htn, htc]; rfl
+    obtain ⟨cO, usO, rfl⟩ := UD.tagN_const h3
+    dsimp only
+    refine specR_loadI' dkCo (vv lRp) P (P + BitVec.ofNat 64 0) (Enc.idxW cO) (by decide) (by simp) (by simp)
+      (by simpa [encEView, Enc.encConst] using wordsAt_mem0 P (Enc.idxW cO) [Enc.idxW usO] []) ?_
+    refine specR_loadI' dkUo _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW usO) (by decide) (by simp +decide [sev]) rfl
+      (by simpa [encEView, Enc.encConst] using wordsAt_mem1 P (Enc.idxW cO) (Enc.idxW usO) [] []) ?_
+    refine specR_dropM ?_
+    refine specR_pinXI (C := ctxH C H) (ctxOK_H hok H) emptyLevels 0 C.pins.emptyLevels _
+      (fun s hp => pinEmptyLevels_run (ctxOK_H hok H) hp) (pin_emptyLevels_cell (ctxOK_H hok H)) dkEl (by decide) ?_
+    unfold pinStringOfList
+    refine specR_pinAtI (C := ctxH C H) (ctxOK_H hok H) PIN_STRING_OF_LIST (by decide) dkSl (by decide) ?_
+    by_cases h1 : cO = (ctxH C H).pins.names[PIN_STRING_OF_LIST]'(by rw [(ctxOK_H hok H).pinsRel.1]; decide)
+    swap
+    · have hne : Enc.idxW cO ≠ Enc.idxW ((ctxH C H).pins.names[PIN_STRING_OF_LIST]'(by rw [(ctxOK_H hok H).pinsRel.1]; decide)) :=
+        fun e => h1 (Enc.idxW_inj e)
+      refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun h => absurd rfl h) (fun _ => ?_)
+      rw [if_neg (fun h => h1 h.1)]
+      exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+    refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, h1]) (fun _ => ?_) (fun h => absurd h (by decide))
+    by_cases h2 : usO = (ctxH C H).pins.emptyLevels
+    swap
+    · have hne : Enc.idxW usO ≠ Enc.idxW (ctxH C H).pins.emptyLevels := fun e => h2 (Enc.idxW_inj e)
+      refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun h => absurd rfl h) (fun _ => ?_)
+      rw [if_neg (fun h => h2 h.2.1)]
+      exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+    refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, h2]) (fun _ => ?_) (fun h => absurd h (by decide))
+    refine specR_gLitI dkLt (by decide) ?_
+    by_cases hsl : (ctxH C H).fe.strLit = true
+    swap
+    · have hf : (ctxH C H).fe.strLit = false := by simpa using hsl
+      refine specR_ifI _ 0 (by simp [sev, litW_and2, hf, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
+      rw [if_neg (fun h => hsl h.2.2)]
+      exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+    refine specR_ifI _ 2 (by simp [sev, litW_and2, hsl, boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
+    rw [if_pos ⟨h1, h2, hsl⟩]
+    refine specR_callKH (C := ctxH C H) dkC Str.fTc [Str.tcH] [vv dkB] (Str.tcBody C) [Enc.idxW b] (by decide) rfl (by decide)
+      hc2.tc ⟨by simp [hB], trivial⟩ (hTC H s b st hpH hv) (fun c s1 H1 hp1 => ?_)
+    refine specR_congr (m' := (knot mode C n).defeq d a c >>= fun r => pure r) (by simp) ?_
+    refine specR_callNIH (C := ctxH C H1) dkR2 fD dParams [vv kFu, vv kD, vv dkA, vv dkC] (dE C)
+      [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW c] (by decide) rfl (by decide) hc2.d
+      ⟨by simp [hFu], by simp [hDd], by simp [hA, hB], by simp [hA, hB], trivial⟩
+      (PostB (ctxH C H1)) (fun r_ w _ _ => w = boolW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+      (fun u hu _ hlk => hD H1 s1 d a c (hpH.trans hp1) u hu (fun i hi _ => hlk i (by omega)))
+      (fun r w s2 H2 hp2 hw => ?_)
+    subst hw
+    exact specR_returnI _ (boolW r) (by simp) (fun t ht => ⟨H2, hbH.trans (hp1.trans hp2), rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 end
 
