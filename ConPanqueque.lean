@@ -203,3 +203,6 @@ import ConPanqueque.T.Core.AppIota
 import ConPanqueque.T.Core.WhnfApp
 import ConPanqueque.T.Core.StepApp
 import ConPanqueque.T.Core.PeelPis
+import ConPanqueque.T.Big.LitCopyG
+import ConPanqueque.T.Str.Utf8
+import ConPanqueque.T.Str.LitW
