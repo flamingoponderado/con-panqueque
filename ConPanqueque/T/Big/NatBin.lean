@@ -261,6 +261,81 @@ theorem nbGcd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
   nb_one ra hok hc fGcd dmParams (gcdBody C) Nat.gcd ha hb a b (by decide) rfl (fun _ => hc.gcd)
     (fun H ox oy _ hbx hby => gcd_spec (ctxH C H) (ctxOK_H hok _) s a b ox oy hbx hby) hva hvb
 
+/-! ## `sub` -/
+
+/-- Calling a function whose spec is `PostW` (a word, nothing else changed). -/
+theorem specR_callWH {β : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64}
+    {k : Nat → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    (x f : MlS) (ps : List MlS) (es : List (ExpHOL 64)) (Bd : ProgHOL 64) (vs : List (BitVec 64)) (r : Nat)
+    (hnd : ps.Nodup) (hl : vs.length = ps.length)
+    (hx : x ∈ D) (hC : C.code.lookup f = some (ps.map (fun p => (p, ShapeHOL.one)), Bd, .one))
+    (hes : EvAll (fun e v => sev Γ e = some v) es vs)
+    (hspec : SpecR (Pre (σ := σ) C s (ps.zip vs)) Bd s (pure r : AM Nat) (PostW C s))
+    (hk : SpecR (Inv C s ((x, BitVec.ofNat 64 r) :: Γ) [] D) rest s (k r) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, x), none)) f es) rest) s (k r) R := by
+  refine specR_congr (m' := (pure r : AM Nat) >>= k) rfl ?_
+  refine specR_callNIH x f ps es Bd vs hnd hl hx hC hes
+    (fun tt w s' st => (pure r : AM Nat) s = .ok (tt, s') ∧ PostW C s tt w s' st)
+    (fun tt w s' H2 => tt = r ∧ s' = s ∧ w = BitVec.ofNat 64 r ∧ H2 = C.H)
+    (fun tt w s' st ⟨hrun, hw, hs, hsr⟩ => by
+      simp only [pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at hrun
+      obtain ⟨rfl, rfl⟩ := hrun
+      exact ⟨C.H, List.prefix_refl _, ⟨rfl, hs, hw, rfl⟩, hs ▸ hsr⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu ps vs hl hlk) hspec))
+    (fun tt w s' H2 _ ⟨htt, hs, hw, hH⟩ => ?_)
+  subst htt hs hw hH
+  exact hk
+
+def nbSubMid (C : Ctx) : ProgHOL 64 :=
+  .ite (.cmp .equal (vv nC) (.const 0))
+    (.seq (.call (some (some (.local, nR), none)) fSub [vv nX, vv nX]) (nbTail C))
+    (.seq (.call (some (some (.local, nR), none)) fSub [vv nX, vv nY]) (nbTail C))
+
+def nbSubBody (C : Ctx) : ProgHOL 64 :=
+  prologue nbLocals (.seq (.call (some (some (.local, nC), none)) fCmp [vv nA, vv nB]) (nbLits (nbSubMid C)))
+
+theorem limbs_len_mono {a b : Nat} (h : b ≤ a) : (limbs b).length ≤ (limbs a).length := by
+  by_contra hc
+  have := lt_of_length_lt (Nat.lt_of_not_le hc)
+  omega
+
+theorem nbSub_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : BigCodes C)
+    (s : AState) (ha hb : EIdx) (a b : Nat)
+    (hva : s.store.view ha = some (.lit (.natVal a))) (hvb : s.store.view hb = some (.lit (.natVal b))) :
+    SpecR (σ := σ) (Pre C s (nbParams.zip [Enc.idxW ha, Enc.idxW hb])) (nbSubBody C) s (natBinOpResult .sub a b)
+      (UD.PostO C) := by
+  refine specR_prologue (UD.postO_locals C) (nb_none C _) ?_
+  show SpecR _ _ s (litNatSized (a - b)) _
+  refine specR_callWH (k := fun _ => litNatSized (a - b)) nC fCmp bcParams _ bcBody
+    [Enc.idxW ha, Enc.idxW hb] (cmpN a b) (by decide) rfl (by decide) hc.cmp
+    ⟨by simp +decide [sev, vv, Env.get, nbParams, ctxEnv], by simp +decide [sev, vv, Env.get, nbParams, ctxEnv], trivial⟩ (bc_spec C s ha hb a b hva hvb) ?_
+  refine nb_lits hok hc ha hb a b hva hvb (by simp +decide [Env.get, nbParams, ctxEnv]) (by simp +decide [Env.get, nbParams, ctxEnv])
+    (by decide) (fun H ox oy hp hbx hby => ?_)
+  unfold nbSubMid
+  refine specR_atEntry fun t0 ht0 => ?_
+  have hsa := blk_small (C := ctxH C H) (ctxOK_H hok _) ht0.sr hbx
+  by_cases hab : a < b
+  · have hc0 : cmpN a b = 0 := by simp [cmpN, hab]
+    refine specR_ifI _ 1 (by simp [sev, hc0, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    rw [show a - b = a - a by omega]
+    refine specR_callPH (C := ctxH C H) (k := fun r => litNatSized r) nR fSub subParams _ (subBody C)
+      [cellA C ox, cellA C ox] (a - a) (by decide) rfl (by decide) hc.sub ⟨by simp, by simp, trivial⟩
+      (sub_spec (ctxH C H) (ctxOK_H hok _) s a a ox ox hbx hbx (Nat.le_refl _) (Nat.le_refl _) (by omega))
+      (fun H' o hp' hbr => ?_)
+    exact tail_sized ra hok (a - a) o (hp.trans hp') hbr hc.litb (by simp; rfl) (by decide)
+  · have hc0 : cmpN a b ≠ 0 := by unfold cmpN; split <;> [omega; (split <;> omega)]
+    have hw : BitVec.ofNat 64 (cmpN a b) ≠ 0#64 := by
+      have : cmpN a b < 3 := by unfold cmpN; split <;> [omega; (split <;> omega)]
+      intro e; have := congrArg BitVec.toNat e; simp at this; omega
+    refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hw])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_callPH (C := ctxH C H) (k := fun r => litNatSized r) nR fSub subParams _ (subBody C)
+      [cellA C ox, cellA C oy] (a - b) (by decide) rfl (by decide) hc.sub ⟨by simp, by simp, trivial⟩
+      (sub_spec (ctxH C H) (ctxOK_H hok _) s a b ox oy hbx hby (by omega) (limbs_len_mono (by omega)) (by omega))
+      (fun H' o hp' hbr => ?_)
+    exact tail_sized ra hok (a - b) o (hp.trans hp') hbr hc.litb (by simp; rfl) (by decide)
+
 end
 
 end ConPanqueque.T.Big
