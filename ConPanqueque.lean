@@ -288,3 +288,4 @@ import ConPanqueque.T.Core.QuickDefEq
 import ConPanqueque.T.Core.NumArgs
 import ConPanqueque.T.Core.CtorTarget
 import ConPanqueque.T.Core.DefeqSpine
+import ConPanqueque.T.Core.DeltaHeads
