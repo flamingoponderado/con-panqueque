@@ -553,3 +553,15 @@ Pancake has no division instruction, and resource-limit declines are allowed (so
   - `ruleBodyAt`: `rb_spec`, with a new memo access for the three-word rule-body cache.
   - `lamBody` (`lb_spec`) and `proofIrrel` (`pi_spec`).
 - **Open design point.** The rescue's scope guard `fabScopeOk` (`wscopedBFast`, `leafGuard`) and the leaf walks use a per-call `seen` hash set. A faithful port needs a scratch memo region, cleared per call: a new `Region`, `SR` and `CtxOK` facts, and the clear/insert/get specs. Until then these walks are callee specs.
+
+### Progress (2026-11-23, later still): the stuck-major rescue
+
+- `majorToCtorRescue` is split on the twin side into three branches, K, structure η and `And` (`majorToCtorRescue_eq`, by `rfl`).
+  - The dispatcher is `rs_spec`.
+  - The branches are `rk_spec`, `re_spec` and `ra_spec`.
+- Helpers proved:
+  - `proofIrrel` (`pi_spec`), `etaFabArgsE` (`ef_spec`, an accumulator recursion over fresh blocks) and `andRescueSlots` (`ar_spec`).
+  - Environment handle-list equality (`lq_spec`), `etaRescueTable?` (`er_spec`), and `mkAppN` over a block prefix (`mkAppN_take_spec`).
+- Callee specs still open: `fabScopeOk` (needs the seen-set design point above) and `familyNeverZeroAt`.
+- The knot entries `inferIO`, `whnf` and `defeq` are callee specs, as everywhere.
+- **Remaining for ι:** `iotaFam` (the verified-mode certificate), `fabScopeOk` and `familyNeverZeroAt`.
