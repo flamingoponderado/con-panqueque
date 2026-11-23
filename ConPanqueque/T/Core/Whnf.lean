@@ -259,25 +259,25 @@ variable {σ : Type}
 def Γb (C : Ctx) (n d : Nat) (e : EIdx) : Env := ctxEnv C ++ kParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e]
 def contEnv (C : Ctx) (n d : Nat) (e : EIdx) (f : Nat) (e' : EIdx) : Env :=
   (wG, 1) :: (wF, BitVec.ofNat 64 f) :: (wE, Enc.idxW e') :: Γb C n d e
-def doneEnv (C : Ctx) (n d : Nat) (e : EIdx) (v : EIdx) : Env :=
-  (wG, 0) :: (wF, 0) :: (wE, Enc.idxW v) :: Γb C n d e
+def doneEnv (C : Ctx) (n d : Nat) (e : EIdx) (f : Nat) (v : EIdx) : Env :=
+  (wG, 0) :: (wF, BitVec.ofNat 64 f) :: (wE, Enc.idxW v) :: Γb C n d e
 
 /-- The loop's points: about to step on `e'` with budget `f`, or done with `v`. -/
 def wbPts (mode : ConLeche.CheckMode) (C : Ctx) (n : Nat) (Q : AState → Prop) (d : Nat) (e : EIdx) :
     LoopPt EIdx → Prop := fun p =>
   (∃ H s1 e' f, C.H <+: H ∧ Q s1 ∧ f < 2 ^ 63 ∧
     p = ⟨ctxH C H, s1, contEnv C n d e f e', whnfLoop (knot mode C n) C.fe d f e'⟩) ∨
-  (∃ H s1 v, C.H <+: H ∧ p = ⟨ctxH C H, s1, doneEnv C n d e v, pure v⟩)
+  (∃ H s1 f v, C.H <+: H ∧ p = ⟨ctxH C H, s1, doneEnv C n d e f v, pure v⟩)
 
 theorem Γb_none (C : Ctx) (n d : Nat) (e : EIdx) : ∀ z, z ∈ wbLocals → (Γb C n d e).get z = none :=
   Knot.params_none C wbLocals kParams _ (by decide) (by decide)
 
 /-- Weakening a body's final locals to a point's. -/
-theorem wb_weak {C : Ctx} {s : AState} {A : Env} {D : List MlS} {t : PState σ} (n d : Nat) (e : EIdx)
+theorem wb_weak {C : Ctx} {s : AState} {A : Env} {D : List MlS} {t : PState σ} (C0 : Ctx) (n d : Nat) (e : EIdx)
     (g f x : BitVec 64) (hA : Inv C s A [] D t)
     (hg : A.get wG = some g) (hf : A.get wF = some f) (hx : A.get wE = some x)
-    (hrest : ∀ z, z ∉ wbLocals → A.get z = (Γb C n d e).get z) :
-    Inv C s ((wG, g) :: (wF, f) :: (wE, x) :: Γb C n d e) [] D t := by
+    (hrest : ∀ z, z ∉ wbLocals → A.get z = (Γb C0 n d e).get z) :
+    Inv C s ((wG, g) :: (wF, f) :: (wE, x) :: Γb C0 n d e) [] D t := by
   refine inv_envMono hA (fun z v hz => ?_)
   simp only [Env.get_cons] at hz
   by_cases e1 : z = wG
@@ -288,8 +288,169 @@ theorem wb_weak {C : Ctx} {s : AState} {A : Env} {D : List MlS} {t : PState σ} 
   · subst e3; simp at hz; rw [← hz]; exact hx
   simp only [e1, e2, e3, ite_false] at hz
   by_cases hm : z ∈ wbLocals
-  · rw [Γb_none C n d e z hm] at hz; simp at hz
+  · rw [Γb_none C0 n d e z hm] at hz; simp at hz
   · rw [hrest z hm]; exact hz
+
+end
+
+section
+variable {σ : Type}
+
+theorem idxW_succ_ne (h : EIdx) : Enc.idxW h + 1 ≠ 0 := by
+  intro e
+  have h1 : (Enc.idxW h).toNat < 2 ^ 32 := by simp [Enc.idxW]; exact h.word.toNat_lt
+  have := congrArg BitVec.toNat e
+  simp [BitVec.toNat_add] at this
+  omega
+
+theorem step_skipI {P Q : PState σ → Prop} (h : ∀ t, P t → Q t) : Step P .skip Q := by
+  intro t ht
+  right
+  have e : evaluateHOLFiniteState t .skip = (none, t) := by rw [evaluateHOLFiniteState_eq_evaluate_def]
+  rw [e]; exact ⟨rfl, h t ht⟩
+
+theorem step_post4 {α : Type} {m : AM α} {s : AState} {C : Ctx} {Γ : Env} {D : List MlS} {x : MlS}
+    {Qx : α → BitVec 64 → AState → List (BitVec 64) → Prop} {Q : PState σ → Prop} {c : ProgHOL 64}
+    (h : ∀ a w s' H', m s = .ok (a, s') → C.H <+: H' → Qx a w s' H' →
+      Step (Inv (ctxH C H') s' ((x, w) :: Γ) [] D) c Q) :
+    Step (fun t' => ∃ a w s' H', m s = .ok (a, s') ∧ C.H <+: H' ∧ Qx a w s' H' ∧
+      Inv (ctxH C H') s' ((x, w) :: Γ) [] D t') c Q :=
+  fun t ⟨a, w, s', H', h1, h2, h3, h4⟩ => h a w s' H' h1 h2 h3 t h4
+
+/-- One iteration from a stepping point. -/
+theorem wb_iter (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx} (hok : CtxOK C)
+    (hcwc : C.code.lookup fWC = some (pmap wcParams, wcE, .one))
+    (hcrn : C.code.lookup fRN = some (pmap kParams, rdBody C, .one))
+    (hcuf : C.code.lookup UD.fUnfold = some (pmap [UD.uE], UD.ufBody C, .one))
+    (Q : AState → Prop)
+    (hQwc : ∀ s1 d e a s2, Q s1 → (knot mode C n).whnfCore false d e s1 = .ok (a, s2) → Q s2)
+    (hQrn : ∀ s1 d e a s2, Q s1 → reduceNat (knot mode C n) C.fe d e s1 = .ok (a, s2) → Q s2)
+    (hQuf : ∀ s1 e a s2, Q s1 → unfoldDefinition C.fe e s1 = .ok (a, s2) → Q s2)
+    (hWC : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ d e, Callee (σ := σ) (ctxH C H) wcParams
+      [BitVec.ofNat 64 n, boolW false, BitVec.ofNat 64 d, Enc.idxW e] wcE s1
+      ((knot mode C n).whnfCore false d e) (PostK (ctxH C H)))
+    (hRN : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ d e,
+      SpecR (σ := σ) (Pre (ctxH C H) s1 (kParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e])) (rdBody C) s1
+        (reduceNat (knot mode C n) C.fe d e) (UD.PostO (ctxH C H)))
+    (hUF : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ e,
+      SpecR (σ := σ) (Pre (ctxH C H) s1 ([UD.uE].zip [Enc.idxW e])) (UD.ufBody C) s1
+        (unfoldDefinition C.fe e) (UD.PostO (ctxH C H)))
+    (d : Nat) (e : EIdx) {H : List (BitVec 64)} {s1 : AState} {e' : EIdx} {f : Nat}
+    (hp : C.H <+: H) (hq : Q s1) (hf : f < 2 ^ 63) :
+    Step (σ := σ) (Inv (ctxH C H) s1 (contEnv C n d e f e') [] (ctxLocals ++ wbLocals)) wbStep
+      (fun t' => ∃ p', wbPts mode C n Q d e p' ∧ p'.m p'.s = whnfLoop (knot mode C n) C.fe d f e' s1 ∧
+        Inv p'.C p'.s p'.Γ [] (ctxLocals ++ wbLocals) t') := by
+  unfold wbStep
+  have hF0 := word_lt_iff 0 f (by decide) (by unfold B; omega)
+  refine step_ifI _ (if BitVec.ofNat 64 f = 0#64 then 1 else 0)
+    (by simp [sev, contEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => step_hangI) (fun h0 => ?_)
+  have hf0 : f ≠ 0 := by
+    intro e0; subst e0; simp at h0
+  obtain ⟨f', rfl⟩ : ∃ f', f = f' + 1 := ⟨f - 1, by omega⟩
+  refine step_seq (step_assignI wF _ (BitVec.ofNat 64 f') (by decide)
+    (by simp [sev, contEnv]; rw [show (1#64 : BitVec 64) = BitVec.ofNat 64 1 from rfl,
+      BitVec.ofNat_sub_ofNat_of_le _ _ (by omega) (by omega)]; rfl)) ?_
+  refine step_seq (step_callNIH (C := ctxH C H) (s := s1) (M := []) (D := ctxLocals ++ wbLocals)
+    (Γ := (wF, BitVec.ofNat 64 f') :: contEnv C n d e (f' + 1) e') w1 fWC wcParams [vv kFu, .const 0, vv kD, vv wE] wcE
+    [BitVec.ofNat 64 n, boolW false, BitVec.ofNat 64 d, Enc.idxW e']
+    (by decide) rfl (by decide) hcwc ⟨by simp +decide [contEnv, Γb, Env.get, kParams, ctxEnv], rfl,
+      by simp +decide [contEnv, Γb, Env.get, kParams, ctxEnv], by simp [contEnv], trivial⟩
+    (fun a w s' st => (knot mode C n).whnfCore false d e' s1 = .ok (a, s') ∧ PostK (ctxH C H) a w s' st)
+    (fun a w s' _ => w = Enc.idxW a ∧ (knot mode C n).whnfCore false d e' s1 = .ok (a, s'))
+    (fun a w s' st ⟨hrun, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hrun⟩, hsr⟩)
+    (fun u hu _ hlk => specR_run (hWC H s1 hp hq d e' u hu (fun i hi _ => hlk i hi)))) (step_post4 (fun e1 w1v s2 H2 hrun1 hp2 hq2' => ?_))
+  obtain ⟨hw1, _⟩ := hq2'
+  subst hw1
+  have hq2 : Q s2 := hQwc s1 d e' e1 s2 hq hrun1
+  refine step_seq (step_callNIH (C := ctxH (ctxH C H) H2) (D := ctxLocals ++ wbLocals) (s := s2) (M := [])
+    (Γ := (w1, Enc.idxW e1) :: (wF, BitVec.ofNat 64 f') :: contEnv C n d e (f' + 1) e') wR fRN kParams [vv kFu, vv kD, vv w1] (rdBody C)
+    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e1] (by decide) rfl (by decide) hcrn
+    ⟨by simp +decide [contEnv, Γb, Env.get, kParams, ctxEnv], by simp +decide [contEnv, Γb, Env.get, kParams, ctxEnv],
+      by simp, trivial⟩
+    (fun o w s' st => reduceNat (knot mode C n) C.fe d e1 s2 = .ok (o, s') ∧ UD.PostO (ctxH C H2) o w s' st)
+    (fun o w s' _ => w = optW o ∧ reduceNat (knot mode C n) C.fe d e1 s2 = .ok (o, s'))
+    (fun o w s' st ⟨hrun, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hrun⟩, hsr⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu kParams _ rfl hlk)
+      (hRN H2 s2 (hp.trans hp2) hq2 d e1)))) (step_post4 (fun o wrv s3 H3 hrun2 hp3 hq3' => ?_))
+  obtain ⟨hw2, _⟩ := hq3'
+  subst hw2
+  have hq3 : Q s3 := hQrn s2 d e1 o s3 hq2 hrun2
+  have hpall3 : C.H <+: H3 := hp.trans (hp2.trans hp3)
+  rcases o with _ | e2
+  · -- reduceNat: none; unfold
+    refine step_ifI _ 0 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
+      (fun _ => ?_)
+    refine step_seq (step_callNIH (C := ctxH (ctxH (ctxH C H) H2) H3) (D := ctxLocals ++ wbLocals) (s := s3) (M := [])
+      (Γ := (wR, optW none) :: (w1, Enc.idxW e1) :: (wF, BitVec.ofNat 64 f') :: contEnv C n d e (f' + 1) e') wU UD.fUnfold [UD.uE] [vv w1] (UD.ufBody C)
+      [Enc.idxW e1] (by decide) rfl (by decide) hcuf ⟨by simp, trivial⟩
+      (fun o w s' st => unfoldDefinition C.fe e1 s3 = .ok (o, s') ∧ UD.PostO (ctxH C H3) o w s' st)
+      (fun o w s' _ => w = optW o ∧ unfoldDefinition C.fe e1 s3 = .ok (o, s'))
+      (fun o w s' st ⟨hrun, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hrun⟩, hsr⟩)
+      (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu [UD.uE] _ rfl hlk)
+        (hUF H3 s3 hpall3 hq3 e1)))) (step_post4 (fun o2 wuv s4 H4 hrun3 hp4 hq4' => ?_))
+    obtain ⟨hw3, _⟩ := hq4'
+    subst hw3
+    have hstep := whnfStep_unf (knot mode C n) C.fe d e' e1 o2 s1 s2 s3 s4 hrun1 hrun2 hrun3
+    have hpall4 : C.H <+: H4 := hpall3.trans hp4
+    rcases o2 with _ | e2
+    · refine step_ifI _ 0 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
+        (fun _ => ?_)
+      refine step_seq (step_assignI wE (vv w1) (Enc.idxW e1) (by decide) (by simp)) ?_
+      refine step_mono (step_assignI wG (.const 0) 0 (by decide) rfl) (fun _ h => h) (fun t ht => ?_)
+      refine ⟨⟨ctxH C H4, s4, doneEnv C n d e f' e1, pure e1⟩, Or.inr ⟨H4, s4, f', e1, hpall4, rfl⟩, ?_, ?_⟩
+      · show (pure e1 : AM EIdx) s4 = _
+        rw [whnfLoop_succ]; show _ = Except.bind (whnfStep _ _ _ _ s1) _; rw [hstep]; rfl
+      · exact wb_weak C n d e 0 (BitVec.ofNat 64 f') (Enc.idxW e1) ht (by simp) (by simp [contEnv]) (by simp)
+          (fun z hz => by
+            simp only [wbLocals, List.mem_cons, List.not_mem_nil, or_false, not_or] at hz
+            obtain ⟨h1, h2, h3, h4, h5, h6⟩ := hz
+            simp [Env.get_cons, contEnv, h1, h2, h3, h4, h5, h6])
+    · have hne : optW (some e2) ≠ 0 := idxW_succ_ne e2
+      refine step_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne) (fun _ => ?_)
+        (fun h => absurd h (by decide))
+      refine step_mono (step_assignI wE _ (Enc.idxW e2) (by decide) (by simp [sev, optWG, BitVec.add_sub_cancel])) (fun _ h => h)
+        (fun t ht => ?_)
+      refine ⟨⟨ctxH C H4, s4, contEnv C n d e f' e2, whnfLoop (knot mode C n) C.fe d f' e2⟩,
+        Or.inl ⟨H4, s4, e2, f', hpall4, hQuf s3 e1 _ s4 hq3 hrun3, by omega, rfl⟩, ?_, ?_⟩
+      · show _ = whnfLoop _ _ _ (f' + 1) e' s1
+        rw [whnfLoop_succ]; show _ = Except.bind (whnfStep _ _ _ _ s1) _; rw [hstep]; rfl
+      · exact wb_weak C n d e 1 (BitVec.ofNat 64 f') (Enc.idxW e2) ht (by simp [contEnv]) (by simp) (by simp)
+          (fun z hz => by
+            simp only [wbLocals, List.mem_cons, List.not_mem_nil, or_false, not_or] at hz
+            obtain ⟨h1, h2, h3, h4, h5, h6⟩ := hz
+            simp [Env.get_cons, contEnv, h1, h2, h3, h4, h5, h6])
+  · -- reduceNat: some e2
+    have hne : optW (some e2) ≠ 0 := idxW_succ_ne e2
+    refine step_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    have hstep := whnfStep_lit (knot mode C n) C.fe d e' e1 e2 s1 s2 s3 hrun1 hrun2
+    refine step_seq (step_assignI wE _ (Enc.idxW e2) (by decide) (by simp [sev, optWG, BitVec.add_sub_cancel])) ?_
+    obtain ⟨wt, hwt, hiff⟩ := sev_tagIs ((wE, Enc.idxW e2) :: (wR, optW (some e2)) :: (w1, Enc.idxW e1) ::
+      (wF, BitVec.ofNat 64 f') :: contEnv C n d e (f' + 1) e') wE e2 (by simp) 8 (by decide) (by decide)
+    refine step_ifI _ wt hwt (fun hw => ?_) (fun hw => ?_)
+    · have ht8 : (e2.tag == ETag.lit) = true := by
+        have := hiff.mp hw; simp [this]; rfl
+      refine step_mono (step_assignI wG (.const 0) 0 (by decide) rfl) (fun _ h => h) (fun t ht => ?_)
+      refine ⟨⟨ctxH C H3, s3, doneEnv C n d e f' e2, pure e2⟩, Or.inr ⟨H3, s3, f', e2, hpall3, rfl⟩, ?_, ?_⟩
+      · show (pure e2 : AM EIdx) s3 = _
+        rw [whnfLoop_succ]; show _ = Except.bind (whnfStep _ _ _ _ s1) _; rw [hstep, if_pos ht8]; rfl
+      · exact wb_weak C n d e 0 (BitVec.ofNat 64 f') (Enc.idxW e2) ht (by simp) (by simp [contEnv]) (by simp)
+          (fun z hz => by
+            simp only [wbLocals, List.mem_cons, List.not_mem_nil, or_false, not_or] at hz
+            obtain ⟨h1, h2, h3, h4, h5, h6⟩ := hz
+            simp [Env.get_cons, contEnv, h1, h2, h3, h4, h5, h6])
+    · have ht8 : ¬ (e2.tag == ETag.lit) = true := by
+        intro h; exact (hiff.mpr (by simp at h; rw [h]; rfl)) hw
+      refine step_skipI (fun t ht => ?_)
+      refine ⟨⟨ctxH C H3, s3, contEnv C n d e f' e2, whnfLoop (knot mode C n) C.fe d f' e2⟩,
+        Or.inl ⟨H3, s3, e2, f', hpall3, hq3, by omega, rfl⟩, ?_, ?_⟩
+      · show _ = whnfLoop _ _ _ (f' + 1) e' s1
+        rw [whnfLoop_succ]; show _ = Except.bind (whnfStep _ _ _ _ s1) _; rw [hstep, if_neg ht8]; rfl
+      · exact wb_weak C n d e 1 (BitVec.ofNat 64 f') (Enc.idxW e2) ht (by simp [contEnv]) (by simp) (by simp)
+          (fun z hz => by
+            simp only [wbLocals, List.mem_cons, List.not_mem_nil, or_false, not_or] at hz
+            obtain ⟨h1, h2, h3, h4, h5, h6⟩ := hz
+            simp [Env.get_cons, contEnv, h1, h2, h3, h4, h5, h6])
 
 end
 
