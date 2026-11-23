@@ -275,3 +275,4 @@ import ConPanqueque.T.Core.ProjGuardSort
 import ConPanqueque.T.Core.CheckProjGuard
 import ConPanqueque.T.Core.TypeAt
 import ConPanqueque.T.Core.InferProj
+import ConPanqueque.T.Core.InferIOArms
