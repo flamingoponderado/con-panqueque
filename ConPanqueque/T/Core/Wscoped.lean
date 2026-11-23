@@ -785,6 +785,62 @@ def wsRet (C : Ctx) (er em : ExpHOL 64) : ProgHOL 64 :=
 
 def wsIns (C : Ctx) : ProgHOL 64 := mlInsP C wsN (vv wsH) (vv wsD) (vv wsR) (vv wsM2) (wsRet C (vv wsR) (vv wsN))
 
+def wsCall (k : MlS) (eD eH eM : ExpHOL 64) (rest : ProgHOL 64) : ProgHOL 64 :=
+  .seq (.call (some (some (.local, k), none)) fWs [.op .sub [vv wsF, .const 1], eD, eH, eM])
+  (.seq (.assign .local wsR (.load .one (vv k))) (.seq (.assign .local wsM2 (.load .one (.op .add [vv k, .const 8])))
+    rest))
+
+def wsArm2 (C : Ctx) : ProgHOL 64 :=
+  wsCall wsK1 (vv wsD) (vv wsC1) (vv wsM)
+    (.ite (vv wsR) (wsCall wsK2 (vv wsD) (vv wsC2) (vv wsM2) (wsIns C)) (wsIns C))
+
+def wsArm3 (C : Ctx) : ProgHOL 64 :=
+  wsCall wsK1 (vv wsD) (vv wsC1) (vv wsM)
+    (.ite (vv wsR) (wsCall wsK2 (vv wsD) (vv wsC2) (vv wsM2)
+      (.ite (vv wsR) (wsCall wsK3 (vv wsD) (vv wsC3) (vv wsM2) (wsIns C)) (wsIns C))) (wsIns C))
+
+def wsFvarK (C : Ctx) : ProgHOL 64 :=
+  .ite (.cmp .lower (vv wsI) (vv wsD)) (wsCall wsK1 (vv wsI) (vv wsT) (vv wsM) (wsIns C))
+    (.seq (.assign .local wsR (.const 0)) (.seq (.assign .local wsM2 (vv wsM)) (wsIns C)))
+
+def wsFvar (C : Ctx) : ProgHOL 64 :=
+  .seq (.assign .local wsT (.load .one (vv lRp)))
+  (.ite (.cmp .equal (vv lRn) (.const 1)) (.seq (.assign .local wsI (.const 0)) (wsFvarK C))
+    (.ite (.cmp .equal (vv lRn) (.const 2))
+      (.seq (.assign .local wsI (.load .one (.op .add [vv lRp, .const 8]))) (wsFvarK C)) hang))
+
+def wsCore (C : Ctx) : ProgHOL 64 :=
+  .ite (.cmp .equal (vv wsF) (.const 0)) hang
+  (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv wsH)) (.seq (storeDerived 9 10)
+  (.seq (.assign .local wsB (.op .and [.shift .lsr (vv lDo1) (.const 1), .const 32767]))
+  (.ite (.cmp .equal (vv wsB) (.const 0)) (wsRet C (.const 1) (vv wsM))
+  (.seq (.call (some (some (.local, wsL), none)) fMl [vv wsM, vv wsH, vv wsD])
+  (.ite (.cmp .notEqual (vv wsL) (.const 0)) (wsRet C (.op .sub [vv wsL, .const 1]) (vv wsM))
+  (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv wsH)) (.seq eViewP
+  (.ite (.cmp .equal (vv lDg) (.const 1)) (wsFvar C)
+  (.ite (.cmp .equal (vv lDg) (.const 4))
+    (.seq (.assign .local wsC1 (.load .one (vv lRp)))
+      (.seq (.assign .local wsC2 (.load .one (.op .add [vv lRp, .const 8]))) (wsArm2 C)))
+  (.ite (.cmp .equal (vv lDg) (.const 5))
+    (.seq (.assign .local wsC1 (.load .one (vv lRp)))
+      (.seq (.assign .local wsC2 (.load .one (.op .add [vv lRp, .const 8]))) (wsArm2 C)))
+  (.ite (.cmp .equal (vv lDg) (.const 6))
+    (.seq (.assign .local wsC1 (.load .one (vv lRp)))
+      (.seq (.assign .local wsC2 (.load .one (.op .add [vv lRp, .const 8]))) (wsArm2 C)))
+  (.ite (.cmp .equal (vv lDg) (.const 7))
+    (.seq (.assign .local wsC1 (.load .one (vv lRp)))
+      (.seq (.assign .local wsC2 (.load .one (.op .add [vv lRp, .const 8])))
+        (.seq (.assign .local wsC3 (.load .one (.op .add [vv lRp, .const 16]))) (wsArm3 C))))
+  (.ite (.cmp .equal (vv lDg) (.const 9))
+    (.seq (.assign .local wsC1 (.load .one (.op .add [vv lRp, .const 8]))) (wsCall wsK1 (vv wsD) (vv wsC1) (vv wsM) (wsIns C)))
+    (.seq (.assign .local wsR (.const 1)) (.seq (.assign .local wsM2 (vv wsM)) (wsIns C)))))))))))))))))))
+
+def wsBody (C : Ctx) : ProgHOL 64 := prologue wsLocals (wsCore C)
+
+structure WsCodes (C : Ctx) : Prop where
+  ml : C.code.lookup fMl = some (mlParams.map (fun p => (p, ShapeHOL.one)), mlBody, .one)
+  self : C.code.lookup fWs = some (wsParams.map (fun p => (p, ShapeHOL.one)), wsBody C, .one)
+
 section
 variable {σ : Type}
 
@@ -836,6 +892,46 @@ theorem specR_wsInsI {C : Ctx} (hok : CtxOK C) {H0 H : List (BitVec 64)} {s : AS
     (fun w => by simp [Env.get, hM]) hm (fun H' o hp' hm' => ?_)
   exact specR_wsRetI hok (vv wsR) (vv wsN) r (cellA C o) (memo.insert (h, d) r) hD.2
     (fun w => by simp [Env.get, hR]) (fun w => by simp [Env.get]) (wsRep_insert (p := pm) he h d hd r hm') (h0.trans hp')
+
+theorem ws_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ wsLocals → (ctxEnv C ++ wsParams.zip vals).get x = none :=
+  Knot.params_none C wsLocals wsParams vals (by decide) (by decide)
+
+/-- The walk's spec at fuel `n`, for every argument (the induction hypothesis the arms use). -/
+def WsRec (C : Ctx) (n : Nat) : Prop :=
+  ∀ (d : Nat) (h : EIdx) (memo : Std.HashMap (EIdx × Nat) Bool) (H : List (BitVec 64)) (s : AState) (pm : BitVec 64),
+    C.H <+: H → d < 2 ^ 63 → WsRep C H pm memo →
+    SpecR (σ := σ) (Pre (ctxH C H) s (wsParams.zip [BitVec.ofNat 64 (n + 1), BitVec.ofNat 64 d, Enc.idxW h, pm]))
+      (wsBody C) s (wscopedBGo memo n d h) (PostWs (ctxH C H) s)
+
+/-- One recursive call, then the pair block read back. -/
+theorem specR_wsCallI {α : Type} {C : Ctx} (hok : CtxOK C) (hc : WsCodes C) {n : Nat} (ih : WsRec (σ := σ) C n)
+    {H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64}
+    {k : Bool × Std.HashMap (EIdx × Nat) Bool → AM α} {R : α → BitVec 64 → AState → PState σ → Prop}
+    (x : MlS) (eD eH eM : ExpHOL 64) (d : Nat) (h : EIdx) (pm : BitVec 64) (memo : Std.HashMap (EIdx × Nat) Bool)
+    (hx : x ∈ D ∧ wsR ∈ D ∧ wsM2 ∈ D) (hxn : x ≠ wsR ∧ wsM2 ≠ x) (hp : C.H <+: H) (hd : d < 2 ^ 63) (hrep : WsRep C H pm memo)
+    (hF : Γ.get wsF = some (BitVec.ofNat 64 (n + 1 + 1))) (heD : sev Γ eD = some (BitVec.ofNat 64 d))
+    (heH : sev Γ eH = some (Enc.idxW h)) (heM : sev Γ eM = some pm)
+    (hk : ∀ (rm : Bool × Std.HashMap (EIdx × Nat) Bool) H' pm' w, H <+: H' → WsRep C H' pm' rm.2 →
+      SpecR (Inv (ctxH C H') s ((wsM2, pm') :: (wsR, boolW rm.1) :: (x, w) :: Γ) [] D) rest s (k rm) R) :
+    SpecR (Inv (ctxH C H) s Γ M D) (wsCall x eD eH eM rest) s (wscopedBGo memo n d h >>= k) R := by
+  unfold wsCall
+  refine specR_callNIH (C := ctxH C H) x fWs wsParams [.op .sub [vv wsF, .const 1], eD, eH, eM] (wsBody C)
+    [BitVec.ofNat 64 (n + 1), BitVec.ofNat 64 d, Enc.idxW h, pm] (by decide) rfl hx.1 hc.self
+    ⟨by simp [sev, hF]; exact Ex.ofNat_succ_sub_one _, heD, heH, heM, trivial⟩
+    (PostWs (ctxH C H) s)
+    (fun rm w s' H' => s' = s ∧ ∃ o pm', w = cellA C o ∧ H'[o]? = some (boolW rm.1) ∧ H'[o + 1]? = some pm' ∧
+      WsRep C H' pm' rm.2)
+    (fun rm w s' st ⟨h1, H', o, pm', hp', hw, h0, h1', hrep', hsr⟩ =>
+      ⟨H', hp', ⟨h1, o, pm', hw, h0, h1', wsRep_ofH hrep'⟩, by subst h1; exact hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu wsParams _ rfl hlk) (ih d h memo H s pm hp hd hrep))
+    (fun rm w s' H' hp' ⟨hs', o, pm', hw, h0, h1', hrep'⟩ => ?_)
+  subst hs' hw
+  refine UD.specR_heapLoadI' (C := ctxH C H') wsR (vv x) o (boolW rm.1) h0 hx.2.1 (by simp [Env.get]; rfl) ?_
+  refine UD.specR_heapLoadI' (C := ctxH C H') wsM2 (.op .add [vv x, .const 8]) (o + 1) pm' h1' hx.2.2
+    (by simp [sev, Env.get, hxn.1]; exact (cellA_add8 C o : _)) ?_
+  exact hk rm H' pm' (cellA C o) hp' hrep'
+
 
 end
 
