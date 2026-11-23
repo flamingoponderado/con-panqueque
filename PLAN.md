@@ -403,3 +403,17 @@ Core's caches split into two kinds.
 - **Mirrored.** The entry caches (`whnfCoreC`, `whnfCoreCheapC`, `whnfC`, `inferC`, `inferIOC`, `defeqC`, `constTyC`, `constValC`, `ruleBodyC`). Recomputing these would intern intermediate nodes the twin's store lacks, so `SR` (which pins the store exactly) would fail. They become Pancake tables like the memos: `MemoAtG` with key encoders `[h]`, `[a, b]`, `[n, us]`, …, and new `Region` kinds plus their `CtxOK` separation facts.
 
 ExprOps still to port: `wscopedBFast`, `fvarLeaves`/`leafGuard` (walks with a `seen` set), `instantiateLiftFast` (`inst1L` memo, mirrored). `takeEidx`/`eidxCopyUpto` are inlined as block copies where Core uses them.
+
+### Progress (2026-11-24, Core infrastructure)
+
+- **Mirrored caches in `SR`.** The three fixed caches (`constTyC`, `constValC`, `ruleBodyC`) are `SR.cache` (`CacheAt`, regions `.c k`).
+- **Eager tower.** The six mode memos live on two sides (regions `.m false k`, `.m true k`, descriptors `EO` apart). The global `gEo` holds the active side's offset; the port's eager flag is `gEo ≠ 0`. `Ctx.saved` records the plain memos held by the enclosing `enterEager`, which fixes the active side for every spec. `SR.mode` is `ModeAt` (`T/Store.lean`).
+  - `enterEager`/`leaveEager` flip `gEo` and switch the context (`T/Eager.lean`).
+  - Mode-memo reads and writes address `mG (.m false k) + gEo` (`T/Mode.lean`). The defeq memo has a pair key and a `Bool` value (`T/DefeqMemo.lean`).
+  - Generic memo read/write lemmas, given a key already in the key buffer, plus `SR` rebuilds after mode or fixed-cache writes (`T/MemoG.lean`).
+- **Environment.** `Ctx.fe` is the twin's `IFEnv` (fixed while a declaration is checked). Its constants and projection tables are blocks in a separate append-only environment heap (`EHeapAt`; layouts `CIE`, `TblE`, `RuleE`).
+  - Two hash tables keyed by `NIdx` point into that heap. Their contents are ghost maps `C.envM`/`C.tblM`, which represent `fe.find?`/`fe.findTable?` (`EnvRel`, a `CtxOK` fact).
+  - The literal flags are in the global `gLit`.
+  - `SR.env` is `EnvAt`. `find?` is `specR_envFindI`; field loads are `specR_envLoadI` (`T/Env.lean`).
+
+Next: Core bodies bottom-up (constant instantiation `constTyAt`/`constValAt` with the fixed caches, `whnfCore` pieces, `inferBody`, `defeqBody`), then the knot as Pancake functions with a fuel induction.
