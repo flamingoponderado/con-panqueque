@@ -2534,4 +2534,77 @@ def mulLocals : List MlS := [mLa, mLb, mN, mO, mQz, mZi, mI, mJ, mQa, mQb, mQr, 
 def mulParams : List MlS := [mX, mY]
 def mulBody (C : Ctx) : ProgHOL 64 := prologue mulLocals (mulCore C)
 
+section
+variable {σ : Type}
+
+def mulTemps : List MlS := [mA0, mA1, mB0, mB1, mP00, mP01, mP10, mP11, mMd, mM1, mLo1, mC1, mHi1, mLo2, mC2, mLo3,
+  mC3, mHi3]
+
+/-- The multiply-accumulate as a step: afterwards `lo3`/`hi3` hold the low and high words of `u * v + r + c`. -/
+theorem step_mulacc {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} (a b r c : Nat) (ha : a < B)
+    (hb : b < B) (hr : r < B) (hc : c < B)
+    (hu : Γ.get mU = some (BitVec.ofNat 64 a)) (hv : Γ.get mV = some (BitVec.ofNat 64 b))
+    (hR : Γ.get mR = some (BitVec.ofNat 64 r)) (hC : Γ.get mC = some (BitVec.ofNat 64 c))
+    (hD : ∀ x ∈ mulTemps, x ∈ D) (hn : ∀ x ∈ mulTemps, Γ.get x = none) :
+    Step (Inv (σ := σ) C s Γ M D) mulaccP
+      (Inv C s ((mHi3, BitVec.ofNat 64 ((a * b + r + c) / B)) :: (mLo3, BitVec.ofNat 64 ((a * b + r + c) % B)) ::
+        Γ) M D) := by
+  obtain ⟨wl, wh⟩ := mulw a b r c ha hb hr hc
+  let A := BitVec.ofNat 64 a
+  let Bb := BitVec.ofNat 64 b
+  let a0 := A &&& 0xffffffff
+  let a1 := A >>> 32
+  let b0 := Bb &&& 0xffffffff
+  let b1 := Bb >>> 32
+  let p00 := a0 * b0
+  let p01 := a0 * b1
+  let p10 := a1 * b0
+  let p11 := a1 * b1
+  let mid := p01 + p10
+  let m1 : BitVec 64 := if mid < p01 then 1 else 0
+  let lo1 := p00 + (mid <<< 32)
+  let c1 : BitVec 64 := if lo1 < p00 then 1 else 0
+  let hi1 := p11 + (mid >>> 32) + (m1 <<< 32) + c1
+  let lo2 := lo1 + BitVec.ofNat 64 r
+  let c2 : BitVec 64 := if lo2 < lo1 then 1 else 0
+  let lo3 := lo2 + BitVec.ofNat 64 c
+  let c3 : BitVec 64 := if lo3 < lo2 then 1 else 0
+  have hd : ∀ x ∈ mulTemps, x ∈ D := hD
+  simp only [mulTemps, List.mem_cons, List.not_mem_nil, or_false, forall_eq_or_imp, forall_eq] at hd hn
+  obtain ⟨d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d15, d16, d17, d18⟩ := hd
+  unfold mulaccP
+  refine step_seq (step_assignI mA0 _ a0 d1 (by simp [sev, hu]; rfl)) ?_
+  refine step_seq (step_assignI mA1 _ a1 d2 (by simp [sev, hu]; rfl)) ?_
+  refine step_seq (step_assignI mB0 _ b0 d3 (by simp [sev, hv]; rfl)) ?_
+  refine step_seq (step_assignI mB1 _ b1 d4 (by simp [sev, hv]; rfl)) ?_
+  refine step_seq (step_assignI mP00 _ p00 d5 (by simp [sev]; rfl)) ?_
+  refine step_seq (step_assignI mP01 _ p01 d6 (by simp [sev]; rfl)) ?_
+  refine step_seq (step_assignI mP10 _ p10 d7 (by simp [sev]; rfl)) ?_
+  refine step_seq (step_assignI mP11 _ p11 d8 (by simp [sev]; rfl)) ?_
+  refine step_seq (step_assignI mMd _ mid d9 (by simp [sev]; rfl)) ?_
+  refine step_seq (step_assignI mM1 _ m1 d10 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; rfl)) ?_
+  refine step_seq (step_assignI mLo1 _ lo1 d11 (by simp [sev]; rfl)) ?_
+  refine step_seq (step_assignI mC1 _ c1 d12 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; rfl)) ?_
+  refine step_seq (step_assignI mHi1 _ hi1 d13 (by simp [sev]; rfl)) ?_
+  refine step_seq (step_assignI mLo2 _ lo2 d14 (by simp [sev, hR]; rfl)) ?_
+  refine step_seq (step_assignI mC2 _ c2 d15 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; rfl)) ?_
+  refine step_seq (step_assignI mLo3 _ (BitVec.ofNat 64 ((a * b + r + c) % B)) d16
+    (by simp [sev, hC]; exact wl)) ?_
+  refine step_seq (step_assignI mC3 _ c3 d17
+    (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; rw [← wl]; rfl)) ?_
+  refine step_mono (step_assignI mHi3 _ (BitVec.ofNat 64 ((a * b + r + c) / B)) d18 (by simp [sev]; exact wh))
+    (fun _ h => h) (fun t ht => inv_envMono ht (fun z v hz => ?_))
+  obtain ⟨n1, n2, n3, n4, n5, n6, n7, n8, n9, n10, n11, n12, n13, n14, n15, n16, n17, n18⟩ := hn
+  simp only [Env.get_cons] at hz ⊢
+  by_cases e1 : z = mHi3
+  · subst e1; simp_all
+  by_cases e2 : z = mLo3
+  · subst e2; simp_all
+  simp only [e1, e2, ite_false] at hz
+  have f : ∀ y, Γ.get y = none → z ≠ y := fun y hy e => by subst e; rw [hy] at hz; simp at hz
+  simp [e1, e2, f _ n1, f _ n2, f _ n3, f _ n4, f _ n5, f _ n6, f _ n7, f _ n8, f _ n9, f _ n10, f _ n11, f _ n12,
+    f _ n13, f _ n14, f _ n15, f _ n17, hz]
+
+end
+
 end ConPanqueque.T.Big
