@@ -441,7 +441,6 @@ theorem cachesOK_cachesLs {s : AState} (h : CachesOK s) (c : Caches)
   obtain ⟨rn, rl, rls, le, les⟩ := h
   refine ⟨?_, ?_, hX, ?_, ?_⟩ <;> rw [hc] <;> assumption
 
-/-- The environment's stored constants denote in the twin store: their level-parameter names and their types. -/
 /-- Every constant's level parameters and type denote, its level-parameter count is small, and a definition's
 value denotes. -/
 def ConstDen (fe : IFEnv) (st : EStore) : Prop :=
