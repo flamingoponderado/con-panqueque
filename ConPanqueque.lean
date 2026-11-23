@@ -106,6 +106,7 @@ import ConPanqueque.T.MemoG
 import ConPanqueque.T.DefeqMemo
 import ConPanqueque.T.Env
 import ConPanqueque.T.PinRead
+import ConPanqueque.T.Knot
 import ConPanqueque.T.Heap
 import ConPanqueque.T.Loop
 import ConPanqueque.T.Blk
