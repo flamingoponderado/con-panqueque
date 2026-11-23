@@ -192,4 +192,104 @@ theorem substLMemoAt_run (ks : List ConLeche.Name) (vs : List ConLeche.Level) (s
     simp [instLPLGet, hc, get, getThe, MonadStateOf.get, StateT.get, bind, StateT.bind, pure, StateT.pure,
       Except.bind, Except.pure]
 
+section
+variable {σ : Type}
+open ConPanqueque.T.Ex ConPanqueque.T.ExS ConPanqueque.T.ExI ConPanqueque.T.ExM ConPanqueque.T.LEq
+open ConPanqueque.T.LSub
+
+/-- `SR` ignores the level substitution memos and the caches. -/
+theorem sr_lpl {C : Ctx} {s s' : AState} {t : PState σ} (h : SR C s t) (h1 : s'.store = s.store)
+    (h2 : s'.memos = { s.memos with instLPLC := s'.memos.instLPLC, instLPLsC := s'.memos.instLPLsC }) :
+    SR C s' t := by
+  have e1 : ∀ k, memoSel k s'.memos = memoSel k s.memos := fun k => by rw [h2]; cases k <;> rfl
+  have e2 : ∀ k, memoSelN k s'.memos = memoSelN k s.memos := fun k => by rw [h2]; cases k <;> rfl
+  exact ⟨by rw [h1]; exact h.rep, h.gdir, h.gfln, h.gfll, h.gfls, h.gfle, h.gkb, h.code, h.kbuf,
+    fun k => by rw [e1]; exact h.memo k, fun k => by rw [e2]; exact h.memoN k, h.heap⟩
+
+/-- Moving a spec from the computation the port performs to the twin's, run by run. -/
+theorem specR_transfer {α : Type} {P : PState σ → Prop} {c : ProgHOL 64} {s : AState} {m m' : AM α}
+    {R R' : α → BitVec 64 → AState → PState σ → Prop} (h : SpecR P c s m' R')
+    (ht : ∀ a s'', m' s = .ok (a, s'') → ∃ s3, m s = .ok (a, s3) ∧ ∀ w st, R' a w s'' st → R a w s3 st) :
+    SpecR P c s m R := by
+  intro t hp
+  rcases h t hp with hs | ⟨w, hr, a, s'', hm, hq⟩
+  · exact Or.inl hs
+  · obtain ⟨s3, h3, hR⟩ := ht a s'' hm
+    exact Or.inr ⟨w, hr, a, s3, h3, hR w _ hq⟩
+
+def fSubstLH := ofString "substLH"
+
+def substLHBody (C : Ctx) : ProgHOL 64 :=
+  prologue lvlLocals
+  (.seq (.call (some (some (.local, lA1), none)) fSubstM [vv pLa, vv pKp, vv pUs])
+  (.seq (.call (some (some (.local, lW), none)) fInternLv [vv lA1]) (.return (vv lW))))
+
+/-- `substLMemoAt`'s post: the handle, a bigger image, the invariants carried on. -/
+def PostSLH (C : Ctx) (s : AState) (ks : List ConLeche.Name) (vs : List ConLeche.Level) (l : ConLeche.Level)
+    (h : LIdx) (w : BitVec 64) (s3 : AState) (st : PState σ) : Prop :=
+  ∃ H', C.H <+: H' ∧ w = Enc.idxW h ∧ SR (ctxH C H') s3 st ∧ StoreWF s3.store ∧ Ext s.store s3.store ∧
+    LGrow s.store.ls s3.store.ls ∧ s3.store = withL s.store s3.store.ls ∧ s3.pins = s.pins ∧
+    s3.memos = { s.memos with instLPLC := s3.memos.instLPLC } ∧
+    s3.caches = { s.caches with readLC := s3.caches.readLC } ∧
+    ReadLCacheOK s3.caches.readLC s3.store ∧ MemoLOK s3 ks vs ∧
+    denoteL s3.store.ls h = some (ConLeche.Level.subst ks vs l)
+
+end
+
+section
+variable {σ : Type}
+open ConPanqueque.T.Ex ConPanqueque.T.ExS ConPanqueque.T.ExI ConPanqueque.T.ExM ConPanqueque.T.LEq
+open ConPanqueque.T.LSub
+
+theorem substLH_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
+    (hcS : C.code.lookup fSubstM = some (substMParams.map (fun p => (p, ShapeHOL.one)), substBodyM C, .one))
+    (hcN : C.code.lookup NEq.fNeq = some ([(NEq.pNa, .one), (NEq.pNb, .one)], NEq.neqBody, .one))
+    (hcG : C.code.lookup fGoM = some (goParams.map (fun p => (p, ShapeHOL.one)), goBody, .one))
+    (hcZ : C.code.lookup fInternLZero = some ([], internLZeroBody, .one))
+    (hcSu : C.code.lookup fInternLSucc = some ([(lEu, .one)], internLSuccBody, .one))
+    (hcMx : C.code.lookup fInternLMax = some ([(lEu, .one), (lEv, .one)], internLMaxBody, .one))
+    (hcIm : C.code.lookup fInternLImax = some ([(lEu, .one), (lEv, .one)], internLImaxBody, .one))
+    (hcP : C.code.lookup fInternLParam = some ([(lEn, .one)], internLParamBody, .one))
+    (hcV : C.code.lookup fInternLv = some ([(pLa, .one)], internLvBody, .one))
+    (s : AState) (ko : Nat) (khs : List NIdx) (ks : List ConLeche.Name) (us : LsIdx) (uh : List LIdx)
+    (vs : List ConLeche.Level) (hks : Frontend.denoteNList s.store.ns khs = some ks)
+    (hu : s.store.lss.view us = some uh) (hvs : denoteLList s.store.ls uh = some vs)
+    (hrl : ReadLCacheOK s.caches.readLC s.store) (hm : MemoLOK s ks vs) (hwf : StoreWF s.store)
+    (H : List (BitVec 64)) (hb : BlkAt H ko (khs.map Enc.idxW)) (u : LIdx) (l : ConLeche.Level)
+    (hd : denoteL s.store.ls u = some l) :
+    SpecR (Pre (σ := σ) (ctxH C H) s (substMParams.zip [Enc.idxW u, cellA C ko, Enc.idxW us])) (substLHBody C) s
+      (substLMemoAt ks vs u) (PostSLH (ctxH C H) s ks vs l) := by
+  refine specR_transfer (m' := pure (ConLeche.Level.subst ks vs l) >>= fun t => internLevel t >>= fun h => pure h)
+    (R' := fun h w s'' st => ∃ H', H <+: H' ∧ w = Enc.idxW h ∧ SR (ctxH C H') s'' st ∧ StoreWF s''.store ∧
+      (∃ ls', s'' = { s with store := withL s.store ls' } ∧ LGrow s.store.ls ls') ∧
+      ∃ f, denoteLAux s''.store.ls f h = some (ConLeche.Level.subst ks vs l)) ?_ ?_
+  · refine specR_prologue (fun _ _ _ _ _ ⟨H', a, b, c, d⟩ => ⟨H', a, b, sr_of_eq c rfl rfl rfl rfl, d⟩)
+      (params_noneSubM _ _ _ _) ?_
+    refine callLv_spec (C := ctxH C H) lA1 fSubstM substMParams [vv pLa, vv pKp, vv pUs] (substBodyM C)
+      [Enc.idxW u, cellA C ko, Enc.idxW us] (by decide) rfl (by decide) hcS
+      ⟨by simp +decide [ctxEnv, substMParams], by simp +decide [ctxEnv, substMParams] <;> rfl,
+        by simp +decide [ctxEnv, substMParams], trivial⟩ _
+      (substM_spec C hok hcS hcN hcG s ko khs ks us uh vs hks hu hvs l H (Enc.idxW u) hb (lrep_arena _ _ _ u _ l hd))
+      (fun H1 c1 hp1 hc1 => ?_)
+    refine callIL (C := ctxH C H1) lW (vv lA1) internLvBody c1 _ (by decide) hcV (by simp)
+      (internLv_spec ra C hok hcZ hcSu hcMx hcIm hcP hcV _ H1 c1 s hwf hc1) (fun h s'' hr wf g d => ?_)
+    exact specR_returnI (vv lW) (Enc.idxW h) (by simp) (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl,
+      wf, g, d⟩)
+  · intro h s'' hrun
+    have hrun' : internLevel (ConLeche.Level.subst ks vs l) s = .ok (h, s'') := by
+      have e : (pure (ConLeche.Level.subst ks vs l) >>= fun t => internLevel t >>= fun h => pure h : AM LIdx) s =
+          internLevel (ConLeche.Level.subst ks vs l) s := by
+        simp only [bind_pure]; rfl
+      rw [← e]; exact hrun
+    obtain ⟨q1, q2, -, -, -, q6, q7, q8, q9⟩ :=
+      AM.of_run (P := fun t => t = s) rfl hrun' (internLevel_spec s _ hwf)
+    obtain ⟨s3, h3, e3, p3, m3, c3, r3, ml3⟩ := substLMemoAt_run ks vs s u l hd hrl hm hwf h s'' hrun'
+    refine ⟨s3, h3, fun w st ⟨H', hp, hw, hsr, _, ⟨ls', es, g⟩, _⟩ => ?_⟩
+    have es3 : s3.store = withL s.store ls' := by rw [e3, es]
+    refine ⟨H', hp, hw, sr_lpl hsr e3 ?_, by rw [e3]; exact q1, by rw [e3]; exact q2, by rw [es3]; exact g,
+      by rw [es3]; rfl, p3, m3, c3, r3, ml3, by rw [e3]; exact q9⟩
+    rw [m3, q6]
+
+end
+
 end ConPanqueque.T

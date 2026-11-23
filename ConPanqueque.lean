@@ -123,6 +123,7 @@ import ConPanqueque.V.LsView
 import ConPanqueque.T.LsView
 import ConPanqueque.T.LvlEqList
 import ConPanqueque.T.LvlSubstM
+import ConPanqueque.T.SubstLH
 import ConPanqueque.T.CallN
 import ConPanqueque.V.DerWrite
 import ConPanqueque.LevelFns
