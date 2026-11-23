@@ -331,3 +331,5 @@ import ConPanqueque.T.Comp.WhnfBody
 import ConPanqueque.T.Comp.InferLeaves
 import ConPanqueque.T.Floor
 import ConPanqueque.T.Comp.TwinFacts
+import ConPanqueque.T.CtxTr
+import ConPanqueque.T.Comp.Ents
