@@ -558,6 +558,95 @@ theorem nbShl_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
     (fun H' r hp' hbr => ?_)
   exact tail_plain ra hok (a <<< b) r (hp.trans hp') hbr hc.litb (by simp; rfl) (by decide)
 
+def nbPowMid (C : Ctx) : ProgHOL 64 :=
+  .seq (.assign .local nL (.load .one (vv nX)))
+  (.seq (.assign .local nT (.load .one (vv nY)))
+  (.ite (.cmp .lower (.const 1) (vv nT)) hang
+  (.seq (.assign .local nE (.load .one (.op .add [vv nY, .panop .mul [vv nT, .const 8]])))
+  (.ite (.cmp .lower (.const 4294967295) (vv nE)) hang
+  (.ite (.cmp .lower (.const 268435455) (vv nL)) hang
+  (.seq (.assign .local nM (.load .one (.const (ecell C (C.PO + pinCount + 3)))))
+  (.ite (.cmp .lower (vv nM) (.panop .mul [nbSizeE, vv nE])) hang
+  (.seq (.call (some (some (.local, nR), none)) fPow [vv nX, vv nE]) (nbTail C)))))))))
+
+def nbPowBody (C : Ctx) : ProgHOL 64 := prologue nbLocals (nbLits (nbPowMid C))
+
+theorem nbPow_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : BigCodes C)
+    (s : AState) (ha hb : EIdx) (a b : Nat)
+    (hva : s.store.view ha = some (.lit (.natVal a))) (hvb : s.store.view hb = some (.lit (.natVal b))) :
+    SpecR (σ := σ) (Pre C s (nbParams.zip [Enc.idxW ha, Enc.idxW hb])) (nbPowBody C) s
+      (natBinOpResult .pow a b) (UD.PostO C) := by
+  refine specR_prologue (UD.postO_locals C) (nb_none C _) ?_
+  show SpecR _ _ s (powGuard a b >>= fun _ => internE (.lit (.natVal (a ^ b))) >>= fun x => pure (some x)) _
+  refine nb_lits hok hc ha hb a b hva hvb (nbEnv_a C ha hb) (nbEnv_b C ha hb) (by decide)
+    (fun H ox oy hp hbx hby => ?_)
+  unfold nbPowMid
+  have hl0 : (ctxH C H).H[ox]? = some (BitVec.ofNat 64 (limbs a).length) := hbx.1
+  have hl1 : (ctxH C H).H[oy]? = some (BitVec.ofNat 64 (limbs b).length) := hby.1
+  refine UD.specR_heapLoadI' (C := ctxH C H) nL (vv nX) ox _ hl0 (by decide) (by simp; rfl) ?_
+  refine UD.specR_heapLoadI' (C := ctxH C H) nT (vv nY) oy _ hl1 (by decide) (by simp; rfl) ?_
+  refine specR_atEntry fun t0 ht0 => ?_
+  have hpins : s.pins = C.pins := ht0.sr.pins
+  have hsa := blk_small (C := ctxH C H) (ctxOK_H hok _) ht0.sr hbx
+  have hsb := blk_small (C := ctxH C H) (ctxOK_H hok _) ht0.sr hby
+  have hwb := word_lt_iff 1 (limbs b).length (by decide) (by unfold B; omega)
+  by_cases hb1 : 1 < (limbs b).length
+  · exact specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hwb.mpr hb1])
+      (fun _ => specR_hangI) (fun h => absurd h (by decide))
+  refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, (not_congr hwb).mpr hb1])
+    (fun h => absurd rfl h) (fun _ => ?_)
+  obtain ⟨hbB, hbw⟩ := blk_word hby (by omega)
+  refine UD.specR_heapLoadI' (C := ctxH C H) nE _ (oy + (limbs b).length) _ hbw (by decide)
+    (by simp [sev]; exact cellA_mul8 C oy _) ?_
+  have hw32 := word_lt_iff 4294967295 b (by decide) hbB
+  by_cases hb32 : 4294967295 < b
+  · exact specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hw32.mpr hb32)
+      (fun _ => specR_hangI) (fun h => absurd h (by decide))
+  refine specR_ifI _ 0 (by
+      simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; have : b < 18446744073709551616 := hbB; omega)
+    (fun h => absurd rfl h) (fun _ => ?_)
+  have hw28 := word_lt_iff 268435455 (limbs a).length (by decide) (by unfold B; omega)
+  by_cases ha28 : 268435455 < (limbs a).length
+  · exact specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hw28.mpr ha28)
+      (fun _ => specR_hangI) (fun h => absurd h (by decide))
+  refine specR_ifI _ 0 (by
+      simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; have : (limbs a).length < 18446744073709551616 := by omega
+      omega)
+    (fun h => absurd rfl h) (fun _ => ?_)
+  have hpm := hok.pinsRel.2.2.2.2.2.1
+  refine specR_envLoadI (C := ctxH C H) nM _ (C.PO + pinCount + 3) _ (by decide) rfl hpm.1 ?_
+  have hm63 := hpm.2
+  let Γ5 : Env := (nM, BitVec.ofNat 64 C.pins.maxNatSize) :: (nE, BitVec.ofNat 64 b) ::
+      (nT, BitVec.ofNat 64 (limbs b).length) :: (nL, BitVec.ofNat 64 (limbs a).length) ::
+      (nY, cellA C oy) :: (nX, cellA C ox) :: (ctxEnv C ++ nbParams.zip [Enc.idxW ha, Enc.idxW hb])
+  have hsz := sev_size Γ5 (limbs a).length hsa (by simp [Γ5])
+  have hmax : 8 * max (limbs a).length 1 ≤ 2 ^ 31 := by omega
+  have hprod : 8 * max (limbs a).length 1 * b < 2 ^ 63 := by
+    calc 8 * max (limbs a).length 1 * b ≤ 2 ^ 31 * b := Nat.mul_le_mul_right _ hmax
+      _ < 2 ^ 63 := by omega
+  have hmulw : BitVec.ofNat 64 (8 * max (limbs a).length 1) * BitVec.ofNat 64 b =
+      BitVec.ofNat 64 (8 * max (limbs a).length 1 * b) := by
+    apply BitVec.eq_of_toNat_eq
+    simp only [BitVec.toNat_mul, BitVec.toNat_ofNat]
+    rw [Nat.mod_eq_of_lt (show 8 * max (limbs a).length 1 < 2 ^ 64 by omega),
+      Nat.mod_eq_of_lt (show b < 2 ^ 64 from hbB)]
+  have hP : sev Γ5 (.panop .mul [nbSizeE, vv nE]) = some (BitVec.ofNat 64 (8 * max (limbs a).length 1 * b)) := by
+    have hE : sev Γ5 (vv nE) = some (BitVec.ofNat 64 b) := by simp [Γ5, vv, sev]
+    simp only [sev]; rw [hsz, hE]; simp [hmulw]
+  have hcmp := word_lt_iff C.pins.maxNatSize (8 * max (limbs a).length 1 * b) (by unfold B; omega)
+    (by unfold B; omega)
+  by_cases hm : C.pins.maxNatSize < 8 * max (limbs a).length 1 * b
+  · exact specR_ifI _ 1 (by simp only [sev] at hP ⊢; simp [Γ5] at hP; simp [hP, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hcmp.mpr hm])
+      (fun _ => specR_hangI) (fun h => absurd h (by decide))
+  refine specR_ifI _ 0 (by simp only [sev] at hP ⊢; simp [Γ5] at hP; simp [hP, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; omega)
+    (fun h => absurd rfl h) (fun _ => ?_)
+  refine specR_runBind (powGuard_run' a b s (by omega) (by rw [hpins, natSizeBytes_limbs]; omega)) ?_
+  refine specR_callPH (C := ctxH C H) (k := fun r => internE (.lit (.natVal r)) >>= fun x => pure (some x))
+    nR fPow powParams _ (powBody C) [cellA C ox, BitVec.ofNat 64 b] (a ^ b) (by decide) rfl (by decide) hc.pow
+    ⟨by simp, by simp, trivial⟩ (pow_spec b (ctxH C H) (ctxOK_H hok _) s a ox hc.mul hc.pow hbx hbB)
+    (fun H' r hp' hbr => ?_)
+  exact tail_plain ra hok (a ^ b) r (hp.trans hp') hbr hc.litb (by simp; rfl) (by decide)
+
 end
 
 end ConPanqueque.T.Big
