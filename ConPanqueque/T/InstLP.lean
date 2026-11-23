@@ -442,4 +442,132 @@ theorem appI_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : C
 
 end
 
+/-- The `lam` arm after a memo miss. -/
+def lamMiss (ks : List ConLeche.Name) (vsL : List ConLeche.Level) (n : Nat) (h f a : EIdx) : AM EIdx := do
+  let f'' ← instLPGo ks vsL n f
+  let a'' ← instLPGo ks vsL n a
+  let r ← internRebuiltLam h (f'' == f && a'' == a) f'' a''
+  instLPSet (h, 0) r
+  pure r
+
+section
+variable {σ : Type}
+open ConRon.Bridge.ExprOps
+
+theorem lamI_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (B : ProgHOL 64)
+    (hc : CodesILP C B) (ko : Nat) (khs : List NIdx) (ks : List ConLeche.Name) (usH : LsIdx)
+    (vsL : List ConLeche.Level) (n : Nat) (ih : RecILP (σ := σ) C B ko khs ks usH vsL n)
+    {H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} (h f a : EIdx) (hv : s.store.view h = some (.lam f a))
+    (hp : PInv s khs ks usH vsL) (hden : (denoteE s.store h).isSome = true) (hb : BlkAt H ko (khs.map Enc.idxW))
+    (hfu : Γ.get pFu = some (BitVec.ofNat 64 (n + 1))) (hh : Γ.get pH = some (Enc.idxW h))
+    (hkp : Γ.get pKp = some (cellA C ko)) (hus : Γ.get pUs = some (Enc.idxW usH))
+    (hkb : Γ.get lKb = some C.KB) (hfle : Γ.get lFle = some C.FLe) (hdir : Γ.get lDir = some C.L.DIR) :
+    SpecR (Inv (σ := σ) (ctxH C H) s Γ M DI) (binI (C.mG (.e .instLP)) fInternLam) s
+      (instLPArmLam ks vsL n h f a) (PostILP (ctxH C H)) := by
+  obtain ⟨df, da⟩ := kids2 hp.ok.wf hv hden (f := f) (a := a) (Or.inr (Or.inr ⟨ConLeche.Expr.lam, rfl⟩))
+  refine specR_congr (m' := do match ← instLPGet (h, 0) with | some r => pure r | none => lamMiss ks vsL n h f a)
+    (by rw [instLPArmLam]; rfl) ?_
+  unfold binI
+  refine probedL_spec hok hc.memoGet hc.memoProbe h _ _ hh hkb ?_
+  unfold viewH
+  refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [hfle]) ?_
+  refine specR_assignI lDh (vv pH) (Enc.idxW h) (by decide) (by simp +decide [hh]) ?_
+  refine specR_congr (m' := ConRon.Arena.view h >>= fun v => match v with
+    | .lam f' a' => lamMiss ks vsL n h f' a'
+    | _ => lamMiss ks vsL n h f a)
+    (by simp only [bind, StateT.bind]; rw [view_run, hv]; rfl) ?_
+  refine specR_viewIv h (by simp) (by simp +decide [hfle] <;> rfl) (by simp +decide [hdir] <;> rfl) (by decide)
+    (fun v P hv' _ _ => ?_)
+  rw [hv] at hv'; cases hv'
+  unfold lamMiss
+  simp only [encEView, Enc.encBind, wordsAt, List.length_cons, List.length_nil, List.range_succ, List.range_zero,
+    List.nil_append, List.zip_cons_cons, List.zip_nil_left, List.map_cons, List.map_nil, List.cons_append,
+    List.nil_append]
+  refine specR_loadI' lA1 _ (P + BitVec.ofNat 64 (8 * 0)) _ (Enc.idxW f) (by decide) (by simp +decide [sev])
+    rfl (List.mem_cons_self ..) ?_
+  refine specR_loadI' lA2 _ (P + BitVec.ofNat 64 (8 * 1)) _ (Enc.idxW a) (by decide) (by simp +decide [sev])
+    rfl (List.mem_cons_of_mem _ (List.mem_cons_self ..)) ?_
+  refine callI_spec C B hc.ilp ko khs ks usH vsL n ih lY lA1 f (by decide) (by simp +decide [hfu])
+    (by simp +decide) (by simp +decide [hkp]) (by simp +decide [hus]) hp df hb
+    (fun f' s1 H1 hp1 pv1 _ x1 _ _ => ?_)
+  refine callI_spec (H := H1) C B hc.ilp ko khs ks usH vsL n ih lZ lA2 a (by decide) (by simp +decide [hfu])
+    (by simp +decide) (by simp +decide [hkp]) (by simp +decide [hus]) pv1
+    (by obtain ⟨e, he⟩ := Option.isSome_iff_exists.mp da; rw [x1.expr a e he]; rfl) (blkAt_mono hb hp1)
+    (fun a' s2 H2 hp2 _ _ _ _ _ => ?_)
+  refine rebuild_spec (C := ctxH C H2) _ (eqW f' f &&& eqW a' a) (f' == f && a' == a) h _ _ (internLamE f' a') ?_
+    (eqW2_iff _ _ _ _) (by simp +decide [hh]) ?_ ?_
+  · simp +decide [sev, eqE, eqW]
+  · exact setRetL_spec hok (hp1.trans hp2) hc.memoSet hc.memoIns h h (by simp +decide [hh]) (by simp +decide [hkb])
+      (by simp +decide)
+  · refine specR_internLamI ra (ctxOK_H hok H2) hc.internLam lW (vv lY) (vv lZ) f' a' (by decide) (by simp +decide)
+      (by simp +decide) (fun r s3 => ?_)
+    exact setRetL_spec hok (hp1.trans hp2) hc.memoSet hc.memoIns h r (by simp +decide [hh]) (by simp +decide [hkb])
+      (by simp +decide)
+
+end
+
+/-- The `for` arm after a memo miss. -/
+def forMiss (ks : List ConLeche.Name) (vsL : List ConLeche.Level) (n : Nat) (h f a : EIdx) : AM EIdx := do
+  let f'' ← instLPGo ks vsL n f
+  let a'' ← instLPGo ks vsL n a
+  let r ← internRebuiltForallE h (f'' == f && a'' == a) f'' a''
+  instLPSet (h, 0) r
+  pure r
+
+section
+variable {σ : Type}
+open ConRon.Bridge.ExprOps
+
+theorem forI_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (B : ProgHOL 64)
+    (hc : CodesILP C B) (ko : Nat) (khs : List NIdx) (ks : List ConLeche.Name) (usH : LsIdx)
+    (vsL : List ConLeche.Level) (n : Nat) (ih : RecILP (σ := σ) C B ko khs ks usH vsL n)
+    {H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} (h f a : EIdx) (hv : s.store.view h = some (.forallE f a))
+    (hp : PInv s khs ks usH vsL) (hden : (denoteE s.store h).isSome = true) (hb : BlkAt H ko (khs.map Enc.idxW))
+    (hfu : Γ.get pFu = some (BitVec.ofNat 64 (n + 1))) (hh : Γ.get pH = some (Enc.idxW h))
+    (hkp : Γ.get pKp = some (cellA C ko)) (hus : Γ.get pUs = some (Enc.idxW usH))
+    (hkb : Γ.get lKb = some C.KB) (hfle : Γ.get lFle = some C.FLe) (hdir : Γ.get lDir = some C.L.DIR) :
+    SpecR (Inv (σ := σ) (ctxH C H) s Γ M DI) (binI (C.mG (.e .instLP)) fInternForallE) s
+      (instLPArmForallE ks vsL n h f a) (PostILP (ctxH C H)) := by
+  obtain ⟨df, da⟩ := kids2 hp.ok.wf hv hden (f := f) (a := a) (Or.inr (Or.inr ⟨ConLeche.Expr.forallE, rfl⟩))
+  refine specR_congr (m' := do match ← instLPGet (h, 0) with | some r => pure r | none => forMiss ks vsL n h f a)
+    (by rw [instLPArmForallE]; rfl) ?_
+  unfold binI
+  refine probedL_spec hok hc.memoGet hc.memoProbe h _ _ hh hkb ?_
+  unfold viewH
+  refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [hfle]) ?_
+  refine specR_assignI lDh (vv pH) (Enc.idxW h) (by decide) (by simp +decide [hh]) ?_
+  refine specR_congr (m' := ConRon.Arena.view h >>= fun v => match v with
+    | .forallE f' a' => forMiss ks vsL n h f' a'
+    | _ => forMiss ks vsL n h f a)
+    (by simp only [bind, StateT.bind]; rw [view_run, hv]; rfl) ?_
+  refine specR_viewIv h (by simp) (by simp +decide [hfle] <;> rfl) (by simp +decide [hdir] <;> rfl) (by decide)
+    (fun v P hv' _ _ => ?_)
+  rw [hv] at hv'; cases hv'
+  unfold forMiss
+  simp only [encEView, Enc.encBind, wordsAt, List.length_cons, List.length_nil, List.range_succ, List.range_zero,
+    List.nil_append, List.zip_cons_cons, List.zip_nil_left, List.map_cons, List.map_nil, List.cons_append,
+    List.nil_append]
+  refine specR_loadI' lA1 _ (P + BitVec.ofNat 64 (8 * 0)) _ (Enc.idxW f) (by decide) (by simp +decide [sev])
+    rfl (List.mem_cons_self ..) ?_
+  refine specR_loadI' lA2 _ (P + BitVec.ofNat 64 (8 * 1)) _ (Enc.idxW a) (by decide) (by simp +decide [sev])
+    rfl (List.mem_cons_of_mem _ (List.mem_cons_self ..)) ?_
+  refine callI_spec C B hc.ilp ko khs ks usH vsL n ih lY lA1 f (by decide) (by simp +decide [hfu])
+    (by simp +decide) (by simp +decide [hkp]) (by simp +decide [hus]) hp df hb
+    (fun f' s1 H1 hp1 pv1 _ x1 _ _ => ?_)
+  refine callI_spec (H := H1) C B hc.ilp ko khs ks usH vsL n ih lZ lA2 a (by decide) (by simp +decide [hfu])
+    (by simp +decide) (by simp +decide [hkp]) (by simp +decide [hus]) pv1
+    (by obtain ⟨e, he⟩ := Option.isSome_iff_exists.mp da; rw [x1.expr a e he]; rfl) (blkAt_mono hb hp1)
+    (fun a' s2 H2 hp2 _ _ _ _ _ => ?_)
+  refine rebuild_spec (C := ctxH C H2) _ (eqW f' f &&& eqW a' a) (f' == f && a' == a) h _ _ (internForallEE f' a') ?_
+    (eqW2_iff _ _ _ _) (by simp +decide [hh]) ?_ ?_
+  · simp +decide [sev, eqE, eqW]
+  · exact setRetL_spec hok (hp1.trans hp2) hc.memoSet hc.memoIns h h (by simp +decide [hh]) (by simp +decide [hkb])
+      (by simp +decide)
+  · refine specR_internForallEI ra (ctxOK_H hok H2) hc.internForallE lW (vv lY) (vv lZ) f' a' (by decide) (by simp +decide)
+      (by simp +decide) (fun r s3 => ?_)
+    exact setRetL_spec hok (hp1.trans hp2) hc.memoSet hc.memoIns h r (by simp +decide [hh]) (by simp +decide [hkb])
+      (by simp +decide)
+
+end
+
 end ConPanqueque.T.ILP
