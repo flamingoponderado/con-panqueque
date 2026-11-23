@@ -34,6 +34,19 @@ def zR := ofString "rdr"
 def zO := ofString "rdo"
 def zP2 := ofString "rdp2"
 def fNbAdd := ofString "nbAdd"
+def fNbSub := ofString "nbSub"
+def fNbMul := ofString "nbMul"
+def fNbPow := ofString "nbPow"
+def fNbBeq := ofString "nbBeq"
+def fNbBle := ofString "nbBle"
+def fNbDiv := ofString "nbDiv"
+def fNbMod := ofString "nbMod"
+def fNbGcd := ofString "nbGcd"
+def fNbLand := ofString "nbLand"
+def fNbLor := ofString "nbLor"
+def fNbXor := ofString "nbXor"
+def fNbShl := ofString "nbShl"
+def fNbShr := ofString "nbShr"
 
 @[simp] theorem rd_zF_ne_zB : zF ≠ zB := by decide
 @[simp] theorem rd_zF_ne_zG : zF ≠ zG := by decide
@@ -1129,6 +1142,69 @@ theorem view_bind_eq {β : Type} (h : EIdx) (v : ENodeView) (k : ENodeView → A
     (hv : s.store.view h = some v) : (ConRon.Arena.view h >>= k) s = k v s := by
   show (do let r ← ConRon.Arena.view h s; match r with | (a, s) => k a s) = _
   rw [view_run, hv]; rfl
+
+theorem reduceNat_eq (r : CoreFnsA) (fe : IFEnv) (d : Nat) (e : EIdx) : reduceNat r fe d e = (if e.tag == ETag.app then
+    (view e >>= fun v => match v with
+      | .app f b => view f >>= fun vf => match vf with
+        | .const c us => emptyLevels >>= fun el => if (us != el) = true then pure none else
+            pinNatSucc >>= fun ns => if (c == ns && fe.natLit) = true then succT r d b else pure none
+        | .app g a => if (g.tag == ETag.const) = true then
+            (view g >>= fun vg => match vg with
+              | .const c us => emptyLevels >>= fun el => if (us != el) = true then pure none else
+                  natBinOpOfName? c >>= fun oop => match oop with
+                    | some op => leafT r d a b op
+                    | none => pure none
+              | _ => pure none)
+          else pure none
+        | _ => pure none
+      | _ => pure none)
+  else pure none) := by
+  rfl
+
+
+def rdTab : List NbE := [⟨15, .add, fNbAdd, nbAddBody⟩, ⟨16, .sub, fNbSub, nbSubBody⟩, ⟨17, .mul, fNbMul, nbMulBody⟩,
+  ⟨18, .pow, fNbPow, nbPowBody⟩, ⟨19, .beq, fNbBeq, fun C => nbCmpBody C false⟩,
+  ⟨20, .ble, fNbBle, fun C => nbCmpBody C true⟩, ⟨21, .div, fNbDiv, fun C => nbDmBody C false⟩,
+  ⟨22, .mod, fNbMod, fun C => nbDmBody C true⟩, ⟨23, .gcd, fNbGcd, nbGcdBody⟩,
+  ⟨24, .land, fNbLand, nbBitBody .and⟩, ⟨25, .lor, fNbLor, nbBitBody .or⟩, ⟨26, .xor, fNbXor, nbBitBody .xor⟩,
+  ⟨27, .shiftLeft, fNbShl, nbShlBody⟩, ⟨28, .shiftRight, fNbShr, nbShrBody⟩]
+
+theorem rdTab_ops : rdTab.map (fun e => (e.i, e.op)) = opTab := rfl
+
+/-- The code `reduceNat` calls. -/
+structure RdCodes (C : Ctx) : Prop where
+  raw : C.code.lookup fRaw = some ([(qH, ShapeHOL.one)], rnBody C, .one)
+  w : C.code.lookup fW = some (kParams.map (fun p => (p, ShapeHOL.one)), whnfE C fWB, .one)
+  nb : ∀ e ∈ rdTab, C.code.lookup e.fn = some (nbParams.map (fun p => (p, ShapeHOL.one)), e.body C, .one)
+
+theorem rdTab_ok (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxOK C) (hc : BigCodes C)
+    (hr : RdCodes C) : ∀ e ∈ rdTab, e.i < pinCount ∧
+      C.code.lookup e.fn = some (nbParams.map (fun p => (p, ShapeHOL.one)), e.body C, .one) ∧
+      ∀ (H : List (BitVec 64)) s1 px py a b, C.H <+: H → BlkAt H px (limbs a) → BlkAt H py (limbs b) →
+        SpecR (σ := σ) (Pre (ctxH C H) s1 (nbParams.zip [cellA C px, cellA C py])) (e.body C) s1
+          (natBinOpResult e.op a b) (UD.PostO (ctxH C H)) := by
+  intro e he
+  refine ⟨?_, hr.nb e he, fun H s1 px py a b _ hbx hby => ?_⟩
+  · simp only [rdTab, List.mem_cons, List.not_mem_nil, or_false] at he
+    rcases he with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> decide
+  have hok' := ctxOK_H hok H
+  have hc' := bigCodes_H hc H
+  simp only [rdTab, List.mem_cons, List.not_mem_nil, or_false] at he
+  rcases he with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl
+  · exact nbAdd_spec ra _ hok' hc' s1 a b px py hbx hby
+  · exact nbSub_spec ra _ hok' hc' s1 a b px py hbx hby
+  · exact nbMul_spec ra _ hok' hc' s1 a b px py hbx hby
+  · exact nbPow_spec ra _ hok' hc' s1 a b px py hbx hby
+  · exact nbCmp_spec false ra _ hok' hc' s1 a b px py hbx hby
+  · exact nbCmp_spec true ra _ hok' hc' s1 a b px py hbx hby
+  · exact nbDm_spec false ra _ hok' hc' s1 a b px py hbx hby
+  · exact nbDm_spec true ra _ hok' hc' s1 a b px py hbx hby
+  · exact nbGcd_spec ra _ hok' hc' s1 a b px py hbx hby
+  · exact nbBit_spec .and ra _ hok' hc' s1 a b px py hbx hby
+  · exact nbBit_spec .or ra _ hok' hc' s1 a b px py hbx hby
+  · exact nbBit_spec .xor ra _ hok' hc' s1 a b px py hbx hby
+  · exact nbShl_spec ra _ hok' hc' s1 a b px py hbx hby
+  · exact nbShr_spec ra _ hok' hc' s1 a b px py hbx hby
 
 end
 
