@@ -197,3 +197,4 @@ import ConPanqueque.T.Core.WcStep
 import ConPanqueque.T.Core.WcStuck
 import ConPanqueque.T.Ex.Append
 import ConPanqueque.T.Ex.AppendFn
+import ConPanqueque.T.Core.Spine
