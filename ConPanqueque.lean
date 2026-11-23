@@ -305,3 +305,4 @@ import ConPanqueque.T.Core.PropTele
 import ConPanqueque.T.Core.ZeWalk
 import ConPanqueque.T.Core.ZeParam
 import ConPanqueque.T.Core.ZeSubst
+import ConPanqueque.T.Core.ZpsCollect
