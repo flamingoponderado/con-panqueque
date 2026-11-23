@@ -157,3 +157,4 @@ import ConPanqueque.Translate.ConLecheWords
 import ConPanqueque.ExprData
 import ConPanqueque.Translate.Fun
 import ConPanqueque.Examples.ListLength
+import ConPanqueque.T.Core.ConstVal
