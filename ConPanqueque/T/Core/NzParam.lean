@@ -329,23 +329,23 @@ theorem zp_spec (C : Ctx) (hcf : C.code.lookup fZp = some (zpParams.map (fun p =
     ∀ k i, khs.length - i = k → i ≤ khs.length →
       SpecR (σ := σ) (Pre C s (zpParams.zip [Enc.idxW n, ecell C ok, BitVec.ofNat 64 khs.length, Enc.idxW us,
         BitVec.ofNat 64 i])) zpBody s (pure (nz (ConLeche.Level.subst.go (ks.drop i) (vs.drop i) nm)) : AM Bool)
-        (PostBX C s) := by
+        (PostBS C s) := by
   intro k
   induction k with
   | zero =>
     intro i hk hi
     have hi' : i = khs.length := by omega
     subst hi'
-    refine specR_prologue (postBX_locals C s) (zp_none C _) ?_
+    refine specR_prologue (postBS_locals C s) (zp_none C _) ?_
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, zpParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
       (fun _ => ?_) (fun h => absurd h (by decide))
     rw [List.drop_of_length_le (by omega)]
     exact specR_returnI _ (boolW false) (by simp [boolW]; rfl)
-      (fun t ht => ⟨rfl, by simp [ConLeche.Level.subst.go, nz], C.H, List.prefix_refl _, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      (fun t ht => ⟨rfl, by simp [ConLeche.Level.subst.go, nz], sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   | succ k ih =>
     intro i hk hi
     have hil : i < khs.length := by omega
-    refine specR_prologue (postBX_locals C s) (zp_none C _) ?_
+    refine specR_prologue (postBS_locals C s) (zp_none C _) ?_
     have hne : BitVec.ofNat 64 i ≠ BitVec.ofNat 64 khs.length := by
       intro e; have := congrArg BitVec.toNat e; simp at this; omega
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, zpParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
@@ -365,8 +365,7 @@ theorem zp_spec (C : Ctx) (hcf : C.code.lookup fZp = some (zpParams.map (fun p =
         (fun h => absurd rfl h) (fun _ => ?_)
       rw [List.drop_of_length_le (show vs.length ≤ i by omega)]
       exact specR_returnI _ (boolW false) (by simp [boolW]; rfl)
-        (fun t ht => ⟨rfl, by simp [ConLeche.Level.subst.go, nz], C.H, List.prefix_refl _,
-          sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+        (fun t ht => ⟨rfl, by simp [ConLeche.Level.subst.go, nz], sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     have hlw := word_lt_iff i uh.length (by unfold B; omega) (by unfold B; omega)
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, zpParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; omega) (fun _ => ?_)
       (fun h => absurd h (by decide))
@@ -383,12 +382,13 @@ theorem zp_spec (C : Ctx) (hcf : C.code.lookup fZp = some (zpParams.map (fun p =
         (NEq.neq_spec C hcn ks[i] khs[i] n nm fk fn s hfk hn))
       (fun w H1 hp1 ⟨eH1, hw⟩ => ?_)
     subst hw
+    subst H1
     by_cases heq : ks[i] = nm
     · refine specR_ifI _ 1 (by simp [sev, boolW, heq]) (fun _ => ?_) (fun h => absurd h (by decide))
       simp only [ConLeche.Level.subst.go, heq, ite_true]
       refine specR_assignI lFl (vv lFls) C.FLs (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
       refine specR_assignI lDh (vv zpU) (Enc.idxW us) (by decide) (by simp +decide [Env.get, zpParams, ctxEnv]) ?_
-      refine specR_lsviewPI (C := ctxH C H1) us (by simp) (by simp <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)
+      refine specR_lsviewPI (C := ctxH C C.H) us (by simp) (by simp <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)
         (fun vl2 Pl2 hvl2 _ _ => ?_)
       rw [huv] at hvl2
       cases hvl2
@@ -396,18 +396,17 @@ theorem zp_spec (C : Ctx) (hcf : C.code.lookup fZp = some (zpParams.map (fun p =
         (by decide) (by simp +decide [sev, Env.get, zpParams, ctxEnv]; rw [Str.w_shl i 3 (by omega), show i * 2 ^ 3 = 8 * i by omega]) rfl
         (by have h := wordsAt_get Pl2 (uh.map Enc.idxW) i (by simpa using hiv) []; simp only [List.getElem_map] at h; exact h) ?_
       refine specR_dropM ?_
-      refine specR_callPure (C := ctxH C H1) zpR fNz0 [nzU] [vv zpV] nzBody [Enc.idxW uh[i]] (nz (vs[i]'(by omega)))
-        (by decide) rfl (by decide) hcz ⟨by simp, trivial⟩ (PostBS (ctxH C H1) s) (fun b w _ H' => H' = H1 ∧ w = boolW b)
-        (fun b w s' st ⟨hs, hw, hsr⟩ => ⟨H1, List.prefix_refl _, ⟨rfl, hw⟩, by rw [hs]; exact hsr⟩)
+      refine specR_callPure (C := ctxH C C.H) zpR fNz0 [nzU] [vv zpV] nzBody [Enc.idxW uh[i]] (nz (vs[i]'(by omega)))
+        (by decide) rfl (by decide) hcz ⟨by simp, trivial⟩ (PostBS (ctxH C C.H) s) (fun b w _ H' => H' = C.H ∧ w = boolW b)
+        (fun b w s' st ⟨hs, hw, hsr⟩ => ⟨C.H, List.prefix_refl _, ⟨rfl, hw⟩, by rw [hs]; exact hsr⟩)
         (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu [nzU] _ rfl hlk)
-          (nz0_spec (ctxH C H1) hcz s hwf _ uh[i] (hvd i hiv)))
+          (nz0_spec (ctxH C C.H) hcz s hwf _ uh[i] (hvd i hiv)))
         (fun w H2 hp2 ⟨eH, hw⟩ => ?_)
       subst H2; subst hw
       exact specR_returnI _ (boolW (nz (vs[i]'(by omega)))) (by simp)
-        (fun t ht => ⟨rfl, rfl, H1, hp1, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+        (fun t ht => ⟨rfl, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     · refine specR_ifI _ 0 (by simp [sev, boolW, heq]) (fun h => absurd rfl h) (fun _ => ?_)
       simp only [ConLeche.Level.subst.go, heq, ite_false]
-      subst H1
       refine specR_callPure (C := ctxH C C.H) zpR fZp zpParams
         [vv zpN, vv zpK, vv zpL, vv zpU, .op .add [vv zpI, .const 1]] zpBody
         [Enc.idxW n, ecell C ok, BitVec.ofNat 64 khs.length, Enc.idxW us, BitVec.ofNat 64 (i + 1)]
@@ -415,12 +414,12 @@ theorem zp_spec (C : Ctx) (hcf : C.code.lookup fZp = some (zpParams.map (fun p =
         ⟨by simp +decide [Env.get, zpParams, ctxEnv], by simp +decide [Env.get, zpParams, ctxEnv] <;> rfl,
           by simp +decide [Env.get, zpParams, ctxEnv], by simp +decide [Env.get, zpParams, ctxEnv],
           by simp +decide [sev, Env.get, zpParams, ctxEnv]; exact word_add1_eq i, trivial⟩
-        (PostBX C s) (fun b w _ _ => w = boolW b)
-        (fun b w s' st ⟨hs, hw, H', hp, hsr⟩ => ⟨H', hp, hw, by rw [hs]; exact hsr⟩)
+        (PostBS C s) (fun b w _ H' => H' = C.H ∧ w = boolW b)
+        (fun b w s' st ⟨hs, hw, hsr⟩ => ⟨C.H, List.prefix_refl _, ⟨rfl, hw⟩, by rw [hs]; exact hsr⟩)
         (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu zpParams _ rfl hlk) (ih (i + 1) (by omega) (by omega)))
-        (fun w H2 hp2 hw => ?_)
-      subst hw
-      exact specR_returnI _ _ (by simp) (fun t ht => ⟨rfl, rfl, H2, hp2, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+        (fun w H2 hp2 ⟨eH2, hw⟩ => ?_)
+      subst H2; subst hw
+      exact specR_returnI _ _ (by simp) (fun t ht => ⟨rfl, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 end
 

@@ -235,3 +235,4 @@ import ConPanqueque.T.Core.FormerSort
 import ConPanqueque.T.Core.NeverZero
 import ConPanqueque.T.Core.NzWalk
 import ConPanqueque.T.Core.NzParam
+import ConPanqueque.T.Core.NzSubst
