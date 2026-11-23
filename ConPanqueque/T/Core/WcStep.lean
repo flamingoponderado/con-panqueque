@@ -675,4 +675,103 @@ theorem wcs_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
 
 end
 
+
+def fRPC := ofString "reduceProjCore"
+def rpcParams : List MlS := [kFu, kD, sN, sI, sP]
+def wprLocals : List MlS := [zX2, zN2]
+
+def wprRest : ProgHOL 64 :=
+  .seq (.call (some (some (.local, zN2), none)) fRPC [vv kFu, vv kD, vv sN, vv sI, vv zX2])
+  (.ite (.cmp .notEqual (vv zN2) (.const 0))
+    (.return (.op .add [.shift .lsl (.op .sub [vv zN2, .const 1]) (.const 1), .const 1]))
+    (.return (.shift .lsl (vv sE) (.const 1))))
+
+def wprBody : ProgHOL 64 :=
+  prologue wprLocals (.ite (vv kC)
+    (.seq (.call (some (some (.local, zX2), none)) fWC [vv kFu, .const 1, vv kD, vv sP]) wprRest)
+    (.seq (.call (some (some (.local, zX2), none)) fW [vv kFu, vv kD, vv sP]) wprRest))
+
+section
+variable {σ : Type}
+
+theorem wpr_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ wprLocals → (ctxEnv C ++ prParams.zip vals).get x = none :=
+  Knot.params_none C wprLocals prParams vals (by decide) (by decide)
+
+theorem wpr_rest (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx} (Brpc : ProgHOL 64)
+    (hcr : C.code.lookup fRPC = some (rpcParams.map (fun p => (p, ShapeHOL.one)), Brpc, .one))
+    {H : List (BitVec 64)} {s1 : AState} {Γ : Env} {D : List MlS} (hpre : C.H <+: H) (d : Nat) (e c : EIdx)
+    (sn : NIdx) (i : Nat)
+    (hRPC : SpecR (σ := σ) (Pre (ctxH C H) s1 (rpcParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW sn,
+      BitVec.ofNat 64 i, Enc.idxW c])) Brpc s1 (reduceProjCore mode (knot mode C n) C.fe d sn i c) (UD.PostO (ctxH C H)))
+    (hFu : Γ.get kFu = some (BitVec.ofNat 64 n)) (hD0 : Γ.get kD = some (BitVec.ofNat 64 d))
+    (hN : Γ.get sN = some (Enc.idxW sn)) (hI : Γ.get sI = some (BitVec.ofNat 64 i))
+    (hX : Γ.get zX2 = some (Enc.idxW c)) (hE : Γ.get sE = some (Enc.idxW e)) (hDN : zN2 ∈ D) :
+    SpecR (σ := σ) (Inv (ctxH C H) s1 Γ [] D) wprRest s1
+      (reduceProjCore mode (knot mode C n) C.fe d sn i c >>= fun o => match o with
+        | some m' => pure (WhnfStep.cont m')
+        | none => pure (WhnfStep.done e)) (PostWS C) := by
+  unfold wprRest
+  refine specR_callNIH (C := ctxH C H) zN2 fRPC rpcParams [vv kFu, vv kD, vv sN, vv sI, vv zX2] Brpc
+    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW sn, BitVec.ofNat 64 i, Enc.idxW c] (by decide) rfl hDN hcr
+    ⟨by simp [hFu], by simp [hD0], by simp [hN], by simp [hI], by simp [hX], trivial⟩ (UD.PostO (ctxH C H))
+    (fun o w _ _ => w = optW o) (fun o w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu rpcParams _ rfl hlk) hRPC)
+    (fun o w s2 H2 hp2 hw => ?_)
+  subst hw
+  rcases o with _ | m'
+  · refine specR_ifI _ 0 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
+      (fun _ => ?_)
+    exact specR_returnI _ (encWS (.done e)) (by simp [sev, vv, hE, encWS]) (fun t ht =>
+      ⟨H2, hpre.trans hp2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  · have hne : optW (some m') ≠ 0 := WB.idxW_succ_ne m'
+    refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    exact specR_returnI _ (encWS (.cont m')) (by simp [sev, optWG, encWS, BitVec.add_sub_cancel])
+      (fun t ht => ⟨H2, hpre.trans hp2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+theorem wpr_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (Brpc : ProgHOL 64)
+    (hcr : C.code.lookup fRPC = some (rpcParams.map (fun p => (p, ShapeHOL.one)), Brpc, .one))
+    (hcwc : C.code.lookup fWC = some (pmap wcParams, wcE, .one))
+    (hcw : C.code.lookup fW = some (pmap kParams, whnfE C fWB, .one))
+    (s : AState) (cheap : Bool) (d : Nat) (e pe : EIdx) (sn : NIdx) (i : Nat)
+    (hWC : Callee (σ := σ) C wcParams [BitVec.ofNat 64 n, boolW true, BitVec.ofNat 64 d, Enc.idxW pe] wcE s
+      ((knot mode C n).whnfCore true d pe) (PostK C))
+    (hW : Callee (σ := σ) C kParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW pe] (whnfE C fWB) s
+      ((knot mode C n).whnf d pe) (PostK C))
+    (hRPC : ∀ (H : List (BitVec 64)) s1 c, C.H <+: H →
+      SpecR (σ := σ) (Pre (ctxH C H) s1 (rpcParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW sn,
+        BitVec.ofNat 64 i, Enc.idxW c])) Brpc s1 (reduceProjCore mode (knot mode C n) C.fe d sn i c)
+        (UD.PostO (ctxH C H))) :
+    SpecR (σ := σ) (Pre C s (prParams.zip [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d, Enc.idxW e, Enc.idxW sn,
+      BitVec.ofNat 64 i, Enc.idxW pe])) wprBody s
+      (whnfCoreStepProj mode (knot mode C n) C.fe cheap d e sn i pe) (PostWS C) := by
+  refine specR_prologue (postWS_locals C) (wpr_none C _) ?_
+  unfold whnfCoreStepProj
+  cases cheap
+  · refine specR_ifI _ 0 (by simp +decide [sev, Env.get, prParams, ctxEnv, boolW]) (fun h => absurd rfl h)
+      (fun _ => ?_)
+    simp only [Bool.false_eq_true, ite_false]
+    refine Big.specR_callKC zX2 fW kParams [vv kFu, vv kD, vv sP] (whnfE C fWB)
+      [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW pe] (by decide) rfl (by decide) hcw
+      ⟨by simp +decide [Env.get, prParams, ctxEnv], by simp +decide [Env.get, prParams, ctxEnv],
+        by simp +decide [Env.get, prParams, ctxEnv], trivial⟩ hW (fun c s1 H1 hp1 _ => ?_)
+    exact wpr_rest mode n Brpc hcr hp1 d e c sn i (hRPC H1 s1 c hp1)
+      (by simp +decide [Env.get, prParams, ctxEnv]) (by simp +decide [Env.get, prParams, ctxEnv])
+      (by simp +decide [Env.get, prParams, ctxEnv]) (by simp +decide [Env.get, prParams, ctxEnv]) (by simp)
+      (by simp +decide [Env.get, prParams, ctxEnv]) (by decide)
+  · refine specR_ifI _ 1 (by simp +decide [sev, Env.get, prParams, ctxEnv, boolW]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    simp only [ite_true]
+    refine Big.specR_callKC zX2 fWC wcParams [vv kFu, .const 1, vv kD, vv sP] wcE
+      [BitVec.ofNat 64 n, boolW true, BitVec.ofNat 64 d, Enc.idxW pe] (by decide) rfl (by decide) hcwc
+      ⟨by simp +decide [Env.get, prParams, ctxEnv], rfl, by simp +decide [Env.get, prParams, ctxEnv],
+        by simp +decide [Env.get, prParams, ctxEnv], trivial⟩ hWC (fun c s1 H1 hp1 _ => ?_)
+    exact wpr_rest mode n Brpc hcr hp1 d e c sn i (hRPC H1 s1 c hp1)
+      (by simp +decide [Env.get, prParams, ctxEnv]) (by simp +decide [Env.get, prParams, ctxEnv])
+      (by simp +decide [Env.get, prParams, ctxEnv]) (by simp +decide [Env.get, prParams, ctxEnv]) (by simp)
+      (by simp +decide [Env.get, prParams, ctxEnv]) (by decide)
+
+end
+
 end ConPanqueque.T.WC
