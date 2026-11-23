@@ -428,3 +428,33 @@ Next: Core bodies bottom-up (constant instantiation `constTyAt`/`constValAt` wit
   - each body refines its twin (`whnfCoreBody`, `whnfBody`, `inferBody`, `defeqBody`, `inferBodyIO`) when the entry points refine the knot one level down;
   - an abstract twin invariant `TI` survives entering the eager tower.
 - **Remaining.** The five bodies and everything they call. The check mode (`verified`/`trusted`) still needs a runtime representation.
+
+### Progress (2026-11-24, first Core helpers)
+
+- **`constValAt`** (`T/Core/ConstVal.lean`).
+  - The `constValC` probe; on a miss, the level-parameter names are copied from the environment heap into the value heap (`T/EnvCopy.lean`), `instLPFast` is called, and the result is stored.
+  - Fixed-cache reads and writes are `T/FixMemo.lean`.
+- **`unfoldDefinition`** (`T/Core/Unfold.lean`).
+  - Steps: `getAppFn`, the `const` test and view, `find?`, the `defnInfo` tag, the level-count check, `constValAt`, `getAppArgs`, `mkAppN`.
+  - Its twin-side preconditions (denotations of the stored names and value, the cache invariants) are hypotheses. Every one of them follows from con-ron's `CheckOK` (see `Bridge/Core/Walks/Cached.lean`, `constValAt_spec`), which becomes the knot's `TI`.
+
+### Next: literal arithmetic (blocks `whnfBody` via `reduceNat`)
+
+`reduceNat` computes on `Nat` literals of any size. A literal's store row is `[0, limbs n…]`: canonical little-endian 64-bit limbs, with no zero top limb. Pieces:
+
+1. **Limb blocks.** A number is represented as a value-heap block `BlkAt H o (limbs n)`. A copy loop moves a literal row (store memory, via the view's `wordsAt` facts) into a heap block.
+2. **Bignum functions.**
+   - Each function is a Pancake function over limb blocks, refined against `Nat`:
+     - comparisons (`beq`, `ble`, `<`);
+     - `add`, truncated `sub`, `succ`/`pred`;
+     - `mul` (schoolbook, with 64×64→128 products from 32-bit halves, since Pancake has no high multiply);
+     - `div`/`mod` (shift-subtract long division first);
+     - `gcd` (Euclid);
+     - `pow` (square-and-multiply, after `powGuard`);
+     - `land`/`lor`/`xor`, `shiftLeft`/`shiftRight`;
+     - `log2`, for `natSizeBytes`.
+   - Each result is trimmed to canonical form.
+3. **Literal interning.** Keys longer than the 3-word key buffer are needed. Either:
+   - point the intern code's key local at a second, large key region (if the V-level cons-table specs are parametric in the key address), or
+   - generalize the key-buffer size `KN` in `SR`/`CtxOK`.
+4. **Then** `natBinOpResult`, `reduceNat`, `whnfStep`/`whnfLoop`/`whnfBody`.
