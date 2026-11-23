@@ -30,7 +30,6 @@ variable {σ : Type}
 
 theorem ull_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C) (hc : UllCodes C) (Q : AState → Prop)
-    (hQF : ∀ s, Q s → UlsFacts C s)
     (hLPl : ∀ c ci, C.fe.find? c = some ci → ci.toConstantVal.levelParams.length + 1 < 2 ^ 60)
     (hQw : ∀ s1 d e r s2, Q s1 → (knot mode C n).whnf d e s1 = .ok (r, s2) → Q s2)
     (hQi : ∀ s1 d T b s2, Q s1 → isPropType (knot mode C n) d T s1 = .ok (b, s2) → Q s2)
@@ -80,7 +79,7 @@ theorem ull_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
         ⟨by simp +decide [Env.get, ullParams, ctxEnv], by simp +decide [Env.get, ullParams, ctxEnv], by simp +decide [sev, Env.get, ullParams, ctxEnv]; exact Ex.ofNat_succ_sub_one _, by simp, trivial⟩
         (PostB (ctxH C H1)) (fun b w' _ _ => w' = boolW b) (fun b w' s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
         (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ulsParams _ rfl hlk)
-          (uls_spec ra mode n C hok hc.ulsc Q F hQF hLPl hQi hQf hQ1 (hQl F) hQs hQr hIO hW hLE
+          (uls_spec ra mode n C hok hc.ulsc Q F hLPl hQi hQf hQ1 (hQl F) hQs hQr hIO hW hLE
             (fun H' s' d' T' hp' hq' hd' => ih (by omega) H' s' d' T' hp' hq' hd') H1 s1 d w (hpH.trans hp1) hq1 hd))
         (fun r w2 s2 H2 hp2 hw => ?_)
       exact specR_returnI _ w2 (by simp) (fun t ht => ⟨H2, hp1.trans hp2, hw, sr_of_eq ht.sr rfl rfl rfl rfl⟩)

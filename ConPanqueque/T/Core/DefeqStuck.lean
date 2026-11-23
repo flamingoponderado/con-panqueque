@@ -2512,10 +2512,10 @@ end
 section
 variable {σ : Type}
 variable (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) (hc : DkCodes C mode.verifiedChecks)
-  (hSI : ∀ (H : List (BitVec 64)) s1 d a b, C.H <+: H → SpecR (σ := σ) (Pre (ctxH C H) s1 (siParams.zip
+  (hSI : ∀ (H : List (BitVec 64)) s1 d a b, C.H <+: H → d < 2 ^ 63 → SpecR (σ := σ) (Pre (ctxH C H) s1 (siParams.zip
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b])) siBody s1
     (stuckIrrel (knot mode C n) C.fe d a b) (PostB (ctxH C H)))
-  (hEC : ∀ (H : List (BitVec 64)) s1 d ty bd e, C.H <+: H → SpecR (σ := σ) (Pre (ctxH C H) s1 (ecParams.zip
+  (hEC : ∀ (H : List (BitVec 64)) s1 d ty bd e, C.H <+: H → d < 2 ^ 63 → SpecR (σ := σ) (Pre (ctxH C H) s1 (ecParams.zip
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ty, Enc.idxW bd, Enc.idxW e])) (ecBody mode.verifiedChecks C) s1
     (etaCert mode (knot mode C n) C.fe d ty bd e) (PostB (ctxH C H)))
 include hc hSI hEC
@@ -2523,7 +2523,7 @@ include hc hSI hEC
 
 abbrev DK : List MlS := ctxLocals ++ dkLocals
 
-theorem dk_si (d : Nat) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb) (hbH : Hb <+: H) (s : AState)
+theorem dk_si (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb) (hbH : Hb <+: H) (s : AState)
     (Γ : Env) (M : Mem) (hFu : Γ.get kFu = some (BitVec.ofNat 64 n)) (hDd : Γ.get kD = some (BitVec.ofNat 64 d))
     (hA : Γ.get dkA = some (Enc.idxW a)) (hB : Γ.get dkB = some (Enc.idxW b)) :
     SpecR (σ := σ) (Inv (ctxH C H) s Γ M DK) dkSI s (stuckIrrel (knot mode C n) C.fe d a b) (PostB (ctxH C Hb)) := by
@@ -2533,12 +2533,12 @@ theorem dk_si (d : Nat) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b] (by decide) rfl (by decide) hc.si
     ⟨by simp [hFu], by simp [hDd], by simp [hA], by simp [hB], trivial⟩
     (PostB (ctxH C H)) (fun r_ w _ _ => w = boolW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu siParams _ rfl hlk) (hSI H s d a b (hpb.trans hbH)))
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu siParams _ rfl hlk) (hSI H s d a b (hpb.trans hbH) hdd))
     (fun r w s1 H1 hp1 hw => ?_)
   subst hw
   exact specR_returnI _ (boolW r) (by simp) (fun t ht => ⟨H1, hbH.trans hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
-theorem dk_etaA (d : Nat) (a b ty bd : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb) (hbH : Hb <+: H) (s : AState)
+theorem dk_etaA (d : Nat) (hdd : d < 2 ^ 63) (a b ty bd : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb) (hbH : Hb <+: H) (s : AState)
     (Γ : Env) (M : Mem) (P : BitVec 64) (hFu : Γ.get kFu = some (BitVec.ofNat 64 n))
     (hDd : Γ.get kD = some (BitVec.ofNat 64 d)) (hA : Γ.get dkA = some (Enc.idxW a))
     (hB : Γ.get dkB = some (Enc.idxW b)) (hP : Γ.get dkPa = some P)
@@ -2554,19 +2554,19 @@ theorem dk_etaA (d : Nat) (a b ty bd : EIdx) (Hb H : List (BitVec 64)) (hpb : C.
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ty, Enc.idxW bd, Enc.idxW b] (by decide) rfl (by decide) hc.ec
     ⟨by simp [hFu], by simp [hDd], by simp, by simp, by simp [hB], trivial⟩
     (PostB (ctxH C H)) (fun r_ w _ _ => w = boolW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ecParams _ rfl hlk) (hEC H s d ty bd b (hpb.trans hbH)))
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ecParams _ rfl hlk) (hEC H s d ty bd b (hpb.trans hbH) hdd))
     (fun r w s1 H1 hp1 hw => ?_)
   subst hw
   cases r
   · refine specR_ifI _ 0 (by simp [boolW]) (fun h => absurd rfl h) (fun _ => ?_)
     simp only [Bool.false_eq_true, ↓reduceIte]
-    exact dk_si mode n C hc hSI hEC d a b Hb H1 hpb (hbH.trans hp1) s1 _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA])
+    exact dk_si mode n C hc hSI hEC d hdd a b Hb H1 hpb (hbH.trans hp1) s1 _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA])
       (by simp [hB])
   refine specR_ifI _ 1 (by simp [boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
   simp only [↓reduceIte]
   exact specR_returnI _ 1 rfl (fun t ht => ⟨H1, hbH.trans hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
-theorem dk_etaB (d : Nat) (a b ty bd : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb) (hbH : Hb <+: H) (s : AState)
+theorem dk_etaB (d : Nat) (hdd : d < 2 ^ 63) (a b ty bd : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb) (hbH : Hb <+: H) (s : AState)
     (Γ : Env) (M : Mem) (P : BitVec 64) (hFu : Γ.get kFu = some (BitVec.ofNat 64 n))
     (hDd : Γ.get kD = some (BitVec.ofNat 64 d)) (hA : Γ.get dkA = some (Enc.idxW a))
     (hB : Γ.get dkB = some (Enc.idxW b)) (hP : Γ.get dkPb = some P)
@@ -2582,13 +2582,13 @@ theorem dk_etaB (d : Nat) (a b ty bd : EIdx) (Hb H : List (BitVec 64)) (hpb : C.
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ty, Enc.idxW bd, Enc.idxW a] (by decide) rfl (by decide) hc.ec
     ⟨by simp [hFu], by simp [hDd], by simp, by simp, by simp [hA], trivial⟩
     (PostB (ctxH C H)) (fun r_ w _ _ => w = boolW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ecParams _ rfl hlk) (hEC H s d ty bd a (hpb.trans hbH)))
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ecParams _ rfl hlk) (hEC H s d ty bd a (hpb.trans hbH) hdd))
     (fun r w s1 H1 hp1 hw => ?_)
   subst hw
   cases r
   · refine specR_ifI _ 0 (by simp [boolW]) (fun h => absurd rfl h) (fun _ => ?_)
     simp only [Bool.false_eq_true, ↓reduceIte]
-    exact dk_si mode n C hc hSI hEC d a b Hb H1 hpb (hbH.trans hp1) s1 _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA])
+    exact dk_si mode n C hc hSI hEC d hdd a b Hb H1 hpb (hbH.trans hp1) s1 _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA])
       (by simp [hB])
   refine specR_ifI _ 1 (by simp [boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
   simp only [↓reduceIte]
@@ -2606,7 +2606,7 @@ variable (hc2 : DkCodes2 C)
     SpecR (σ := σ) (Pre (ctxH C H) s1 [(Str.tcH, Enc.idxW h)]) (Str.tcBody C) s1 (strLitToConstructor str) (PostK (ctxH C H)))
 include hok hc2 hD hLS hTC
 
-theorem dk_fv (d : Nat) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb) (hbH : Hb <+: H) (s : AState) (Γ : Env) (M : Mem)
+theorem dk_fv (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb) (hbH : Hb <+: H) (s : AState) (Γ : Env) (M : Mem)
     (hFu : Γ.get kFu = some (BitVec.ofNat 64 n)) (hDd : Γ.get kD = some (BitVec.ofNat 64 d))
     (hA : Γ.get dkA = some (Enc.idxW a)) (hB : Γ.get dkB = some (Enc.idxW b)) (i j : Nat) (ty1 ty2 : EIdx) (Pa Pb : BitVec 64)
     (hLa : Γ.get dkLa = some (BitVec.ofNat 64 (encEView (.fvar i ty1)).length)) (hPa : Γ.get dkPa = some Pa)
@@ -2630,9 +2630,9 @@ theorem dk_fv (d : Nat) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb
     rwa [Nat.mod_eq_of_lt hi, Nat.mod_eq_of_lt hj] at this
   refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hw]) (fun h => absurd rfl h) (fun _ => ?_)
   simp only [show (i == j) = false by simpa using hij, Bool.false_eq_true, ↓reduceIte]
-  exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+  exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
 
-theorem dk_cc (d : Nat) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb) (hbH : Hb <+: H) (s : AState) (Γ : Env) (M : Mem)
+theorem dk_cc (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb) (hbH : Hb <+: H) (s : AState) (Γ : Env) (M : Mem)
     (hFu : Γ.get kFu = some (BitVec.ofNat 64 n)) (hDd : Γ.get kD = some (BitVec.ofNat 64 d))
     (hA : Γ.get dkA = some (Enc.idxW a)) (hB : Γ.get dkB = some (Enc.idxW b)) (n1 n2 : NIdx) (us1 us2 : LsIdx) (Pa Pb : BitVec 64)
     (hPa : Γ.get dkPa = some Pa) (hPb : Γ.get dkPb = some Pb)
@@ -2654,7 +2654,7 @@ theorem dk_cc (d : Nat) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb
   · have hne : Enc.idxW n1 ≠ Enc.idxW n2 := fun e => hn (Enc.idxW_inj e)
     refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun h => absurd rfl h) (fun _ => ?_)
     rw [if_neg hn]
-    exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+    exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
   subst hn
   refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
   rw [if_pos rfl]
@@ -2671,7 +2671,7 @@ theorem dk_cc (d : Nat) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb
   · refine specR_ifI _ 0 (by simp [sev, LLeq.obW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, LLeq.obW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     simp only [liftFueled, pure_bind, Bool.false_eq_true, ↓reduceIte]
-    exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s1 _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+    exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s1 _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
   refine specR_ifI _ 0 (by simp [sev, LLeq.obW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
   refine specR_ifI _ 1 (by simp [sev, LLeq.obW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
   simp only [liftFueled, pure_bind, ↓reduceIte]
@@ -2731,7 +2731,7 @@ theorem dk_aa (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)
       rwa [Nat.mod_eq_of_lt (by omega), Nat.mod_eq_of_lt (by omega)] at this
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun _ => ?_) (fun h => absurd h (by decide))
     rw [if_neg hln]
-    exact dk_si mode n C hc hSI hEC d a b Hb H2 hpb (hbH2) s2 _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+    exact dk_si mode n C hc hSI hEC d hdd a b Hb H2 hpb (hbH2) s2 _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
   refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hln]) (fun h => absurd rfl h) (fun _ => ?_)
   rw [if_pos hln]
   refine specR_callNIM (C := ctxH C H2) dkFa fGetAppFn [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv dkA]
@@ -2770,7 +2770,7 @@ theorem dk_aa (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)
   cases q
   · refine specR_ifI _ 0 (by simp [boolW]) (fun h => absurd rfl h) (fun _ => ?_)
     simp only [Bool.false_eq_true, ↓reduceIte]
-    exact dk_si mode n C hc hSI hEC d a b Hb H3 hpb (hbH3) s3 _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+    exact dk_si mode n C hc hSI hEC d hdd a b Hb H3 hpb (hbH3) s3 _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
   refine specR_ifI _ 1 (by simp [boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
   simp only [↓reduceIte]
   have hba3 := blkAt_mono hba2 hp3
@@ -2793,7 +2793,7 @@ theorem dk_aa (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)
   cases r
   · refine specR_ifI _ 0 (by simp [boolW]) (fun h => absurd rfl h) (fun _ => ?_)
     simp only [Bool.false_eq_true, ↓reduceIte]
-    exact dk_si mode n C hc hSI hEC d a b Hb H4 hpb (hbH4) s4 _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+    exact dk_si mode n C hc hSI hEC d hdd a b Hb H4 hpb (hbH4) s4 _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
   refine specR_ifI _ 1 (by simp [boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
   simp only [↓reduceIte]
   exact specR_returnI _ 1 rfl (fun t ht => ⟨H4, hbH4, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
@@ -2814,7 +2814,7 @@ theorem dk_la (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)
       (hMl _ (by simpa [encEView, Enc.encLit] using wordsAt_mem0 Pl 0 (limbs m) [])) ?_
     refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     dsimp only
-    exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+    exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
   | strVal st =>
     refine specR_loadI' dkW0 (vv dkPa) Pl (Pl + BitVec.ofNat 64 0) 1 (by decide) (by simp [hPl]) (by simp)
       (hMl _ (by simpa [encEView, Enc.encLit] using wordsAt_mem0 Pl 1 (strW st) [])) ?_
@@ -2825,7 +2825,7 @@ theorem dk_la (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)
     refine Knot.specR_tagIteV dkFo fo 3 (by decide) (by decide) (by simp) (fun htc => ?_) (fun htc => ?_)
     swap
     · rw [if_neg (show ¬ (fo.tag == ETag.const) = true by simpa [ETag.const] using htc)]
-      exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+      exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
     rw [if_pos (show (fo.tag == ETag.const) = true by simp [htc, ETag.const])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp [hFle]) ?_
     refine specR_assignI lDh (vv dkFo) (Enc.idxW fo) (by decide) (by simp) ?_
@@ -2850,14 +2850,14 @@ theorem dk_la (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)
         fun e => h1 (Enc.idxW_inj e)
       refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun h => absurd rfl h) (fun _ => ?_)
       rw [if_neg (fun h => h1 h.1)]
-      exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+      exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, h1]) (fun _ => ?_) (fun h => absurd h (by decide))
     by_cases h2 : usO = (ctxH C H).pins.emptyLevels
     swap
     · have hne : Enc.idxW usO ≠ Enc.idxW (ctxH C H).pins.emptyLevels := fun e => h2 (Enc.idxW_inj e)
       refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun h => absurd rfl h) (fun _ => ?_)
       rw [if_neg (fun h => h2 h.2.1)]
-      exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+      exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, h2]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_gLitI dkLt (by decide) ?_
     by_cases hsl : (ctxH C H).fe.strLit = true
@@ -2865,7 +2865,7 @@ theorem dk_la (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)
     · have hf : (ctxH C H).fe.strLit = false := by simpa using hsl
       refine specR_ifI _ 0 (by simp [sev, litW_and2, hf, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
       rw [if_neg (fun h => hsl h.2.2)]
-      exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+      exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
     refine specR_ifI _ 2 (by simp [sev, litW_and2, hsl, boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
     rw [if_pos ⟨h1, h2, hsl⟩]
     refine specR_callKH (C := ctxH C H) dkC Str.fTc [Str.tcH] [vv dkA] (Str.tcBody C) [Enc.idxW a] (by decide) rfl (by decide)
@@ -2896,7 +2896,7 @@ theorem dk_al (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)
       (hMl _ (by simpa [encEView, Enc.encLit] using wordsAt_mem0 Pl 0 (limbs m) [])) ?_
     refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     dsimp only
-    exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+    exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
   | strVal st =>
     refine specR_loadI' dkW0 (vv dkPb) Pl (Pl + BitVec.ofNat 64 0) 1 (by decide) (by simp [hPl]) (by simp)
       (hMl _ (by simpa [encEView, Enc.encLit] using wordsAt_mem0 Pl 1 (strW st) [])) ?_
@@ -2907,7 +2907,7 @@ theorem dk_al (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)
     refine Knot.specR_tagIteV dkFo fo 3 (by decide) (by decide) (by simp) (fun htc => ?_) (fun htc => ?_)
     swap
     · rw [if_neg (show ¬ (fo.tag == ETag.const) = true by simpa [ETag.const] using htc)]
-      exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+      exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
     rw [if_pos (show (fo.tag == ETag.const) = true by simp [htc, ETag.const])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp [hFle]) ?_
     refine specR_assignI lDh (vv dkFo) (Enc.idxW fo) (by decide) (by simp) ?_
@@ -2932,14 +2932,14 @@ theorem dk_al (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)
         fun e => h1 (Enc.idxW_inj e)
       refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun h => absurd rfl h) (fun _ => ?_)
       rw [if_neg (fun h => h1 h.1)]
-      exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+      exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, h1]) (fun _ => ?_) (fun h => absurd h (by decide))
     by_cases h2 : usO = (ctxH C H).pins.emptyLevels
     swap
     · have hne : Enc.idxW usO ≠ Enc.idxW (ctxH C H).pins.emptyLevels := fun e => h2 (Enc.idxW_inj e)
       refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun h => absurd rfl h) (fun _ => ?_)
       rw [if_neg (fun h => h2 h.2.1)]
-      exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+      exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, h2]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_gLitI dkLt (by decide) ?_
     by_cases hsl : (ctxH C H).fe.strLit = true
@@ -2947,7 +2947,7 @@ theorem dk_al (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)
     · have hf : (ctxH C H).fe.strLit = false := by simpa using hsl
       refine specR_ifI _ 0 (by simp [sev, litW_and2, hf, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
       rw [if_neg (fun h => hsl h.2.2)]
-      exact dk_si mode n C hc hSI hEC d a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
+      exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
     refine specR_ifI _ 2 (by simp [sev, litW_and2, hsl, boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
     rw [if_pos ⟨h1, h2, hsl⟩]
     refine specR_callKH (C := ctxH C H) dkC Str.fTc [Str.tcH] [vv dkB] (Str.tcBody C) [Enc.idxW b] (by decide) rfl (by decide)
@@ -2991,7 +2991,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -2999,7 +2999,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3007,7 +3007,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3015,7 +3015,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3023,7 +3023,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3031,7 +3031,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_etaB mode n C hc hSI hEC d a b ty2 bd2 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_etaB mode n C hc hSI hEC d hdd a b ty2 bd2 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (by simpa [encEView, Enc.encBind] using wordsAt_mem0 Pb (Enc.idxW ty2) [Enc.idxW bd2] _)
       (by simpa [encEView, Enc.encBind] using wordsAt_mem1 Pb (Enc.idxW ty2) (Enc.idxW bd2) [] _)
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3041,7 +3041,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3049,7 +3049,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3057,7 +3057,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3065,20 +3065,20 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
-  · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
-    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
-    refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
-    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
-    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
-    try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    try dsimp only
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+  · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_fv mode n C hok hc hSI hEC hc2 hD hLS hTC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) i1 i2 ty1 ty2 Pa Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_fv mode n C hok hc hSI hEC hc2 hD hLS hTC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) i1 i2 ty1 ty2 Pa Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (fun y hy => List.mem_append_right _ (List.mem_append_left _ hy)) hla (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (fun y hy => List.mem_append_left _ hy) hlb
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3086,28 +3086,28 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_etaB mode n C hc hSI hEC d a b ty2 bd2 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_etaB mode n C hc hSI hEC d hdd a b ty2 bd2 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (by simpa [encEView, Enc.encBind] using wordsAt_mem0 Pb (Enc.idxW ty2) [Enc.idxW bd2] _)
       (by simpa [encEView, Enc.encBind] using wordsAt_mem1 Pb (Enc.idxW ty2) (Enc.idxW bd2) [] _)
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3116,28 +3116,28 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3145,7 +3145,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3153,7 +3153,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3161,7 +3161,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3169,7 +3169,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3177,7 +3177,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3185,7 +3185,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_etaB mode n C hc hSI hEC d a b ty2 bd2 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_etaB mode n C hc hSI hEC d hdd a b ty2 bd2 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (by simpa [encEView, Enc.encBind] using wordsAt_mem0 Pb (Enc.idxW ty2) [Enc.idxW bd2] _)
       (by simpa [encEView, Enc.encBind] using wordsAt_mem1 Pb (Enc.idxW ty2) (Enc.idxW bd2) [] _)
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3195,7 +3195,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3203,7 +3203,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3211,7 +3211,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3219,15 +3219,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
-  · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
-    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
-    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
-    refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
-    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
-    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
-    try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3235,7 +3227,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3243,14 +3235,22 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+  · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    try dsimp only
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_cc mode n C hok hc hSI hEC hc2 hD hLS hTC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) n1 n2 us1 us2 Pa Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_cc mode n C hok hc hSI hEC hc2 hD hLS hTC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) n1 n2 us1 us2 Pa Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (List.mem_append_right _ (by simpa [encEView, Enc.encConst] using wordsAt_mem0 Pa (Enc.idxW n1) [Enc.idxW us1] []))
       (List.mem_append_right _ (by simpa [encEView, Enc.encConst] using wordsAt_mem1 Pa (Enc.idxW n1) (Enc.idxW us1) [] []))
       (by simpa [encEView, Enc.encConst] using wordsAt_mem0 Pb (Enc.idxW n2) [Enc.idxW us2] _)
@@ -3262,7 +3262,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3270,7 +3270,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_etaB mode n C hc hSI hEC d a b ty2 bd2 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_etaB mode n C hc hSI hEC d hdd a b ty2 bd2 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (by simpa [encEView, Enc.encBind] using wordsAt_mem0 Pb (Enc.idxW ty2) [Enc.idxW bd2] _)
       (by simpa [encEView, Enc.encBind] using wordsAt_mem1 Pb (Enc.idxW ty2) (Enc.idxW bd2) [] _)
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3280,7 +3280,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3288,7 +3288,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3296,7 +3296,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3304,35 +3304,35 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3345,7 +3345,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_etaB mode n C hc hSI hEC d a b ty2 bd2 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_etaB mode n C hc hSI hEC d hdd a b ty2 bd2 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (by simpa [encEView, Enc.encBind] using wordsAt_mem0 Pb (Enc.idxW ty2) [Enc.idxW bd2] _)
       (by simpa [encEView, Enc.encBind] using wordsAt_mem1 Pb (Enc.idxW ty2) (Enc.idxW bd2) [] _)
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3354,14 +3354,14 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
@@ -3375,14 +3375,14 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_etaA mode n C hc hSI hEC d a b ty1 bd1 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_etaA mode n C hc hSI hEC d hdd a b ty1 bd1 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (List.mem_append_right _ (by simpa [encEView, Enc.encBind] using wordsAt_mem0 Pa (Enc.idxW ty1) [Enc.idxW bd1] []))
       (List.mem_append_right _ (by simpa [encEView, Enc.encBind] using wordsAt_mem1 Pa (Enc.idxW ty1) (Enc.idxW bd1) [] []))
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3391,7 +3391,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_etaA mode n C hc hSI hEC d a b ty1 bd1 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_etaA mode n C hc hSI hEC d hdd a b ty1 bd1 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (List.mem_append_right _ (by simpa [encEView, Enc.encBind] using wordsAt_mem0 Pa (Enc.idxW ty1) [Enc.idxW bd1] []))
       (List.mem_append_right _ (by simpa [encEView, Enc.encBind] using wordsAt_mem1 Pa (Enc.idxW ty1) (Enc.idxW bd1) [] []))
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3400,7 +3400,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_etaA mode n C hc hSI hEC d a b ty1 bd1 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_etaA mode n C hc hSI hEC d hdd a b ty1 bd1 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (List.mem_append_right _ (by simpa [encEView, Enc.encBind] using wordsAt_mem0 Pa (Enc.idxW ty1) [Enc.idxW bd1] []))
       (List.mem_append_right _ (by simpa [encEView, Enc.encBind] using wordsAt_mem1 Pa (Enc.idxW ty1) (Enc.idxW bd1) [] []))
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3409,7 +3409,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_etaA mode n C hc hSI hEC d a b ty1 bd1 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_etaA mode n C hc hSI hEC d hdd a b ty1 bd1 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (List.mem_append_right _ (by simpa [encEView, Enc.encBind] using wordsAt_mem0 Pa (Enc.idxW ty1) [Enc.idxW bd1] []))
       (List.mem_append_right _ (by simpa [encEView, Enc.encBind] using wordsAt_mem1 Pa (Enc.idxW ty1) (Enc.idxW bd1) [] []))
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3418,7 +3418,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_etaA mode n C hc hSI hEC d a b ty1 bd1 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_etaA mode n C hc hSI hEC d hdd a b ty1 bd1 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (List.mem_append_right _ (by simpa [encEView, Enc.encBind] using wordsAt_mem0 Pa (Enc.idxW ty1) [Enc.idxW bd1] []))
       (List.mem_append_right _ (by simpa [encEView, Enc.encBind] using wordsAt_mem1 Pa (Enc.idxW ty1) (Enc.idxW bd1) [] []))
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3427,7 +3427,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_etaA mode n C hc hSI hEC d a b ty1 bd1 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_etaA mode n C hc hSI hEC d hdd a b ty1 bd1 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (List.mem_append_right _ (by simpa [encEView, Enc.encBind] using wordsAt_mem0 Pa (Enc.idxW ty1) [Enc.idxW bd1] []))
       (List.mem_append_right _ (by simpa [encEView, Enc.encBind] using wordsAt_mem1 Pa (Enc.idxW ty1) (Enc.idxW bd1) [] []))
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3436,7 +3436,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_etaA mode n C hc hSI hEC d a b ty1 bd1 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_etaA mode n C hc hSI hEC d hdd a b ty1 bd1 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (List.mem_append_right _ (by simpa [encEView, Enc.encBind] using wordsAt_mem0 Pa (Enc.idxW ty1) [Enc.idxW bd1] []))
       (List.mem_append_right _ (by simpa [encEView, Enc.encBind] using wordsAt_mem1 Pa (Enc.idxW ty1) (Enc.idxW bd1) [] []))
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3445,7 +3445,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_etaA mode n C hc hSI hEC d a b ty1 bd1 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_etaA mode n C hc hSI hEC d hdd a b ty1 bd1 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (List.mem_append_right _ (by simpa [encEView, Enc.encBind] using wordsAt_mem0 Pa (Enc.idxW ty1) [Enc.idxW bd1] []))
       (List.mem_append_right _ (by simpa [encEView, Enc.encBind] using wordsAt_mem1 Pa (Enc.idxW ty1) (Enc.idxW bd1) [] []))
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3454,7 +3454,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_etaA mode n C hc hSI hEC d a b ty1 bd1 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_etaA mode n C hc hSI hEC d hdd a b ty1 bd1 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (List.mem_append_right _ (by simpa [encEView, Enc.encBind] using wordsAt_mem0 Pa (Enc.idxW ty1) [Enc.idxW bd1] []))
       (List.mem_append_right _ (by simpa [encEView, Enc.encBind] using wordsAt_mem1 Pa (Enc.idxW ty1) (Enc.idxW bd1) [] []))
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3463,7 +3463,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_etaA mode n C hc hSI hEC d a b ty1 bd1 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_etaA mode n C hc hSI hEC d hdd a b ty1 bd1 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (List.mem_append_right _ (by simpa [encEView, Enc.encBind] using wordsAt_mem0 Pa (Enc.idxW ty1) [Enc.idxW bd1] []))
       (List.mem_append_right _ (by simpa [encEView, Enc.encBind] using wordsAt_mem1 Pa (Enc.idxW ty1) (Enc.idxW bd1) [] []))
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3473,7 +3473,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3481,7 +3481,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3489,7 +3489,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3497,7 +3497,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3505,7 +3505,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3513,7 +3513,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_etaB mode n C hc hSI hEC d a b ty2 bd2 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_etaB mode n C hc hSI hEC d hdd a b ty2 bd2 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (by simpa [encEView, Enc.encBind] using wordsAt_mem0 Pb (Enc.idxW ty2) [Enc.idxW bd2] _)
       (by simpa [encEView, Enc.encBind] using wordsAt_mem1 Pb (Enc.idxW ty2) (Enc.idxW bd2) [] _)
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3523,7 +3523,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3531,7 +3531,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3539,7 +3539,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3547,7 +3547,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3555,7 +3555,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3563,7 +3563,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3571,7 +3571,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3579,7 +3579,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3587,7 +3587,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3595,7 +3595,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_etaB mode n C hc hSI hEC d a b ty2 bd2 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_etaB mode n C hc hSI hEC d hdd a b ty2 bd2 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (by simpa [encEView, Enc.encBind] using wordsAt_mem0 Pb (Enc.idxW ty2) [Enc.idxW bd2] _)
       (by simpa [encEView, Enc.encBind] using wordsAt_mem1 Pb (Enc.idxW ty2) (Enc.idxW bd2) [] _)
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3605,7 +3605,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3613,7 +3613,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3621,7 +3621,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3629,27 +3629,27 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
@@ -3660,29 +3660,29 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_etaB mode n C hc hSI hEC d a b ty2 bd2 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_etaB mode n C hc hSI hEC d hdd a b ty2 bd2 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (by simpa [encEView, Enc.encBind] using wordsAt_mem0 Pb (Enc.idxW ty2) [Enc.idxW bd2] _)
       (by simpa [encEView, Enc.encBind] using wordsAt_mem1 Pb (Enc.idxW ty2) (Enc.idxW bd2) [] _)
   · refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3690,7 +3690,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3698,7 +3698,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3706,7 +3706,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3714,7 +3714,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3722,7 +3722,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3730,7 +3730,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_etaB mode n C hc hSI hEC d a b ty2 bd2 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_etaB mode n C hc hSI hEC d hdd a b ty2 bd2 C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (by simpa [encEView, Enc.encBind] using wordsAt_mem0 Pb (Enc.idxW ty2) [Enc.idxW bd2] _)
       (by simpa [encEView, Enc.encBind] using wordsAt_mem1 Pb (Enc.idxW ty2) (Enc.idxW bd2) [] _)
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3740,7 +3740,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3748,7 +3748,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3756,7 +3756,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3764,7 +3764,7 @@ theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     try dsimp only
-    exact dk_si mode n C hc hSI hEC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_si mode n C hc hSI hEC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
 
 end
 

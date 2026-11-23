@@ -41,7 +41,6 @@ variable {σ : Type}
 
 theorem suc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C) (hc : SucCodes C) (Q : AState → Prop)
-    (hQF : ∀ s, Q s → UlsFacts C s)
     (hLPl : ∀ c ci, C.fe.find? c = some ci → ci.toConstantVal.levelParams.length + 1 < 2 ^ 60)
     (hQw : ∀ s1 d e r s2, Q s1 → (knot mode C n).whnf d e s1 = .ok (r, s2) → Q s2)
     (hQi : ∀ s1 d T b s2, Q s1 → isPropType (knot mode C n) d T s1 = .ok (b, s2) → Q s2)
@@ -88,7 +87,7 @@ theorem suc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
       ⟨by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], rfl, by simp, trivial⟩
       (PostB (ctxH C H2)) (fun b w' _ _ => w' = boolW b) (fun b w' s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ullParams _ rfl hlk)
-        (ull_spec ra mode n C hok hc.ullc Q hQF hLPl hQw hQi hQf hQ1 hQl hQs hQr hIO hW hLE unitLikeFuel
+        (ull_spec ra mode n C hok hc.ullc Q hLPl hQw hQi hQf hQ1 hQl hQs hQr hIO hW hLE unitLikeFuel
           (by unfold unitLikeFuel; decide) H2 s2 d wa (hpH.trans hp02) hq2 hd))
       (fun u w4 s4 H4 hp4 hw => ?_)
     subst hw
@@ -167,7 +166,7 @@ theorem suc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
       ⟨by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], rfl, by simp, trivial⟩
       (PostB (ctxH C H3)) (fun b w' _ _ => w' = boolW b) (fun b w' s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ullParams _ rfl hlk)
-        (ull_spec ra mode n C hok hc.ullc Q hQF hLPl hQw hQi hQf hQ1 hQl hQs hQr hIO hW hLE unitLikeFuel
+        (ull_spec ra mode n C hok hc.ullc Q hLPl hQw hQi hQf hQ1 hQl hQs hQr hIO hW hLE unitLikeFuel
           (by unfold unitLikeFuel; decide) H3 s2 d wa (hpH.trans hp03) hq2 hd))
       (fun u w4 s4 H4 hp4 hw => ?_)
     subst hw

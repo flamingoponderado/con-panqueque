@@ -2340,7 +2340,7 @@ theorem yb_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hc : SetCodes C
     (hD : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) dParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW a, Enc.idxW b] (dE C) s1 ((knot mode C n).defeq d' a b)
       (PostB (ctxH C H)))
-    (hSW : ∀ (H : List (BitVec 64)) s1 d' a b w, C.H <+: H → SpecR (σ := σ) (Pre (ctxH C H) s1 (swParams.zip
+    (hSW : ∀ (H : List (BitVec 64)) s1 d' a b w, C.H <+: H → d' < 2 ^ 63 → SpecR (σ := σ) (Pre (ctxH C H) s1 (swParams.zip
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW a, Enc.idxW b, Enc.idxW w])) (swBody C) s1
       (structEtaCertWith (knot mode C n) C.fe d' a b w) (PostB (ctxH C H)))
     (hES : ∀ (H : List (BitVec 64)) s1 a, C.H <+: H → SpecR (σ := σ) (Pre (ctxH C H) s1 (esParams.zip [Enc.idxW a]))
@@ -2364,7 +2364,7 @@ theorem yb_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hc : SetCodes C
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b, Enc.idxW wtb] (by decide) rfl (by decide) hc.sw
     ⟨by simp +decide [Env.get, ybParams, ctxEnv], by simp +decide [Env.get, ybParams, ctxEnv], by simp +decide [Env.get, ybParams, ctxEnv], by simp +decide [Env.get, ybParams, ctxEnv], by simp, trivial⟩
     (PostB (ctxH C H2)) (fun r_ w _ _ => w = boolW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu swParams _ rfl hlk) (hSW H2 s2 d a b wtb (hpH.trans (hp1.trans hp2))))
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu swParams _ rfl hlk) (hSW H2 s2 d a b wtb (hpH.trans (hp1.trans hp2)) hdd))
     (fun r3 w3 s3 H3 hp3 hw3 => ?_)
   subst hw3
   exact specR_returnI _ (boolW r3) (by simp) (fun t ht => ⟨H3, hp1.trans (hp2.trans hp3), rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
@@ -2379,7 +2379,7 @@ theorem yu_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hc : SetCodes C
     (hD : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) dParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW a, Enc.idxW b] (dE C) s1 ((knot mode C n).defeq d' a b)
       (PostB (ctxH C H)))
-    (hSW : ∀ (H : List (BitVec 64)) s1 d' a b w, C.H <+: H → SpecR (σ := σ) (Pre (ctxH C H) s1 (swParams.zip
+    (hSW : ∀ (H : List (BitVec 64)) s1 d' a b w, C.H <+: H → d' < 2 ^ 63 → SpecR (σ := σ) (Pre (ctxH C H) s1 (swParams.zip
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW a, Enc.idxW b, Enc.idxW w])) (swBody C) s1
       (structEtaCertWith (knot mode C n) C.fe d' a b w) (PostB (ctxH C H)))
     (hES : ∀ (H : List (BitVec 64)) s1 a, C.H <+: H → SpecR (σ := σ) (Pre (ctxH C H) s1 (esParams.zip [Enc.idxW a]))
@@ -2426,7 +2426,7 @@ theorem sx_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     (hD : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) dParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW a, Enc.idxW b] (dE C) s1 ((knot mode C n).defeq d' a b)
       (PostB (ctxH C H)))
-    (hSW : ∀ (H : List (BitVec 64)) s1 d' a b w, C.H <+: H → SpecR (σ := σ) (Pre (ctxH C H) s1 (swParams.zip
+    (hSW : ∀ (H : List (BitVec 64)) s1 d' a b w, C.H <+: H → d' < 2 ^ 63 → SpecR (σ := σ) (Pre (ctxH C H) s1 (swParams.zip
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW a, Enc.idxW b, Enc.idxW w])) (swBody C) s1
       (structEtaCertWith (knot mode C n) C.fe d' a b w) (PostB (ctxH C H)))
     (hES : ∀ (H : List (BitVec 64)) s1 a, C.H <+: H → SpecR (σ := σ) (Pre (ctxH C H) s1 (esParams.zip [Enc.idxW a]))
@@ -2524,7 +2524,7 @@ theorem cp_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     (hD : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) dParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW a, Enc.idxW b] (dE C) s1 ((knot mode C n).defeq d' a b)
       (PostB (ctxH C H)))
-    (hSW : ∀ (H : List (BitVec 64)) s1 d' a b w, C.H <+: H → SpecR (σ := σ) (Pre (ctxH C H) s1 (swParams.zip
+    (hSW : ∀ (H : List (BitVec 64)) s1 d' a b w, C.H <+: H → d' < 2 ^ 63 → SpecR (σ := σ) (Pre (ctxH C H) s1 (swParams.zip
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW a, Enc.idxW b, Enc.idxW w])) (swBody C) s1
       (structEtaCertWith (knot mode C n) C.fe d' a b w) (PostB (ctxH C H)))
     (hES : ∀ (H : List (BitVec 64)) s1 a, C.H <+: H → SpecR (σ := σ) (Pre (ctxH C H) s1 (esParams.zip [Enc.idxW a]))
@@ -2592,7 +2592,7 @@ theorem cc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     (hD : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) dParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW a, Enc.idxW b] (dE C) s1 ((knot mode C n).defeq d' a b)
       (PostB (ctxH C H)))
-    (hSW : ∀ (H : List (BitVec 64)) s1 d' a b w, C.H <+: H → SpecR (σ := σ) (Pre (ctxH C H) s1 (swParams.zip
+    (hSW : ∀ (H : List (BitVec 64)) s1 d' a b w, C.H <+: H → d' < 2 ^ 63 → SpecR (σ := σ) (Pre (ctxH C H) s1 (swParams.zip
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW a, Enc.idxW b, Enc.idxW w])) (swBody C) s1
       (structEtaCertWith (knot mode C n) C.fe d' a b w) (PostB (ctxH C H)))
     (hES : ∀ (H : List (BitVec 64)) s1 a, C.H <+: H → SpecR (σ := σ) (Pre (ctxH C H) s1 (esParams.zip [Enc.idxW a]))

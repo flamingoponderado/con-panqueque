@@ -1,5 +1,7 @@
 import ConPanqueque.T.Core.UnitLikeFields
 import ConPanqueque.T.Core.PropRO
+import ConPanqueque.T.SRFacts
+import ConPanqueque.T.PinRead
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena
@@ -41,6 +43,12 @@ structure UlsFacts (C : Ctx) (s : AState) : Prop where
     (∃ ks, Frontend.denoteNList s.store.ns cv.levelParams = some ks) ∧ (denoteE s.store cv.type).isSome = true
   ls : ∀ us uh, s.store.lss.view us = some uh → ∃ vs, denoteLs s.store.lss us = some vs
 
+theorem sr_ulsFacts {σ : Type} {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) : UlsFacts C s :=
+  ⟨sr_stateOK h, h.cok.rn, h.cok.rl, h.cok.rls,
+    fun c cv np nf ind hf => ⟨by obtain ⟨ks, hks⟩ := sr_lpDen h c _ hf; exact ⟨ks, by simpa [IConstantInfo.toConstantVal] using hks⟩,
+      by simpa [IConstantInfo.toConstantVal] using sr_tyDen h c _ hf⟩,
+    fun us uh hv => let ⟨vs, hvs, _⟩ := sr_lsDen h us uh hv; ⟨vs, hvs⟩⟩
+
 structure UlsCodes (C : Ctx) : Prop where
   mg : C.code.lookup fMemoGet = some ([(pG, .one), (pLen, .one)], memoGetBody, .one)
   mp : C.code.lookup fMemoProbe = some ([(pG, .one), (pLen, .one)], memoProbeBody, .one)
@@ -59,7 +67,6 @@ variable {σ : Type}
 
 theorem uls_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C) (hc : UlsCodes C) (Q : AState → Prop) (F : Nat)
-    (hQF : ∀ s, Q s → UlsFacts C s)
     (hLPl : ∀ c ci, C.fe.find? c = some ci → ci.toConstantVal.levelParams.length + 1 < 2 ^ 60)
     (hQi : ∀ s1 d T b s2, Q s1 → isPropType (knot mode C n) d T s1 = .ok (b, s2) → Q s2)
     (hQf : ∀ s1 i ty h s2, Q s1 → internE (.fvar i ty) s1 = .ok (h, s2) → Q s2)
@@ -337,7 +344,8 @@ theorem uls_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
         prefix_fillI _ _ _ H3 (hpre.length_le) (hpre.trans (List.prefix_append _ _)) _
       refine specR_envLoadI ulsT (.op .add [vv ulsQ2, .const 24]) (o2 + 3) _ (by decide)
         (by simp +decide [sev, Env.get, ulsParams, ctxEnv]; exact fn_ecell24 C o2) (by rw [show o2 + 3 = o2 + 1 + 2 by omega]; exact hty2) ?_
-      have hF := hQF s hq
+      refine specR_atEntry fun tF htF => ?_
+      have hF := sr_ulsFacts htF.sr
       obtain ⟨ks, hks⟩ := (hF.ctor tb.ctor cv np nf ind hf2).1
       have hden := (hF.ctor tb.ctor cv np nf ind hf2).2
       obtain ⟨vsL, hus⟩ := hF.ls us vl hvl

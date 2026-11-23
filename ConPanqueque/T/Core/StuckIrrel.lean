@@ -248,26 +248,26 @@ section
 variable {σ : Type}
 
 theorem si_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (sB : ProgHOL 64) (hc : SiCodes C sB)
-    (hSC : ∀ (H : List (BitVec 64)) s1 d a b, C.H <+: H → SpecR (σ := σ) (Pre (ctxH C H) s1 (ccParams.zip
+    (hSC : ∀ (H : List (BitVec 64)) s1 d a b, C.H <+: H → d < 2 ^ 63 → SpecR (σ := σ) (Pre (ctxH C H) s1 (ccParams.zip
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b])) ccBody s1
       (structEtaCert (knot mode C n) C.fe d a b) (PostB (ctxH C H)))
-    (hSU : ∀ (H : List (BitVec 64)) s1 d a b, C.H <+: H → SpecR (σ := σ) (Pre (ctxH C H) s1 (sucParams.zip
+    (hSU : ∀ (H : List (BitVec 64)) s1 d a b, C.H <+: H → d < 2 ^ 63 → SpecR (σ := σ) (Pre (ctxH C H) s1 (sucParams.zip
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b])) sB s1
       (structUnitCert (knot mode C n) C.fe d a b) (PostB (ctxH C H)))
-    (hPI : ∀ (H : List (BitVec 64)) s1 d a b, C.H <+: H → SpecR (σ := σ) (Pre (ctxH C H) s1 (piParams.zip
+    (hPI : ∀ (H : List (BitVec 64)) s1 d a b, C.H <+: H → d < 2 ^ 63 → SpecR (σ := σ) (Pre (ctxH C H) s1 (piParams.zip
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b])) (piBody C) s1
       (proofIrrel (knot mode C n) C.fe d a b) (PostB (ctxH C H))) :
-    ∀ (H : List (BitVec 64)) (s : AState) (d : Nat) (a b : EIdx), C.H <+: H →
+    ∀ (H : List (BitVec 64)) (s : AState) (d : Nat) (a b : EIdx), C.H <+: H → d < 2 ^ 63 →
       SpecR (σ := σ) (Pre (ctxH C H) s (siParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b]))
         siBody s (stuckIrrel (knot mode C n) C.fe d a b) (PostB (ctxH C H)) := by
-  intro H s d a b hpH
+  intro H s d a b hpH hdd
   refine specR_prologue (postB_locals _) (Knot.params_none _ [siX, siY, siZ, siR] siParams _ (by decide) (by decide)) ?_
   unfold stuckIrrel
   refine specR_callNIH (C := ctxH C H) siX fSc ccParams [(vv kFu), (vv kD), (vv siA), (vv siB)] ccBody
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b] (by decide) rfl (by decide) hc.sc
     ⟨by simp +decide [Env.get, siParams, ctxEnv], by simp +decide [Env.get, siParams, ctxEnv], by simp +decide [Env.get, siParams, ctxEnv], by simp +decide [Env.get, siParams, ctxEnv], trivial⟩
     (PostB (ctxH C H)) (fun r_ w _ _ => w = boolW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ccParams _ rfl hlk) (hSC H s d a b hpH))
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ccParams _ rfl hlk) (hSC H s d a b hpH hdd))
     (fun x w1 s1 H1 hp1 hw1 => ?_)
   subst hw1
   cases x
@@ -281,7 +281,7 @@ theorem si_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (sB : ProgHOL 64
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW b, Enc.idxW a] (by decide) rfl (by decide) hc.sc
     ⟨by simp +decide [Env.get, siParams, ctxEnv], by simp +decide [Env.get, siParams, ctxEnv], by simp +decide [Env.get, siParams, ctxEnv], by simp +decide [Env.get, siParams, ctxEnv], trivial⟩
     (PostB (ctxH C H1)) (fun r_ w _ _ => w = boolW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ccParams _ rfl hlk) (hSC H1 s1 d b a (hpH.trans hp1)))
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ccParams _ rfl hlk) (hSC H1 s1 d b a (hpH.trans hp1) hdd))
     (fun y w2 s2 H2 hp2 hw2 => ?_)
   subst hw2
   cases y
@@ -295,7 +295,7 @@ theorem si_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (sB : ProgHOL 64
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b] (by decide) rfl (by decide) hc.su
     ⟨by simp +decide [Env.get, siParams, ctxEnv], by simp +decide [Env.get, siParams, ctxEnv], by simp +decide [Env.get, siParams, ctxEnv], by simp +decide [Env.get, siParams, ctxEnv], trivial⟩
     (PostB (ctxH C H2)) (fun r_ w _ _ => w = boolW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu sucParams _ rfl hlk) (hSU H2 s2 d a b (hpH.trans (hp1.trans hp2))))
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu sucParams _ rfl hlk) (hSU H2 s2 d a b (hpH.trans (hp1.trans hp2)) hdd))
     (fun z w3 s3 H3 hp3 hw3 => ?_)
   subst hw3
   cases z
@@ -310,7 +310,7 @@ theorem si_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (sB : ProgHOL 64
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b] (by decide) rfl (by decide) hc.pi
     ⟨by simp +decide [Env.get, siParams, ctxEnv], by simp +decide [Env.get, siParams, ctxEnv], by simp +decide [Env.get, siParams, ctxEnv], by simp +decide [Env.get, siParams, ctxEnv], trivial⟩
     (PostB (ctxH C H3)) (fun r_ w _ _ => w = boolW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu piParams _ rfl hlk) (hPI H3 s3 d a b (hpH.trans (hp1.trans (hp2.trans hp3)))))
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu piParams _ rfl hlk) (hPI H3 s3 d a b (hpH.trans (hp1.trans (hp2.trans hp3))) hdd))
     (fun r w4 s4 H4 hp4 hw4 => ?_)
   subst hw4
   exact specR_returnI _ (boolW r) (by simp) (fun t ht => ⟨H4, hp1.trans (hp2.trans (hp3.trans hp4)), rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
