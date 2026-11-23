@@ -296,3 +296,4 @@ import ConPanqueque.T.Core.DefeqProj
 import ConPanqueque.T.Core.EtaCert
 import ConPanqueque.T.Core.StructEta
 import ConPanqueque.T.Core.EtaShape
+import ConPanqueque.T.Core.StructEtaArms

@@ -1836,11 +1836,11 @@ section
 variable {σ : Type}
 
 def PostONat (C : Ctx) (o : Option Nat) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
-  ∃ H', C.H <+: H' ∧ w = optWG (BitVec.ofNat 64) o ∧ SR (ctxH C H') s' st
+  ∃ H', C.H <+: H' ∧ w = optWG (BitVec.ofNat 64) o ∧ (∀ k, o = some k → k + 1 < 2 ^ 64) ∧ SR (ctxH C H') s' st
 
 theorem postONat_locals (C : Ctx) : ∀ a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
     PostONat C a w s' st → PostONat C a w s' { st with locals := L } :=
-  fun _ _ _ _ _ ⟨H', h1, h2, h3⟩ => ⟨H', h1, h2, sr_of_eq h3 rfl rfl rfl rfl⟩
+  fun _ _ _ _ _ ⟨H', h1, h2, h4, h3⟩ => ⟨H', h1, h2, h4, sr_of_eq h3 rfl rfl rfl rfl⟩
 
 theorem es_spec (C : Ctx) (hok : CtxOK C) (hc : EsCodes C) (s : AState) (a : EIdx) :
     SpecR (σ := σ) (Pre C s (esParams.zip [Enc.idxW a])) (esBody C) s (etaCtorShape C.fe a) (PostB C) := by
@@ -1960,7 +1960,7 @@ theorem ep_spec (C : Ctx) (hok : CtxOK C) (hc : EsCodes C) (s : AState) (a : EId
   refine Knot.specR_tagIteV epH h 3 (by decide) (by decide) (by simp) (fun htc => ?_) (fun htc => ?_)
   swap
   · rw [if_neg (show ¬ (h.tag == ETag.const) = true by simpa [ETag.const] using htc)]
-    exact specR_returnI _ 0 rfl (fun t ht => ⟨C.H, (List.prefix_refl _), rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨C.H, (List.prefix_refl _), rfl, (fun _ h => by cases h), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   rw [if_pos (show (h.tag == ETag.const) = true by simp [htc, ETag.const])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
   refine specR_assignI lDh (vv epH) (Enc.idxW h) (by decide) (by simp) ?_
@@ -1981,7 +1981,7 @@ theorem ep_spec (C : Ctx) (hok : CtxOK C) (hc : EsCodes C) (s : AState) (a : EId
   rcases hfind : C.fe.find? c with _ | ci
   · intro hrel; simp only at hrel; rw [hrel]
     refine specR_ifI _ 1 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
-    exact specR_returnI _ 0 rfl (fun t ht => ⟨C.H, (List.prefix_refl _), rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨C.H, (List.prefix_refl _), rfl, (fun _ h => by cases h), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   intro ⟨o, hm, hci⟩
   rw [hm]
   refine specR_atEntry fun t ht => ?_
@@ -1992,16 +1992,16 @@ theorem ep_spec (C : Ctx) (hok : CtxOK C) (hc : EsCodes C) (s : AState) (a : EId
   rcases ci with cv | ⟨cv, val, hint⟩ | cv | ⟨cv, caps⟩ | ⟨cv, np, nf, ind⟩ | ⟨cv, mi, rp, isK, rules⟩
   · refine specR_envLoadI epK (vv epQ) o 0 (by decide) (by simp [ecell_ctxH]) hci.2 ?_
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
-    exact specR_returnI _ 0 rfl (fun t ht => ⟨C.H, (List.prefix_refl _), rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨C.H, (List.prefix_refl _), rfl, (fun _ h => by cases h), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   · refine specR_envLoadI epK (vv epQ) o 1 (by decide) (by simp [ecell_ctxH]) hci.2.1 ?_
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
-    exact specR_returnI _ 0 rfl (fun t ht => ⟨C.H, (List.prefix_refl _), rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨C.H, (List.prefix_refl _), rfl, (fun _ h => by cases h), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   · refine specR_envLoadI epK (vv epQ) o 2 (by decide) (by simp [ecell_ctxH]) hci.2 ?_
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
-    exact specR_returnI _ 0 rfl (fun t ht => ⟨C.H, (List.prefix_refl _), rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨C.H, (List.prefix_refl _), rfl, (fun _ h => by cases h), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   · refine specR_envLoadI epK (vv epQ) o 3 (by decide) (by simp [ecell_ctxH]) hci.2.1 ?_
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
-    exact specR_returnI _ 0 rfl (fun t ht => ⟨C.H, (List.prefix_refl _), rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨C.H, (List.prefix_refl _), rfl, (fun _ h => by cases h), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   · refine specR_envLoadI epK (vv epQ) o 4 (by decide) (by simp) hci.2.1 ?_
     refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     obtain ⟨_, _, ⟨hnp, hnpl⟩, ⟨hnf, hnfl⟩, hT⟩ := hci
@@ -2033,7 +2033,7 @@ theorem ep_spec (C : Ctx) (hok : CtxOK C) (hc : EsCodes C) (s : AState) (a : EId
     swap
     · refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hsum, hltw, hlt]) (fun h => absurd rfl h) (fun _ => ?_)
       rw [if_neg hlt]
-      exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, (fun _ h => by cases h), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hsum, hltw, hlt]) (fun _ => ?_) (fun h => absurd h (by decide))
     rw [if_pos hlt]
     unfold etaCtorPartialFam
@@ -2044,7 +2044,7 @@ theorem ep_spec (C : Ctx) (hok : CtxOK C) (hc : EsCodes C) (s : AState) (a : EId
     rcases hfind2 : C.fe.find? ind with _ | ci2
     · intro hrel; simp only at hrel; rw [hrel]
       refine specR_ifI _ 1 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
-      exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, (fun _ h => by cases h), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     intro ⟨o2, hm2, hci⟩
     rw [hm2]
     refine specR_atEntry fun t ht => ?_
@@ -2054,13 +2054,13 @@ theorem ep_spec (C : Ctx) (hok : CtxOK C) (hc : EsCodes C) (s : AState) (a : EId
     rcases ci2 with cvT | ⟨cvT, val2, hint2⟩ | cvT | ⟨cvT, caps⟩ | ⟨cvT, np2, nf2, ind2⟩ | ⟨cvT, mi2, rp2, isK2, rules2⟩
     · refine specR_envLoadI epK2 (vv epQ2) o2 0 (by decide) (by simp [ecell_ctxH]) hci.2 ?_
       refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
-      exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, (fun _ h => by cases h), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     · refine specR_envLoadI epK2 (vv epQ2) o2 1 (by decide) (by simp [ecell_ctxH]) hci.2.1 ?_
       refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
-      exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, (fun _ h => by cases h), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     · refine specR_envLoadI epK2 (vv epQ2) o2 2 (by decide) (by simp [ecell_ctxH]) hci.2 ?_
       refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
-      exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, (fun _ h => by cases h), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     · refine specR_envLoadI epK2 (vv epQ2) o2 3 (by decide) (by simp [ecell_ctxH]) hci.2.1 ?_
       refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
       obtain ⟨_, _, het, _⟩ := hci
@@ -2075,7 +2075,7 @@ theorem ep_spec (C : Ctx) (hok : CtxOK C) (hc : EsCodes C) (s : AState) (a : EId
       rcases hft : C.fe.findTable? ind with _ | tb
       · intro hrel; simp only at hrel; rw [hrel]
         refine specR_ifI _ 1 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
-        exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+        exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, (fun _ h => by cases h), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
       intro ⟨ot, hmt, htb⟩
       rw [hmt]
       refine specR_atEntry fun t ht => ?_
@@ -2090,7 +2090,7 @@ theorem ep_spec (C : Ctx) (hok : CtxOK C) (hc : EsCodes C) (s : AState) (a : EId
       swap
       · refine specR_ifI _ 1 (by simp [sev, boolW, he, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
         simp only [he, Bool.false_eq_true, ↓reduceIte]
-        exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+        exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, (fun _ h => by cases h), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
       refine specR_ifI _ 0 (by simp [sev, boolW, he, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
       simp only [he, ↓reduceIte]
       by_cases hk : tb.ctor = c
@@ -2099,25 +2099,25 @@ theorem ep_spec (C : Ctx) (hok : CtxOK C) (hc : EsCodes C) (s : AState) (a : EId
         refine specR_ifI _ 1 (by simp +decide [sev, Env.get, epParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun _ => ?_)
           (fun h => absurd h (by decide))
         simp only [show (tb.ctor == c) = false by simpa using hk, Bool.false_eq_true, ↓reduceIte]
-        exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+        exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, (fun _ h => by cases h), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
       refine specR_ifI _ 0 (by simp +decide [sev, Env.get, epParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hk]) (fun h => absurd rfl h) (fun _ => ?_)
       simp only [hk, beq_self_eq_true, ↓reduceIte]
       refine specR_returnI _ (optWG (BitVec.ofNat 64) (some (np + nf - aargs.length))) ?_
-        (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+        (fun t ht => ⟨H1, hp1, rfl, (fun k hk => by cases hk; omega), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
       simp only [sev, Env.get_cons, optWG]
       simp +decide [Env.get, epParams, ctxEnv, hsum]
       rw [ix_wsub _ _ (by omega) (by omega)]
 
     · refine specR_envLoadI epK2 (vv epQ2) o2 4 (by decide) (by simp [ecell_ctxH]) hci.2.1 ?_
       refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
-      exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, (fun _ h => by cases h), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     · refine specR_envLoadI epK2 (vv epQ2) o2 5 (by decide) (by simp [ecell_ctxH]) hci.2.1 ?_
       refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
-      exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, (fun _ h => by cases h), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
   · refine specR_envLoadI epK (vv epQ) o 5 (by decide) (by simp [ecell_ctxH]) hci.2.1 ?_
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
-    exact specR_returnI _ 0 rfl (fun t ht => ⟨C.H, (List.prefix_refl _), rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨C.H, (List.prefix_refl _), rfl, (fun _ h => by cases h), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 end
 
