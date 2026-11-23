@@ -275,4 +275,34 @@ theorem iotaRecAt_eq (mode : ConLeche.CheckMode) (r : CoreFnsA) (fe : IFEnv) (de
   simp only [iotaFam, bind_assoc, ite_bind', pure_bind]
   rfl
 
+theorem ctorView_ctor_inv (fe : IFEnv) (e : EIdx) (s : AState) (e' : EIdx) (cj : NIdx) (usj : LsIdx)
+    (cvj : IConstantVal) (nP nF : Nat) (ind : NIdx) (s' : AState)
+    (h : ctorView fe e s = .ok (.ctor e' cj usj cvj nP nF ind, s')) :
+    ∃ hd, getAppFn coreWalkFuel e s = .ok (hd, s) ∧ hd.tag = ETag.const ∧ s.store.viewConst hd = some (cj, usj) ∧
+      fe.find? cj = some (.ctorInfo cvj nP nF ind) ∧ s' = s ∧ e' = e := by
+  unfold ctorView at h
+  obtain ⟨hd, s1, h1, h2⟩ := bind_ok_inv h
+  have e1 := getAppFn_ro _ _ _ _ _ h1
+  rw [e1] at h1 h2
+  by_cases ht : (hd.tag == ETag.const) = true
+  · rw [if_pos ht] at h2
+    obtain ⟨oc, s2, h3, h4⟩ := bind_ok_inv h2
+    have : viewConst hd s = .ok (s.store.viewConst hd, s) := rfl
+    rw [this] at h3; cases h3
+    cases hoc : s.store.viewConst hd with
+    | none => rw [hoc] at h4; exact (failDanglingE_ok_inv h4).elim
+    | some p =>
+      obtain ⟨cj', usj'⟩ := p
+      rw [hoc] at h4
+      dsimp only at h4
+      rcases hf : fe.find? cj' with _ | ci
+      · rw [hf] at h4; obtain ⟨h5, _⟩ := pure_ok_inv h4; cases h5
+      · rw [hf] at h4
+        cases ci <;> dsimp only at h4 <;> obtain ⟨h5, h6⟩ := pure_ok_inv h4 <;> try cases h5
+        refine ⟨hd, h1, by simpa using ht, ?_, ?_, h6, rfl⟩
+        · simp [hoc]
+        · exact hf
+  · rw [if_neg ht] at h2
+    obtain ⟨h5, _⟩ := pure_ok_inv h2; cases h5
+
 end ConPanqueque.T.WC

@@ -528,3 +528,18 @@ Pancake has no division instruction, and resource-limit declines are allowed (so
   - Values are done; ζ goes through `instantiate1` (`fast_spec`); a loose `bvar` declines.
   - An application goes to the ι step (`whnfStuck`) or the β step (`whnfCoreStepApp`), a projection to `whnfCoreStepProj`. These three are callees given by their specs.
 - **Next.** The three arms: ι (`whnfStuck`, `iotaRecAt`), β (`whnfCoreStepApp`: `getAppSpine`, `headAndArgs`, `whnfApp`, `betaPeel`), projection (`whnfCoreStepProj`, `reduceProjCore`, `projLitToCtor`).
+
+### Progress (2026-11-23): the three whnfCore arms
+
+- β: `wsa_spec` (`whnfCoreStepApp`: `getAppSpine`, the cheap `whnfCore` entry, `headAndArgs`, `whnfApp`), with `betaPeel`, `whnfAppIota` and `whnfApp` proved earlier.
+- Projection: `rpc_spec` (`reduceProjCore`, `T/Core/ReduceProj.lean`): the projection-table lookup (`tblFindP`), `projLitToCtor` (`pl_spec`), the head/spine/level-arity checks, `bvar 0`, and `projCert` at the verified mode (`pc_spec`, over `peelPis`, `pp_spec`).
+  - String literals are complete (`T/Str/*`): the stored UTF-8 bytes are copied, then decoded by the recursive spine builder (`sl_spec`). The decode is proved to give `s.toList` (`u8dec_toByteArray`, `encShape`), and the builder interns in the twin's order. `strLitToConstructor` is `tc_spec`.
+- ι: `io_spec` (`iotaRecAt`, `T/Core/IotaBody.lean`) is proved against three callee specs:
+  - `prepareMajor`, answering the term and its constructor bit (`encMV`). The constructor record is then re-derived by re-running the read-only `ctorView` (`prepareMajor_view`, `RO`).
+  - `iotaFam`, the fire certificate at the verified mode (factored out of the twin's join points by `iotaRecAt_eq`).
+  - `ruleBodyAt`.
+  
+  `findRule` (`fr_spec`), `iotaVals` (`iv_spec`) and `instantiateListFast` are proved.
+- **Next.**
+  - The callee bodies: `prepareMajor` (`majorToCtor`, its rescues with `inferIO`/`defeq`/`proofIrrel`; `litMajorToCtor`), `iotaFam` (level substitution, `iotaCase3At`, `defEqList`, `iotaCertsFull`, `iotaIndexOk`), and `ruleBodyAt` (per-declaration memo).
+  - Then discharge the knot's callee hypotheses, then `inferBody`/`defeqBody`.
