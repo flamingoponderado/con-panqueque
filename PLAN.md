@@ -514,3 +514,13 @@ Pancake has no division instruction, and resource-limit declines are allowed (so
 - The port runs it as a recursive Pancake function indexed by the remaining step budget. It is proved by induction on the budget with the existing `SpecR` rules.
 - A chain deeper than the stack declines (halts). That is sound, and the stack can be sized generously.
 - The pending keys are heap lists built by prepending (`T/Core/WcChain.lean`). The store chain walks them post-order, which is the twin's insertion order.
+
+### Progress (2026-11-23): `whnfCoreLoop`
+
+- `T/Core/WcChain.lean` holds the pending-key heap lists (`LstAt`) and the store chain (`sc_spec`: post-order recursion, the twin's insertion order).
+  - `scRet` stores the chain, then returns the answer.
+  - `specR_pushI` is the branch-free push of a pending key.
+  - `tagIs4E`: the app tag (4) is "tag bits 4, or a wide handle".
+- `T/Core/WcTags.lean` has the tag predicates (`whnfCoreStuckTag`, `isStuckHead`, `whnfCoreKey`, `whnfCoreCheapSafe`, `whnfCoreStoresDone`) as expressions of exactly the twin's value.
+- `T/Core/WhnfCore.lean`, `wcl_spec`: the recursive `whnfCoreLoop` function refines the twin at every budget, by induction. It is proved against the step function's spec (`whnfCoreStep` as a callee returning an encoded `WhnfStep`).
+- **Next.** `whnfCoreStep`: β (`whnfCoreStepApp`: `getAppSpine`, `headAndArgs`, `whnfApp`), ι (`whnfStuck`), projection (`whnfCoreStepProj`/`reduceProjCore`), ζ (`instantiate1Fast`). Then `whnfCoreBody` as a call of the loop with empty lists.
