@@ -340,3 +340,5 @@ import ConPanqueque.T.Comp.IotaFamC
 import ConPanqueque.T.Comp.RescueC
 import ConPanqueque.T.Comp.IotaC
 import ConPanqueque.T.Comp.WhnfCoreC
+import ConPanqueque.T.Comp.LazyDeltaC
+import ConPanqueque.T.Comp.DefeqProjC

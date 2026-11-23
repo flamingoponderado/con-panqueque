@@ -341,10 +341,10 @@ theorem tu_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hcaf : C.code.lookup fGetAppFn = some ([(pFu, .one), (pH, .one)], getAppFnBody, .one))
     (hchp : C.code.lookup fHp = some ([(hpE, .one)], hpBody, .one))
     (hcwc : C.code.lookup fWC = some (pmap wcParams, wcE, .one))
-    (hWC : ∀ (H : List (BitVec 64)) s1 c d e, C.H <+: H → Callee (σ := σ) (ctxH C H) wcParams
+    (hWC : ∀ (H : List (BitVec 64)) s1 c d e, C.H <+: H → d < 2 ^ 63 → Callee (σ := σ) (ctxH C H) wcParams
       [BitVec.ofNat 64 n, boolW c, BitVec.ofNat 64 d, Enc.idxW e] wcE s1 ((knot mode C n).whnfCore c d e)
       (PostK (ctxH C H)))
-    (s : AState) (d : Nat) (e : EIdx) :
+    (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (e : EIdx) :
     SpecR (σ := σ) (Pre C s (tuParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e])) tuBody s
       (tryUnfoldProjApp (knot mode C n) d e) (UD.PostO C) := by
   refine specR_prologue (UD.postO_locals C) (Knot.params_none C [tuX, tuY] tuParams _ (by decide) (by decide)) ?_
@@ -366,7 +366,7 @@ theorem tu_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     ⟨by simp +decide [Env.get, tuParams, ctxEnv], rfl, by simp +decide [Env.get, tuParams, ctxEnv],
       by simp +decide [Env.get, tuParams, ctxEnv], trivial⟩
     (PostK (ctxH C H1)) (fun a w _ _ => w = Enc.idxW a) (fun a w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
-    (fun u hu _ hlk => hWC H1 s1 false d e hp1 u hu (fun i hi _ => hlk i (by omega)))
+    (fun u hu _ hlk => hWC H1 s1 false d e hp1 hdd u hu (fun i hi _ => hlk i (by omega)))
     (fun e' w s2 H2 hp2 hw => ?_)
   subst hw
   have hp12 : C.H <+: H2 := hp1.trans hp2

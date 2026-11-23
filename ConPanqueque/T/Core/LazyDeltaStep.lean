@@ -763,14 +763,14 @@ theorem lds_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hc : LdCodes C
       (headHint C.fe e) (PostHn (ctxH C H)))
     (hSQ : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ a b, SpecR (σ := σ) (Pre (ctxH C H) s1 (sqParams.zip [Enc.idxW a, Enc.idxW b])) sqBody s1
       (sameConstHeads a b) (PostB (ctxH C H)))
-    (hTU : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ d e, SpecR (σ := σ) (Pre (ctxH C H) s1 (tuParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d,
+    (hTU : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ d e, d < 2 ^ 63 → SpecR (σ := σ) (Pre (ctxH C H) s1 (tuParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d,
       Enc.idxW e])) tuBody s1 (tryUnfoldProjApp (knot mode C n) d e) (UD.PostO (ctxH C H)))
     (hUF : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ e, SpecR (σ := σ) (Pre (ctxH C H) s1 ([UD.uE].zip [Enc.idxW e])) (UD.ufBody C) s1
       (unfoldDefinition C.fe e) (UD.PostO (ctxH C H)))
     (hWC : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ c d e, d < 2 ^ 63 → Callee (σ := σ) (ctxH C H) wcParams
       [BitVec.ofNat 64 n, boolW c, BitVec.ofNat 64 d, Enc.idxW e] wcE s1 ((knot mode C n).whnfCore c d e)
       (PostK (ctxH C H)))
-    (hDS : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ d a b, SpecR (σ := σ) (Pre (ctxH C H) s1 (dsParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d,
+    (hDS : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ d a b, d < 2 ^ 63 → SpecR (σ := σ) (Pre (ctxH C H) s1 (dsParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d,
       Enc.idxW a, Enc.idxW b])) dsBody s1 (defeqSpine (knot mode C n) C.fe d a b) (PostB (ctxH C H)))
     (hDQ : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ a b, SpecR (σ := σ) (Pre (ctxH C H) s1 (dqParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d,
       Enc.idxW a, Enc.idxW b])) (dqBody C) s1 (deltaQuick mode (knot mode C n) d a b) (PostDS (ctxH C H)))
@@ -812,7 +812,7 @@ theorem lds_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hc : LdCodes C
       ⟨by simp +decide [Env.get, ldParams, ctxEnv], by simp +decide [Env.get, ldParams, ctxEnv], by simp +decide [Env.get, ldParams, ctxEnv], trivial⟩
       (fun r_ w s' st => tryUnfoldProjApp (knot mode C n) d a s2 = .ok (r_, s') ∧ UD.PostO (ctxH C H2) r_ w s' st) (fun r_ w s' H' => w = optW r_ ∧ tryUnfoldProjApp (knot mode C n) d a s2 = .ok (r_, s'))
       (fun r_ w s' st ⟨hr, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hr⟩, hsr⟩)
-      (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu tuParams _ rfl hlk) (hTU H2 s2 hpa2 hq2 d a)))
+      (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu tuParams _ rfl hlk) (hTU H2 s2 hpa2 hq2 d a hdd)))
       (fun oz w3 s3 H3 hp3 ⟨hw3, hrun3⟩ => ?_)
     have hq3 := hQtu s2 d a oz s3 hq2 hrun3
     have hpa3 : C.H <+: H3 := hpa2.trans hp3
@@ -875,7 +875,7 @@ theorem lds_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hc : LdCodes C
       ⟨by simp +decide [Env.get, ldParams, ctxEnv], by simp +decide [Env.get, ldParams, ctxEnv], by simp +decide [Env.get, ldParams, ctxEnv], trivial⟩
       (fun r_ w s' st => tryUnfoldProjApp (knot mode C n) d b s2 = .ok (r_, s') ∧ UD.PostO (ctxH C H2) r_ w s' st) (fun r_ w s' H' => w = optW r_ ∧ tryUnfoldProjApp (knot mode C n) d b s2 = .ok (r_, s'))
       (fun r_ w s' st ⟨hr, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hr⟩, hsr⟩)
-      (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu tuParams _ rfl hlk) (hTU H2 s2 hpa2 hq2 d b)))
+      (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu tuParams _ rfl hlk) (hTU H2 s2 hpa2 hq2 d b hdd)))
       (fun oz w8 s8 H8 hp8 ⟨hw8, hrun8⟩ => ?_)
     have hq8 := hQtu s2 d b oz s8 hq2 hrun8
     have hpa8 : C.H <+: H8 := hpa2.trans hp8
@@ -1043,7 +1043,7 @@ theorem lds_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hc : LdCodes C
         ⟨by simp +decide [Env.get, ldParams, ctxEnv], by simp +decide [Env.get, ldParams, ctxEnv], by simp +decide [Env.get, ldParams, ctxEnv], by simp +decide [Env.get, ldParams, ctxEnv], trivial⟩
         (fun r_ w s' st => defeqSpine (knot mode C n) C.fe d a b s15 = .ok (r_, s') ∧ PostB (ctxH C H15) r_ w s' st) (fun r_ w s' H' => w = boolW r_ ∧ defeqSpine (knot mode C n) C.fe d a b s15 = .ok (r_, s'))
         (fun r_ w s' st ⟨hr, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hr⟩, hsr⟩)
-        (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu dsParams _ rfl hlk) (hDS H15 s15 hpa15 hq15 d a b)))
+        (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu dsParams _ rfl hlk) (hDS H15 s15 hpa15 hq15 d a b hdd)))
         (fun sp w16 s16 H16 hp16 ⟨hw16, hrun16⟩ => ?_)
       have hq16 := hQds s15 d a b sp s16 hq15 hrun16
       have hpa16 : C.H <+: H16 := hpa15.trans hp16
