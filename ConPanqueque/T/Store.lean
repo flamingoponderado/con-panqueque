@@ -180,13 +180,20 @@ def CacheAtM (t : PState σ) (C : Ctx) (b : Bool) (mm : ModeMemos) : CacheK → 
 
 def SideAt (t : PState σ) (C : Ctx) (b : Bool) (mm : ModeMemos) : Prop := ∀ k, CacheAtM t C b mm k
 
-/-- The eager tower. Plain (`gEo = 0`): side `false` holds the active mode memos and side `true` the stored
-eager ones. Eager (`gEo = EO`): side `true` holds the active (eager) memos, side `false` the plain ones the
-enclosing `enterEager` saved, and the twin's eager slot is empty. -/
+/-- The active side: `true` inside an eager comparison (the context holds the saved plain memos). -/
+def Ctx.side (C : Ctx) : Bool := C.saved.isSome
+
+/-- The active side's descriptor offset, held in `gEo`. -/
+def Ctx.eo (C : Ctx) : BitVec 64 := if C.saved.isSome then C.EO else 0
+
+/-- The eager tower. Plain (`C.saved = none`, `gEo = 0`): side `false` holds the active mode memos and side
+`true` the stored eager ones. Eager (`C.saved = some mm`, `gEo = EO`): side `true` holds the active (eager)
+memos, side `false` the plain ones `mm` the enclosing `enterEager` saved, and the twin's eager slot is empty. -/
 def ModeAt (t : PState σ) (C : Ctx) (cs : Caches) : Prop :=
-  (t.globals.lookup gEo = some (.val (.word 0)) ∧ SideAt t C false cs.modeMemos ∧ SideAt t C true cs.eagerMemos) ∨
-  (t.globals.lookup gEo = some (.val (.word C.EO)) ∧ SideAt t C true cs.modeMemos ∧
-    (∃ mm, C.saved = some mm ∧ SideAt t C false mm) ∧ cs.eagerMemos = ModeMemos.empty)
+  t.globals.lookup gEo = some (.val (.word C.eo)) ∧ SideAt t C C.side cs.modeMemos ∧
+  match C.saved with
+  | none => SideAt t C true cs.eagerMemos
+  | some mm => SideAt t C false mm ∧ cs.eagerMemos = ModeMemos.empty
 
 theorem sideAt_frame {C : Ctx} {mm : ModeMemos} {t u : PState σ} {b : Bool} (h : SideAt t C b mm)
     (hm : ∀ k c, inR (C.mg (.m b k)) c → u.memory c = t.memory c)
@@ -202,10 +209,12 @@ theorem modeAt_frame {C : Ctx} {cs : Caches} {t u : PState σ} (h : ModeAt t C c
     (hdsc : ∀ b k j, j < 8 → u.memory (C.mG (.m b k) + BitVec.ofNat 64 (8 * j)) =
       t.memory (C.mG (.m b k) + BitVec.ofNat 64 (8 * j)))
     (hd : u.memaddrs = t.memaddrs) (hg : u.globals.lookup gEo = t.globals.lookup gEo) : ModeAt u C cs := by
-  rcases h with ⟨g, h1, h2⟩ | ⟨g, h1, ⟨mm, hs, h2⟩, h3⟩
-  · exact Or.inl ⟨by rw [hg]; exact g, sideAt_frame h1 (hm _) (hdsc _) hd, sideAt_frame h2 (hm _) (hdsc _) hd⟩
-  · exact Or.inr ⟨by rw [hg]; exact g, sideAt_frame h1 (hm _) (hdsc _) hd,
-      ⟨mm, hs, sideAt_frame h2 (hm _) (hdsc _) hd⟩, h3⟩
+  obtain ⟨g, h1, h2⟩ := h
+  refine ⟨by rw [hg]; exact g, sideAt_frame h1 (hm _) (hdsc _) hd, ?_⟩
+  revert h2
+  cases C.saved with
+  | none => exact fun h2 => sideAt_frame h2 (hm _) (hdsc _) hd
+  | some mm => exact fun ⟨h2, h3⟩ => ⟨sideAt_frame h2 (hm _) (hdsc _) hd, h3⟩
 
 /-- Two cache records agree on the mirrored tables. -/
 def MirrorEq (a b : Caches) : Prop :=
