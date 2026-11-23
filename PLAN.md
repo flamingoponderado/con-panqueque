@@ -506,3 +506,11 @@ Pancake has no division instruction, and resource-limit declines are allowed (so
 - With a larger operand the port declines: it halts without an answer, which is `Stop` in the specs. An explicit decline message through the FFI can replace the halt later.
 - `pow` is square-and-multiply on the verified `mul`, after the twin's `powGuard`.
 - `natSizeBytes n` is `8 · max(|limbs n|, 1)`, so no bit logarithm is needed.
+
+### Decision (2026-11-23): `whnfCoreLoop` is a recursive function
+
+`whnfCoreLoop` needs memo reads, store chains and pending-key lists at every iteration. As a `while` loop, every one of those rules would need a `Step` version.
+
+- The port runs it as a recursive Pancake function indexed by the remaining step budget. It is proved by induction on the budget with the existing `SpecR` rules.
+- A chain deeper than the stack declines (halts). That is sound, and the stack can be sized generously.
+- The pending keys are heap lists built by prepending (`T/Core/WcChain.lean`). The store chain walks them post-order, which is the twin's insertion order.
