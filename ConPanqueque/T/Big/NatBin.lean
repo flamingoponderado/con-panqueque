@@ -37,6 +37,7 @@ structure BigCodes (C : Ctx) : Prop where
   bit : ∀ o, C.code.lookup (fBit o) = some (bitParams.map (fun p => (p, ShapeHOL.one)), bitBody o C, .one)
   shr : C.code.lookup fShr = some (shrParams.map (fun p => (p, ShapeHOL.one)), shrBody C, .one)
   dm : ∀ isMod, C.code.lookup (fDm isMod) = some (dmParams.map (fun p => (p, ShapeHOL.one)), dmBody C isMod, .one)
+  iconst : C.code.lookup fInternConst = some ([(lEn, .one), (lEus, .one)], constBody, .one)
   gcd : C.code.lookup fGcd = some (dmParams.map (fun p => (p, ShapeHOL.one)), gcdBody C, .one)
 
 def nbLocals : List MlS := [nX, nY, nR, nL, nM, nH, nC, nE, nS, nT]
@@ -335,6 +336,98 @@ theorem nbSub_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
       (sub_spec (ctxH C H) (ctxOK_H hok _) s a b ox oy hbx hby (by omega) (limbs_len_mono (by omega)) (by omega))
       (fun H' o hp' hbr => ?_)
     exact tail_sized ra hok (a - b) o (hp.trans hp') hbr hc.litb (by simp; rfl) (by decide)
+
+/-! ## `beq`, `ble`: a comparison, then the constant `Bool.true` or `Bool.false` -/
+
+def nbConstTail (C : Ctx) : ProgHOL 64 :=
+  .seq (.assign .local nT (.load .one (.const (ecell C (C.PO + pinCount + 0)))))
+  (.seq (.call (some (some (.local, nH), none)) fInternConst [vv nS, vv nT]) (.return (.op .add [vv nH, .const 1])))
+
+theorem nb_constTail (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxOK C) (hc : BigCodes C)
+    {s : AState} {Γ : Env} {D : List MlS} (n : NIdx) (hS : Γ.get nS = some (Enc.idxW n)) (hD : nT ∈ D ∧ nH ∈ D) :
+    SpecR (σ := σ) (Inv C s Γ [] D) (nbConstTail C) s (constE n >>= fun x => pure (some x)) (UD.PostO C) := by
+  refine specR_congr (m' := emptyLevels >>= fun us => internConstE n us >>= fun x => pure (some x))
+    (by simp only [constE, bind_assoc]; rfl) ?_
+  refine specR_pinXI hok pinEmptyLevels 0 C.pins.emptyLevels _ (fun s hp => pinEmptyLevels_run hok hp)
+    (pin_emptyLevels_cell hok) nT hD.1 ?_
+  refine ILP.callE_spec nH fInternConst [lEn, lEus] [vv nS, vv nT] constBody
+    [Enc.idxW n, Enc.idxW C.pins.emptyLevels] (by decide) rfl hD.2 hc.iconst
+    ⟨by simp [hS], by simp, trivial⟩ (const_body_spec ra C hok s n C.pins.emptyLevels) (fun h s' => ?_)
+  refine specR_returnI _ (Enc.idxW h + 1) (by simp [sev]) (fun t ht => ?_)
+  exact ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
+
+def nbCmpE (isLe : Bool) : ExpHOL 64 :=
+  if isLe then .cmp .lower (vv nC) (.const 2) else .cmp .equal (vv nC) (.const 1)
+
+def nbCmpBody (C : Ctx) (isLe : Bool) : ProgHOL 64 :=
+  prologue nbLocals (.seq (.call (some (some (.local, nC), none)) fCmp [vv nA, vv nB])
+    (.ite (nbCmpE isLe)
+      (.seq (.assign .local nS (.load .one (.const (ecell C (C.PO + PIN_BOOL_TRUE))))) (nbConstTail C))
+      (.seq (.assign .local nS (.load .one (.const (ecell C (C.PO + PIN_BOOL_FALSE))))) (nbConstTail C))))
+
+theorem cmpN_eq1 (a b : Nat) : BitVec.ofNat 64 (cmpN a b) = 1#64 ↔ a = b := by
+  have hc3 : cmpN a b < 3 := by unfold cmpN; split <;> [omega; (split <;> omega)]
+  constructor
+  · intro e; have := congrArg BitVec.toNat e
+    simp [Nat.mod_eq_of_lt (show cmpN a b < 2 ^ 64 by omega)] at this
+    unfold cmpN at this; split at this <;> [omega; (split at this <;> omega)]
+  · intro e; subst e; simp [cmpN]
+
+theorem cmpN_lt2 (a b : Nat) : BitVec.ofNat 64 (cmpN a b) < 2#64 ↔ a ≤ b := by
+  have hc3 : cmpN a b < 3 := by unfold cmpN; split <;> [omega; (split <;> omega)]
+  rw [show (2#64 : BitVec 64) = BitVec.ofNat 64 2 from rfl, word_lt_iff _ _ (by unfold B; omega) (by decide)]
+  unfold cmpN; split <;> [omega; (split <;> omega)]
+
+theorem nb_cmpGen (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxOK C) (hc : BigCodes C)
+    {s : AState} {Γ : Env} {D : List MlS} (P : Prop) [Decidable P] (E : ExpHOL 64)
+    (hE : sev Γ E = some (if P then 1 else 0)) (hD : nS ∈ D ∧ nT ∈ D ∧ nH ∈ D) :
+    SpecR (σ := σ) (Inv C s Γ [] D)
+      (.ite E (.seq (.assign .local nS (.load .one (.const (ecell C (C.PO + PIN_BOOL_TRUE))))) (nbConstTail C))
+        (.seq (.assign .local nS (.load .one (.const (ecell C (C.PO + PIN_BOOL_FALSE))))) (nbConstTail C))) s
+      (if P then (boolTrueName >>= fun n => constE n >>= fun x => pure (some x))
+        else (boolFalseName >>= fun n => constE n >>= fun x => pure (some x))) (UD.PostO C) := by
+  by_cases hP : P
+  · refine specR_ifI _ 1 (by rw [hE, if_pos hP]) (fun _ => ?_) (fun h => absurd h (by decide))
+    rw [if_pos hP]
+    exact specR_pinAtI hok PIN_BOOL_TRUE (by decide) nS hD.1
+      (nb_constTail ra hok hc _ (by simp) hD.2)
+  · refine specR_ifI _ 0 (by rw [hE, if_neg hP]) (fun h => absurd rfl h) (fun _ => ?_)
+    rw [if_neg hP]
+    exact specR_pinAtI hok PIN_BOOL_FALSE (by decide) nS hD.1
+      (nb_constTail ra hok hc _ (by simp) hD.2)
+
+theorem nbCmp_spec (isLe : Bool) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
+    (hc : BigCodes C) (s : AState) (ha hb : EIdx) (a b : Nat)
+    (hva : s.store.view ha = some (.lit (.natVal a))) (hvb : s.store.view hb = some (.lit (.natVal b))) :
+    SpecR (σ := σ) (Pre C s (nbParams.zip [Enc.idxW ha, Enc.idxW hb])) (nbCmpBody C isLe) s
+      (natBinOpResult (if isLe then .ble else .beq) a b) (UD.PostO C) := by
+  refine specR_prologue (UD.postO_locals C) (nb_none C _) ?_
+  cases isLe
+  · simp only [Bool.false_eq_true, ite_false]
+    show SpecR _ _ s (if a = b then (boolTrueName >>= fun n => constE n >>= fun x => pure (some x))
+      else (boolFalseName >>= fun n => constE n >>= fun x => pure (some x))) _
+    refine specR_callWH (k := fun _ => if a = b then (boolTrueName >>= fun n => constE n >>= fun x => pure (some x))
+        else (boolFalseName >>= fun n => constE n >>= fun x => pure (some x))) nC fCmp bcParams _ bcBody
+      [Enc.idxW ha, Enc.idxW hb] (cmpN a b) (by decide) rfl (by decide) hc.cmp
+      ⟨by simp +decide [sev, vv, Env.get, nbParams, ctxEnv], by simp +decide [sev, vv, Env.get, nbParams, ctxEnv],
+        trivial⟩ (bc_spec C s ha hb a b hva hvb) ?_
+    refine nb_cmpGen ra hok hc (a = b) _ ?_ (by decide)
+    simp only [nbCmpE, sev, vv, Env.get_cons, ite_true, Bool.false_eq_true, ite_false]
+    simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, cmpN_eq1]
+  · simp only [ite_true]
+    show SpecR _ _ s (if a ≤ b then (boolTrueName >>= fun n => constE n >>= fun x => pure (some x))
+      else (boolFalseName >>= fun n => constE n >>= fun x => pure (some x))) _
+    refine specR_callWH (k := fun _ => if a ≤ b then (boolTrueName >>= fun n => constE n >>= fun x => pure (some x))
+        else (boolFalseName >>= fun n => constE n >>= fun x => pure (some x))) nC fCmp bcParams _ bcBody
+      [Enc.idxW ha, Enc.idxW hb] (cmpN a b) (by decide) rfl (by decide) hc.cmp
+      ⟨by simp +decide [sev, vv, Env.get, nbParams, ctxEnv], by simp +decide [sev, vv, Env.get, nbParams, ctxEnv],
+        trivial⟩ (bc_spec C s ha hb a b hva hvb) ?_
+    refine nb_cmpGen ra hok hc (a ≤ b) _ ?_ (by decide)
+    simp only [nbCmpE, sev, vv, Env.get_cons, ite_true]
+    have hc3 : cmpN a b < 3 := by unfold cmpN; split <;> [omega; (split <;> omega)]
+    have e : cmpN a b % 18446744073709551616 < 2 ↔ a ≤ b := by
+      rw [Nat.mod_eq_of_lt (by omega)]; unfold cmpN; split <;> [omega; (split <;> omega)]
+    simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, e]
 
 end
 
