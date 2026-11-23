@@ -201,3 +201,4 @@ import ConPanqueque.T.Core.Spine
 import ConPanqueque.T.Core.Beta
 import ConPanqueque.T.Core.AppIota
 import ConPanqueque.T.Core.WhnfApp
+import ConPanqueque.T.Core.StepApp
