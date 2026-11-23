@@ -493,6 +493,16 @@ theorem eval_shr (e : ExpHOL 64) (c v : BitVec 64) (h : (EV e) = some (.val (.wo
     (EV (.shift .lsr e (.const c))) = some (.val (.word (v >>> c.toNat))) := by
   rw [evalHOLExact]; simp [evalHOLExact, h, wordShiftHOL]; omega
 
+theorem eval_shlV (e f : ExpHOL 64) (c v : BitVec 64) (h : (EV e) = some (.val (.word v)))
+    (hf : (EV f) = some (.val (.word c))) (hc : c.toNat < 64) :
+    (EV (.shift .lsl e f)) = some (.val (.word (v <<< c.toNat))) := by
+  rw [evalHOLExact]; simp [evalHOLExact, h, hf, wordShiftHOL]; omega
+
+theorem eval_shrV (e f : ExpHOL 64) (c v : BitVec 64) (h : (EV e) = some (.val (.word v)))
+    (hf : (EV f) = some (.val (.word c))) (hc : c.toNat < 64) :
+    (EV (.shift .lsr e f)) = some (.val (.word (v >>> c.toNat))) := by
+  rw [evalHOLExact]; simp [evalHOLExact, h, hf, wordShiftHOL]; omega
+
 end
 
 theorem shl_ofNat (c k : Nat) (h : 2 ^ k * c < 2 ^ 64) :

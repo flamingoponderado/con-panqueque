@@ -35,6 +35,12 @@ def sev (Γ : Env) : ExpHOL 64 → Option (BitVec 64)
   | .panop .mul [a, b] => do let x ← sev Γ a; let y ← sev Γ b; pure (x * y)
   | .shift .lsl a (.const c) => if c.toNat < 64 then (sev Γ a).map (fun x : BitVec 64 => x <<< c.toNat) else none
   | .shift .lsr a (.const c) => if c.toNat < 64 then (sev Γ a).map (fun x : BitVec 64 => x >>> c.toNat) else none
+  | .shift .lsl a (.var .local z) => do
+      let x ← sev Γ a; let c ← Γ.get z
+      if c.toNat < 64 then some (x <<< c.toNat) else none
+  | .shift .lsr a (.var .local z) => do
+      let x ← sev Γ a; let c ← Γ.get z
+      if c.toNat < 64 then some (x >>> c.toNat) else none
   | .cmp o a b => do
       let x ← sev Γ a; let y ← sev Γ b
       pure (if Flapjack.Compiler.Encoders.Asm.wordCmpHOL o x y then 1 else 0)
@@ -86,6 +92,20 @@ theorem sev_sound (Γ : Env) (t : PState σ)
       simp only [Option.map_eq_some_iff] at h
       obtain ⟨x, hx, rfl⟩ := h
       exact eval_shr t _ _ _ (sev_sound Γ t hΓ a x hx) hc
+    · exact absurd h (by simp)
+  | .shift .lsl a (.var .local z), v, h => by
+    simp only [sev, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
+    obtain ⟨x, hx, c, hcz, h⟩ := h
+    split at h
+    · rename_i hc; cases h
+      exact eval_shlV t _ _ _ _ (sev_sound Γ t hΓ a x hx) (eval_vv t z _ (hΓ z c hcz)) hc
+    · exact absurd h (by simp)
+  | .shift .lsr a (.var .local z), v, h => by
+    simp only [sev, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
+    obtain ⟨x, hx, c, hcz, h⟩ := h
+    split at h
+    · rename_i hc; cases h
+      exact eval_shrV t _ _ _ _ (sev_sound Γ t hΓ a x hx) (eval_vv t z _ (hΓ z c hcz)) hc
     · exact absurd h (by simp)
   | .cmp o a b, v, h => by
     simp only [sev, Option.bind_eq_bind, Option.bind_eq_some_iff, Option.pure_def, Option.some.injEq] at h
