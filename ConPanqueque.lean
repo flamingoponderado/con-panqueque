@@ -181,3 +181,5 @@ import ConPanqueque.T.Big.Div
 import ConPanqueque.T.Big.Gcd
 import ConPanqueque.T.Big.Pow
 import ConPanqueque.V.LitStrong
+import ConPanqueque.T.Big.LitIntern
+import ConPanqueque.T.Big.SizeMath

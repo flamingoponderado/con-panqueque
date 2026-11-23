@@ -556,6 +556,9 @@ structure CtxOK (C : Ctx) : Prop where
   sepFVar : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 2 10
   b0FVar : C.L.base 10 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.fvar.toUInt64.toBitVec * 67108864
   b1FVar : C.L.base 10 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.fvar.toUInt64.toBitVec * 67108864
+  sepLit : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 0 17
+  b0Lit : C.L.base 17 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.lit.toUInt64.toBitVec * 67108864
+  b1Lit : C.L.base 17 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.lit.toUInt64.toBitVec * 67108864
   /-- The eager side's mode-memo descriptors sit at a fixed offset from the plain side's. -/
   eoSide : ∀ k, C.mG (.m true k) = C.mG (.m false k) + C.EO
   eoNe : C.EO ≠ 0
