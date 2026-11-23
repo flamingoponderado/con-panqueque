@@ -100,13 +100,13 @@ theorem lq_none (C : Ctx) (vals : List (BitVec 64)) :
     ∀ x, x ∈ lqLocals → (ctxEnv C ++ lqParams.zip vals).get x = none :=
   Knot.params_none C lqLocals lqParams vals (by decide) (by decide)
 
-theorem ecell_shl3 (C : Ctx) (o i : Nat) (hi : i < 2 ^ 60) :
+theorem ecell_shl3 (C : Ctx) (o i : Nat) (hi : i < 2 ^ 61) :
     ecell C o + BitVec.ofNat 64 i <<< (3 : Nat) = ecell C (o + i) := by
   rw [Str.w_shl _ _ (by omega), show i * 2 ^ 3 = 8 * i by omega, ecell_add]
 
 /-- The list comparison from position `i`, as a pure answer. -/
 theorem lq_spec (C : Ctx) (hcf : C.code.lookup fLq = some (lqParams.map (fun p => (p, ShapeHOL.one)), lqBody, .one))
-    (xs ys : List NIdx) (oa ob : Nat) (hn : xs.length = ys.length) (hlen : xs.length < 2 ^ 60)
+    (xs ys : List NIdx) (oa ob : Nat) (hn : xs.length = ys.length) (hlen : xs.length < 2 ^ 61)
     (ha : ∀ i (hi : i < xs.length), C.EH[oa + i]? = some (Enc.idxW xs[i]))
     (hb : ∀ i (hi : i < ys.length), C.EH[ob + i]? = some (Enc.idxW ys[i])) (s : AState) :
     ∀ k i, xs.length - i = k → i ≤ xs.length →
