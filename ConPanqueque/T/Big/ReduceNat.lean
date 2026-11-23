@@ -1206,6 +1206,38 @@ theorem rdTab_ok (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : Ct
   · exact nbShl_spec ra _ hok' hc' s1 a b px py hbx hby
   · exact nbShr_spec ra _ hok' hc' s1 a b px py hbx hby
 
+
+def rdLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, zF, zB, zG, zA, zC, zU, zE, zN, zL, zP, zW, zX, zY,
+  zR, zO]
+
+def rdCore (C : Ctx) : ProgHOL 64 :=
+  .seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv kE)) (.seq eViewP (.ite (.cmp .equal (vv lDg) (.const 4)) (.seq (.assign .local zF (.load .one (vv lRp))) (.seq (.assign .local zB (.load .one (.op .add [vv lRp, .const 8]))) (.seq (.assign .local lDh (vv zF)) (.seq eViewP (.ite (.cmp .equal (vv lDg) (.const 3)) (.seq (.assign .local zC (.load .one (vv lRp))) (.seq (.assign .local zU (.load .one (.op .add [vv lRp, .const 8]))) (.seq (.assign .local zE (.load .one (.const (ecell C (C.PO + pinCount + 0))))) (.ite (.cmp .equal (vv zU) (vv zE)) (.seq (.assign .local zN (.load .one (.const (ecell C (C.PO + PIN_NAT_SUCC))))) (.seq (.assign .local zL (.var .global gLit)) (.ite (.cmp .equal (vv zC) (vv zN)) (.ite (.op .and [vv zL, .const 1]) (rdSucc C) (.return (.const 0))) (.return (.const 0))))) (.return (.const 0)))))) (.ite (.cmp .equal (vv lDg) (.const 4)) (.seq (.assign .local zG (.load .one (vv lRp))) (.seq (.assign .local zA (.load .one (.op .add [vv lRp, .const 8]))) (.seq (.assign .local lDh (vv zG)) (.seq eViewP (.ite (.cmp .equal (vv lDg) (.const 3)) (.seq (.assign .local zC (.load .one (vv lRp))) (.seq (.assign .local zU (.load .one (.op .add [vv lRp, .const 8]))) (.seq (.assign .local zE (.load .one (.const (ecell C (C.PO + pinCount + 0))))) (.ite (.cmp .equal (vv zU) (vv zE)) (rdChain C (rdTab.map fun e => (e.i, e.fn))) (.return (.const 0)))))) (.return (.const 0))))))) (.return (.const 0)))))))) (.return (.const 0)))))
+
+def rdBody (C : Ctx) : ProgHOL 64 := prologue rdLocals (rdCore C)
+
+theorem rd_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ rdLocals → (ctxEnv C ++ kParams.zip vals).get x = none :=
+  Knot.params_none C rdLocals kParams vals (by decide) (by decide)
+
+theorem tagN_app {v : ENodeView} (h : v.tagN = 4) : ∃ f a, v = .app f a := by
+  cases v <;> simp [ENodeView.tagN] at h ⊢
+
+theorem tagN_lt (v : ENodeView) : v.tagN < 16 := by cases v <;> simp [ENodeView.tagN]
+
+theorem tagW_eq (v : ENodeView) (k : Nat) (hk : k < 16) :
+    BitVec.ofNat 64 v.tagN = BitVec.ofNat 64 k ↔ v.tagN = k := by
+  have := tagN_lt v
+  constructor
+  · intro e; have := congrArg BitVec.toNat e; simp at this; omega
+  · intro e; rw [e]
+
+theorem tag_of_tagN {h : EIdx} {v : ENodeView} (htn : v.tagN = h.tag.toNat) (k : Nat) (hk : k < 16) :
+    (h.tag == UInt32.ofNat k) = true ↔ v.tagN = k := by
+  rw [beq_iff_eq, htn]
+  constructor
+  · intro e; rw [e]; simp; omega
+  · intro e; apply UInt32.toNat_inj.mp; rw [e]; simp; omega
+
 end
 
 end ConPanqueque.T.Big
