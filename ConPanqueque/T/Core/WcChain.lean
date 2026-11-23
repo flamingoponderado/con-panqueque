@@ -186,6 +186,54 @@ def scBody (k : ModeKE) (C : Ctx) (fself : MlS) : ProgHOL 64 :=
     (.seq (.call (some (some (.local, scR), none)) fself [vv scN, vv scV])
     (modeSetP C k.toK scW (vv scK) (vv scV) (.return (.const 0)))))))
 
+/-- The tag test for `4` (`app`): the tag bits are `4`, or the handle is wide (whose tag is `4`). -/
+def tagIs4E (x : MlS) : ExpHOL 64 :=
+  .op .or [.cmp .equal (.op .and [.shift .lsr (vv x) (.const 26), .const 31]) (.const 4),
+    .op .and [.shift .lsr (vv x) (.const 30), .const 1]]
+
+theorem sev_tagIs4 (Γ : Env) (x : MlS) (h : EIdx) (hx : Γ.get x = some (Enc.idxW h)) :
+    ∃ w, sev Γ (tagIs4E x) = some w ∧ (w ≠ 0 ↔ h.tag = 4) := by
+  refine ⟨_, by simp only [tagIs4E, sev, sev_vv, hx]; rfl, ?_⟩
+  have hw : (Enc.idxW h).toNat = h.word.toNat := by simp [Enc.idxW]
+  have hlt : h.word.toNat < 2 ^ 32 := h.word.toNat_lt
+  have e31 : (31 : BitVec 64).toNat = 2 ^ 5 - 1 := rfl
+  have e1 : (1 : BitVec 64).toNat = 2 ^ 1 - 1 := rfl
+  simp only [show (26 : BitVec 64).toNat = 26 from rfl, show (30 : BitVec 64).toNat = 30 from rfl,
+    show (64 : Nat) > 26 from by decide, show (64 : Nat) > 30 from by decide, ite_true, Option.map_some,
+    Option.bind_eq_bind, Option.pure_def, Option.some.injEq]
+  rw [Ne, ← BitVec.toNat_inj]
+  simp only [Idx.tag, Idx.isWide, beq_iff_eq]
+  by_cases hwd : h.word / 1073741824 % 2 = 1
+  · rw [if_pos hwd]
+    have hwn : h.word.toNat / 1073741824 % 2 = 1 := by
+      have := congrArg UInt32.toNat hwd; simp [UInt32.toNat_div, UInt32.toNat_mod] at this; exact this
+    simp only [true_iff]
+    simp [BitVec.toNat_or, BitVec.toNat_and, BitVec.toNat_ushiftRight, hw, Nat.shiftRight_eq_div_pow, e1,
+      Nat.and_two_pow_sub_one_eq_mod, hwn, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+  · rw [if_neg hwd]
+    have hwn : h.word.toNat / 1073741824 % 2 = 0 := by
+      have : ¬ h.word.toNat / 1073741824 % 2 = 1 := by
+        intro c; apply hwd; apply UInt32.toNat_inj.mp; simp [UInt32.toNat_div, UInt32.toNat_mod]; omega
+      omega
+    have hbit : h.word.toNat / 67108864 % 32 = h.word.toNat / 67108864 % 16 := by omega
+    have hand31 : ∀ y : Nat, y &&& 31 = y % 32 := fun y => Nat.and_two_pow_sub_one_eq_mod y 5
+    have key : (Enc.idxW h >>> (26 : Nat)) &&& 31#64 = 4#64 ↔ h.word / 67108864 % 16 = 4 := by
+      constructor
+      · intro e; have := congrArg BitVec.toNat e
+        simp [BitVec.toNat_and, BitVec.toNat_ushiftRight, hw, Nat.shiftRight_eq_div_pow, hand31] at this
+        apply UInt32.toNat_inj.mp; simp [UInt32.toNat_div, UInt32.toNat_mod]; omega
+      · intro e; apply BitVec.eq_of_toNat_eq
+        have := congrArg UInt32.toNat e
+        simp [BitVec.toNat_and, BitVec.toNat_ushiftRight, hw, Nat.shiftRight_eq_div_pow, hand31]
+        simp [UInt32.toNat_div, UInt32.toNat_mod] at this; omega
+    by_cases hk : (Enc.idxW h >>> (26 : Nat)) &&& 31#64 = 4#64
+    · have := key.mp hk
+      simp [hk, this, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, BitVec.toNat_or, BitVec.toNat_and,
+        BitVec.toNat_ushiftRight, hw, Nat.shiftRight_eq_div_pow, e1, Nat.and_two_pow_sub_one_eq_mod, hwn]
+    · have := (not_congr key).mp hk
+      simp [hk, this, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, BitVec.toNat_or, BitVec.toNat_and,
+        BitVec.toNat_ushiftRight, hw, Nat.shiftRight_eq_div_pow, e1, Nat.and_two_pow_sub_one_eq_mod, hwn]
+
 section
 variable {σ : Type}
 
