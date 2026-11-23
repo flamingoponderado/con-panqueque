@@ -395,6 +395,7 @@ theorem rs_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
         Enc.idxW T, Enc.idxW m])) Brk s1 (rescueK mode (knot mode C n) C.fe d rl cvj cnP T m) (PostK (ctxH C H)))
     (hE : ∀ (H : List (BitVec 64)) s1 (rl : IRecRule) qr cvj cnP nF T qj cvT caps qT tbl o, C.H <+: H →
       RuleE C.EB C.EH qr rl → CIE C.EB C.EH qj (.ctorInfo cvj cnP nF T) → CIE C.EB C.EH qT (.indInfo cvT caps) →
+      C.fe.find? T = some (.indInfo cvT caps) →
       TblE C.EB C.EH o tbl →
       SpecR (σ := σ) (Pre (ctxH C H) s1 (reParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, ecell C qr, ecell C qj,
         Enc.idxW T, Enc.idxW m, ecell C qT, ecell C o])) Bre s1
@@ -529,7 +530,7 @@ theorem rs_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
             ⟨by simp +decide [Env.get, pmParams, ctxEnv], by simp +decide [Env.get, pmParams, ctxEnv],
               by simp; rfl, by simp, by simp, by simp +decide [Env.get, pmParams, ctxEnv], by simp,
               by simp [sev]; exact ecell_succ_sub C ot, trivial⟩
-            (hE H1 s rl qr cvj cnP nF T qj cvT caps qT tbl ot hp1 hrule hcij hciT htb) (fun r s2 H2 hp2 => ?_)
+            (hE H1 s rl qr cvj cnP nF T qj cvT caps qT tbl ot hp1 hrule hcij hciT hfind2 htb) (fun r s2 H2 hp2 => ?_)
           exact specR_returnI _ (Enc.idxW r) (by simp)
             (fun t ht => ⟨H2, hp1.trans hp2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
       · refine specR_ifI _ 1 (by simp +decide [Env.get, pmParams, ctxEnv, boolW]) (fun _ => ?_)

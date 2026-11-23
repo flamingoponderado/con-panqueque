@@ -2420,7 +2420,7 @@ theorem io_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
         (iotaFam mode (knot mode C n) C.fe d cv us mI rP isK (sargs.take (mI + 1)) usj cvj cnP ind rl margs)
         (Knot.PostB (ctxH C H)))
     (hRb : ∀ (H : List (BitVec 64)) s1 (wl : BitVec 64) (rl : IRecRule) (k : Nat), C.H <+: H →
-      ENList C.EB C.EH wl cv.levelParams → rl ∈ rules →
+      ENList C.EB C.EH wl cv.levelParams → rl ∈ rules → k < 2 ^ 64 →
       SpecR (σ := σ) (Pre (ctxH C H) s1 (rbParams.zip [Enc.idxW c, Enc.idxW rl.ctor, wl, Enc.idxW rl.rhs,
         BitVec.ofNat 64 k, Enc.idxW us])) Brb s1 (ruleBodyAt c rl.ctor cv.levelParams rl.rhs k us)
         (PostK (ctxH C H))) :
@@ -2638,7 +2638,7 @@ theorem io_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       ⟨by simp +decide [Env.get, ioParams, ctxEnv], by simp, by simp, by simp,
         by simp +decide [sev, Env.get, ioParams, ctxEnv, BitVec.ofNat_add_ofNat], by simp +decide [Env.get, ioParams, ctxEnv],
         trivial⟩
-      (hRb H5 s5 wl rl (rP + rl.nfields) hpX hlps (findRule_mem hfrr)) (fun body s7 H7 hp7 => ?_)
+      (hRb H5 s5 wl rl (rP + rl.nfields) hpX hlps (findRule_mem hfrr) (by omega)) (fun body s7 H7 hp7 => ?_)
     have hpX7 : C.H <+: H7 := hpX.trans hp7
     have hok7 := ctxOK_H hok H7
     set pp := if rP < mI + 1 then rP else mI + 1 with hpp
@@ -2718,7 +2718,7 @@ theorem io_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       ⟨by simp +decide [Env.get, ioParams, ctxEnv], by simp, by simp, by simp,
         by simp +decide [sev, Env.get, ioParams, ctxEnv, BitVec.ofNat_add_ofNat], by simp +decide [Env.get, ioParams, ctxEnv],
         trivial⟩
-      (hRb H6 s6 wl rl (rP + rl.nfields) hpX hlps (findRule_mem hfrr)) (fun body s7 H7 hp7 => ?_)
+      (hRb H6 s6 wl rl (rP + rl.nfields) hpX hlps (findRule_mem hfrr) (by omega)) (fun body s7 H7 hp7 => ?_)
     have hpX7 : C.H <+: H7 := hpX.trans hp7
     have hok7 := ctxOK_H hok H7
     set pp := if rP < mI + 1 then rP else mI + 1 with hpp
