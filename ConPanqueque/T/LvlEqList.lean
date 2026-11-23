@@ -1,5 +1,6 @@
 import ConPanqueque.T.LvlEqQ
 import ConPanqueque.T.LsView
+import ConPanqueque.T.Denote
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena ConRon.Bridge
@@ -343,6 +344,56 @@ theorem lvlsEqQ_spec (C : Ctx) (hok : CtxOK C)
   exact specR_ofRun hrun hsp (fun w st ⟨hw, hsr⟩ => ⟨e1, e2, hw, sr_congrS hsr e1 e2 e3 e4 (by
       obtain ⟨s'', hr'', hc''⟩ := lvlsEqQ_cok u v s lu lv hu hv hsr.cok
       rw [hrun] at hr''; simp only [Except.ok.injEq, Prod.mk.injEq] at hr''; rw [hr''.2]; exact hc'')⟩)
+
+
+/-- `lvlsEq?` from the state relation alone: the body views both lists first, halting on an invalid handle; a
+valid one denotes, the store being well formed. -/
+theorem lvlsEqQ_spec' (C : Ctx) (hok : CtxOK C)
+    (hcS : C.code.lookup fSubst = some (substParams.map (fun p => (p, ShapeHOL.one)), substBody C, .one))
+    (hcN : C.code.lookup fNeq = some ([(pNa, .one), (pNb, .one)], neqBody, .one))
+    (hcM : C.code.lookup fSimp = some ([(pLa, .one)], simpBody C, .one))
+    (hcC : C.code.lookup fComb = some ([(pLa, .one), (pLb, .one)], combBody C, .one))
+    (hcB : C.code.lookup fByC = some (bcParams.map (fun p => (p, ShapeHOL.one)), bcBody C, .one))
+    (hcI : C.code.lookup fITag = some ([(pLa, .one)], itagBody, .one))
+    (hcR : C.code.lookup fImax = some (leqParams.map (fun p => (p, ShapeHOL.one)), imBody C, .one))
+    (hcE : C.code.lookup fLvlEq = some ([(pLa, .one), (pLb, .one)], lvlEqBody, .one))
+    (hcT : C.code.lookup fRest = some (leqParams.map (fun p => (p, ShapeHOL.one)), restBody, .one))
+    (hcL : C.code.lookup fLeq = some (leqParams.map (fun p => (p, ShapeHOL.one)), leqBody, .one))
+    (hcV : C.code.lookup fEqv = some ([(pLa, .one), (pLb, .one)], eqvBody, .one))
+    (hcG : C.code.lookup fLsGo = some (lsParams.map (fun p => (p, ShapeHOL.one)), lsGoBody, .one))
+    (H : List (BitVec 64)) (u v : LsIdx) (s : AState) :
+    SpecR (Pre (σ := σ) (ctxH C H) s (lsParams.zip [Enc.idxW u, Enc.idxW v, BitVec.ofNat 64 0])) lsGoBody s
+      (lvlsEq? u v)
+      (fun o w s' st => s'.store = s.store ∧ s'.memos = s.memos ∧ PostOB (ctxH C H) o w s' st) := by
+  by_cases hu : (s.store.lss.view u).isSome = true
+  · by_cases hv : (s.store.lss.view v).isSome = true
+    · intro t ht
+      obtain ⟨rk, w⟩ := ht.1.twf
+      obtain ⟨lu, hlu⟩ := Option.isSome_iff_exists.mp (denoteLs_total' w.lss hu)
+      obtain ⟨lv, hlv⟩ := Option.isSome_iff_exists.mp (denoteLs_total' w.lss hv)
+      exact lvlsEqQ_spec C hok hcS hcN hcM hcC hcB hcI hcR hcE hcT hcL hcV hcG H u v s lu lv hlu hlv
+        ht.1.cok.rls ht.1.cok.les t ht
+    · refine specR_prologue (fun a w s' st L ⟨e1, e2, h⟩ => ⟨e1, e2, postOB_locals _ a w s' st L h⟩) (params_noneLs _ _) ?_
+      refine specR_assignI lDh (vv pLa) (Enc.idxW u) (by decide) (by simp +decide [ctxEnv, lsParams]) ?_
+      refine specR_assignI lFl (vv lFls) C.FLs (by decide) (by simp +decide [ctxEnv, lsParams] <;> rfl) ?_
+      refine specR_lsviewPI (C := ctxH C H) u (by simp +decide) (by simp +decide <;> rfl)
+        (by simp +decide [ctxEnv, lsParams] <;> rfl) ⟨by decide, by decide, by decide, by decide, by decide⟩
+        (fun v1 P1 hv1 _ hl1 => ?_)
+      refine specR_assignI lA1 (vv lRp) P1 (by decide) (by simp) ?_
+      refine specR_assignI lA2 (vv lRn) (BitVec.ofNat 64 (v1.map Enc.idxW).length) (by decide) (by simp +decide) ?_
+      refine specR_assignI lDh (vv pLb) (Enc.idxW v) (by decide) (by simp +decide [ctxEnv, lsParams]) ?_
+      refine specR_assignI lFl (vv lFls) C.FLs (by decide) (by simp +decide [ctxEnv, lsParams] <;> rfl) ?_
+      refine specR_lsviewPI (C := ctxH C H) v (by simp +decide) (by simp +decide <;> rfl)
+        (by simp +decide [ctxEnv, lsParams] <;> rfl) ⟨by decide, by decide, by decide, by decide, by decide⟩
+        (fun v2 P2 hv2 _ hl2 => ?_)
+      exact absurd (by rw [hv2]; rfl) hv
+  · refine specR_prologue (fun a w s' st L ⟨e1, e2, h⟩ => ⟨e1, e2, postOB_locals _ a w s' st L h⟩) (params_noneLs _ _) ?_
+    refine specR_assignI lDh (vv pLa) (Enc.idxW u) (by decide) (by simp +decide [ctxEnv, lsParams]) ?_
+    refine specR_assignI lFl (vv lFls) C.FLs (by decide) (by simp +decide [ctxEnv, lsParams] <;> rfl) ?_
+    refine specR_lsviewPI (C := ctxH C H) u (by simp +decide) (by simp +decide <;> rfl)
+      (by simp +decide [ctxEnv, lsParams] <;> rfl) ⟨by decide, by decide, by decide, by decide, by decide⟩
+      (fun v1 P1 hv1 _ hl1 => ?_)
+    exact absurd (by rw [hv1]; rfl) hu
 
 end
 
