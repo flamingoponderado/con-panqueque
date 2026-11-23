@@ -335,3 +335,4 @@ import ConPanqueque.T.CtxTr
 import ConPanqueque.T.Comp.Ents
 import ConPanqueque.T.Comp.InferProjC
 import ConPanqueque.T.Comp.InferBodyC
+import ConPanqueque.T.Comp.InferBodyIOC

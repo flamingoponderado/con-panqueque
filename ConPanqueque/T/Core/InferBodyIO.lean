@@ -19,6 +19,11 @@ open ConPanqueque.V.Enc
 
 def fIapIO := ofString "inferAppIO"
 def fIbcIO := ofString "inferConstIO"
+def fIprIO := ofString "inferProjIO"
+
+/-- The projection tail at the io grade: its own function, as the plain grade's `fIpr` runs `pjBody`. -/
+def ibPrKIO : ProgHOL 64 :=
+  .seq (.call (some (some (.local, ibX), none)) fIprIO [vv kFu, vv kD, vv ibA, vv ibI, vv ibB]) (.return (vv ibX))
 
 def ibConstIOT (fe : IFEnv) (n : NIdx) (us : LsIdx) : AM EIdx := do
   match fe.find? n with
@@ -78,9 +83,9 @@ def ibioCore : ProgHOL 64 :=
     (.seq (.call (some (some (.local, ibX), none)) fIapIO [vv kFu, vv kD, vv kE]) (.return (vv ibX)))
   (.ite (.cmp .equal (vv lDg) (.const 9))
     (.seq (.assign .local ibA (.load .one (vv lRp))) (.seq (.assign .local ibB (.load .one (.op .add [vv lRp, .const 8])))
-    (.ite (.cmp .equal (vv lRn) (.const 2)) (.seq (.assign .local ibI (.const 0)) ibPrK)
+    (.ite (.cmp .equal (vv lRn) (.const 2)) (.seq (.assign .local ibI (.const 0)) ibPrKIO)
       (.ite (.cmp .equal (vv lRn) (.const 3))
-        (.seq (.assign .local ibI (.load .one (.op .add [vv lRp, .const 16]))) ibPrK) hang))))
+        (.seq (.assign .local ibI (.load .one (.op .add [vv lRp, .const 16]))) ibPrKIO) hang))))
   (.ite (.cmp .equal (vv lDg) (.const 7))
     (.seq (.assign .local ibA (.load .one (vv lRp))) (.seq (.assign .local ibB (.load .one (.op .add [vv lRp, .const 8])))
       (.seq (.assign .local ibC (.load .one (.op .add [vv lRp, .const 16])))
@@ -96,7 +101,7 @@ structure IbioCodes (C : Ctx) (Bs Bc Bl Bfa Bla Bap Bpr Blt : ProgHOL 64) : Prop
   fa : C.code.lookup fIfaIO = some (ifaParams.map (fun p => (p, ShapeHOL.one)), Bfa, .one)
   la : C.code.lookup fIlaIO = some (ifaParams.map (fun p => (p, ShapeHOL.one)), Bla, .one)
   ap : C.code.lookup fIapIO = some (kParams.map (fun p => (p, ShapeHOL.one)), Bap, .one)
-  pr : C.code.lookup fIpr = some (iprParams.map (fun p => (p, ShapeHOL.one)), Bpr, .one)
+  pr : C.code.lookup fIprIO = some (iprParams.map (fun p => (p, ShapeHOL.one)), Bpr, .one)
   lt : C.code.lookup fIltIO = some (iltParams.map (fun p => (p, ShapeHOL.one)), Blt, .one)
 
 section
@@ -285,7 +290,7 @@ theorem ibio_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (Bs Bc Bl Bfa 
       refine specR_ifI _ 1 (by simp [sev, hlen, h0, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
         (fun h => absurd h (by decide))
       refine specR_assignI ibI (.const 0) (BitVec.ofNat 64 0) (by decide) rfl ?_
-      exact specR_callKR ibX fIpr iprParams [vv kFu, vv kD, vv ibA, vv ibI, vv ibB] Bpr
+      exact specR_callKR ibX fIprIO iprParams [vv kFu, vv kD, vv ibA, vv ibI, vv ibB] Bpr
         [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW sn, BitVec.ofNat 64 0, Enc.idxW pe] (by decide) rfl (by decide) hc.pr
         ⟨by simp +decide [Env.get, kParams, ctxEnv], by simp +decide [Env.get, kParams, ctxEnv], by simp, by simp, by simp, trivial⟩ (hPr sn 0 pe (by decide))
     · have hiB : i < B := by have := (limbs_length_lt_iff i 1).mp (by omega); simpa using this
@@ -301,7 +306,7 @@ theorem ibio_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (Bs Bc Bl Bfa 
         (by simp +decide [sev]) rfl (by
           have := wordsAt_get P (Enc.idxW sn :: Enc.idxW pe :: Enc.limbs i) 2 (by simp; omega) []
           rw [hx2] at this; simpa [er] using this) ?_
-      exact specR_callKR ibX fIpr iprParams [vv kFu, vv kD, vv ibA, vv ibI, vv ibB] Bpr
+      exact specR_callKR ibX fIprIO iprParams [vv kFu, vv kD, vv ibA, vv ibI, vv ibB] Bpr
         [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW sn, BitVec.ofNat 64 i, Enc.idxW pe] (by decide) rfl (by decide) hc.pr
         ⟨by simp +decide [Env.get, kParams, ctxEnv], by simp +decide [Env.get, kParams, ctxEnv], by simp, by simp, by simp, trivial⟩ (hPr sn i pe hiB)
     · have h2w : BitVec.ofNat 64 ((Enc.limbs i).length + 2) ≠ 2#64 := by
