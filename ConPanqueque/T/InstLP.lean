@@ -232,4 +232,48 @@ theorem callI_spec {β : Type} (C : Ctx) (B : ProgHOL 64)
 
 end
 
+theorem instLPGet_run (k : EIdx × Nat) (s : AState) : instLPGet k s = .ok ((memoSel .instLP s.memos)[k]?, s) := rfl
+theorem instLPSet_run (k : EIdx × Nat) (r : EIdx) (s : AState) :
+    instLPSet k r s = .ok ((), { s with memos := memoUpd .instLP s.memos ((memoSel .instLP s.memos).insert k r) }) :=
+  rfl
+
+section
+variable {σ : Type}
+
+theorem probedL_spec {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env} {M : Mem} {H : List (BitVec 64)}
+    (hcG : C.code.lookup fMemoGet = some ([(pG, .one), (pLen, .one)], memoGetBody, .one))
+    (hcP : C.code.lookup fMemoProbe = some ([(pG, .one), (pLen, .one)], memoProbeBody, .one))
+    (h : EIdx) (miss : ProgHOL 64) (m : AM EIdx)
+    (hh : Γ.get pH = some (Enc.idxW h)) (hkb : Γ.get lKb = some C.KB)
+    (hmiss : SpecR (Inv (σ := σ) (ctxH C H) s ((lX, 0) :: Γ) [] DI) miss s m (PostILP (ctxH C H))) :
+    SpecR (Inv (σ := σ) (ctxH C H) s Γ M DI) (probedL (C.mG (.e .instLP)) miss) s
+      (do match ← instLPGet (h, 0) with | some r => pure r | none => m) (PostILP (ctxH C H)) := by
+  unfold probedL
+  refine specR_memoGetI (C := ctxH C H) (ctxOK_H hok H) .instLP instLPGet instLPGet_run hcG hcP lX (vv pH)
+    (.const 0) h 0 (by decide) (by decide) (by simp [hh]) rfl hkb (fun r => ?_)
+  cases r with
+  | some w =>
+    refine specR_ifI (vv lX) (Enc.idxW w + 1) (by simp [optW, optWG]) (fun _ => ?_)
+      (fun hw => absurd hw (idxW_add_one_ne w))
+    exact specR_returnI (.op .sub [vv lX, .const 1]) (Enc.idxW w) (by simp [sev, optW, optWG, BitVec.add_sub_cancel])
+      (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  | none =>
+    exact specR_ifI (vv lX) 0 (by simp [optW, optWG]) (fun hw => absurd rfl hw) (fun _ => hmiss)
+
+theorem setRetL_spec {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env} {M : Mem} {H H1 : List (BitVec 64)}
+    (hp : H <+: H1)
+    (hcS : C.code.lookup fMemoSet = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoSetBody, .one))
+    (hcI : C.code.lookup fMemoIns = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoInsBody, .one))
+    (h r : EIdx) (hh : Γ.get pH = some (Enc.idxW h)) (hkb : Γ.get lKb = some C.KB)
+    (hw : Γ.get lW = some (Enc.idxW r)) :
+    SpecR (Inv (σ := σ) (ctxH C H1) s Γ M DI) (setRetL (C.mG (.e .instLP))) s (do instLPSet (h, 0) r; pure r)
+      (PostILP (ctxH C H)) := by
+  unfold setRetL
+  refine specR_memoSetI (C := ctxH C H1) (ctxOK_H hok H1) .instLP instLPSet instLPSet_run hcS hcI lX (vv pH)
+    (.const 0) (vv lW) h 0 r (by decide) (by decide) (by simp [hh]) rfl (by simp [hw]) hkb (fun w => ?_)
+  exact specR_returnI (vv lW) (Enc.idxW r) (by simp +decide [hw])
+    (fun t ht => ⟨H1, hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+end
+
 end ConPanqueque.T.ILP
