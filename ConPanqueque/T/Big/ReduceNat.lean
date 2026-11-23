@@ -32,6 +32,7 @@ def zX := ofString "rdx"
 def zY := ofString "rdy"
 def zR := ofString "rdr"
 def zO := ofString "rdo"
+def zP2 := ofString "rdp2"
 
 @[simp] theorem rd_zF_ne_zB : zF ≠ zB := by decide
 @[simp] theorem rd_zF_ne_zG : zF ≠ zG := by decide
@@ -885,6 +886,96 @@ theorem rd_leaf (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx} (hok : CtxOK C) 
   subst hw
   refine specR_returnI _ (optW r) (by simp) (fun t ht => ?_)
   exact ⟨H5, hp0.trans (hp1.trans (hp2.trans (hp3.trans (hp4.trans hp5)))), rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
+
+def opTab : List (Nat × NatBinOp) := [(15, .add), (16, .sub), (17, .mul), (18, .pow), (19, .beq), (20, .ble),
+  (21, .div), (22, .mod), (23, .gcd), (24, .land), (25, .lor), (26, .xor), (27, .shiftLeft), (28, .shiftRight)]
+
+def opFind (names : Array NIdx) (c : NIdx) : List (Nat × NatBinOp) → Option NatBinOp
+  | [] => none
+  | (i, op) :: r => if c == names[i]! then some op else opFind names c r
+
+theorem ite_ok {α : Type} (s : AState) (p : Prop) [Decidable p] (a : α) (m : AM α) (b : α)
+    (hm : m s = .ok (b, s)) : (if p then StateT.pure a else m) s = .ok (if p then a else b, s) := by
+  by_cases h : p
+  · simp [h]; rfl
+  · simp [h, hm]
+
+set_option maxHeartbeats 2000000 in
+theorem natBinOpOfName_run {C : Ctx} (hok : CtxOK C) (s : AState) (hp : s.pins = C.pins) (c : NIdx) :
+    natBinOpOfName? c s = .ok (opFind C.pins.names c opTab, s) := by
+  have hsz : C.pins.names.size = 52 := hok.pinsRel.1
+  simp (config := { maxSteps := 4000000 }) [natBinOpOfName?, natAddName, natSubName, natMulName, natPowName, natBeqName, natBleName, natDivName,
+    natModName, natGcdName, natLandName, natLorName, natXorName, natShiftLeftName, natShiftRightName,
+    pinNatAdd, pinNatSub, pinNatMul, pinNatPow, pinNatBeq, pinNatBle, pinNatDiv, pinNatMod, pinNatGcd,
+    pinNatLand, pinNatLor, pinNatXor, pinNatShiftLeft, pinNatShiftRight, pinAt, hp, hsz,
+    PIN_NAT_ADD, PIN_NAT_SUB, PIN_NAT_MUL, PIN_NAT_POW, PIN_NAT_BEQ, PIN_NAT_BLE, PIN_NAT_DIV, PIN_NAT_MOD,
+    PIN_NAT_GCD, PIN_NAT_LAND, PIN_NAT_LOR, PIN_NAT_XOR, PIN_NAT_SHIFT_LEFT, PIN_NAT_SHIFT_RIGHT,
+    get, getThe, MonadStateOf.get, StateT.get, bind, StateT.bind, pure, StateT.pure, Except.bind, Except.pure,
+    opFind, opTab]
+  repeat (first | refine ite_ok s _ _ _ _ ?_ | rfl)
+
+
+theorem opFind_cons (names : Array NIdx) (c : NIdx) (i : Nat) (op : NatBinOp) (r : List (Nat × NatBinOp))
+    (hi : i < names.size) :
+    opFind names c ((i, op) :: r) = if c = names[i] then some op else opFind names c r := by
+  simp only [opFind, getElem!_pos names i hi]
+  by_cases h : c = names[i] <;> simp [h]
+
+/-- An operation of the table: its pin, its twin operation, its function and body. -/
+structure NbE where
+  i : Nat
+  op : NatBinOp
+  fn : MlS
+  body : Ctx → ProgHOL 64
+
+def rdChain (C : Ctx) : List (Nat × MlS) → ProgHOL 64
+  | [] => .return (.const 0)
+  | (i, fn) :: r => .seq (.assign .local zP (.load .one (.const (ecell C (C.PO + i)))))
+      (.ite (.cmp .equal (vv zC) (vv zP)) (rdLeaf fn) (rdChain C r))
+
+theorem rd_chain (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx} (hok : CtxOK C) (hc : BigCodes C)
+    (hcr : C.code.lookup fRaw = some ([(qH, ShapeHOL.one)], rnBody C, .one))
+    (hcw : C.code.lookup fW = some (kParams.map (fun p => (p, ShapeHOL.one)), whnfE C fWB, .one))
+    (Q : AState → Prop) (hQ : ∀ s1 d e a s2, Q s1 → (knot mode C n).whnf d e s1 = .ok (a, s2) → Q s2)
+    (hW : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ d e, Callee (σ := σ) (ctxH C H) kParams
+      [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (whnfE C fWB) s1 ((knot mode C n).whnf d e)
+      (PostK (ctxH C H)))
+    {H0 : List (BitVec 64)} {s : AState} {D : List MlS} (hs : Q s) (hp0 : C.H <+: H0) (d : Nat) (a b : EIdx)
+    (c : NIdx) (hDD : zW ∈ D ∧ zX ∈ D ∧ zY ∈ D ∧ zR ∈ D ∧ zP ∈ D) :
+    ∀ (L : List NbE) (Γ : Env), (∀ e ∈ L, e.i < pinCount ∧
+      C.code.lookup e.fn = some (nbParams.map (fun p => (p, ShapeHOL.one)), e.body C, .one) ∧
+      ∀ (H : List (BitVec 64)) s1 px py a b, C.H <+: H → BlkAt H px (limbs a) → BlkAt H py (limbs b) →
+        SpecR (σ := σ) (Pre (ctxH C H) s1 (nbParams.zip [cellA C px, cellA C py])) (e.body C) s1
+          (natBinOpResult e.op a b) (UD.PostO (ctxH C H))) →
+    Γ.get kFu = some (BitVec.ofNat 64 n) → Γ.get kD = some (BitVec.ofNat 64 d) →
+    Γ.get zA = some (Enc.idxW a) → Γ.get zB = some (Enc.idxW b) → Γ.get zC = some (Enc.idxW c) →
+    Γ.get zX = none →
+    SpecR (σ := σ) (Inv (ctxH C H0) s Γ [] D) (rdChain C (L.map fun e => (e.i, e.fn))) s
+      (match opFind C.pins.names c (L.map fun e => (e.i, e.op)) with
+        | some op => leafT (knot mode C n) d a b op
+        | none => pure none) (UD.PostO C)
+  | [], Γ, _, _, _, _, _, _, _ => by
+    refine specR_returnI _ 0 rfl (fun t ht => ?_)
+    exact ⟨H0, hp0, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
+  | e :: L, Γ, hL, hFu, hD0, hA, hB, hC, hnX => by
+    obtain ⟨hi, hcf, hfn⟩ := hL e (List.mem_cons_self ..)
+    have hi' : e.i < C.pins.names.size := by rw [hok.pinsRel.1]; exact hi
+    simp only [List.map_cons, rdChain]
+    rw [opFind_cons _ _ _ _ _ hi']
+    refine specR_envLoadI (C := ctxH C H0) zP _ (C.PO + e.i) _ hDD.2.2.2.2 rfl (hok.pinsRel.2.1 e.i hi') ?_
+    by_cases hce : c = C.pins.names[e.i]
+    · refine specR_ifI _ 1 (by simp [sev, hC, hce, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+        (fun h => absurd h (by decide))
+      rw [if_pos hce]
+      exact rd_leaf mode n hok hc hcr hcw Q hQ hW e.op e.fn (e.body C) hcf hfn hs hp0 d a b (by simp [hFu])
+        (by simp [hD0]) (by simp [hA]) (by simp [hB]) ⟨hDD.1, hDD.2.1, hDD.2.2.1, hDD.2.2.2.1⟩ (by simp [hnX])
+    · have hne : Enc.idxW c ≠ Enc.idxW C.pins.names[e.i] := fun h => hce (Enc.idxW_inj h)
+      refine specR_ifI _ 0 (by simp [sev, hC, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne])
+        (fun h => absurd rfl h) (fun _ => ?_)
+      rw [if_neg hce]
+      exact rd_chain mode n hok hc hcr hcw Q hQ hW hs hp0 d a b c hDD L _
+        (fun e' he' => hL e' (List.mem_cons_of_mem _ he')) (by simp [hFu]) (by simp [hD0]) (by simp [hA])
+        (by simp [hB]) (by simp [hC]) (by simp [hnX])
 
 end
 
