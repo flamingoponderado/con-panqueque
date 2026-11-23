@@ -724,4 +724,47 @@ theorem add_final (x y : Nat) (hy : y < B ^ (limbs x).length) :
     · right; simp only [Nat.add_sub_cancel]
       generalize B ^ L = P at *; omega
 
+section
+variable {σ : Type}
+
+theorem fillI_succ_eq (B0 W : List (BitVec 64)) (o i : Nat) (w : BitVec 64) (hw : W[i]? = some w) :
+    (fillI B0 W o i).set (o + i) w = fillI B0 W o (i + 1) := by
+  simp [fillI, List.getD_eq_getElem?_getD, hw]
+
+/-- One digit of the sum: from the limbs and the carry, the digit is stored and the carry advances. -/
+theorem step_digit {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env} {D : List MlS} (B0 W : List (BitVec 64))
+    (od i x y : Nat) (hW : W[i]? = some (BitVec.ofNat 64 ((x + y) / B ^ i % B)))
+    (hlen : od + 1 + i < B0.length)
+    (hu : Γ.get aU = some (BitVec.ofNat 64 (x / B ^ i % B))) (hv : Γ.get aV = some (BitVec.ofNat 64 (y / B ^ i % B)))
+    (hc : Γ.get aC = some (BitVec.ofNat 64 (S x y i / B ^ i))) (hq : Γ.get aQo = some (cellA C (od + 1 + i)))
+    (hD : aS1 ∈ D ∧ aS ∈ D ∧ aC ∈ D) :
+    Step (Inv (σ := σ) (ctxH C (fillI B0 W (od + 1) i)) s Γ [] D) digitP
+      (Inv (ctxH C (fillI B0 W (od + 1) (i + 1))) s
+        ((aC, BitVec.ofNat 64 (S x y (i + 1) / B ^ (i + 1))) :: (aS, BitVec.ofNat 64 ((x + y) / B ^ i % B)) ::
+          (aS1, BitVec.ofNat 64 (x / B ^ i % B) + BitVec.ofNat 64 (y / B ^ i % B)) :: Γ) [] D) := by
+  obtain ⟨d1, d2, d3⟩ := hD
+  have hdx := Nat.mod_lt (x / B ^ i) Bpos
+  have hdy := Nat.mod_lt (y / B ^ i) Bpos
+  obtain ⟨wa, wc⟩ := addc_words (x / B ^ i % B) (y / B ^ i % B) (S x y i / B ^ i) hdx hdy (carry_le x y i)
+  rw [← sum_digit] at wa
+  rw [← carry_succ] at wc
+  unfold digitP
+  refine step_seq (step_assignI aS1 _ (BitVec.ofNat 64 (x / B ^ i % B) + BitVec.ofNat 64 (y / B ^ i % B)) d1
+    (by simp [sev, hu, hv])) ?_
+  refine step_seq (step_assignI aS _ (BitVec.ofNat 64 ((x + y) / B ^ i % B)) d2 (by simp [sev, hc]; exact wa)) ?_
+  refine step_seq (step_assignI aC _ (BitVec.ofNat 64 (S x y (i + 1) / B ^ (i + 1))) d3
+    (by simp [sev, hu, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; rw [← wc, ← wa]; rfl)) ?_
+  have hl := fillI_length B0 W (od + 1)
+  have hj : od + 1 + i < (ctxH C (fillI B0 W (od + 1) i)).H.length := by
+    show od + 1 + i < (fillI B0 W (od + 1) i).length; rw [hl]; exact hlen
+  refine step_mono (step_heapStoreI (ctxOK_H hok _) (vv aQo) (vv aS) (od + 1 + i) hj
+    (BitVec.ofNat 64 ((x + y) / B ^ i % B))
+    (by simp [hq]; rfl) (by simp)) (fun _ h => h) (fun t ht => ?_)
+  change Inv (ctxH C ((fillI B0 W (od + 1) i).set (od + 1 + i) (BitVec.ofNat 64 ((x + y) / B ^ i % B)))) s _ [] D t
+    at ht
+  rw [fillI_succ_eq B0 W (od + 1) i _ hW] at ht
+  exact ht
+
+end
+
 end ConPanqueque.T.Big
