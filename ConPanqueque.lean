@@ -260,3 +260,4 @@ import ConPanqueque.T.Core.InferPis
 import ConPanqueque.T.Core.InferForall
 import ConPanqueque.T.Core.InferLams
 import ConPanqueque.T.Core.InferLamsLoop
+import ConPanqueque.T.Core.EagerRed
