@@ -2685,6 +2685,89 @@ theorem step_mulInner {C : Ctx} (hok : CtxOK C) {s : AState} {Γr : Env} {D : Li
   obtain ⟨g1, g2, g3, g4, g5, g6, g7, g8, g9, g10, g11, g12, g13, g14, g15, g16, g17, g18⟩ := hn'
   simp [e1, e2, e3, e4, f _ hnV, f _ hnR, g16, g18, hz]
 
+def mulGout (Γ0 : Env) (C : Ctx) (od oa i : Nat) : Env :=
+  (mI, BitVec.ofNat 64 i) :: (mQr0, cellA C (od + 1 + i)) :: (mQa, cellA C (oa + 1 + i)) :: Γ0
+
+theorem mul_outer {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ0 : Env} {D : List MlS} {rest : ProgHOL 64}
+    {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop} (x y N : Nat) (B0 : List (BitVec 64)) (od oa ob : Nat)
+    (hba : BlkAt B0 oa (limbs x)) (hbb : BlkAt B0 ob (limbs y))
+    (hla : oa + 1 + (limbs x).length ≤ od + 1) (hlb : ob + 1 + (limbs y).length ≤ od + 1)
+    (hN : N = (limbs x).length + (limbs y).length) (hdst : od + 1 + N ≤ B0.length) (h61 : N < 2 ^ 61)
+    (hD : ∀ z ∈ mulTemps, z ∈ D)
+    (hD2 : mU ∈ D ∧ mV ∈ D ∧ mR ∈ D ∧ mC ∈ D ∧ mQa ∈ D ∧ mQb ∈ D ∧ mQr ∈ D ∧ mQr0 ∈ D ∧ mJ ∈ D ∧ mI ∈ D)
+    (hLa : Γ0.get mLa = some (BitVec.ofNat 64 (limbs x).length))
+    (hLb : Γ0.get mLb = some (BitVec.ofNat 64 (limbs y).length)) (hY : Γ0.get mY = some (cellA C ob))
+    (hn : ∀ z ∈ mulTemps, Γ0.get z = none)
+    (hn2 : Γ0.get mU = none ∧ Γ0.get mV = none ∧ Γ0.get mR = none ∧ Γ0.get mC = none ∧ Γ0.get mQb = none ∧
+      Γ0.get mQr = none ∧ Γ0.get mJ = none)
+    (hr : SpecR (Inv (ctxH C (setR B0 (od + 1) (Rl x y N (limbs x).length 0))) s
+      (mulGout Γ0 C od oa (limbs x).length) [] D) rest s m R) :
+    SpecR (Inv (ctxH C (setR B0 (od + 1) (Rl x y N 0 0))) s (mulGout Γ0 C od oa 0) [] D) (.seq mulOuter rest) s m R := by
+  obtain ⟨du, dv, dr, dc, dqa, dqb, dqr, dqr0, dj, di⟩ := hD2
+  obtain ⟨nu, nv, nr, nc, nqb, nqr, nj⟩ := hn2
+  have hyB : y < B ^ (limbs y).length := (limbs_length_lt_iff y _).mp (Nat.le_refl _)
+  refine specR_forI (σ := σ) (D := D) (M := []) _ _ rest (limbs x).length
+    (fun i => ctxH C (setR B0 (od + 1) (Rl x y N i 0))) (mulGout Γ0 C od oa)
+    (fun i hi => ⟨if Flapjack.Compiler.Encoders.Asm.wordCmpHOL .lower (BitVec.ofNat 64 i)
+      (BitVec.ofNat 64 (limbs x).length) then 1 else 0, by simp [sev, mulGout, Env.get, hLa], ?_⟩) (fun i hi => ?_) hr
+  · have e := word_lt_iff i (limbs x).length (by unfold B; omega) (by unfold B; omega)
+    by_cases h' : i < (limbs x).length
+    · simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, e.mpr h', h']
+    · have : ¬ BitVec.ofNat 64 i < BitVec.ofNat 64 (limbs x).length := fun x => h' (e.mp x)
+      simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, this, h']
+  have hlen0 : od + 1 + (Rl x y N i 0).length ≤ B0.length := by rw [Rl_length]; omega
+  have hxi : (setR B0 (od + 1) (Rl x y N i 0))[oa + 1 + i]? = some (BitVec.ofNat 64 (x / B ^ i % B)) := by
+    rw [setR_get_lo _ _ _ _ (by omega) (by omega), hba.2 i (by simpa using hi)]
+    simp [limbs_getElem x i hi]
+  refine step_seq (step_heapLoadI' (C := ctxH C _) mU (vv mQa) (oa + 1 + i) _ hxi du (by simp [mulGout]; rfl)) ?_
+  refine step_seq (step_assignI mC (.const 0) (BitVec.ofNat 64 0) dc rfl) ?_
+  refine step_seq (step_assignI mQb _ (cellA C (ob + 1 + 0)) dqb (by simp [sev, mulGout, hY]; exact cellA_add8 C _)) ?_
+  refine step_seq (step_assignI mQr (vv mQr0) (cellA C (od + 1 + i + 0)) dqr (by simp [mulGout])) ?_
+  refine step_seq (step_assignI mJ (.const 0) (BitVec.ofNat 64 0) dj rfl) ?_
+  let Γr : Env := (mU, BitVec.ofNat 64 (x / B ^ i % B)) :: mulGout Γ0 C od oa i
+  refine step_seq (step_mono (step_mulInner (C := C) (Γr := Γr) hok x y N B0 od ob i hbb hlb (by omega) (by omega)
+    (by omega) hD ⟨dv, dr, dc, dqb, dqr, dj⟩ (by simp [Γr, mulGout, hLb]) (by simp [Γr])
+    (fun z hz => by
+      have h1 := hn z hz
+      simp only [mulTemps, List.mem_cons, List.not_mem_nil, or_false] at hz
+      rcases hz with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> simpa [Γr, mulGout] using h1)
+    (by simp [Γr, mulGout, nv]) (by simp [Γr, mulGout, nr]))
+    (fun t ht => inv_envMono ht (fun z v hz => ?_)) (fun _ h => h)) ?_
+  · simp only [mulGin, Γr, mulGout, Env.get_cons, cr_zero] at hz ⊢
+    by_cases e1 : z = mJ
+    · subst e1; simpa using hz
+    by_cases e2 : z = mQr
+    · subst e2; simpa using hz
+    by_cases e3 : z = mQb
+    · subst e3; simpa using hz
+    by_cases e4 : z = mC
+    · subst e4; simpa using hz
+    simp [e1, e2, e3, e4] at hz ⊢; exact hz
+  have hlenL : od + 1 + (Rl x y N i (limbs y).length).length ≤ B0.length := by rw [Rl_length]; omega
+  have hj1 : od + 1 + i + (limbs y).length < (ctxH C (setR B0 (od + 1) (Rl x y N i (limbs y).length))).H.length := by
+    show _ < (setR B0 (od + 1) _).length; rw [setR_length _ _ _ hlenL]; omega
+  refine step_seq (step_heapStoreI (ctxOK_H hok _) (vv mQr) (vv mC) _ hj1 (BitVec.ofNat 64 (cr x y i (limbs y).length))
+    (by simp [mulGin]; rfl) (by simp [mulGin])) ?_
+  change Step (Inv (ctxH C ((setR B0 (od + 1) (Rl x y N i (limbs y).length)).set (od + 1 + i + (limbs y).length) _))
+    s _ [] D) _ _
+  rw [show od + 1 + i + (limbs y).length = od + 1 + (i + (limbs y).length) by omega,
+    setR_set _ _ _ _ _ hlenL (by rw [Rl_length]; omega), Rl_row x y N i hyB (by omega)]
+  refine step_seq (step_assignI mQa _ (cellA C (oa + 1 + i + 1)) dqa (by simp [sev, mulGin, Γr, mulGout]; exact cellA_add8 C _)) ?_
+  refine step_seq (step_assignI mQr0 _ (cellA C (od + 1 + i + 1)) dqr0
+    (by simp [sev, mulGin, Γr, mulGout]; exact cellA_add8 C _)) ?_
+  refine step_mono (step_assignI mI _ (BitVec.ofNat 64 (i + 1)) di (by simp [sev, mulGin, Γr, mulGout]; exact word_add1_eq i))
+    (fun _ h => h) (fun t ht => inv_envMono ht (fun z v hz => ?_))
+  simp only [mulGout, Env.get_cons] at hz ⊢
+  by_cases e1 : z = mI
+  · subst e1; simp_all
+  by_cases e2 : z = mQr0
+  · subst e2; simp_all [Nat.add_assoc]
+  by_cases e3 : z = mQa
+  · subst e3; simp_all [Nat.add_assoc]
+  simp only [e1, e2, e3, ite_false] at hz
+  have f : ∀ w, Γ0.get w = none → z ≠ w := fun w hw e => by subst e; rw [hw] at hz; simp at hz
+  simp [mulGin, Γr, mulGout, e1, e2, e3, f _ nu, f _ nc, f _ nqb, f _ nqr, f _ nj, hz]
+
 end
 
 end ConPanqueque.T.Big
