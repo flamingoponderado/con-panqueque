@@ -1,4 +1,5 @@
 import ConPanqueque.T.Core.DefeqBody
+import ConPanqueque.T.Core.StructEta
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena ConRon.Bridge
@@ -458,6 +459,688 @@ def ljParams : List MlS := [ljF, ljK, ljH]
 def ljLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, ljB, ljR, ljJ, ljW]
 def ljBody (C : Ctx) : ProgHOL 64 := prologue ljLocals (.ite (.cmp .equal (vv ljF) (.const 0)) hang (.ite (tagIsE ljH 5) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv ljH)) (.seq eViewP (.seq (.assign .local ljB (.load .one (.op .add [(vv lRp), (.const 8)]))) (.seq (.call (some (some (.local, ljR), none)) fLj [(.op .sub [(vv ljF), (.const 1)]), (.op .add [(vv ljK), (.const 1)]), (vv ljB)]) (.return (vv ljR))))))) (.ite (tagIsE ljH 0) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv ljH)) (.seq eViewP (.ite (.cmp .equal (vv lRn) (.const 0)) (.seq (.assign .local ljJ (.const 0)) (.ite (.cmp .lower (vv ljJ) (vv ljK)) (alloc2 C ljW (vv ljK) (vv ljJ) (.return (vv ljW))) (.return (.const 0)))) (.ite (.cmp .equal (vv lRn) (.const 1)) (.seq (.assign .local ljJ (.load .one (vv lRp))) (.ite (.cmp .lower (vv ljJ) (vv ljK)) (alloc2 C ljW (vv ljK) (vv ljJ) (.return (vv ljW))) (.return (.const 0)))) hang))))) (.return (.const 0)))))
 
+def uwN := ofString "puw_uwn"
+def uwE := ofString "puw_uwe"
+def uwH := ofString "puw_uwh"
+def uwC := ofString "puw_uwc"
+def uwP := ofString "puw_uwp"
+def uwQ := ofString "puw_uwq"
+def uwK := ofString "puw_uwk"
+def uwV := ofString "puw_uwv"
+def uwL := ofString "puw_uwl"
+def uwKk := ofString "puw_uwkk"
+def uwJ := ofString "puw_uwj"
+def uwX := ofString "puw_uwx"
+def uwLa := ofString "puw_uwla"
+def uwA := ofString "puw_uwa"
+def uwR := ofString "puw_uwr"
+def fUw := ofString "unwrapIdDefs"
+
+@[simp] theorem puw_uwN_ne_uwE : uwN ≠ uwE := by decide
+@[simp] theorem puw_uwN_ne_uwH : uwN ≠ uwH := by decide
+@[simp] theorem puw_uwN_ne_uwC : uwN ≠ uwC := by decide
+@[simp] theorem puw_uwN_ne_uwP : uwN ≠ uwP := by decide
+@[simp] theorem puw_uwN_ne_uwQ : uwN ≠ uwQ := by decide
+@[simp] theorem puw_uwN_ne_uwK : uwN ≠ uwK := by decide
+@[simp] theorem puw_uwN_ne_uwV : uwN ≠ uwV := by decide
+@[simp] theorem puw_uwN_ne_uwL : uwN ≠ uwL := by decide
+@[simp] theorem puw_uwN_ne_uwKk : uwN ≠ uwKk := by decide
+@[simp] theorem puw_uwN_ne_uwJ : uwN ≠ uwJ := by decide
+@[simp] theorem puw_uwN_ne_uwX : uwN ≠ uwX := by decide
+@[simp] theorem puw_uwN_ne_uwLa : uwN ≠ uwLa := by decide
+@[simp] theorem puw_uwN_ne_uwA : uwN ≠ uwA := by decide
+@[simp] theorem puw_uwN_ne_uwR : uwN ≠ uwR := by decide
+@[simp] theorem puw_uwN_ne_lFl : uwN ≠ lFl := by decide
+@[simp] theorem puw_lFl_ne_uwN : lFl ≠ uwN := by decide
+@[simp] theorem puw_uwN_ne_lDh : uwN ≠ lDh := by decide
+@[simp] theorem puw_lDh_ne_uwN : lDh ≠ uwN := by decide
+@[simp] theorem puw_uwN_ne_lDt : uwN ≠ lDt := by decide
+@[simp] theorem puw_lDt_ne_uwN : lDt ≠ uwN := by decide
+@[simp] theorem puw_uwN_ne_lDg : uwN ≠ lDg := by decide
+@[simp] theorem puw_lDg_ne_uwN : lDg ≠ uwN := by decide
+@[simp] theorem puw_uwN_ne_lDi : uwN ≠ lDi := by decide
+@[simp] theorem puw_lDi_ne_uwN : lDi ≠ uwN := by decide
+@[simp] theorem puw_uwN_ne_lRp : uwN ≠ lRp := by decide
+@[simp] theorem puw_lRp_ne_uwN : lRp ≠ uwN := by decide
+@[simp] theorem puw_uwN_ne_lRn : uwN ≠ lRn := by decide
+@[simp] theorem puw_lRn_ne_uwN : lRn ≠ uwN := by decide
+@[simp] theorem puw_uwN_ne_lFle : uwN ≠ lFle := by decide
+@[simp] theorem puw_lFle_ne_uwN : lFle ≠ uwN := by decide
+@[simp] theorem puw_uwN_ne_lKb : uwN ≠ lKb := by decide
+@[simp] theorem puw_lKb_ne_uwN : lKb ≠ uwN := by decide
+@[simp] theorem puw_uwN_ne_lDir : uwN ≠ lDir := by decide
+@[simp] theorem puw_lDir_ne_uwN : lDir ≠ uwN := by decide
+@[simp] theorem puw_uwN_ne_lFln : uwN ≠ lFln := by decide
+@[simp] theorem puw_lFln_ne_uwN : lFln ≠ uwN := by decide
+@[simp] theorem puw_uwN_ne_lFll : uwN ≠ lFll := by decide
+@[simp] theorem puw_lFll_ne_uwN : lFll ≠ uwN := by decide
+@[simp] theorem puw_uwN_ne_lFls : uwN ≠ lFls := by decide
+@[simp] theorem puw_lFls_ne_uwN : lFls ≠ uwN := by decide
+@[simp] theorem puw_uwN_ne_kFu : uwN ≠ kFu := by decide
+@[simp] theorem puw_kFu_ne_uwN : kFu ≠ uwN := by decide
+@[simp] theorem puw_uwN_ne_kD : uwN ≠ kD := by decide
+@[simp] theorem puw_kD_ne_uwN : kD ≠ uwN := by decide
+@[simp] theorem puw_uwE_ne_uwN : uwE ≠ uwN := by decide
+@[simp] theorem puw_uwE_ne_uwH : uwE ≠ uwH := by decide
+@[simp] theorem puw_uwE_ne_uwC : uwE ≠ uwC := by decide
+@[simp] theorem puw_uwE_ne_uwP : uwE ≠ uwP := by decide
+@[simp] theorem puw_uwE_ne_uwQ : uwE ≠ uwQ := by decide
+@[simp] theorem puw_uwE_ne_uwK : uwE ≠ uwK := by decide
+@[simp] theorem puw_uwE_ne_uwV : uwE ≠ uwV := by decide
+@[simp] theorem puw_uwE_ne_uwL : uwE ≠ uwL := by decide
+@[simp] theorem puw_uwE_ne_uwKk : uwE ≠ uwKk := by decide
+@[simp] theorem puw_uwE_ne_uwJ : uwE ≠ uwJ := by decide
+@[simp] theorem puw_uwE_ne_uwX : uwE ≠ uwX := by decide
+@[simp] theorem puw_uwE_ne_uwLa : uwE ≠ uwLa := by decide
+@[simp] theorem puw_uwE_ne_uwA : uwE ≠ uwA := by decide
+@[simp] theorem puw_uwE_ne_uwR : uwE ≠ uwR := by decide
+@[simp] theorem puw_uwE_ne_lFl : uwE ≠ lFl := by decide
+@[simp] theorem puw_lFl_ne_uwE : lFl ≠ uwE := by decide
+@[simp] theorem puw_uwE_ne_lDh : uwE ≠ lDh := by decide
+@[simp] theorem puw_lDh_ne_uwE : lDh ≠ uwE := by decide
+@[simp] theorem puw_uwE_ne_lDt : uwE ≠ lDt := by decide
+@[simp] theorem puw_lDt_ne_uwE : lDt ≠ uwE := by decide
+@[simp] theorem puw_uwE_ne_lDg : uwE ≠ lDg := by decide
+@[simp] theorem puw_lDg_ne_uwE : lDg ≠ uwE := by decide
+@[simp] theorem puw_uwE_ne_lDi : uwE ≠ lDi := by decide
+@[simp] theorem puw_lDi_ne_uwE : lDi ≠ uwE := by decide
+@[simp] theorem puw_uwE_ne_lRp : uwE ≠ lRp := by decide
+@[simp] theorem puw_lRp_ne_uwE : lRp ≠ uwE := by decide
+@[simp] theorem puw_uwE_ne_lRn : uwE ≠ lRn := by decide
+@[simp] theorem puw_lRn_ne_uwE : lRn ≠ uwE := by decide
+@[simp] theorem puw_uwE_ne_lFle : uwE ≠ lFle := by decide
+@[simp] theorem puw_lFle_ne_uwE : lFle ≠ uwE := by decide
+@[simp] theorem puw_uwE_ne_lKb : uwE ≠ lKb := by decide
+@[simp] theorem puw_lKb_ne_uwE : lKb ≠ uwE := by decide
+@[simp] theorem puw_uwE_ne_lDir : uwE ≠ lDir := by decide
+@[simp] theorem puw_lDir_ne_uwE : lDir ≠ uwE := by decide
+@[simp] theorem puw_uwE_ne_lFln : uwE ≠ lFln := by decide
+@[simp] theorem puw_lFln_ne_uwE : lFln ≠ uwE := by decide
+@[simp] theorem puw_uwE_ne_lFll : uwE ≠ lFll := by decide
+@[simp] theorem puw_lFll_ne_uwE : lFll ≠ uwE := by decide
+@[simp] theorem puw_uwE_ne_lFls : uwE ≠ lFls := by decide
+@[simp] theorem puw_lFls_ne_uwE : lFls ≠ uwE := by decide
+@[simp] theorem puw_uwE_ne_kFu : uwE ≠ kFu := by decide
+@[simp] theorem puw_kFu_ne_uwE : kFu ≠ uwE := by decide
+@[simp] theorem puw_uwE_ne_kD : uwE ≠ kD := by decide
+@[simp] theorem puw_kD_ne_uwE : kD ≠ uwE := by decide
+@[simp] theorem puw_uwH_ne_uwN : uwH ≠ uwN := by decide
+@[simp] theorem puw_uwH_ne_uwE : uwH ≠ uwE := by decide
+@[simp] theorem puw_uwH_ne_uwC : uwH ≠ uwC := by decide
+@[simp] theorem puw_uwH_ne_uwP : uwH ≠ uwP := by decide
+@[simp] theorem puw_uwH_ne_uwQ : uwH ≠ uwQ := by decide
+@[simp] theorem puw_uwH_ne_uwK : uwH ≠ uwK := by decide
+@[simp] theorem puw_uwH_ne_uwV : uwH ≠ uwV := by decide
+@[simp] theorem puw_uwH_ne_uwL : uwH ≠ uwL := by decide
+@[simp] theorem puw_uwH_ne_uwKk : uwH ≠ uwKk := by decide
+@[simp] theorem puw_uwH_ne_uwJ : uwH ≠ uwJ := by decide
+@[simp] theorem puw_uwH_ne_uwX : uwH ≠ uwX := by decide
+@[simp] theorem puw_uwH_ne_uwLa : uwH ≠ uwLa := by decide
+@[simp] theorem puw_uwH_ne_uwA : uwH ≠ uwA := by decide
+@[simp] theorem puw_uwH_ne_uwR : uwH ≠ uwR := by decide
+@[simp] theorem puw_uwH_ne_lFl : uwH ≠ lFl := by decide
+@[simp] theorem puw_lFl_ne_uwH : lFl ≠ uwH := by decide
+@[simp] theorem puw_uwH_ne_lDh : uwH ≠ lDh := by decide
+@[simp] theorem puw_lDh_ne_uwH : lDh ≠ uwH := by decide
+@[simp] theorem puw_uwH_ne_lDt : uwH ≠ lDt := by decide
+@[simp] theorem puw_lDt_ne_uwH : lDt ≠ uwH := by decide
+@[simp] theorem puw_uwH_ne_lDg : uwH ≠ lDg := by decide
+@[simp] theorem puw_lDg_ne_uwH : lDg ≠ uwH := by decide
+@[simp] theorem puw_uwH_ne_lDi : uwH ≠ lDi := by decide
+@[simp] theorem puw_lDi_ne_uwH : lDi ≠ uwH := by decide
+@[simp] theorem puw_uwH_ne_lRp : uwH ≠ lRp := by decide
+@[simp] theorem puw_lRp_ne_uwH : lRp ≠ uwH := by decide
+@[simp] theorem puw_uwH_ne_lRn : uwH ≠ lRn := by decide
+@[simp] theorem puw_lRn_ne_uwH : lRn ≠ uwH := by decide
+@[simp] theorem puw_uwH_ne_lFle : uwH ≠ lFle := by decide
+@[simp] theorem puw_lFle_ne_uwH : lFle ≠ uwH := by decide
+@[simp] theorem puw_uwH_ne_lKb : uwH ≠ lKb := by decide
+@[simp] theorem puw_lKb_ne_uwH : lKb ≠ uwH := by decide
+@[simp] theorem puw_uwH_ne_lDir : uwH ≠ lDir := by decide
+@[simp] theorem puw_lDir_ne_uwH : lDir ≠ uwH := by decide
+@[simp] theorem puw_uwH_ne_lFln : uwH ≠ lFln := by decide
+@[simp] theorem puw_lFln_ne_uwH : lFln ≠ uwH := by decide
+@[simp] theorem puw_uwH_ne_lFll : uwH ≠ lFll := by decide
+@[simp] theorem puw_lFll_ne_uwH : lFll ≠ uwH := by decide
+@[simp] theorem puw_uwH_ne_lFls : uwH ≠ lFls := by decide
+@[simp] theorem puw_lFls_ne_uwH : lFls ≠ uwH := by decide
+@[simp] theorem puw_uwH_ne_kFu : uwH ≠ kFu := by decide
+@[simp] theorem puw_kFu_ne_uwH : kFu ≠ uwH := by decide
+@[simp] theorem puw_uwH_ne_kD : uwH ≠ kD := by decide
+@[simp] theorem puw_kD_ne_uwH : kD ≠ uwH := by decide
+@[simp] theorem puw_uwC_ne_uwN : uwC ≠ uwN := by decide
+@[simp] theorem puw_uwC_ne_uwE : uwC ≠ uwE := by decide
+@[simp] theorem puw_uwC_ne_uwH : uwC ≠ uwH := by decide
+@[simp] theorem puw_uwC_ne_uwP : uwC ≠ uwP := by decide
+@[simp] theorem puw_uwC_ne_uwQ : uwC ≠ uwQ := by decide
+@[simp] theorem puw_uwC_ne_uwK : uwC ≠ uwK := by decide
+@[simp] theorem puw_uwC_ne_uwV : uwC ≠ uwV := by decide
+@[simp] theorem puw_uwC_ne_uwL : uwC ≠ uwL := by decide
+@[simp] theorem puw_uwC_ne_uwKk : uwC ≠ uwKk := by decide
+@[simp] theorem puw_uwC_ne_uwJ : uwC ≠ uwJ := by decide
+@[simp] theorem puw_uwC_ne_uwX : uwC ≠ uwX := by decide
+@[simp] theorem puw_uwC_ne_uwLa : uwC ≠ uwLa := by decide
+@[simp] theorem puw_uwC_ne_uwA : uwC ≠ uwA := by decide
+@[simp] theorem puw_uwC_ne_uwR : uwC ≠ uwR := by decide
+@[simp] theorem puw_uwC_ne_lFl : uwC ≠ lFl := by decide
+@[simp] theorem puw_lFl_ne_uwC : lFl ≠ uwC := by decide
+@[simp] theorem puw_uwC_ne_lDh : uwC ≠ lDh := by decide
+@[simp] theorem puw_lDh_ne_uwC : lDh ≠ uwC := by decide
+@[simp] theorem puw_uwC_ne_lDt : uwC ≠ lDt := by decide
+@[simp] theorem puw_lDt_ne_uwC : lDt ≠ uwC := by decide
+@[simp] theorem puw_uwC_ne_lDg : uwC ≠ lDg := by decide
+@[simp] theorem puw_lDg_ne_uwC : lDg ≠ uwC := by decide
+@[simp] theorem puw_uwC_ne_lDi : uwC ≠ lDi := by decide
+@[simp] theorem puw_lDi_ne_uwC : lDi ≠ uwC := by decide
+@[simp] theorem puw_uwC_ne_lRp : uwC ≠ lRp := by decide
+@[simp] theorem puw_lRp_ne_uwC : lRp ≠ uwC := by decide
+@[simp] theorem puw_uwC_ne_lRn : uwC ≠ lRn := by decide
+@[simp] theorem puw_lRn_ne_uwC : lRn ≠ uwC := by decide
+@[simp] theorem puw_uwC_ne_lFle : uwC ≠ lFle := by decide
+@[simp] theorem puw_lFle_ne_uwC : lFle ≠ uwC := by decide
+@[simp] theorem puw_uwC_ne_lKb : uwC ≠ lKb := by decide
+@[simp] theorem puw_lKb_ne_uwC : lKb ≠ uwC := by decide
+@[simp] theorem puw_uwC_ne_lDir : uwC ≠ lDir := by decide
+@[simp] theorem puw_lDir_ne_uwC : lDir ≠ uwC := by decide
+@[simp] theorem puw_uwC_ne_lFln : uwC ≠ lFln := by decide
+@[simp] theorem puw_lFln_ne_uwC : lFln ≠ uwC := by decide
+@[simp] theorem puw_uwC_ne_lFll : uwC ≠ lFll := by decide
+@[simp] theorem puw_lFll_ne_uwC : lFll ≠ uwC := by decide
+@[simp] theorem puw_uwC_ne_lFls : uwC ≠ lFls := by decide
+@[simp] theorem puw_lFls_ne_uwC : lFls ≠ uwC := by decide
+@[simp] theorem puw_uwC_ne_kFu : uwC ≠ kFu := by decide
+@[simp] theorem puw_kFu_ne_uwC : kFu ≠ uwC := by decide
+@[simp] theorem puw_uwC_ne_kD : uwC ≠ kD := by decide
+@[simp] theorem puw_kD_ne_uwC : kD ≠ uwC := by decide
+@[simp] theorem puw_uwP_ne_uwN : uwP ≠ uwN := by decide
+@[simp] theorem puw_uwP_ne_uwE : uwP ≠ uwE := by decide
+@[simp] theorem puw_uwP_ne_uwH : uwP ≠ uwH := by decide
+@[simp] theorem puw_uwP_ne_uwC : uwP ≠ uwC := by decide
+@[simp] theorem puw_uwP_ne_uwQ : uwP ≠ uwQ := by decide
+@[simp] theorem puw_uwP_ne_uwK : uwP ≠ uwK := by decide
+@[simp] theorem puw_uwP_ne_uwV : uwP ≠ uwV := by decide
+@[simp] theorem puw_uwP_ne_uwL : uwP ≠ uwL := by decide
+@[simp] theorem puw_uwP_ne_uwKk : uwP ≠ uwKk := by decide
+@[simp] theorem puw_uwP_ne_uwJ : uwP ≠ uwJ := by decide
+@[simp] theorem puw_uwP_ne_uwX : uwP ≠ uwX := by decide
+@[simp] theorem puw_uwP_ne_uwLa : uwP ≠ uwLa := by decide
+@[simp] theorem puw_uwP_ne_uwA : uwP ≠ uwA := by decide
+@[simp] theorem puw_uwP_ne_uwR : uwP ≠ uwR := by decide
+@[simp] theorem puw_uwP_ne_lFl : uwP ≠ lFl := by decide
+@[simp] theorem puw_lFl_ne_uwP : lFl ≠ uwP := by decide
+@[simp] theorem puw_uwP_ne_lDh : uwP ≠ lDh := by decide
+@[simp] theorem puw_lDh_ne_uwP : lDh ≠ uwP := by decide
+@[simp] theorem puw_uwP_ne_lDt : uwP ≠ lDt := by decide
+@[simp] theorem puw_lDt_ne_uwP : lDt ≠ uwP := by decide
+@[simp] theorem puw_uwP_ne_lDg : uwP ≠ lDg := by decide
+@[simp] theorem puw_lDg_ne_uwP : lDg ≠ uwP := by decide
+@[simp] theorem puw_uwP_ne_lDi : uwP ≠ lDi := by decide
+@[simp] theorem puw_lDi_ne_uwP : lDi ≠ uwP := by decide
+@[simp] theorem puw_uwP_ne_lRp : uwP ≠ lRp := by decide
+@[simp] theorem puw_lRp_ne_uwP : lRp ≠ uwP := by decide
+@[simp] theorem puw_uwP_ne_lRn : uwP ≠ lRn := by decide
+@[simp] theorem puw_lRn_ne_uwP : lRn ≠ uwP := by decide
+@[simp] theorem puw_uwP_ne_lFle : uwP ≠ lFle := by decide
+@[simp] theorem puw_lFle_ne_uwP : lFle ≠ uwP := by decide
+@[simp] theorem puw_uwP_ne_lKb : uwP ≠ lKb := by decide
+@[simp] theorem puw_lKb_ne_uwP : lKb ≠ uwP := by decide
+@[simp] theorem puw_uwP_ne_lDir : uwP ≠ lDir := by decide
+@[simp] theorem puw_lDir_ne_uwP : lDir ≠ uwP := by decide
+@[simp] theorem puw_uwP_ne_lFln : uwP ≠ lFln := by decide
+@[simp] theorem puw_lFln_ne_uwP : lFln ≠ uwP := by decide
+@[simp] theorem puw_uwP_ne_lFll : uwP ≠ lFll := by decide
+@[simp] theorem puw_lFll_ne_uwP : lFll ≠ uwP := by decide
+@[simp] theorem puw_uwP_ne_lFls : uwP ≠ lFls := by decide
+@[simp] theorem puw_lFls_ne_uwP : lFls ≠ uwP := by decide
+@[simp] theorem puw_uwP_ne_kFu : uwP ≠ kFu := by decide
+@[simp] theorem puw_kFu_ne_uwP : kFu ≠ uwP := by decide
+@[simp] theorem puw_uwP_ne_kD : uwP ≠ kD := by decide
+@[simp] theorem puw_kD_ne_uwP : kD ≠ uwP := by decide
+@[simp] theorem puw_uwQ_ne_uwN : uwQ ≠ uwN := by decide
+@[simp] theorem puw_uwQ_ne_uwE : uwQ ≠ uwE := by decide
+@[simp] theorem puw_uwQ_ne_uwH : uwQ ≠ uwH := by decide
+@[simp] theorem puw_uwQ_ne_uwC : uwQ ≠ uwC := by decide
+@[simp] theorem puw_uwQ_ne_uwP : uwQ ≠ uwP := by decide
+@[simp] theorem puw_uwQ_ne_uwK : uwQ ≠ uwK := by decide
+@[simp] theorem puw_uwQ_ne_uwV : uwQ ≠ uwV := by decide
+@[simp] theorem puw_uwQ_ne_uwL : uwQ ≠ uwL := by decide
+@[simp] theorem puw_uwQ_ne_uwKk : uwQ ≠ uwKk := by decide
+@[simp] theorem puw_uwQ_ne_uwJ : uwQ ≠ uwJ := by decide
+@[simp] theorem puw_uwQ_ne_uwX : uwQ ≠ uwX := by decide
+@[simp] theorem puw_uwQ_ne_uwLa : uwQ ≠ uwLa := by decide
+@[simp] theorem puw_uwQ_ne_uwA : uwQ ≠ uwA := by decide
+@[simp] theorem puw_uwQ_ne_uwR : uwQ ≠ uwR := by decide
+@[simp] theorem puw_uwQ_ne_lFl : uwQ ≠ lFl := by decide
+@[simp] theorem puw_lFl_ne_uwQ : lFl ≠ uwQ := by decide
+@[simp] theorem puw_uwQ_ne_lDh : uwQ ≠ lDh := by decide
+@[simp] theorem puw_lDh_ne_uwQ : lDh ≠ uwQ := by decide
+@[simp] theorem puw_uwQ_ne_lDt : uwQ ≠ lDt := by decide
+@[simp] theorem puw_lDt_ne_uwQ : lDt ≠ uwQ := by decide
+@[simp] theorem puw_uwQ_ne_lDg : uwQ ≠ lDg := by decide
+@[simp] theorem puw_lDg_ne_uwQ : lDg ≠ uwQ := by decide
+@[simp] theorem puw_uwQ_ne_lDi : uwQ ≠ lDi := by decide
+@[simp] theorem puw_lDi_ne_uwQ : lDi ≠ uwQ := by decide
+@[simp] theorem puw_uwQ_ne_lRp : uwQ ≠ lRp := by decide
+@[simp] theorem puw_lRp_ne_uwQ : lRp ≠ uwQ := by decide
+@[simp] theorem puw_uwQ_ne_lRn : uwQ ≠ lRn := by decide
+@[simp] theorem puw_lRn_ne_uwQ : lRn ≠ uwQ := by decide
+@[simp] theorem puw_uwQ_ne_lFle : uwQ ≠ lFle := by decide
+@[simp] theorem puw_lFle_ne_uwQ : lFle ≠ uwQ := by decide
+@[simp] theorem puw_uwQ_ne_lKb : uwQ ≠ lKb := by decide
+@[simp] theorem puw_lKb_ne_uwQ : lKb ≠ uwQ := by decide
+@[simp] theorem puw_uwQ_ne_lDir : uwQ ≠ lDir := by decide
+@[simp] theorem puw_lDir_ne_uwQ : lDir ≠ uwQ := by decide
+@[simp] theorem puw_uwQ_ne_lFln : uwQ ≠ lFln := by decide
+@[simp] theorem puw_lFln_ne_uwQ : lFln ≠ uwQ := by decide
+@[simp] theorem puw_uwQ_ne_lFll : uwQ ≠ lFll := by decide
+@[simp] theorem puw_lFll_ne_uwQ : lFll ≠ uwQ := by decide
+@[simp] theorem puw_uwQ_ne_lFls : uwQ ≠ lFls := by decide
+@[simp] theorem puw_lFls_ne_uwQ : lFls ≠ uwQ := by decide
+@[simp] theorem puw_uwQ_ne_kFu : uwQ ≠ kFu := by decide
+@[simp] theorem puw_kFu_ne_uwQ : kFu ≠ uwQ := by decide
+@[simp] theorem puw_uwQ_ne_kD : uwQ ≠ kD := by decide
+@[simp] theorem puw_kD_ne_uwQ : kD ≠ uwQ := by decide
+@[simp] theorem puw_uwK_ne_uwN : uwK ≠ uwN := by decide
+@[simp] theorem puw_uwK_ne_uwE : uwK ≠ uwE := by decide
+@[simp] theorem puw_uwK_ne_uwH : uwK ≠ uwH := by decide
+@[simp] theorem puw_uwK_ne_uwC : uwK ≠ uwC := by decide
+@[simp] theorem puw_uwK_ne_uwP : uwK ≠ uwP := by decide
+@[simp] theorem puw_uwK_ne_uwQ : uwK ≠ uwQ := by decide
+@[simp] theorem puw_uwK_ne_uwV : uwK ≠ uwV := by decide
+@[simp] theorem puw_uwK_ne_uwL : uwK ≠ uwL := by decide
+@[simp] theorem puw_uwK_ne_uwKk : uwK ≠ uwKk := by decide
+@[simp] theorem puw_uwK_ne_uwJ : uwK ≠ uwJ := by decide
+@[simp] theorem puw_uwK_ne_uwX : uwK ≠ uwX := by decide
+@[simp] theorem puw_uwK_ne_uwLa : uwK ≠ uwLa := by decide
+@[simp] theorem puw_uwK_ne_uwA : uwK ≠ uwA := by decide
+@[simp] theorem puw_uwK_ne_uwR : uwK ≠ uwR := by decide
+@[simp] theorem puw_uwK_ne_lFl : uwK ≠ lFl := by decide
+@[simp] theorem puw_lFl_ne_uwK : lFl ≠ uwK := by decide
+@[simp] theorem puw_uwK_ne_lDh : uwK ≠ lDh := by decide
+@[simp] theorem puw_lDh_ne_uwK : lDh ≠ uwK := by decide
+@[simp] theorem puw_uwK_ne_lDt : uwK ≠ lDt := by decide
+@[simp] theorem puw_lDt_ne_uwK : lDt ≠ uwK := by decide
+@[simp] theorem puw_uwK_ne_lDg : uwK ≠ lDg := by decide
+@[simp] theorem puw_lDg_ne_uwK : lDg ≠ uwK := by decide
+@[simp] theorem puw_uwK_ne_lDi : uwK ≠ lDi := by decide
+@[simp] theorem puw_lDi_ne_uwK : lDi ≠ uwK := by decide
+@[simp] theorem puw_uwK_ne_lRp : uwK ≠ lRp := by decide
+@[simp] theorem puw_lRp_ne_uwK : lRp ≠ uwK := by decide
+@[simp] theorem puw_uwK_ne_lRn : uwK ≠ lRn := by decide
+@[simp] theorem puw_lRn_ne_uwK : lRn ≠ uwK := by decide
+@[simp] theorem puw_uwK_ne_lFle : uwK ≠ lFle := by decide
+@[simp] theorem puw_lFle_ne_uwK : lFle ≠ uwK := by decide
+@[simp] theorem puw_uwK_ne_lKb : uwK ≠ lKb := by decide
+@[simp] theorem puw_lKb_ne_uwK : lKb ≠ uwK := by decide
+@[simp] theorem puw_uwK_ne_lDir : uwK ≠ lDir := by decide
+@[simp] theorem puw_lDir_ne_uwK : lDir ≠ uwK := by decide
+@[simp] theorem puw_uwK_ne_lFln : uwK ≠ lFln := by decide
+@[simp] theorem puw_lFln_ne_uwK : lFln ≠ uwK := by decide
+@[simp] theorem puw_uwK_ne_lFll : uwK ≠ lFll := by decide
+@[simp] theorem puw_lFll_ne_uwK : lFll ≠ uwK := by decide
+@[simp] theorem puw_uwK_ne_lFls : uwK ≠ lFls := by decide
+@[simp] theorem puw_lFls_ne_uwK : lFls ≠ uwK := by decide
+@[simp] theorem puw_uwK_ne_kFu : uwK ≠ kFu := by decide
+@[simp] theorem puw_kFu_ne_uwK : kFu ≠ uwK := by decide
+@[simp] theorem puw_uwK_ne_kD : uwK ≠ kD := by decide
+@[simp] theorem puw_kD_ne_uwK : kD ≠ uwK := by decide
+@[simp] theorem puw_uwV_ne_uwN : uwV ≠ uwN := by decide
+@[simp] theorem puw_uwV_ne_uwE : uwV ≠ uwE := by decide
+@[simp] theorem puw_uwV_ne_uwH : uwV ≠ uwH := by decide
+@[simp] theorem puw_uwV_ne_uwC : uwV ≠ uwC := by decide
+@[simp] theorem puw_uwV_ne_uwP : uwV ≠ uwP := by decide
+@[simp] theorem puw_uwV_ne_uwQ : uwV ≠ uwQ := by decide
+@[simp] theorem puw_uwV_ne_uwK : uwV ≠ uwK := by decide
+@[simp] theorem puw_uwV_ne_uwL : uwV ≠ uwL := by decide
+@[simp] theorem puw_uwV_ne_uwKk : uwV ≠ uwKk := by decide
+@[simp] theorem puw_uwV_ne_uwJ : uwV ≠ uwJ := by decide
+@[simp] theorem puw_uwV_ne_uwX : uwV ≠ uwX := by decide
+@[simp] theorem puw_uwV_ne_uwLa : uwV ≠ uwLa := by decide
+@[simp] theorem puw_uwV_ne_uwA : uwV ≠ uwA := by decide
+@[simp] theorem puw_uwV_ne_uwR : uwV ≠ uwR := by decide
+@[simp] theorem puw_uwV_ne_lFl : uwV ≠ lFl := by decide
+@[simp] theorem puw_lFl_ne_uwV : lFl ≠ uwV := by decide
+@[simp] theorem puw_uwV_ne_lDh : uwV ≠ lDh := by decide
+@[simp] theorem puw_lDh_ne_uwV : lDh ≠ uwV := by decide
+@[simp] theorem puw_uwV_ne_lDt : uwV ≠ lDt := by decide
+@[simp] theorem puw_lDt_ne_uwV : lDt ≠ uwV := by decide
+@[simp] theorem puw_uwV_ne_lDg : uwV ≠ lDg := by decide
+@[simp] theorem puw_lDg_ne_uwV : lDg ≠ uwV := by decide
+@[simp] theorem puw_uwV_ne_lDi : uwV ≠ lDi := by decide
+@[simp] theorem puw_lDi_ne_uwV : lDi ≠ uwV := by decide
+@[simp] theorem puw_uwV_ne_lRp : uwV ≠ lRp := by decide
+@[simp] theorem puw_lRp_ne_uwV : lRp ≠ uwV := by decide
+@[simp] theorem puw_uwV_ne_lRn : uwV ≠ lRn := by decide
+@[simp] theorem puw_lRn_ne_uwV : lRn ≠ uwV := by decide
+@[simp] theorem puw_uwV_ne_lFle : uwV ≠ lFle := by decide
+@[simp] theorem puw_lFle_ne_uwV : lFle ≠ uwV := by decide
+@[simp] theorem puw_uwV_ne_lKb : uwV ≠ lKb := by decide
+@[simp] theorem puw_lKb_ne_uwV : lKb ≠ uwV := by decide
+@[simp] theorem puw_uwV_ne_lDir : uwV ≠ lDir := by decide
+@[simp] theorem puw_lDir_ne_uwV : lDir ≠ uwV := by decide
+@[simp] theorem puw_uwV_ne_lFln : uwV ≠ lFln := by decide
+@[simp] theorem puw_lFln_ne_uwV : lFln ≠ uwV := by decide
+@[simp] theorem puw_uwV_ne_lFll : uwV ≠ lFll := by decide
+@[simp] theorem puw_lFll_ne_uwV : lFll ≠ uwV := by decide
+@[simp] theorem puw_uwV_ne_lFls : uwV ≠ lFls := by decide
+@[simp] theorem puw_lFls_ne_uwV : lFls ≠ uwV := by decide
+@[simp] theorem puw_uwV_ne_kFu : uwV ≠ kFu := by decide
+@[simp] theorem puw_kFu_ne_uwV : kFu ≠ uwV := by decide
+@[simp] theorem puw_uwV_ne_kD : uwV ≠ kD := by decide
+@[simp] theorem puw_kD_ne_uwV : kD ≠ uwV := by decide
+@[simp] theorem puw_uwL_ne_uwN : uwL ≠ uwN := by decide
+@[simp] theorem puw_uwL_ne_uwE : uwL ≠ uwE := by decide
+@[simp] theorem puw_uwL_ne_uwH : uwL ≠ uwH := by decide
+@[simp] theorem puw_uwL_ne_uwC : uwL ≠ uwC := by decide
+@[simp] theorem puw_uwL_ne_uwP : uwL ≠ uwP := by decide
+@[simp] theorem puw_uwL_ne_uwQ : uwL ≠ uwQ := by decide
+@[simp] theorem puw_uwL_ne_uwK : uwL ≠ uwK := by decide
+@[simp] theorem puw_uwL_ne_uwV : uwL ≠ uwV := by decide
+@[simp] theorem puw_uwL_ne_uwKk : uwL ≠ uwKk := by decide
+@[simp] theorem puw_uwL_ne_uwJ : uwL ≠ uwJ := by decide
+@[simp] theorem puw_uwL_ne_uwX : uwL ≠ uwX := by decide
+@[simp] theorem puw_uwL_ne_uwLa : uwL ≠ uwLa := by decide
+@[simp] theorem puw_uwL_ne_uwA : uwL ≠ uwA := by decide
+@[simp] theorem puw_uwL_ne_uwR : uwL ≠ uwR := by decide
+@[simp] theorem puw_uwL_ne_lFl : uwL ≠ lFl := by decide
+@[simp] theorem puw_lFl_ne_uwL : lFl ≠ uwL := by decide
+@[simp] theorem puw_uwL_ne_lDh : uwL ≠ lDh := by decide
+@[simp] theorem puw_lDh_ne_uwL : lDh ≠ uwL := by decide
+@[simp] theorem puw_uwL_ne_lDt : uwL ≠ lDt := by decide
+@[simp] theorem puw_lDt_ne_uwL : lDt ≠ uwL := by decide
+@[simp] theorem puw_uwL_ne_lDg : uwL ≠ lDg := by decide
+@[simp] theorem puw_lDg_ne_uwL : lDg ≠ uwL := by decide
+@[simp] theorem puw_uwL_ne_lDi : uwL ≠ lDi := by decide
+@[simp] theorem puw_lDi_ne_uwL : lDi ≠ uwL := by decide
+@[simp] theorem puw_uwL_ne_lRp : uwL ≠ lRp := by decide
+@[simp] theorem puw_lRp_ne_uwL : lRp ≠ uwL := by decide
+@[simp] theorem puw_uwL_ne_lRn : uwL ≠ lRn := by decide
+@[simp] theorem puw_lRn_ne_uwL : lRn ≠ uwL := by decide
+@[simp] theorem puw_uwL_ne_lFle : uwL ≠ lFle := by decide
+@[simp] theorem puw_lFle_ne_uwL : lFle ≠ uwL := by decide
+@[simp] theorem puw_uwL_ne_lKb : uwL ≠ lKb := by decide
+@[simp] theorem puw_lKb_ne_uwL : lKb ≠ uwL := by decide
+@[simp] theorem puw_uwL_ne_lDir : uwL ≠ lDir := by decide
+@[simp] theorem puw_lDir_ne_uwL : lDir ≠ uwL := by decide
+@[simp] theorem puw_uwL_ne_lFln : uwL ≠ lFln := by decide
+@[simp] theorem puw_lFln_ne_uwL : lFln ≠ uwL := by decide
+@[simp] theorem puw_uwL_ne_lFll : uwL ≠ lFll := by decide
+@[simp] theorem puw_lFll_ne_uwL : lFll ≠ uwL := by decide
+@[simp] theorem puw_uwL_ne_lFls : uwL ≠ lFls := by decide
+@[simp] theorem puw_lFls_ne_uwL : lFls ≠ uwL := by decide
+@[simp] theorem puw_uwL_ne_kFu : uwL ≠ kFu := by decide
+@[simp] theorem puw_kFu_ne_uwL : kFu ≠ uwL := by decide
+@[simp] theorem puw_uwL_ne_kD : uwL ≠ kD := by decide
+@[simp] theorem puw_kD_ne_uwL : kD ≠ uwL := by decide
+@[simp] theorem puw_uwKk_ne_uwN : uwKk ≠ uwN := by decide
+@[simp] theorem puw_uwKk_ne_uwE : uwKk ≠ uwE := by decide
+@[simp] theorem puw_uwKk_ne_uwH : uwKk ≠ uwH := by decide
+@[simp] theorem puw_uwKk_ne_uwC : uwKk ≠ uwC := by decide
+@[simp] theorem puw_uwKk_ne_uwP : uwKk ≠ uwP := by decide
+@[simp] theorem puw_uwKk_ne_uwQ : uwKk ≠ uwQ := by decide
+@[simp] theorem puw_uwKk_ne_uwK : uwKk ≠ uwK := by decide
+@[simp] theorem puw_uwKk_ne_uwV : uwKk ≠ uwV := by decide
+@[simp] theorem puw_uwKk_ne_uwL : uwKk ≠ uwL := by decide
+@[simp] theorem puw_uwKk_ne_uwJ : uwKk ≠ uwJ := by decide
+@[simp] theorem puw_uwKk_ne_uwX : uwKk ≠ uwX := by decide
+@[simp] theorem puw_uwKk_ne_uwLa : uwKk ≠ uwLa := by decide
+@[simp] theorem puw_uwKk_ne_uwA : uwKk ≠ uwA := by decide
+@[simp] theorem puw_uwKk_ne_uwR : uwKk ≠ uwR := by decide
+@[simp] theorem puw_uwKk_ne_lFl : uwKk ≠ lFl := by decide
+@[simp] theorem puw_lFl_ne_uwKk : lFl ≠ uwKk := by decide
+@[simp] theorem puw_uwKk_ne_lDh : uwKk ≠ lDh := by decide
+@[simp] theorem puw_lDh_ne_uwKk : lDh ≠ uwKk := by decide
+@[simp] theorem puw_uwKk_ne_lDt : uwKk ≠ lDt := by decide
+@[simp] theorem puw_lDt_ne_uwKk : lDt ≠ uwKk := by decide
+@[simp] theorem puw_uwKk_ne_lDg : uwKk ≠ lDg := by decide
+@[simp] theorem puw_lDg_ne_uwKk : lDg ≠ uwKk := by decide
+@[simp] theorem puw_uwKk_ne_lDi : uwKk ≠ lDi := by decide
+@[simp] theorem puw_lDi_ne_uwKk : lDi ≠ uwKk := by decide
+@[simp] theorem puw_uwKk_ne_lRp : uwKk ≠ lRp := by decide
+@[simp] theorem puw_lRp_ne_uwKk : lRp ≠ uwKk := by decide
+@[simp] theorem puw_uwKk_ne_lRn : uwKk ≠ lRn := by decide
+@[simp] theorem puw_lRn_ne_uwKk : lRn ≠ uwKk := by decide
+@[simp] theorem puw_uwKk_ne_lFle : uwKk ≠ lFle := by decide
+@[simp] theorem puw_lFle_ne_uwKk : lFle ≠ uwKk := by decide
+@[simp] theorem puw_uwKk_ne_lKb : uwKk ≠ lKb := by decide
+@[simp] theorem puw_lKb_ne_uwKk : lKb ≠ uwKk := by decide
+@[simp] theorem puw_uwKk_ne_lDir : uwKk ≠ lDir := by decide
+@[simp] theorem puw_lDir_ne_uwKk : lDir ≠ uwKk := by decide
+@[simp] theorem puw_uwKk_ne_lFln : uwKk ≠ lFln := by decide
+@[simp] theorem puw_lFln_ne_uwKk : lFln ≠ uwKk := by decide
+@[simp] theorem puw_uwKk_ne_lFll : uwKk ≠ lFll := by decide
+@[simp] theorem puw_lFll_ne_uwKk : lFll ≠ uwKk := by decide
+@[simp] theorem puw_uwKk_ne_lFls : uwKk ≠ lFls := by decide
+@[simp] theorem puw_lFls_ne_uwKk : lFls ≠ uwKk := by decide
+@[simp] theorem puw_uwKk_ne_kFu : uwKk ≠ kFu := by decide
+@[simp] theorem puw_kFu_ne_uwKk : kFu ≠ uwKk := by decide
+@[simp] theorem puw_uwKk_ne_kD : uwKk ≠ kD := by decide
+@[simp] theorem puw_kD_ne_uwKk : kD ≠ uwKk := by decide
+@[simp] theorem puw_uwJ_ne_uwN : uwJ ≠ uwN := by decide
+@[simp] theorem puw_uwJ_ne_uwE : uwJ ≠ uwE := by decide
+@[simp] theorem puw_uwJ_ne_uwH : uwJ ≠ uwH := by decide
+@[simp] theorem puw_uwJ_ne_uwC : uwJ ≠ uwC := by decide
+@[simp] theorem puw_uwJ_ne_uwP : uwJ ≠ uwP := by decide
+@[simp] theorem puw_uwJ_ne_uwQ : uwJ ≠ uwQ := by decide
+@[simp] theorem puw_uwJ_ne_uwK : uwJ ≠ uwK := by decide
+@[simp] theorem puw_uwJ_ne_uwV : uwJ ≠ uwV := by decide
+@[simp] theorem puw_uwJ_ne_uwL : uwJ ≠ uwL := by decide
+@[simp] theorem puw_uwJ_ne_uwKk : uwJ ≠ uwKk := by decide
+@[simp] theorem puw_uwJ_ne_uwX : uwJ ≠ uwX := by decide
+@[simp] theorem puw_uwJ_ne_uwLa : uwJ ≠ uwLa := by decide
+@[simp] theorem puw_uwJ_ne_uwA : uwJ ≠ uwA := by decide
+@[simp] theorem puw_uwJ_ne_uwR : uwJ ≠ uwR := by decide
+@[simp] theorem puw_uwJ_ne_lFl : uwJ ≠ lFl := by decide
+@[simp] theorem puw_lFl_ne_uwJ : lFl ≠ uwJ := by decide
+@[simp] theorem puw_uwJ_ne_lDh : uwJ ≠ lDh := by decide
+@[simp] theorem puw_lDh_ne_uwJ : lDh ≠ uwJ := by decide
+@[simp] theorem puw_uwJ_ne_lDt : uwJ ≠ lDt := by decide
+@[simp] theorem puw_lDt_ne_uwJ : lDt ≠ uwJ := by decide
+@[simp] theorem puw_uwJ_ne_lDg : uwJ ≠ lDg := by decide
+@[simp] theorem puw_lDg_ne_uwJ : lDg ≠ uwJ := by decide
+@[simp] theorem puw_uwJ_ne_lDi : uwJ ≠ lDi := by decide
+@[simp] theorem puw_lDi_ne_uwJ : lDi ≠ uwJ := by decide
+@[simp] theorem puw_uwJ_ne_lRp : uwJ ≠ lRp := by decide
+@[simp] theorem puw_lRp_ne_uwJ : lRp ≠ uwJ := by decide
+@[simp] theorem puw_uwJ_ne_lRn : uwJ ≠ lRn := by decide
+@[simp] theorem puw_lRn_ne_uwJ : lRn ≠ uwJ := by decide
+@[simp] theorem puw_uwJ_ne_lFle : uwJ ≠ lFle := by decide
+@[simp] theorem puw_lFle_ne_uwJ : lFle ≠ uwJ := by decide
+@[simp] theorem puw_uwJ_ne_lKb : uwJ ≠ lKb := by decide
+@[simp] theorem puw_lKb_ne_uwJ : lKb ≠ uwJ := by decide
+@[simp] theorem puw_uwJ_ne_lDir : uwJ ≠ lDir := by decide
+@[simp] theorem puw_lDir_ne_uwJ : lDir ≠ uwJ := by decide
+@[simp] theorem puw_uwJ_ne_lFln : uwJ ≠ lFln := by decide
+@[simp] theorem puw_lFln_ne_uwJ : lFln ≠ uwJ := by decide
+@[simp] theorem puw_uwJ_ne_lFll : uwJ ≠ lFll := by decide
+@[simp] theorem puw_lFll_ne_uwJ : lFll ≠ uwJ := by decide
+@[simp] theorem puw_uwJ_ne_lFls : uwJ ≠ lFls := by decide
+@[simp] theorem puw_lFls_ne_uwJ : lFls ≠ uwJ := by decide
+@[simp] theorem puw_uwJ_ne_kFu : uwJ ≠ kFu := by decide
+@[simp] theorem puw_kFu_ne_uwJ : kFu ≠ uwJ := by decide
+@[simp] theorem puw_uwJ_ne_kD : uwJ ≠ kD := by decide
+@[simp] theorem puw_kD_ne_uwJ : kD ≠ uwJ := by decide
+@[simp] theorem puw_uwX_ne_uwN : uwX ≠ uwN := by decide
+@[simp] theorem puw_uwX_ne_uwE : uwX ≠ uwE := by decide
+@[simp] theorem puw_uwX_ne_uwH : uwX ≠ uwH := by decide
+@[simp] theorem puw_uwX_ne_uwC : uwX ≠ uwC := by decide
+@[simp] theorem puw_uwX_ne_uwP : uwX ≠ uwP := by decide
+@[simp] theorem puw_uwX_ne_uwQ : uwX ≠ uwQ := by decide
+@[simp] theorem puw_uwX_ne_uwK : uwX ≠ uwK := by decide
+@[simp] theorem puw_uwX_ne_uwV : uwX ≠ uwV := by decide
+@[simp] theorem puw_uwX_ne_uwL : uwX ≠ uwL := by decide
+@[simp] theorem puw_uwX_ne_uwKk : uwX ≠ uwKk := by decide
+@[simp] theorem puw_uwX_ne_uwJ : uwX ≠ uwJ := by decide
+@[simp] theorem puw_uwX_ne_uwLa : uwX ≠ uwLa := by decide
+@[simp] theorem puw_uwX_ne_uwA : uwX ≠ uwA := by decide
+@[simp] theorem puw_uwX_ne_uwR : uwX ≠ uwR := by decide
+@[simp] theorem puw_uwX_ne_lFl : uwX ≠ lFl := by decide
+@[simp] theorem puw_lFl_ne_uwX : lFl ≠ uwX := by decide
+@[simp] theorem puw_uwX_ne_lDh : uwX ≠ lDh := by decide
+@[simp] theorem puw_lDh_ne_uwX : lDh ≠ uwX := by decide
+@[simp] theorem puw_uwX_ne_lDt : uwX ≠ lDt := by decide
+@[simp] theorem puw_lDt_ne_uwX : lDt ≠ uwX := by decide
+@[simp] theorem puw_uwX_ne_lDg : uwX ≠ lDg := by decide
+@[simp] theorem puw_lDg_ne_uwX : lDg ≠ uwX := by decide
+@[simp] theorem puw_uwX_ne_lDi : uwX ≠ lDi := by decide
+@[simp] theorem puw_lDi_ne_uwX : lDi ≠ uwX := by decide
+@[simp] theorem puw_uwX_ne_lRp : uwX ≠ lRp := by decide
+@[simp] theorem puw_lRp_ne_uwX : lRp ≠ uwX := by decide
+@[simp] theorem puw_uwX_ne_lRn : uwX ≠ lRn := by decide
+@[simp] theorem puw_lRn_ne_uwX : lRn ≠ uwX := by decide
+@[simp] theorem puw_uwX_ne_lFle : uwX ≠ lFle := by decide
+@[simp] theorem puw_lFle_ne_uwX : lFle ≠ uwX := by decide
+@[simp] theorem puw_uwX_ne_lKb : uwX ≠ lKb := by decide
+@[simp] theorem puw_lKb_ne_uwX : lKb ≠ uwX := by decide
+@[simp] theorem puw_uwX_ne_lDir : uwX ≠ lDir := by decide
+@[simp] theorem puw_lDir_ne_uwX : lDir ≠ uwX := by decide
+@[simp] theorem puw_uwX_ne_lFln : uwX ≠ lFln := by decide
+@[simp] theorem puw_lFln_ne_uwX : lFln ≠ uwX := by decide
+@[simp] theorem puw_uwX_ne_lFll : uwX ≠ lFll := by decide
+@[simp] theorem puw_lFll_ne_uwX : lFll ≠ uwX := by decide
+@[simp] theorem puw_uwX_ne_lFls : uwX ≠ lFls := by decide
+@[simp] theorem puw_lFls_ne_uwX : lFls ≠ uwX := by decide
+@[simp] theorem puw_uwX_ne_kFu : uwX ≠ kFu := by decide
+@[simp] theorem puw_kFu_ne_uwX : kFu ≠ uwX := by decide
+@[simp] theorem puw_uwX_ne_kD : uwX ≠ kD := by decide
+@[simp] theorem puw_kD_ne_uwX : kD ≠ uwX := by decide
+@[simp] theorem puw_uwLa_ne_uwN : uwLa ≠ uwN := by decide
+@[simp] theorem puw_uwLa_ne_uwE : uwLa ≠ uwE := by decide
+@[simp] theorem puw_uwLa_ne_uwH : uwLa ≠ uwH := by decide
+@[simp] theorem puw_uwLa_ne_uwC : uwLa ≠ uwC := by decide
+@[simp] theorem puw_uwLa_ne_uwP : uwLa ≠ uwP := by decide
+@[simp] theorem puw_uwLa_ne_uwQ : uwLa ≠ uwQ := by decide
+@[simp] theorem puw_uwLa_ne_uwK : uwLa ≠ uwK := by decide
+@[simp] theorem puw_uwLa_ne_uwV : uwLa ≠ uwV := by decide
+@[simp] theorem puw_uwLa_ne_uwL : uwLa ≠ uwL := by decide
+@[simp] theorem puw_uwLa_ne_uwKk : uwLa ≠ uwKk := by decide
+@[simp] theorem puw_uwLa_ne_uwJ : uwLa ≠ uwJ := by decide
+@[simp] theorem puw_uwLa_ne_uwX : uwLa ≠ uwX := by decide
+@[simp] theorem puw_uwLa_ne_uwA : uwLa ≠ uwA := by decide
+@[simp] theorem puw_uwLa_ne_uwR : uwLa ≠ uwR := by decide
+@[simp] theorem puw_uwLa_ne_lFl : uwLa ≠ lFl := by decide
+@[simp] theorem puw_lFl_ne_uwLa : lFl ≠ uwLa := by decide
+@[simp] theorem puw_uwLa_ne_lDh : uwLa ≠ lDh := by decide
+@[simp] theorem puw_lDh_ne_uwLa : lDh ≠ uwLa := by decide
+@[simp] theorem puw_uwLa_ne_lDt : uwLa ≠ lDt := by decide
+@[simp] theorem puw_lDt_ne_uwLa : lDt ≠ uwLa := by decide
+@[simp] theorem puw_uwLa_ne_lDg : uwLa ≠ lDg := by decide
+@[simp] theorem puw_lDg_ne_uwLa : lDg ≠ uwLa := by decide
+@[simp] theorem puw_uwLa_ne_lDi : uwLa ≠ lDi := by decide
+@[simp] theorem puw_lDi_ne_uwLa : lDi ≠ uwLa := by decide
+@[simp] theorem puw_uwLa_ne_lRp : uwLa ≠ lRp := by decide
+@[simp] theorem puw_lRp_ne_uwLa : lRp ≠ uwLa := by decide
+@[simp] theorem puw_uwLa_ne_lRn : uwLa ≠ lRn := by decide
+@[simp] theorem puw_lRn_ne_uwLa : lRn ≠ uwLa := by decide
+@[simp] theorem puw_uwLa_ne_lFle : uwLa ≠ lFle := by decide
+@[simp] theorem puw_lFle_ne_uwLa : lFle ≠ uwLa := by decide
+@[simp] theorem puw_uwLa_ne_lKb : uwLa ≠ lKb := by decide
+@[simp] theorem puw_lKb_ne_uwLa : lKb ≠ uwLa := by decide
+@[simp] theorem puw_uwLa_ne_lDir : uwLa ≠ lDir := by decide
+@[simp] theorem puw_lDir_ne_uwLa : lDir ≠ uwLa := by decide
+@[simp] theorem puw_uwLa_ne_lFln : uwLa ≠ lFln := by decide
+@[simp] theorem puw_lFln_ne_uwLa : lFln ≠ uwLa := by decide
+@[simp] theorem puw_uwLa_ne_lFll : uwLa ≠ lFll := by decide
+@[simp] theorem puw_lFll_ne_uwLa : lFll ≠ uwLa := by decide
+@[simp] theorem puw_uwLa_ne_lFls : uwLa ≠ lFls := by decide
+@[simp] theorem puw_lFls_ne_uwLa : lFls ≠ uwLa := by decide
+@[simp] theorem puw_uwLa_ne_kFu : uwLa ≠ kFu := by decide
+@[simp] theorem puw_kFu_ne_uwLa : kFu ≠ uwLa := by decide
+@[simp] theorem puw_uwLa_ne_kD : uwLa ≠ kD := by decide
+@[simp] theorem puw_kD_ne_uwLa : kD ≠ uwLa := by decide
+@[simp] theorem puw_uwA_ne_uwN : uwA ≠ uwN := by decide
+@[simp] theorem puw_uwA_ne_uwE : uwA ≠ uwE := by decide
+@[simp] theorem puw_uwA_ne_uwH : uwA ≠ uwH := by decide
+@[simp] theorem puw_uwA_ne_uwC : uwA ≠ uwC := by decide
+@[simp] theorem puw_uwA_ne_uwP : uwA ≠ uwP := by decide
+@[simp] theorem puw_uwA_ne_uwQ : uwA ≠ uwQ := by decide
+@[simp] theorem puw_uwA_ne_uwK : uwA ≠ uwK := by decide
+@[simp] theorem puw_uwA_ne_uwV : uwA ≠ uwV := by decide
+@[simp] theorem puw_uwA_ne_uwL : uwA ≠ uwL := by decide
+@[simp] theorem puw_uwA_ne_uwKk : uwA ≠ uwKk := by decide
+@[simp] theorem puw_uwA_ne_uwJ : uwA ≠ uwJ := by decide
+@[simp] theorem puw_uwA_ne_uwX : uwA ≠ uwX := by decide
+@[simp] theorem puw_uwA_ne_uwLa : uwA ≠ uwLa := by decide
+@[simp] theorem puw_uwA_ne_uwR : uwA ≠ uwR := by decide
+@[simp] theorem puw_uwA_ne_lFl : uwA ≠ lFl := by decide
+@[simp] theorem puw_lFl_ne_uwA : lFl ≠ uwA := by decide
+@[simp] theorem puw_uwA_ne_lDh : uwA ≠ lDh := by decide
+@[simp] theorem puw_lDh_ne_uwA : lDh ≠ uwA := by decide
+@[simp] theorem puw_uwA_ne_lDt : uwA ≠ lDt := by decide
+@[simp] theorem puw_lDt_ne_uwA : lDt ≠ uwA := by decide
+@[simp] theorem puw_uwA_ne_lDg : uwA ≠ lDg := by decide
+@[simp] theorem puw_lDg_ne_uwA : lDg ≠ uwA := by decide
+@[simp] theorem puw_uwA_ne_lDi : uwA ≠ lDi := by decide
+@[simp] theorem puw_lDi_ne_uwA : lDi ≠ uwA := by decide
+@[simp] theorem puw_uwA_ne_lRp : uwA ≠ lRp := by decide
+@[simp] theorem puw_lRp_ne_uwA : lRp ≠ uwA := by decide
+@[simp] theorem puw_uwA_ne_lRn : uwA ≠ lRn := by decide
+@[simp] theorem puw_lRn_ne_uwA : lRn ≠ uwA := by decide
+@[simp] theorem puw_uwA_ne_lFle : uwA ≠ lFle := by decide
+@[simp] theorem puw_lFle_ne_uwA : lFle ≠ uwA := by decide
+@[simp] theorem puw_uwA_ne_lKb : uwA ≠ lKb := by decide
+@[simp] theorem puw_lKb_ne_uwA : lKb ≠ uwA := by decide
+@[simp] theorem puw_uwA_ne_lDir : uwA ≠ lDir := by decide
+@[simp] theorem puw_lDir_ne_uwA : lDir ≠ uwA := by decide
+@[simp] theorem puw_uwA_ne_lFln : uwA ≠ lFln := by decide
+@[simp] theorem puw_lFln_ne_uwA : lFln ≠ uwA := by decide
+@[simp] theorem puw_uwA_ne_lFll : uwA ≠ lFll := by decide
+@[simp] theorem puw_lFll_ne_uwA : lFll ≠ uwA := by decide
+@[simp] theorem puw_uwA_ne_lFls : uwA ≠ lFls := by decide
+@[simp] theorem puw_lFls_ne_uwA : lFls ≠ uwA := by decide
+@[simp] theorem puw_uwA_ne_kFu : uwA ≠ kFu := by decide
+@[simp] theorem puw_kFu_ne_uwA : kFu ≠ uwA := by decide
+@[simp] theorem puw_uwA_ne_kD : uwA ≠ kD := by decide
+@[simp] theorem puw_kD_ne_uwA : kD ≠ uwA := by decide
+@[simp] theorem puw_uwR_ne_uwN : uwR ≠ uwN := by decide
+@[simp] theorem puw_uwR_ne_uwE : uwR ≠ uwE := by decide
+@[simp] theorem puw_uwR_ne_uwH : uwR ≠ uwH := by decide
+@[simp] theorem puw_uwR_ne_uwC : uwR ≠ uwC := by decide
+@[simp] theorem puw_uwR_ne_uwP : uwR ≠ uwP := by decide
+@[simp] theorem puw_uwR_ne_uwQ : uwR ≠ uwQ := by decide
+@[simp] theorem puw_uwR_ne_uwK : uwR ≠ uwK := by decide
+@[simp] theorem puw_uwR_ne_uwV : uwR ≠ uwV := by decide
+@[simp] theorem puw_uwR_ne_uwL : uwR ≠ uwL := by decide
+@[simp] theorem puw_uwR_ne_uwKk : uwR ≠ uwKk := by decide
+@[simp] theorem puw_uwR_ne_uwJ : uwR ≠ uwJ := by decide
+@[simp] theorem puw_uwR_ne_uwX : uwR ≠ uwX := by decide
+@[simp] theorem puw_uwR_ne_uwLa : uwR ≠ uwLa := by decide
+@[simp] theorem puw_uwR_ne_uwA : uwR ≠ uwA := by decide
+@[simp] theorem puw_uwR_ne_lFl : uwR ≠ lFl := by decide
+@[simp] theorem puw_lFl_ne_uwR : lFl ≠ uwR := by decide
+@[simp] theorem puw_uwR_ne_lDh : uwR ≠ lDh := by decide
+@[simp] theorem puw_lDh_ne_uwR : lDh ≠ uwR := by decide
+@[simp] theorem puw_uwR_ne_lDt : uwR ≠ lDt := by decide
+@[simp] theorem puw_lDt_ne_uwR : lDt ≠ uwR := by decide
+@[simp] theorem puw_uwR_ne_lDg : uwR ≠ lDg := by decide
+@[simp] theorem puw_lDg_ne_uwR : lDg ≠ uwR := by decide
+@[simp] theorem puw_uwR_ne_lDi : uwR ≠ lDi := by decide
+@[simp] theorem puw_lDi_ne_uwR : lDi ≠ uwR := by decide
+@[simp] theorem puw_uwR_ne_lRp : uwR ≠ lRp := by decide
+@[simp] theorem puw_lRp_ne_uwR : lRp ≠ uwR := by decide
+@[simp] theorem puw_uwR_ne_lRn : uwR ≠ lRn := by decide
+@[simp] theorem puw_lRn_ne_uwR : lRn ≠ uwR := by decide
+@[simp] theorem puw_uwR_ne_lFle : uwR ≠ lFle := by decide
+@[simp] theorem puw_lFle_ne_uwR : lFle ≠ uwR := by decide
+@[simp] theorem puw_uwR_ne_lKb : uwR ≠ lKb := by decide
+@[simp] theorem puw_lKb_ne_uwR : lKb ≠ uwR := by decide
+@[simp] theorem puw_uwR_ne_lDir : uwR ≠ lDir := by decide
+@[simp] theorem puw_lDir_ne_uwR : lDir ≠ uwR := by decide
+@[simp] theorem puw_uwR_ne_lFln : uwR ≠ lFln := by decide
+@[simp] theorem puw_lFln_ne_uwR : lFln ≠ uwR := by decide
+@[simp] theorem puw_uwR_ne_lFll : uwR ≠ lFll := by decide
+@[simp] theorem puw_lFll_ne_uwR : lFll ≠ uwR := by decide
+@[simp] theorem puw_uwR_ne_lFls : uwR ≠ lFls := by decide
+@[simp] theorem puw_lFls_ne_uwR : lFls ≠ uwR := by decide
+@[simp] theorem puw_uwR_ne_kFu : uwR ≠ kFu := by decide
+@[simp] theorem puw_kFu_ne_uwR : kFu ≠ uwR := by decide
+@[simp] theorem puw_uwR_ne_kD : uwR ≠ kD := by decide
+@[simp] theorem puw_kD_ne_uwR : kD ≠ uwR := by decide
+
+def uwParams : List MlS := [uwN, uwE]
+def uwLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, uwH, uwC, uwP, uwQ, uwK, uwV, uwL, uwKk, uwJ, uwX, uwLa, uwA, uwR]
+def uwBody (C : Ctx) : ProgHOL 64 := prologue uwLocals (.ite (.cmp .equal (vv uwN) (.const 0)) (.return (vv uwE)) (.seq (.call (some (some (.local, uwH), none)) fGetAppFn [(.const (BitVec.ofNat 64 coreWalkFuel)), (vv uwE)]) (.ite (tagIsE uwH 3) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv uwH)) (.seq eViewP (.seq (.assign .local uwC (.load .one (vv lRp))) (envFindP C uwP (vv uwC) (.ite (.cmp .equal (vv uwP) (.const 0)) (.return (vv uwE)) (.seq (.assign .local uwQ (.op .sub [(vv uwP), (.const 1)])) (.seq (.assign .local uwK (.load .one (vv uwQ))) (.ite (.cmp .notEqual (vv uwK) (.const 1)) (.return (vv uwE)) (.seq (.assign .local uwV (.load .one (.op .add [(vv uwQ), (.const 32)]))) (.seq (.call (some (some (.local, uwL), none)) fLj [(.const (BitVec.ofNat 64 coreWalkFuel)), (.const 0), (vv uwV)]) (.ite (.cmp .equal (vv uwL) (.const 0)) (.return (vv uwE)) (.seq (.assign .local uwKk (.load .one (vv uwL))) (.seq (.assign .local uwJ (.load .one (.op .add [(vv uwL), (.const 8)]))) (.seq (.call (some (some (.local, uwX), none)) ExG.fGaa [(.const (BitVec.ofNat 64 coreWalkFuel)), (vv uwE)]) (.seq (.assign .local uwLa (.load .one (vv uwX))) (.ite (.cmp .notEqual (vv uwLa) (vv uwKk)) (.return (vv uwE)) (.seq (.assign .local uwA (.load .one (.op .add [(.op .add [(vv uwX), (.const 8)]), (.shift .lsl (.op .sub [(.op .sub [(vv uwKk), (.const 1)]), (vv uwJ)]) (.const 3))]))) (.seq (.call (some (some (.local, uwR), none)) fUw [(.op .sub [(vv uwN), (.const 1)]), (vv uwA)]) (.return (vv uwR))))))))))))))))))))) (.return (vv uwE)))))
+
 def bdParams : List MlS := [bdK, bdH]
 def bdLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, bdA, bdB, bdR]
 def bdBody : ProgHOL 64 := prologue bdLocals (.ite (tagIsE bdH 6) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv bdH)) (.seq eViewP (.seq (.assign .local bdA (.load .one (vv lRp))) (.seq (.assign .local bdB (.load .one (.op .add [(vv lRp), (.const 8)]))) (.ite (.cmp .equal (vv bdK) (.const 0)) (.return (.op .add [(vv bdA), (.const 1)])) (.seq (.call (some (some (.local, bdR), none)) fBd [(.op .sub [(vv bdK), (.const 1)]), (vv bdB)]) (.return (vv bdR))))))))) (.return (.const 0)))
@@ -658,6 +1341,182 @@ theorem lj_spec (C : Ctx) (hok : CtxOK C)
       refine specR_ifI _ 0 (by simp [sev, er, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact h1w) (fun h => absurd rfl h) (fun _ => ?_)
       refine specR_ifI _ 0 (by simp [sev, er, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact h2w) (fun h => absurd rfl h) (fun _ => ?_)
       exact specR_hangI
+
+
+
+theorem viewConstName_bind (st : EStore) (h : EIdx) (h3 : h.tag = 3) :
+    st.viewConstName h = (st.view h).bind (fun v => match v with | .const n _ => some n | _ => none) := by
+  simp only [EStore.view, EStore.viewConstName, EStore.persGetConstName]
+  split
+  · simp only [ETables.get, ETables.getConstName, h3, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj]
+    cases st.pers.consts.node? h.idxNat <;> rfl
+  · split
+    · simp only [ETables.get, ETables.getConstName, h3, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, ETag.lam, ETag.forallE, ETag.letE, ETag.lit, ETag.proj]
+      cases st.scr.consts.node? h.idxNat <;> rfl
+    · rfl
+
+structure UwCodes (C : Ctx) : Prop where
+  gaf : C.code.lookup fGetAppFn = some ([(pFu, .one), (pH, .one)], getAppFnBody, .one)
+  mg : C.code.lookup fMemoGet = some ([(pG, .one), (pLen, .one)], memoGetBody, .one)
+  mp : C.code.lookup fMemoProbe = some ([(pG, .one), (pLen, .one)], memoProbeBody, .one)
+  gaa : C.code.lookup ExG.fGaa = some ([(pFu, .one), (pH, .one)], ExG.gaaBody C, .one)
+  lj : C.code.lookup fLj = some (ljParams.map (fun p => (p, ShapeHOL.one)), ljBody C, .one)
+  self : C.code.lookup fUw = some (uwParams.map (fun p => (p, ShapeHOL.one)), uwBody C, .one)
+
+theorem uw_spec (C : Ctx) (hok : CtxOK C) (hc : UwCodes C) :
+    ∀ n (H : List (BitVec 64)) (e : EIdx) (s : AState), C.H <+: H → n < 2 ^ 64 →
+      SpecR (σ := σ) (Pre (ctxH C H) s (uwParams.zip [BitVec.ofNat 64 n, Enc.idxW e])) (uwBody C) s
+        (unwrapIdDefs C.fe coreWalkFuel n e) (PostK (ctxH C H)) := by
+  intro n
+  induction n with
+  | zero =>
+    intro H e s hpH _
+    refine specR_prologue (postK_locals _) (Knot.params_none _ uwLocals uwParams _ (by decide) (by decide)) ?_
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get, uwParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+    rw [unwrapIdDefs]
+    exact specR_returnI _ (Enc.idxW e) (by simp +decide [Env.get, uwParams, ctxEnv]) (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  | succ n ih =>
+    intro H e s hpH hn
+    refine specR_prologue (postK_locals _) (Knot.params_none _ uwLocals uwParams _ (by decide) (by decide)) ?_
+    have hne : BitVec.ofNat 64 (n + 1) ≠ 0 := by
+      intro e; have := congrArg BitVec.toNat e; simp at this; omega
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, uwParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne) (fun h => absurd rfl h) (fun _ => ?_)
+    rw [unwrapIdDefs]
+    refine specR_callNIM (C := ctxH C H) uwH fGetAppFn [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv uwE]
+      getAppFnBody [BitVec.ofNat 64 coreWalkFuel, Enc.idxW e] (by decide) rfl (by decide) hc.gaf
+      ⟨rfl, by simp +decide [Env.get, uwParams, ctxEnv], trivial⟩
+      (fun x w' s' st => getAppFn coreWalkFuel e s = .ok (x, s') ∧ Post (ctxH C H) s x w' s' st)
+      (fun x w' s' st ⟨_, _, hs, hsr⟩ => hs ▸ hsr)
+      (fun u hu _ hlk => specR_run (fun t ht => by
+        subst ht
+        exact getAppFn_spec (ctxH C H) hc.gaf coreWalkFuel e s CV.coreWalkFuel_lt t ⟨hu, hlk 0 (by decide), hlk 1 (by decide)⟩))
+      (fun hh w' s' st ⟨hrun, hw, hs, _⟩ => ?_)
+    subst hw
+    have hs' : s = s' := hs.symm
+    subst hs'
+    refine Knot.specR_tagIteV uwH hh 3 (by decide) (by decide) (by simp) (fun htc => ?_) (fun htc => ?_)
+    swap
+    · rw [if_neg (show ¬ (hh.tag == ETag.const) = true by simpa [ETag.const] using htc)]
+      exact specR_returnI _ (Enc.idxW e) (by simp +decide [Env.get, uwParams, ctxEnv]) (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    rw [if_pos (show (hh.tag == ETag.const) = true by simp [htc, ETag.const])]
+    refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
+    refine specR_assignI lDh (vv uwH) (Enc.idxW hh) (by decide) (by simp) ?_
+    refine specR_viewP (C := ctxH C H) hh (by simp) (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)
+      (fun v P hv htn _ => ?_)
+    have h3 : v.tagN = 3 := by rw [htn, htc]; rfl
+    obtain ⟨c, us, rfl⟩ := UD.tagN_const h3
+    have hvn : s.store.viewConstName hh = some c := by rw [viewConstName_bind _ _ (by rw [htc]; rfl), hv]; rfl
+    refine specR_runBind (show ConRon.Arena.viewConstName hh s = .ok (some c, s) by
+      show Except.ok (s.store.viewConstName hh, s) = _; rw [hvn]) ?_
+    dsimp only
+    refine specR_loadI' uwC (vv lRp) P (P + BitVec.ofNat 64 0) (Enc.idxW c) (by decide) (by simp) (by simp)
+      (by simpa [encEView, Enc.encConst] using wordsAt_mem0 P (Enc.idxW c) [Enc.idxW us] []) ?_
+    refine specR_envFindI (C := ctxH C H) (ctxOK_H hok H) hc.mg hc.mp uwP (vv uwC) c (by decide) (by simp) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
+    have hrel := find_rel hok c
+    try rw [show (ctxH C H).envM = C.envM from rfl]
+    revert hrel
+    rcases hfind : C.fe.find? c with _ | ci
+    · intro hrel; simp only at hrel; rw [hrel]
+      refine specR_ifI _ 1 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+      exact specR_returnI _ (Enc.idxW e) (by simp +decide [Env.get, uwParams, ctxEnv]) (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    intro ⟨o, hm, hci⟩
+    rw [hm]
+    refine specR_atEntry fun t ht => ?_
+    have hoE : o < C.EN := Nat.lt_of_lt_of_le (cie_lt hci) ht.sr.env.1.len
+    refine specR_ifI _ 0 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact ecell_succ_ne hok hoE)
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_assignI uwQ _ (ecell C o) (by decide) (by simp [sev, optWG]; exact BitVec.add_sub_cancel _ _) ?_
+    rcases ci with cv | ⟨cv, val, hint⟩ | cv | ⟨cv, caps⟩ | ⟨cv, np, nf, ind⟩ | ⟨cv, mi, rp, isK, rules⟩
+    · refine specR_envLoadI uwK (vv uwQ) o 0 (by decide) (by simp [ecell_ctxH]) hci.2 ?_
+      refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+      exact specR_returnI _ (Enc.idxW e) (by simp +decide [Env.get, uwParams, ctxEnv]) (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    · refine specR_envLoadI uwK (vv uwQ) o 1 (by decide) (by simp [ecell_ctxH]) hci.2.1 ?_
+      refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+      obtain ⟨_, _, hval, _⟩ := hci
+      dsimp only
+      refine specR_envLoadI uwV (.op .add [vv uwQ, .const 32]) (o + 4) _ (by decide)
+        (by simp [sev, vv, ecell_ctxH]; simpa using ecell_add C o 4) hval ?_
+      refine specR_callNIH (C := ctxH C H) uwL fLj ljParams [.const (BitVec.ofNat 64 coreWalkFuel), .const 0, vv uwV] (ljBody C)
+        [BitVec.ofNat 64 coreWalkFuel, BitVec.ofNat 64 0, Enc.idxW val] (by decide) rfl (by decide) hc.lj
+        ⟨rfl, rfl, by simp, trivial⟩
+        (PostLJ (ctxH C H)) (fun r_ w _ H' => ljRel C H' r_ w) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+        (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ljParams _ rfl hlk)
+          (lj_spec (ctxH C H) (ctxOK_H hok H) hc.lj coreWalkFuel 0 val s (by unfold coreWalkFuel; decide)))
+        (fun lr w s1 H1 hp1 hw => ?_)
+      have hp1a : C.H <+: H1 := hpH.trans hp1
+      rcases lr with _ | ⟨kk, j⟩
+      · simp only [ljRel] at hw; subst hw
+        refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+        try dsimp only
+        exact specR_returnI _ (Enc.idxW e) (by simp +decide [Env.get, uwParams, ctxEnv]) (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      obtain ⟨ol, rfl, hok1, hoj, hjk, hk63⟩ := hw
+      refine specR_atEntry fun t ht => ?_
+      have hbig := cellA_big hok ht.sr (List.getElem?_eq_some_iff.mp hok1).1
+      refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hbig.1) (fun h => absurd rfl h) (fun _ => ?_)
+      try dsimp only
+      refine UD.specR_heapLoadI' (C := ctxH C H1) uwKk (vv uwL) ol _ hok1 (by decide) (by simp <;> rfl) ?_
+      refine UD.specR_heapLoadI' (C := ctxH C H1) uwJ (.op .add [vv uwL, .const 8]) (ol + 1) _ hoj (by decide)
+        (by simp [sev]; exact cellA_add8 C ol) ?_
+      refine specR_callNIH (C := ctxH C H1) uwX ExG.fGaa [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv uwE] (ExG.gaaBody C)
+        [BitVec.ofNat 64 coreWalkFuel, Enc.idxW e] (by decide) rfl (by decide) hc.gaa
+        ⟨rfl, by simp +decide [Env.get, uwParams, ctxEnv], trivial⟩
+        (PostA (ctxH C H1)) (fun xs w _ H2 => ∃ o2, w = cellA C o2 ∧ BlkAt H2 o2 (xs.map Enc.idxW))
+        (fun xs w s' st ⟨H2, o2, hp, hw, hb, hsr⟩ => ⟨H2, hp, ⟨o2, hw, hb⟩, hsr⟩)
+        (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu [pFu, pH] _ rfl hlk)
+          (ExG.gaa_spec C hok hc.gaa coreWalkFuel CV.coreWalkFuel_lt H1 e s1))
+        (fun args w s2 H2 hp2 ⟨o2, hw, hba⟩ => ?_)
+      subst hw
+      have hp2a : C.H <+: H2 := hp1a.trans hp2
+      refine UD.specR_heapLoadI' (C := ctxH C H2) uwLa (vv uwX) o2 _ (by have h := hba.1; simp only [List.length_map] at h; exact h)
+        (by decide) (by simp <;> rfl) ?_
+      refine specR_atEntry fun t ht => ?_
+      have hsza := blk_small0 (ctxOK_H hok H2) ht.sr hba
+      simp only [List.length_map] at hsza
+      have hkeq : (decide (kk ≤ args.length) && args.length == kk) = (args.length == kk) := by
+        by_cases h : args.length = kk <;> simp [h]
+      by_cases hln : args.length = kk
+      swap
+      · have hne : BitVec.ofNat 64 args.length ≠ BitVec.ofNat 64 kk := by
+          intro x; apply hln
+          have := congrArg BitVec.toNat x
+          simp only [BitVec.toNat_ofNat] at this
+          rwa [Nat.mod_eq_of_lt (by omega), Nat.mod_eq_of_lt (by omega)] at this
+        refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun _ => ?_) (fun h => absurd h (by decide))
+        rw [if_neg (by simp [hln])]
+        exact specR_returnI _ (Enc.idxW e) (by simp +decide [Env.get, uwParams, ctxEnv]) (fun t ht => ⟨H2, hp1.trans hp2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hln]) (fun h => absurd rfl h) (fun _ => ?_)
+      rw [if_pos (by simp [hln])]
+      have hidx : kk - 1 - j < args.length := by omega
+      have hget : args.getD (kk - 1 - j) e = args[kk - 1 - j] := by simp [List.getD, hidx]
+      rw [hget]
+      have hel := hba.2 (kk - 1 - j) (by simpa using hidx)
+      rw [List.getElem_map] at hel
+      have hsubw : BitVec.ofNat 64 kk - 1#64 - BitVec.ofNat 64 j = BitVec.ofNat 64 (kk - 1 - j) := by
+        rw [show (1#64 : BitVec 64) = BitVec.ofNat 64 1 from rfl, ix_wsub kk 1 (by omega) (by omega), ix_wsub (kk - 1) j (by omega) (by omega)]
+      refine UD.specR_heapLoadI' (C := ctxH C H2) uwA _ (o2 + 1 + (kk - 1 - j)) _ hel (by decide)
+        (by simp [sev]; rw [hsubw]; show _ = cellA C (o2 + 1 + (kk - 1 - j)); rw [← cellA_shl C (o2 + 1) (kk - 1 - j) (by omega), ← cellA_add8]; rfl) ?_
+      refine specR_congr (m' := unwrapIdDefs C.fe coreWalkFuel n args[kk - 1 - j] >>= fun r => pure r) (by simp) ?_
+      refine specR_callNIH (C := ctxH C H2) uwR fUw uwParams [.op .sub [vv uwN, .const 1], vv uwA] (uwBody C)
+        [BitVec.ofNat 64 n, Enc.idxW args[kk - 1 - j]] (by decide) rfl (by decide) hc.self
+        ⟨by simp +decide [sev, Env.get, uwParams, ctxEnv]; exact Ex.ofNat_succ_sub_one _, by simp, trivial⟩
+        (PostK (ctxH C H2)) (fun r_ w _ _ => w = Enc.idxW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+        (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu uwParams _ rfl hlk) (ih H2 _ s2 hp2a (by omega)))
+        (fun r w s3 H3 hp3 hw => ?_)
+      subst hw
+      exact specR_returnI _ (Enc.idxW r) (by simp) (fun t ht => ⟨H3, hp1.trans (hp2.trans hp3), rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+    · refine specR_envLoadI uwK (vv uwQ) o 2 (by decide) (by simp [ecell_ctxH]) hci.2 ?_
+      refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+      exact specR_returnI _ (Enc.idxW e) (by simp +decide [Env.get, uwParams, ctxEnv]) (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    · refine specR_envLoadI uwK (vv uwQ) o 3 (by decide) (by simp [ecell_ctxH]) hci.2.1 ?_
+      refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+      exact specR_returnI _ (Enc.idxW e) (by simp +decide [Env.get, uwParams, ctxEnv]) (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    · refine specR_envLoadI uwK (vv uwQ) o 4 (by decide) (by simp [ecell_ctxH]) hci.2.1 ?_
+      refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+      exact specR_returnI _ (Enc.idxW e) (by simp +decide [Env.get, uwParams, ctxEnv]) (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    · refine specR_envLoadI uwK (vv uwQ) o 5 (by decide) (by simp [ecell_ctxH]) hci.2.1 ?_
+      refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+      exact specR_returnI _ (Enc.idxW e) (by simp +decide [Env.get, uwParams, ctxEnv]) (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 
 end
