@@ -273,3 +273,4 @@ import ConPanqueque.T.Core.OpenPisRaw
 import ConPanqueque.T.Core.ProjGuardRowsF
 import ConPanqueque.T.Core.ProjGuardSort
 import ConPanqueque.T.Core.CheckProjGuard
+import ConPanqueque.T.Core.TypeAt
