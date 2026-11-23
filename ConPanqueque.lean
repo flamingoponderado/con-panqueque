@@ -308,3 +308,4 @@ import ConPanqueque.T.Core.ZeSubst
 import ConPanqueque.T.Core.ZpsCollect
 import ConPanqueque.T.Core.ArgFind
 import ConPanqueque.T.Core.SubstPW
+import ConPanqueque.T.Core.PropPW
