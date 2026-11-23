@@ -1121,4 +1121,150 @@ theorem params_noneILP (vals : List (BitVec 64)) (C : Ctx) :
 
 end
 
+section
+variable {σ : Type}
+open ConRon.Bridge.ExprOps
+
+theorem specR_tagIte {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {c1 c2 : ProgHOL 64}
+    {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop} (h : EIdx) (k : Nat) (hk : k < 16) (hk4 : k ≠ 4)
+    (hh : Γ.get pH = some (Enc.idxW h))
+    (h1 : h.tag = UInt32.ofNat k → SpecR (Inv C s Γ M D) c1 s m R)
+    (h2 : h.tag ≠ UInt32.ofNat k → SpecR (Inv C s Γ M D) c2 s m R) :
+    SpecR (Inv C s Γ M D) (.ite (tagIsE pH k) c1 c2) s m R := by
+  obtain ⟨w, hw, hiff⟩ := sev_tagIs Γ pH h hh k hk hk4
+  exact specR_ifI _ w hw (fun e => h1 (hiff.mp e)) (fun e => h2 (fun t => (hiff.mpr t) e))
+
+theorem specR_appIte {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {c1 c2 : ProgHOL 64}
+    {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop} (h : EIdx) (hh : Γ.get pH = some (Enc.idxW h))
+    (h1 : h.tag = 4 → SpecR (Inv C s Γ M D) c1 s m R) (h2 : h.tag ≠ 4 → SpecR (Inv C s Γ M D) c2 s m R) :
+    SpecR (Inv C s Γ M D) (.ite (isAppE (vv pH)) c1 c2) s m R :=
+  specR_ifI _ _ (Ex2.sev_isApp Γ pH _ hh) (fun e => h1 ((isApp_iff h).mp e))
+    (fun e => h2 (fun t => by have := (isApp_iff h).mpr t; exact this e))
+
+theorem ilp_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : CodesILP C (ilpBody C))
+    (ko : Nat) (khs : List NIdx) (ks : List ConLeche.Name) (usH : LsIdx) (vsL : List ConLeche.Level) :
+    ∀ n, n < 2 ^ 64 → RecILP (σ := σ) C (ilpBody C) ko khs ks usH vsL n := by
+  intro n
+  induction n with
+  | zero =>
+    intro _ H s h _ _ _
+    refine specR_prologue (postILP_locals _) (params_noneILP _ _) ?_
+    unfold coreI
+    refine specR_ifI _ _ rfl (fun _ => specR_hangI) (fun hw => ?_)
+    simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL] at hw
+  | succ n ih =>
+    intro hf H s h hp hden hb
+    have ih' := ih (by omega)
+    refine specR_prologue (postILP_locals _) (params_noneILP _ _) ?_
+    unfold coreI
+    refine specR_ifI _ _ rfl (fun hw => ?_) (fun _ => ?_)
+    · have := ofNat_ne_zero (n + 1) (by omega) hf
+      simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL] at hw; exact absurd hw this
+    rw [instLPGo_succ]
+    refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [ctxEnv] <;> rfl) ?_
+    refine specR_assignI lDh (vv pH) (Enc.idxW h) (by decide) (by simp +decide [ctxEnv, ilpParams]) ?_
+    refine specR_derivedEI h (by simp +decide) (by simp +decide <;> rfl) (by simp +decide [ctxEnv] <;> rfl)
+      ⟨by decide, by decide, by decide, by decide, by decide⟩ ?_
+    by_cases hlp : ConLeche.lpOfData (s.store.derived h) = false
+    · refine specR_ifI _ 1 (by simp +decide [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact (lp_bit _).mpr hlp) (fun _ => ?_)
+        (fun hw => absurd hw (by decide))
+      simp only [hlp, Bool.not_false, ite_true]
+      exact specR_returnI (vv pH) (Enc.idxW h) (by simp +decide [Env.kill, ctxEnv, ilpParams])
+        (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    have hlp' : ConLeche.lpOfData (s.store.derived h) = true := by simpa using hlp
+    have hne : (s.store.derived h).toBitVec &&& 1 ≠ 0 := fun e => hlp ((lp_bit _).mp e)
+    refine specR_ifI _ 0 (by simp +decide [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne) (fun hw => absurd rfl hw) (fun _ => ?_)
+    simp only [hlp', Bool.not_true, Bool.false_eq_true, ite_false]
+    obtain ⟨v0, hv0⟩ := view_of_denoteE _ h hden
+    have htag := view_tagN _ _ _ hv0
+    have hH : Env.get ((lDo1, (s.store.derived h).toBitVec) :: (lDo2, 0) :: Env.kill ((lDh, Enc.idxW h) ::
+        (lFl, (ctxH C H).FLe) :: (ctxEnv (ctxH C H) ++ ilpParams.zip [BitVec.ofNat 64 (n + 1), Enc.idxW h, cellA C ko,
+        Enc.idxW usH])) [lDt, lDg, lDi]) pH = some (Enc.idxW h) := by simp +decide [Env.kill, ctxEnv, ilpParams]
+    refine specR_congr (by simp only [bind, StateT.bind]; rw [view_run, hv0]) ?_
+    cases v0 with
+    | bvar i =>
+      have t0 : h.tag = 0 := UInt32.toNat_inj.mp (by simp [ENodeView.tagN] at htag; simp [← htag])
+      refine specR_appIte h hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 5 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 6 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 1 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 7 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 9 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 2 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 3 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      exact specR_returnI (vv pH) (Enc.idxW h) hH (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    | lit l =>
+      have t0 : h.tag = 8 := UInt32.toNat_inj.mp (by simp [ENodeView.tagN] at htag; simp [← htag])
+      refine specR_appIte h hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 5 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 6 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 1 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 7 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 9 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 2 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 3 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      exact specR_returnI (vv pH) (Enc.idxW h) hH (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    | app f a =>
+      have t0 : h.tag = 4 := UInt32.toNat_inj.mp (by simp [ENodeView.tagN] at htag; simp [← htag])
+      refine specR_appIte h hH (fun _ => ?_) (fun e => absurd t0 e)
+      exact appI_spec ra C hok _ hc ko khs ks usH vsL n ih' h f a hv0 hp hden hb (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl)
+    | lam ty b =>
+      have t0 : h.tag = 5 := UInt32.toNat_inj.mp (by simp [ENodeView.tagN] at htag; simp [← htag])
+      refine specR_appIte h hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 5 (by decide) (by decide) hH (fun _ => ?_) (fun e => absurd t0 e)
+      exact lamI_spec ra C hok _ hc ko khs ks usH vsL n ih' h ty b hv0 hp hden hb (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl)
+    | forallE ty b =>
+      have t0 : h.tag = 6 := UInt32.toNat_inj.mp (by simp [ENodeView.tagN] at htag; simp [← htag])
+      refine specR_appIte h hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 5 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 6 (by decide) (by decide) hH (fun _ => ?_) (fun e => absurd t0 e)
+      exact forI_spec ra C hok _ hc ko khs ks usH vsL n ih' h ty b hv0 hp hden hb (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl)
+    | fvar idx ty =>
+      have t0 : h.tag = 1 := UInt32.toNat_inj.mp (by simp [ENodeView.tagN] at htag; simp [← htag])
+      refine specR_appIte h hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 5 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 6 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 1 (by decide) (by decide) hH (fun _ => ?_) (fun e => absurd t0 e)
+      exact fvarI_spec ra C hok _ hc ko khs ks usH vsL n ih' h idx ty hv0 hp hden hb (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl)
+    | letE ty v b =>
+      have t0 : h.tag = 7 := UInt32.toNat_inj.mp (by simp [ENodeView.tagN] at htag; simp [← htag])
+      refine specR_appIte h hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 5 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 6 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 1 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 7 (by decide) (by decide) hH (fun _ => ?_) (fun e => absurd t0 e)
+      exact letLP_spec ra C hok _ hc ko khs ks usH vsL n ih' h ty v b hv0 hp hden hb (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl)
+    | proj nm i e =>
+      have t0 : h.tag = 9 := UInt32.toNat_inj.mp (by simp [ENodeView.tagN] at htag; simp [← htag])
+      refine specR_appIte h hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 5 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 6 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 1 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 7 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 9 (by decide) (by decide) hH (fun _ => ?_) (fun e => absurd t0 e)
+      exact projI_spec ra C hok _ hc ko khs ks usH vsL n ih' h nm i e hv0 hp hden hb (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl)
+    | sort u =>
+      have t0 : h.tag = 2 := UInt32.toNat_inj.mp (by simp [ENodeView.tagN] at htag; simp [← htag])
+      refine specR_appIte h hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 5 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 6 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 1 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 7 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 9 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 2 (by decide) (by decide) hH (fun _ => ?_) (fun e => absurd t0 e)
+      exact sortI_spec ra C hok _ hc ko khs ks usH vsL h u hv0 hp hden hb (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl)
+    | const nm vs =>
+      have t0 : h.tag = 3 := UInt32.toNat_inj.mp (by simp [ENodeView.tagN] at htag; simp [← htag])
+      refine specR_appIte h hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 5 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 6 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 1 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 7 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 9 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 2 (by decide) (by decide) hH (fun e => absurd (t0.symm.trans e) (by decide)) (fun _ => ?_)
+      refine specR_tagIte h 3 (by decide) (by decide) hH (fun _ => ?_) (fun e => absurd t0 e)
+      exact constI_spec ra C hok _ hc ko khs ks usH vsL h nm vs hv0 hp hden hb (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl) (by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl)
+
+end
+
 end ConPanqueque.T.ILP
