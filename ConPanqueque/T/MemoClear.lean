@@ -116,7 +116,7 @@ theorem sr_upd_region {C : Ctx} (hok : CtxOK C) (r : Region) {s s' : AState} {t 
     envAt_frame hsr.env (fun b c hc => hfr c (hok.memoDis (envR b) r c (hrE b) hc))
       (fun b kk hkk => hfr _ (hok.mdescMemo r (envR b) kk hkk)) (fun i hi => hfr _ (hok.envMemo r i hi)) hd
       ⟨by rw [hg], by rw [hg]⟩, (hpn.trans hsr.pins),
-    heapEx_frame hsr.heap (fun i hi => hfr _ (hok.heapMemo r i hi)) hd (by rw [hg]), by rw [hst]; exact hsr.twf⟩
+    heapEx_frame hsr.heap (fun i hi => hfr _ (hok.heapMemo r i hi)) hd (by rw [hg]), by rw [hst]; exact hsr.twf, by rw [hst]; exact hsr.envd⟩
   · by_cases e : Region.e k = r
     · exact hsE k e
     · rw [hoE k e]

@@ -15,7 +15,7 @@ establish), con-ron's `EStore.intern_wf` applies.
 namespace ConPanqueque.T
 
 theorem internNodeE_wf {v : ENodeView} {s s' : AState} {h : EIdx} (hwf : StoreWF s.store)
-    (hv : s.store.ViewOK v) (hr : internNodeE v s = .ok (h, s')) : StoreWF s'.store := by
+    (hv : s.store.ViewOK v) (hr : internNodeE v s = .ok (h, s')) : StoreWF s'.store ∧ Ext s.store s'.store := by
   have e : internNodeE v s = (match s.store.find? v with
     | some h => (pure h : AM EIdx)
     | none => do
@@ -35,7 +35,7 @@ theorem internNodeE_wf {v : ENodeView} {s s' : AState} {h : EIdx} (hwf : StoreWF
     have e2 : (pure h' : AM EIdx) s = .ok (h', s) := rfl
     rw [e2] at hr
     simp only [Except.ok.injEq, Prod.mk.injEq] at hr
-    obtain ⟨_, rfl⟩ := hr; exact hwf
+    obtain ⟨_, rfl⟩ := hr; exact ⟨hwf, Ext.refl _⟩
   | none =>
     simp only [hf] at hr
     by_cases hn : (if s.store.scratchOn then s.store.scr.sizeOf v else s.store.pers.sizeOf v) < v.cap
@@ -54,7 +54,7 @@ theorem internNodeE_wf {v : ENodeView} {s s' : AState} {h : EIdx} (hwf : StoreWF
       rw [e3] at hr
       simp only [Except.ok.injEq, Prod.mk.injEq] at hr
       obtain ⟨_, rfl⟩ := hr
-      exact EStore.intern_wf hwf hv hn
+      exact ⟨EStore.intern_wf hwf hv hn, EStore.intern_ext _ _⟩
     · have e3 : (do
           let n := if s.store.scratchOn then s.store.scr.sizeOf v else s.store.pers.sizeOf v
           if n < v.cap then do
@@ -114,22 +114,22 @@ theorem viewOK_lit {st : EStore} {l : ConLeche.Literal} : st.ViewOK (.lit l) := 
     ENodeView.lschildren] at hc
 
 theorem internLamE_wf {ty b h : EIdx} {s s' : AState} (hwf : StoreWF s.store) (hty : (s.store.view ty).isSome = true)
-    (hb : (s.store.view b).isSome = true) (hr : internLamE ty b s = .ok (h, s')) : StoreWF s'.store :=
-  (ConRon.Bridge.AM.of_run (P := fun t => t = s) rfl hr (ConRon.Bridge.ExprOps.internLamE_specV s ty b hwf hty hb)).1
+    (hb : (s.store.view b).isSome = true) (hr : internLamE ty b s = .ok (h, s')) : StoreWF s'.store ∧ Ext s.store s'.store :=
+  (ConRon.Bridge.AM.of_run (P := fun t => t = s) rfl hr (ConRon.Bridge.ExprOps.internLamE_specV s ty b hwf hty hb)) |>.imp id (fun h => h.1)
 
 theorem internForallEE_wf {ty b h : EIdx} {s s' : AState} (hwf : StoreWF s.store)
     (hty : (s.store.view ty).isSome = true) (hb : (s.store.view b).isSome = true)
-    (hr : internForallEE ty b s = .ok (h, s')) : StoreWF s'.store :=
-  (ConRon.Bridge.AM.of_run (P := fun t => t = s) rfl hr (ConRon.Bridge.ExprOps.internForallEE_specV s ty b hwf hty hb)).1
+    (hr : internForallEE ty b s = .ok (h, s')) : StoreWF s'.store ∧ Ext s.store s'.store :=
+  (ConRon.Bridge.AM.of_run (P := fun t => t = s) rfl hr (ConRon.Bridge.ExprOps.internForallEE_specV s ty b hwf hty hb)) |>.imp id (fun h => h.1)
 
 theorem internLNode_wf {v : LNodeView} {s s' : AState} {h : LIdx} (hwf : StoreWF s.store)
-    (hv : s.store.ls.ViewOK v) (hr : internLNode v s = .ok (h, s')) : StoreWF s'.store := by
+    (hv : s.store.ls.ViewOK v) (hr : internLNode v s = .ok (h, s')) : StoreWF s'.store ∧ Ext s.store s'.store := by
   unfold internLNode at hr
   cases hf : s.store.ls.find? v with
   | some i =>
     simp [bind, StateT.bind, get, getThe, MonadStateOf.get, StateT.get, pure,
       Except.pure, Except.bind, hf, StateT.pure] at hr
-    rw [← hr.2]; exact hwf
+    rw [← hr.2]; exact ⟨hwf, Ext.refl _⟩
   | none =>
     by_cases hc : (if s.store.ls.scratchOn = true then s.store.ls.scr.sizeOf v
                 else s.store.ls.pers.sizeOf v) < Idx.idxCap
@@ -137,7 +137,7 @@ theorem internLNode_wf {v : LNodeView} {s s' : AState} {h : LIdx} (hwf : StoreWF
         Except.pure, Except.bind, hf, StateT.pure, set, StateT.set, ite_eq_left hc,
         Except.ok.injEq, Prod.mk.injEq] at hr
       rw [← hr.2]
-      exact (ConRon.Bridge.EStore.internLevel_spec hwf hv hc).1
+      exact ⟨(ConRon.Bridge.EStore.internLevel_spec hwf hv hc).1, (ConRon.Bridge.EStore.internLevel_spec hwf hv hc).2.1⟩
     · simp [bind, StateT.bind, get, getThe, MonadStateOf.get, StateT.get, pure,
         Except.pure, Except.bind, hf, hc, fail, throwThe, MonadExceptOf.throw,
         StateT.lift] at hr
@@ -162,13 +162,13 @@ theorem lviewOK_imax {st : LStore} {u v : LIdx} (h : (st.view u).isSome = true �
     rcases hc with rfl | rfl <;> simp [h.1, h.2]
 
 theorem internLsNode_wf {v : LsNodeView} {s s' : AState} {h : LsIdx} (hwf : StoreWF s.store)
-    (hv : s.store.lss.ViewOK v) (hr : internLsNode v s = .ok (h, s')) : StoreWF s'.store := by
+    (hv : s.store.lss.ViewOK v) (hr : internLsNode v s = .ok (h, s')) : StoreWF s'.store ∧ Ext s.store s'.store := by
   unfold internLsNode at hr
   cases hf : s.store.lss.find? v with
   | some i =>
     simp [bind, StateT.bind, get, getThe, MonadStateOf.get, StateT.get, pure,
       Except.pure, Except.bind, hf, StateT.pure] at hr
-    rw [← hr.2]; exact hwf
+    rw [← hr.2]; exact ⟨hwf, Ext.refl _⟩
   | none =>
     by_cases hc : (if s.store.lss.scratchOn = true then s.store.lss.scr.sizeOf v
                 else s.store.lss.pers.sizeOf v) < Idx.idxCap
@@ -176,7 +176,7 @@ theorem internLsNode_wf {v : LsNodeView} {s s' : AState} {h : LsIdx} (hwf : Stor
         Except.pure, Except.bind, hf, StateT.pure, set, StateT.set, ite_eq_left hc,
         Except.ok.injEq, Prod.mk.injEq] at hr
       rw [← hr.2]
-      exact (ConRon.Bridge.EStore.internLevels_spec hwf hv hc).1
+      exact ⟨(ConRon.Bridge.EStore.internLevels_spec hwf hv hc).1, (ConRon.Bridge.EStore.internLevels_spec hwf hv hc).2.1⟩
     · simp [bind, StateT.bind, get, getThe, MonadStateOf.get, StateT.get, pure,
         Except.pure, Except.bind, hf, hc, fail, throwThe, MonadExceptOf.throw,
         StateT.lift] at hr

@@ -642,7 +642,7 @@ theorem internApp_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
         (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
-        (by rw [hg]), internNodeE_wf ht.sr.twf (viewOK_app hv) hrun⟩
+        (by rw [hg]), (internNodeE_wf ht.sr.twf (viewOK_app hv) hrun).1, envDen_ext ht.sr.envd (internNodeE_wf ht.sr.twf (viewOK_app hv) hrun).2⟩
 
 /-- In a caller: `x := internApp(e₁, e₂); rest` against `internAppE f a >>= k`. -/
 theorem specR_internAppI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxOK C)
@@ -690,7 +690,7 @@ theorem sr_storeKB {C : Ctx} (hok : CtxOK C) {s : AState} {t : PState σ} (h : S
       envAt_frame h.env (fun b c hc => hne c (fun e => hok.kbMemo (envR b) j (by omega) (e ▸ hc)))
       (fun b k hk => hne _ (hok.kbMdesc (envR b) k j hk (by omega)))
         (fun i hi => hne _ (hok.kbEnv i j hi hj)) rfl ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, h.pins,
-    heapEx_frame h.heap (fun i hi => hne _ (hok.kbHeap i j hi hj)) rfl rfl, h.twf⟩
+    heapEx_frame h.heap (fun i hi => hne _ (hok.kbHeap i j hi hj)) rfl rfl, h.twf, h.envd⟩
   · exact hne _ ((S.fls _ (Or.inr (Or.inl rfl))).2.2 j hj)
   · exact hne _ ((S.fls _ (Or.inr (Or.inr (Or.inl rfl)))).2.2 j hj)
   · exact hne _ ((S.fls _ (Or.inr (Or.inr (Or.inr rfl)))).2.2 j hj)
@@ -893,7 +893,7 @@ theorem bin2_body_spec (C : Ctx) (hok : CtxOK C) (E : ExpHOL 64) (k : Nat) (op :
     (hwrap : ∀ (s : AState) (f a : EIdx) (t : PState σ), SRep t C.L C.FLn C.FLl C.FLs C.FLe (res s.store f a).1 →
       op f a s = .ok ((res s.store f a).2, { s with store := (res s.store f a).1 }))
     (hwfop : ∀ (s : AState) (f a h : EIdx) (s' : AState), StoreWF s.store → (s.store.view f).isSome = true →
-      (s.store.view a).isSome = true → op f a s = .ok (h, s') → StoreWF s'.store)
+      (s.store.view a).isSome = true → op f a s = .ok (h, s') → StoreWF s'.store ∧ Ext s.store s'.store)
     (s : AState) (f a : EIdx) :
     SpecR (Pre (σ := σ) C s [(lEf, Enc.idxW f), (lEa, Enc.idxW a)]) (bin2Body E k) s (op f a) (PostE C) := by
   refine specR_prologue (postE_locals C) (fun x hx => ?_) ?_
@@ -930,7 +930,8 @@ theorem bin2_body_spec (C : Ctx) (hok : CtxOK C) (E : ExpHOL 64) (k : Nat) (op :
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
         (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
-        (by rw [hg]), hwfop s f a _ _ ht.sr.twf hv.1 hv.2 (hwrap s f a _ hsr)⟩
+        (by rw [hg]), (hwfop s f a _ _ ht.sr.twf hv.1 hv.2 (hwrap s f a _ hsr)).1,
+        envDen_ext ht.sr.envd (hwfop s f a _ _ ht.sr.twf hv.1 hv.2 (hwrap s f a _ hsr)).2⟩
 
 /-- In a caller: `x := fn(e₁, e₂); rest` against `op f a >>= k`, for a two-child intern function `fn`. -/
 theorem specR_bin2I {β : Type} {C : Ctx} (hok : CtxOK C) (fn : MlS) (E : ExpHOL 64) (kk : Nat)
@@ -946,7 +947,7 @@ theorem specR_bin2I {β : Type} {C : Ctx} (hok : CtxOK C) (fn : MlS) (E : ExpHOL
     (hwrap : ∀ (s : AState) (f a : EIdx) (t : PState σ), SRep t C.L C.FLn C.FLl C.FLs C.FLe (res s.store f a).1 →
       op f a s = .ok ((res s.store f a).2, { s with store := (res s.store f a).1 }))
     (hwfop : ∀ (s : AState) (f a h : EIdx) (s' : AState), StoreWF s.store → (s.store.view f).isSome = true →
-      (s.store.view a).isSome = true → op f a s = .ok (h, s') → StoreWF s'.store)
+      (s.store.view a).isSome = true → op f a s = .ok (h, s') → StoreWF s'.store ∧ Ext s.store s'.store)
     (hcode : C.code.lookup fn = some ([(lEf, .one), (lEa, .one)], bin2Body E kk, .one))
     {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64} {k : EIdx → AM β}
     {R : β → BitVec 64 → AState → PState σ → Prop} (x : MlS) (e1 e2 : ExpHOL 64) (f a : EIdx) (hx : x ∈ D)
@@ -1060,7 +1061,7 @@ theorem let_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
         (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
-        (by rw [hg]), internNodeE_wf ht.sr.twf (viewOK_letE hv) hrun⟩
+        (by rw [hg]), (internNodeE_wf ht.sr.twf (viewOK_letE hv) hrun).1, envDen_ext ht.sr.envd (internNodeE_wf ht.sr.twf (viewOK_letE hv) hrun).2⟩
 
 theorem specR_internLetI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxOK C)
     (hcode : C.code.lookup fInternLet = some ([(lEty, .one), (lEvl, .one), (lEbd, .one)], letBody, .one))
@@ -1165,7 +1166,7 @@ theorem bvar_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (ho
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
         (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
-        (by rw [hg]), internNodeE_wf ht.sr.twf (viewOK_bvar) hrun⟩
+        (by rw [hg]), (internNodeE_wf ht.sr.twf (viewOK_bvar) hrun).1, envDen_ext ht.sr.envd (internNodeE_wf ht.sr.twf (viewOK_bvar) hrun).2⟩
 
 theorem specR_internBVarI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxOK C)
     (hcode : C.code.lookup fInternBVar = some ([(lIw, .one)], bvarBody, .one))
@@ -1313,7 +1314,7 @@ theorem proj_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (ho
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
         (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
-        (by rw [hg]), internNodeE_wf ht.sr.twf (viewOK_proj hv) hrun⟩
+        (by rw [hg]), (internNodeE_wf ht.sr.twf (viewOK_proj hv) hrun).1, envDen_ext ht.sr.envd (internNodeE_wf ht.sr.twf (viewOK_proj hv) hrun).2⟩
 
 theorem specR_internProjI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxOK C)
     (hcode : C.code.lookup fInternProj = some ([(lEp, .one), (lEe, .one), (lIw, .one)], projBody, .one))

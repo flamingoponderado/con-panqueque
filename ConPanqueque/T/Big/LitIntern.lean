@@ -311,7 +311,7 @@ theorem litBlk_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk)) (fun i hi => hm _ (hok.envOut i hi)) hd
         ⟨by rw [hg], by rw [hg]⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi)) hd (by rw [hg]),
-        internNodeE_wf ht.sr.twf viewOK_lit hrun⟩
+        (internNodeE_wf ht.sr.twf viewOK_lit hrun).1, envDen_ext ht.sr.envd (internNodeE_wf ht.sr.twf viewOK_lit hrun).2⟩
 
 end
 

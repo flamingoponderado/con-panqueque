@@ -4,6 +4,7 @@ import ConPanqueque.T.MemoRep
 import ConRon.Arena.Env
 import ConRon.Arena.Pins
 import ConRon.Arena.WF
+import ConRon.Arena.Denote
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena
@@ -390,6 +391,21 @@ theorem envAt_frame {C : Ctx} {t u : PState σ} (h : EnvAt t C)
     memoAtG_frame hm (hT true) (hTd true) hd, memoAtG_frame hm' (hT false) (hTd false) hd,
     by rw [hg.1]; exact hl⟩
 
+/-- The environment's stored constants denote in the twin store: their level-parameter names and their types. -/
+def EnvDen (fe : IFEnv) (st : EStore) : Prop :=
+  ∀ c ci, fe.find? c = some ci → (∀ n ∈ ci.toConstantVal.levelParams, (denoteN st.ns n).isSome = true) ∧
+    (denoteE st ci.toConstantVal.type).isSome = true
+
+theorem envDen_ext {fe : IFEnv} {st st' : EStore} (h : EnvDen fe st) (hx : Ext st st') : EnvDen fe st' := by
+  intro c ci hc
+  obtain ⟨h1, h2⟩ := h c ci hc
+  refine ⟨fun n hn => ?_, ?_⟩
+  · obtain ⟨m, hm⟩ := Option.isSome_iff_exists.mp (h1 n hn)
+    show (denoteN st'.lss.ls.ns n).isSome = true
+    rw [hx.lss.ls.ns n m hm]; rfl
+  · obtain ⟨e, he⟩ := Option.isSome_iff_exists.mp h2
+    rw [hx.expr _ e he]; rfl
+
 structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   rep : SRep t C.L C.FLn C.FLl C.FLs C.FLe s.store
   gdir : t.globals.lookup gDir = some (.val (.word C.L.DIR))
@@ -417,6 +433,8 @@ structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   heap : HeapEx t C.HB C.HN C.H
   /-- The twin store is well formed (con-ron's `StoreWF`). -/
   twf : StoreWF s.store
+  /-- The environment's constants denote in the twin store. -/
+  envd : EnvDen C.fe s.store
 
 theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u.memory = t.memory)
     (hd : u.memaddrs = t.memaddrs) (hg : u.globals = t.globals) (hc : u.code = t.code) : SR C s u :=
@@ -430,7 +448,7 @@ theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u
     modeAt_frame h.mode (fun _ _ _ _ => by rw [hm]) (fun _ _ _ _ => by rw [hm]) hd (by rw [hg]),
     envAt_frame h.env (fun _ _ _ => by rw [hm]) (fun _ _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd
       ⟨by rw [hg], by rw [hg]⟩, h.pins,
-    heapEx_frame h.heap (fun _ _ => by rw [hm]) hd (by rw [hg]), h.twf⟩
+    heapEx_frame h.heap (fun _ _ => by rw [hm]) hd (by rw [hg]), h.twf, h.envd⟩
 
 theorem eval_gv (t : PState σ) (g : MlS) (w : BitVec 64) (h : t.globals.lookup g = some (.val (.word w))) :
     EV t (.var .global g) = some (.val (.word w)) := by

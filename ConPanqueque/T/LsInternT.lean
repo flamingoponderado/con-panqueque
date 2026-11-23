@@ -191,6 +191,6 @@ theorem internLs_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx)
           have hi' : i < H0.length := hi
           have := hp0.length_le
           exact hm _ (hok.heapOut i (by omega)) (keyne _ ⟨i, by omega, rfl, Or.inl (by omega)⟩)) hd (by rw [hg]; rfl),
-      internLsNode_wf ht.sr.twf hv hrun⟩
+      (internLsNode_wf ht.sr.twf hv hrun).1, envDen_ext ht.sr.envd (internLsNode_wf ht.sr.twf hv hrun).2⟩
 
 end ConPanqueque.T
