@@ -1222,6 +1222,62 @@ theorem shr_loop {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ0 : Env} 
   have f : ∀ w, Γ0.get w = none → z ≠ w := fun w hw e => by subst e; rw [hw] at hz; simp at hz
   simp [e1, e2, e3, f _ hnU, f _ hnV, f _ hnD, hz]
 
+def shrG3 (Γ2 : Env) (C : Ctx) (od n k : Nat) : Env :=
+  (rK, BitVec.ofNat 64 k) :: (rQo, cellA C (od + 1 + k)) :: (rL, BitVec.ofNat 64 (limbs (n % B ^ k)).length) :: Γ2
+
+theorem shr_trim {α : Type} {C : Ctx} {s : AState} {Γ2 : Env} {D : List MlS} {rest : ProgHOL 64}
+    {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop} (n lx : Nat) (Bf W : List (BitVec 64)) (od : Nat)
+    (hW : ∀ k, k < lx → Bf[od + 1 + k]? = some (BitVec.ofNat 64 (n / B ^ k % B))) (h61 : lx < 2 ^ 61)
+    (hD : rU ∈ D ∧ rL ∈ D ∧ rQo ∈ D ∧ rK ∈ D)
+    (hLa : Γ2.get rCnt = some (BitVec.ofNat 64 lx)) (hn : Γ2.get rU = none)
+    (hr : SpecR (Inv (ctxH C Bf) s (shrG3 Γ2 C od n lx) [] D) rest s m R) :
+    SpecR (Inv (ctxH C Bf) s (shrG3 Γ2 C od n 0) [] D) (.seq shrTrim rest) s m R := by
+  obtain ⟨du, dl, dq, dk⟩ := hD
+  refine specR_forI (σ := σ) (D := D) (M := []) _ _ rest lx (fun _ => ctxH C Bf) (shrG3 Γ2 C od n)
+    (fun i hi => ⟨if Flapjack.Compiler.Encoders.Asm.wordCmpHOL .lower (BitVec.ofNat 64 i) (BitVec.ofNat 64 lx)
+      then 1 else 0, by simp [sev, shrG3, Env.get, hLa], ?_⟩) (fun i hi => ?_) hr
+  · have e := word_lt_iff i lx (by unfold B; omega) (by unfold B; omega)
+    by_cases h' : i < lx
+    · simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, e.mpr h', h']
+    · have : ¬ BitVec.ofNat 64 i < BitVec.ofNat 64 lx := fun x => h' (e.mp x)
+      simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, this, h']
+  refine step_seq (step_heapLoadI' (C := ctxH C Bf) rU (vv rQo) (od + 1 + i) _ (hW i hi) du
+    (by simp [shrG3]; rfl)) ?_
+  refine step_seq (step_assignI rL shrTrimE (BitVec.ofNat 64 (limbs (n % B ^ (i + 1))).length) dl ?_) ?_
+  · simp only [shrTrimE, sev, sev_vv, Env.get_cons, shrG3]
+    simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+    rw [len_mod_succ, ← trim_word _ i _ (Nat.mod_lt _ Bpos)]
+    simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+  refine step_seq (step_assignI rQo _ (cellA C (od + 1 + i + 1)) dq (by simp [sev, shrG3]; exact cellA_add8 C _)) ?_
+  refine step_mono (step_assignI rK _ (BitVec.ofNat 64 (i + 1)) dk (by simp [sev, shrG3]; exact word_add1_eq i))
+    (fun _ h => h) (fun t ht => inv_envMono ht (fun z v hz => ?_))
+  simp only [shrG3, Env.get_cons] at hz ⊢
+  by_cases e1 : z = rK
+  · subst e1; simp_all
+  by_cases e2 : z = rQo
+  · subst e2; simp_all [Nat.add_assoc]
+  by_cases e3 : z = rL
+  · subst e3; simp_all
+  simp only [e1, e2, e3, ite_false] at hz
+  have f1 : z ≠ rU := by intro e; subst e; rw [hn] at hz; simp at hz
+  simp [e1, e2, e3, f1, hz]
+
+
+
+theorem zeroBlk_spec {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env} {D : List MlS} (hz : rZ ∈ D) :
+    SpecR (σ := σ) (Inv C s Γ [] D) (zeroBlk C) s (pure 0 : AM Nat) (PostH C s) := by
+  unfold zeroBlk
+  refine specR_allocI rZ (.const 8) 1 (by norm_num) hz (fun v => by simp [sev]) (fun H' ws hpre hwl hcap => ?_)
+  have hj : H'.length < (ctxH C (H' ++ ws)).H.length := by show _ < (H' ++ ws).length; simp; omega
+  refine specR_heapStoreI (ctxOK_H hok _) (vv rZ) (.const 0) _ hj 0 (by simp; rfl) rfl ?_
+  refine specR_returnI _ (cellA C H'.length) (by simp) (fun t ht => ?_)
+  refine ⟨_, H'.length, prefix_set_ge (hpre.trans (List.prefix_append _ _)) _ hpre.length_le _, rfl, ?_, rfl,
+    sr_of_eq ht.sr rfl rfl rfl rfl⟩
+  rw [limbs_zero]
+  refine ⟨?_, fun i hi => absurd hi (by simp)⟩
+  show ((H' ++ ws).set H'.length 0)[H'.length]? = _
+  rw [List.getElem?_set_self (by simp; omega)]; rfl
+
 end
 
 end ConPanqueque.T.Big
