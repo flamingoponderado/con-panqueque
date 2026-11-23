@@ -1,6 +1,8 @@
 import ConPanqueque.T.Intern
 import ConPanqueque.V.ESort
 import ConPanqueque.V.EConst
+import ConPanqueque.V.EVar
+import ConPanqueque.T.MemoRep
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena
@@ -70,6 +72,73 @@ theorem const_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (h
     exact internNodeE_const s n us
       (Nat.le_trans (tabAt_size_le hsr.e.p3) (hok.sepConst.cap 0 (by decide)))
       (Nat.le_trans (tabAt_size_le hsr.e.s3) (hok.sepConst.cap 1 (by decide)))
+  · exact ⟨hsr, by rw [hg]; exact ht.sr.gdir, by rw [hg]; exact ht.sr.gfln, by rw [hg]; exact ht.sr.gfll,
+      by rw [hg]; exact ht.sr.gfls, by rw [hg]; exact ht.sr.gfle, by rw [hg]; exact ht.sr.gkb,
+      by rw [hc]; exact ht.sr.code, fun j hj => by rw [hd]; exact ht.sr.kbuf j hj,
+      fun mk => memoAt_frame (ht.sr.memo mk)
+        (fun c hc => hm c (hok.memoOut (.e mk) c hc) (fun j hj e => hok.kbMemo (.e mk) j (by omega) (e ▸ hc)))
+        (fun k hk => hm _ (hok.mdescOut (.e mk) k hk) (fun j hj => hok.kbMdesc (.e mk) k j hk (by omega))) hd,
+      fun mk => memoAtN_frame (ht.sr.memoN mk)
+        (fun c hc => hm c (hok.memoOut (.n mk) c hc) (fun j hj e => hok.kbMemo (.n mk) j (by omega) (e ▸ hc)))
+        (fun k hk => hm _ (hok.mdescOut (.n mk) k hk) (fun j hj => hok.kbMdesc (.n mk) k j hk (by omega))) hd,
+      heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
+        (by rw [hg])⟩
+
+def fInternFVar := ofString "internFVar"
+def fvarLocals : List MlS := lEn :: fvarScratch
+
+def fvarBody : ProgHOL 64 :=
+  prologue fvarLocals (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 0))]) (vv lEty))
+    (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 1))]) (vv lIw))
+    (.seq (.assign .local lEn (.op .add [.const 1, .cmp .notEqual (vv lIw) (.const 0)]))
+      (eFVarWith (rRestE 10 (vv lEn) lFle)))))
+
+theorem encFVar_small (idx : Nat) (ty : EIdx) (hi : idx < 2 ^ 64) :
+    Enc.encFVar ⟨idx, ty⟩ = Enc.idxW ty :: (if idx = 0 then [] else [BitVec.ofNat 64 idx]) := by
+  simp [Enc.encFVar, limbs_small idx hi]
+
+theorem fvar_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (s : AState) (idx : Nat)
+    (ty : EIdx) (hi : idx < 2 ^ 63) :
+    SpecR (Pre (σ := σ) C s [(lEty, Enc.idxW ty), (lIw, (UInt64.ofNat idx).toBitVec)]) fvarBody s
+      (internFVarE idx ty) (PostE C) := by
+  have hiw : (UInt64.ofNat idx).toBitVec = BitVec.ofNat 64 idx := rfl
+  have hlen : (Enc.encFVar ⟨idx, ty⟩).length ≤ 2 := by rw [encFVar_small idx ty (by omega)]; split <;> simp
+  have hlenW : (1 : BitVec 64) + (if Flapjack.Compiler.Encoders.Asm.wordCmpHOL .notEqual (UInt64.ofNat idx).toBitVec 0 then (1 : BitVec 64) else 0) =
+      BitVec.ofNat 64 (Enc.encFVar ⟨idx, ty⟩).length := by
+    rw [encFVar_small idx ty (by omega), hiw]
+    by_cases h0 : idx = 0
+    · subst h0; simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+    · have : BitVec.ofNat 64 idx ≠ 0#64 := by intro e; have := congrArg BitVec.toNat e; simp at this; omega
+      simp [h0, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, this]
+  refine specR_prologue (postE_locals C) (fun x hx => ?_) ?_
+  · simp only [fvarLocals, fvarScratch, List.mem_cons, List.not_mem_nil, or_false] at hx
+    rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> rfl
+  refine specR_storeKB2I hok (vv lEty) (vv lIw) (Enc.idxW ty) (UInt64.ofNat idx).toBitVec rfl rfl rfl ?_
+  refine specR_assignI lEn _ (BitVec.ofNat 64 (Enc.encFVar ⟨idx, ty⟩).length) (by decide)
+    (by rw [← hlenW]; rfl) ?_
+  intro t ht
+  have hw : ∀ y, y ∈ fvarScratch → ∃ w, t.locals.lookup y = some (.val (.word w)) :=
+    fun y hy => ht.decl y (List.mem_append_right _ (List.mem_cons_of_mem _ hy))
+  have hK : Words t C.KB (Enc.encFVar ⟨idx, ty⟩) := by
+    intro j hj
+    rcases (by omega : j = 0 ∨ j = 1) with rfl | rfl
+    · have e0 : (Enc.encFVar ⟨idx, ty⟩)[0]'hj = Enc.idxW ty := by simp [Enc.encFVar]
+      rw [e0]; exact ht.mem _ _ (by simp)
+    · have h0 : idx ≠ 0 := by intro e; subst e; simp [Enc.encFVar, Enc.limbs] at hj
+      have e1 : (Enc.encFVar ⟨idx, ty⟩)[1]'hj = BitVec.ofNat 64 idx := by
+        simp only [encFVar_small idx ty (by omega), h0, ite_false]; rfl
+      rw [e1, ← hiw]; exact ht.mem _ _ (by simp)
+  rcases eInternFVar_spec ra t C.L C.FLn C.FLl C.FLs C.FLe C.KB s.store idx ty hi ht.sr.rep
+      (sepK_mono hok.sepFVar hlen) hK (by omega) hok.b0FVar hok.b1FVar (ht.env _ _ rfl) (ht.env _ _ rfl)
+      (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) hw with
+    hs | ⟨hr, hsr, hc, hg, hd, _, hm⟩
+  · exact Or.inl hs
+  right
+  refine ⟨_, hr, (s.store.intern (.fvar idx ty)).2, { s with store := (s.store.intern (.fvar idx ty)).1 }, ?_, rfl, ?_⟩
+  · show internNodeE (.fvar idx ty) s = _
+    exact internNodeE_fvar s idx ty
+      (Nat.le_trans (tabAt_size_le hsr.e.p1) (hok.sepFVar.cap 0 (by decide)))
+      (Nat.le_trans (tabAt_size_le hsr.e.s1) (hok.sepFVar.cap 1 (by decide)))
   · exact ⟨hsr, by rw [hg]; exact ht.sr.gdir, by rw [hg]; exact ht.sr.gfln, by rw [hg]; exact ht.sr.gfll,
       by rw [hg]; exact ht.sr.gfls, by rw [hg]; exact ht.sr.gfle, by rw [hg]; exact ht.sr.gkb,
       by rw [hc]; exact ht.sr.code, fun j hj => by rw [hd]; exact ht.sr.kbuf j hj,
