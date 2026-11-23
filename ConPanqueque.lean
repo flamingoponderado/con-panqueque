@@ -223,3 +223,4 @@ import ConPanqueque.T.Core.MajorTests
 import ConPanqueque.T.Core.PrepMajor
 import ConPanqueque.T.Core.ProofIrrel
 import ConPanqueque.T.Core.EtaProjs
+import ConPanqueque.T.Core.AndRescue
