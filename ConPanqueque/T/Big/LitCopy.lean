@@ -250,6 +250,163 @@ def cI := ofString "ci"
 @[simp] theorem cI_ne_lKb : cI ≠ lKb := by decide
 @[simp] theorem lKb_ne_cI : lKb ≠ cI := by decide
 
+@[simp] theorem lFl_ne_lDh' : lFl ≠ lDh := by decide
+@[simp] theorem lFl_ne_lDt' : lFl ≠ lDt := by decide
+@[simp] theorem lFl_ne_lDg' : lFl ≠ lDg := by decide
+@[simp] theorem lFl_ne_lDi' : lFl ≠ lDi := by decide
+@[simp] theorem lFl_ne_lRp' : lFl ≠ lRp := by decide
+@[simp] theorem lFl_ne_lRn' : lFl ≠ lRn := by decide
+@[simp] theorem lFl_ne_lFle' : lFl ≠ lFle := by decide
+@[simp] theorem lFl_ne_lDir' : lFl ≠ lDir := by decide
+@[simp] theorem lFl_ne_lFln' : lFl ≠ lFln := by decide
+@[simp] theorem lFl_ne_lFll' : lFl ≠ lFll := by decide
+@[simp] theorem lFl_ne_lFls' : lFl ≠ lFls := by decide
+@[simp] theorem lFl_ne_lKb' : lFl ≠ lKb := by decide
+@[simp] theorem lDh_ne_lFl' : lDh ≠ lFl := by decide
+@[simp] theorem lDh_ne_lDt' : lDh ≠ lDt := by decide
+@[simp] theorem lDh_ne_lDg' : lDh ≠ lDg := by decide
+@[simp] theorem lDh_ne_lDi' : lDh ≠ lDi := by decide
+@[simp] theorem lDh_ne_lRp' : lDh ≠ lRp := by decide
+@[simp] theorem lDh_ne_lRn' : lDh ≠ lRn := by decide
+@[simp] theorem lDh_ne_lFle' : lDh ≠ lFle := by decide
+@[simp] theorem lDh_ne_lDir' : lDh ≠ lDir := by decide
+@[simp] theorem lDh_ne_lFln' : lDh ≠ lFln := by decide
+@[simp] theorem lDh_ne_lFll' : lDh ≠ lFll := by decide
+@[simp] theorem lDh_ne_lFls' : lDh ≠ lFls := by decide
+@[simp] theorem lDh_ne_lKb' : lDh ≠ lKb := by decide
+@[simp] theorem lDt_ne_lFl' : lDt ≠ lFl := by decide
+@[simp] theorem lDt_ne_lDh' : lDt ≠ lDh := by decide
+@[simp] theorem lDt_ne_lDg' : lDt ≠ lDg := by decide
+@[simp] theorem lDt_ne_lDi' : lDt ≠ lDi := by decide
+@[simp] theorem lDt_ne_lRp' : lDt ≠ lRp := by decide
+@[simp] theorem lDt_ne_lRn' : lDt ≠ lRn := by decide
+@[simp] theorem lDt_ne_lFle' : lDt ≠ lFle := by decide
+@[simp] theorem lDt_ne_lDir' : lDt ≠ lDir := by decide
+@[simp] theorem lDt_ne_lFln' : lDt ≠ lFln := by decide
+@[simp] theorem lDt_ne_lFll' : lDt ≠ lFll := by decide
+@[simp] theorem lDt_ne_lFls' : lDt ≠ lFls := by decide
+@[simp] theorem lDt_ne_lKb' : lDt ≠ lKb := by decide
+@[simp] theorem lDg_ne_lFl' : lDg ≠ lFl := by decide
+@[simp] theorem lDg_ne_lDh' : lDg ≠ lDh := by decide
+@[simp] theorem lDg_ne_lDt' : lDg ≠ lDt := by decide
+@[simp] theorem lDg_ne_lDi' : lDg ≠ lDi := by decide
+@[simp] theorem lDg_ne_lRp' : lDg ≠ lRp := by decide
+@[simp] theorem lDg_ne_lRn' : lDg ≠ lRn := by decide
+@[simp] theorem lDg_ne_lFle' : lDg ≠ lFle := by decide
+@[simp] theorem lDg_ne_lDir' : lDg ≠ lDir := by decide
+@[simp] theorem lDg_ne_lFln' : lDg ≠ lFln := by decide
+@[simp] theorem lDg_ne_lFll' : lDg ≠ lFll := by decide
+@[simp] theorem lDg_ne_lFls' : lDg ≠ lFls := by decide
+@[simp] theorem lDg_ne_lKb' : lDg ≠ lKb := by decide
+@[simp] theorem lDi_ne_lFl' : lDi ≠ lFl := by decide
+@[simp] theorem lDi_ne_lDh' : lDi ≠ lDh := by decide
+@[simp] theorem lDi_ne_lDt' : lDi ≠ lDt := by decide
+@[simp] theorem lDi_ne_lDg' : lDi ≠ lDg := by decide
+@[simp] theorem lDi_ne_lRp' : lDi ≠ lRp := by decide
+@[simp] theorem lDi_ne_lRn' : lDi ≠ lRn := by decide
+@[simp] theorem lDi_ne_lFle' : lDi ≠ lFle := by decide
+@[simp] theorem lDi_ne_lDir' : lDi ≠ lDir := by decide
+@[simp] theorem lDi_ne_lFln' : lDi ≠ lFln := by decide
+@[simp] theorem lDi_ne_lFll' : lDi ≠ lFll := by decide
+@[simp] theorem lDi_ne_lFls' : lDi ≠ lFls := by decide
+@[simp] theorem lDi_ne_lKb' : lDi ≠ lKb := by decide
+@[simp] theorem lRp_ne_lFl' : lRp ≠ lFl := by decide
+@[simp] theorem lRp_ne_lDh' : lRp ≠ lDh := by decide
+@[simp] theorem lRp_ne_lDt' : lRp ≠ lDt := by decide
+@[simp] theorem lRp_ne_lDg' : lRp ≠ lDg := by decide
+@[simp] theorem lRp_ne_lDi' : lRp ≠ lDi := by decide
+@[simp] theorem lRp_ne_lRn' : lRp ≠ lRn := by decide
+@[simp] theorem lRp_ne_lFle' : lRp ≠ lFle := by decide
+@[simp] theorem lRp_ne_lDir' : lRp ≠ lDir := by decide
+@[simp] theorem lRp_ne_lFln' : lRp ≠ lFln := by decide
+@[simp] theorem lRp_ne_lFll' : lRp ≠ lFll := by decide
+@[simp] theorem lRp_ne_lFls' : lRp ≠ lFls := by decide
+@[simp] theorem lRp_ne_lKb' : lRp ≠ lKb := by decide
+@[simp] theorem lRn_ne_lFl' : lRn ≠ lFl := by decide
+@[simp] theorem lRn_ne_lDh' : lRn ≠ lDh := by decide
+@[simp] theorem lRn_ne_lDt' : lRn ≠ lDt := by decide
+@[simp] theorem lRn_ne_lDg' : lRn ≠ lDg := by decide
+@[simp] theorem lRn_ne_lDi' : lRn ≠ lDi := by decide
+@[simp] theorem lRn_ne_lRp' : lRn ≠ lRp := by decide
+@[simp] theorem lRn_ne_lFle' : lRn ≠ lFle := by decide
+@[simp] theorem lRn_ne_lDir' : lRn ≠ lDir := by decide
+@[simp] theorem lRn_ne_lFln' : lRn ≠ lFln := by decide
+@[simp] theorem lRn_ne_lFll' : lRn ≠ lFll := by decide
+@[simp] theorem lRn_ne_lFls' : lRn ≠ lFls := by decide
+@[simp] theorem lRn_ne_lKb' : lRn ≠ lKb := by decide
+@[simp] theorem lFle_ne_lFl' : lFle ≠ lFl := by decide
+@[simp] theorem lFle_ne_lDh' : lFle ≠ lDh := by decide
+@[simp] theorem lFle_ne_lDt' : lFle ≠ lDt := by decide
+@[simp] theorem lFle_ne_lDg' : lFle ≠ lDg := by decide
+@[simp] theorem lFle_ne_lDi' : lFle ≠ lDi := by decide
+@[simp] theorem lFle_ne_lRp' : lFle ≠ lRp := by decide
+@[simp] theorem lFle_ne_lRn' : lFle ≠ lRn := by decide
+@[simp] theorem lFle_ne_lDir' : lFle ≠ lDir := by decide
+@[simp] theorem lFle_ne_lFln' : lFle ≠ lFln := by decide
+@[simp] theorem lFle_ne_lFll' : lFle ≠ lFll := by decide
+@[simp] theorem lFle_ne_lFls' : lFle ≠ lFls := by decide
+@[simp] theorem lFle_ne_lKb' : lFle ≠ lKb := by decide
+@[simp] theorem lDir_ne_lFl' : lDir ≠ lFl := by decide
+@[simp] theorem lDir_ne_lDh' : lDir ≠ lDh := by decide
+@[simp] theorem lDir_ne_lDt' : lDir ≠ lDt := by decide
+@[simp] theorem lDir_ne_lDg' : lDir ≠ lDg := by decide
+@[simp] theorem lDir_ne_lDi' : lDir ≠ lDi := by decide
+@[simp] theorem lDir_ne_lRp' : lDir ≠ lRp := by decide
+@[simp] theorem lDir_ne_lRn' : lDir ≠ lRn := by decide
+@[simp] theorem lDir_ne_lFle' : lDir ≠ lFle := by decide
+@[simp] theorem lDir_ne_lFln' : lDir ≠ lFln := by decide
+@[simp] theorem lDir_ne_lFll' : lDir ≠ lFll := by decide
+@[simp] theorem lDir_ne_lFls' : lDir ≠ lFls := by decide
+@[simp] theorem lDir_ne_lKb' : lDir ≠ lKb := by decide
+@[simp] theorem lFln_ne_lFl' : lFln ≠ lFl := by decide
+@[simp] theorem lFln_ne_lDh' : lFln ≠ lDh := by decide
+@[simp] theorem lFln_ne_lDt' : lFln ≠ lDt := by decide
+@[simp] theorem lFln_ne_lDg' : lFln ≠ lDg := by decide
+@[simp] theorem lFln_ne_lDi' : lFln ≠ lDi := by decide
+@[simp] theorem lFln_ne_lRp' : lFln ≠ lRp := by decide
+@[simp] theorem lFln_ne_lRn' : lFln ≠ lRn := by decide
+@[simp] theorem lFln_ne_lFle' : lFln ≠ lFle := by decide
+@[simp] theorem lFln_ne_lDir' : lFln ≠ lDir := by decide
+@[simp] theorem lFln_ne_lFll' : lFln ≠ lFll := by decide
+@[simp] theorem lFln_ne_lFls' : lFln ≠ lFls := by decide
+@[simp] theorem lFln_ne_lKb' : lFln ≠ lKb := by decide
+@[simp] theorem lFll_ne_lFl' : lFll ≠ lFl := by decide
+@[simp] theorem lFll_ne_lDh' : lFll ≠ lDh := by decide
+@[simp] theorem lFll_ne_lDt' : lFll ≠ lDt := by decide
+@[simp] theorem lFll_ne_lDg' : lFll ≠ lDg := by decide
+@[simp] theorem lFll_ne_lDi' : lFll ≠ lDi := by decide
+@[simp] theorem lFll_ne_lRp' : lFll ≠ lRp := by decide
+@[simp] theorem lFll_ne_lRn' : lFll ≠ lRn := by decide
+@[simp] theorem lFll_ne_lFle' : lFll ≠ lFle := by decide
+@[simp] theorem lFll_ne_lDir' : lFll ≠ lDir := by decide
+@[simp] theorem lFll_ne_lFln' : lFll ≠ lFln := by decide
+@[simp] theorem lFll_ne_lFls' : lFll ≠ lFls := by decide
+@[simp] theorem lFll_ne_lKb' : lFll ≠ lKb := by decide
+@[simp] theorem lFls_ne_lFl' : lFls ≠ lFl := by decide
+@[simp] theorem lFls_ne_lDh' : lFls ≠ lDh := by decide
+@[simp] theorem lFls_ne_lDt' : lFls ≠ lDt := by decide
+@[simp] theorem lFls_ne_lDg' : lFls ≠ lDg := by decide
+@[simp] theorem lFls_ne_lDi' : lFls ≠ lDi := by decide
+@[simp] theorem lFls_ne_lRp' : lFls ≠ lRp := by decide
+@[simp] theorem lFls_ne_lRn' : lFls ≠ lRn := by decide
+@[simp] theorem lFls_ne_lFle' : lFls ≠ lFle := by decide
+@[simp] theorem lFls_ne_lDir' : lFls ≠ lDir := by decide
+@[simp] theorem lFls_ne_lFln' : lFls ≠ lFln := by decide
+@[simp] theorem lFls_ne_lFll' : lFls ≠ lFll := by decide
+@[simp] theorem lFls_ne_lKb' : lFls ≠ lKb := by decide
+@[simp] theorem lKb_ne_lFl' : lKb ≠ lFl := by decide
+@[simp] theorem lKb_ne_lDh' : lKb ≠ lDh := by decide
+@[simp] theorem lKb_ne_lDt' : lKb ≠ lDt := by decide
+@[simp] theorem lKb_ne_lDg' : lKb ≠ lDg := by decide
+@[simp] theorem lKb_ne_lDi' : lKb ≠ lDi := by decide
+@[simp] theorem lKb_ne_lRp' : lKb ≠ lRp := by decide
+@[simp] theorem lKb_ne_lRn' : lKb ≠ lRn := by decide
+@[simp] theorem lKb_ne_lFle' : lKb ≠ lFle := by decide
+@[simp] theorem lKb_ne_lDir' : lKb ≠ lDir := by decide
+@[simp] theorem lKb_ne_lFln' : lKb ≠ lFln := by decide
+@[simp] theorem lKb_ne_lFll' : lKb ≠ lFll := by decide
+@[simp] theorem lKb_ne_lFls' : lKb ≠ lFls := by decide
+
 def litLoop : ProgHOL 64 :=
   .while (.cmp .lower (vv cI) (vv cLn))
     (.seq eViewP
@@ -388,6 +545,87 @@ theorem lit_loop {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ0 : Env} 
   have f5 : x ≠ lDg := by intro e; subst e; rw [n4] at hx; simp at hx
   have f6 : x ≠ lDi := by intro e; subst e; rw [n5] at hx; simp at hx
   simp [e1, e2, e3, f1, f2, f3, f4, f5, f6, hx]
+
+/-- The post of a helper returning a fresh limb block for `n` (state unchanged). -/
+def PostH (C : Ctx) (s : AState) (n : Nat) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
+  ∃ H' o, C.H <+: H' ∧ w = cellA C o ∧ BlkAt H' o ((limbs n)) ∧ s' = s ∧ SR (ctxH C H') s st
+
+theorem postH_locals (C : Ctx) (s : AState) : ∀ (a : Nat) w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
+    PostH C s a w s' st → PostH C s a w s' { st with locals := L } :=
+  fun _ _ _ _ _ ⟨H', o, hp, hw, hb, hs, hsr⟩ => ⟨H', o, hp, hw, hb, hs, sr_of_eq hsr rfl rfl rfl rfl⟩
+
+theorem lit_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ litLocals → (ctxEnv C ++ [cH].zip vals).get x = none :=
+  Knot.params_none C litLocals [cH] vals (by decide) (by decide)
+
+theorem prefix_set_ge {P B : List (BitVec 64)} (hp : P <+: B) (j : Nat) (hj : P.length ≤ j) (w : BitVec 64) :
+    P <+: B.set j w := by
+  obtain ⟨r, rfl⟩ := hp
+  exact ⟨r.set (j - P.length) w, by rw [List.set_append_right _ _ hj]⟩
+
+theorem lit_spec (C : Ctx) (hok : CtxOK C) (s : AState) (h : EIdx) (n : Nat)
+    (hv : s.store.view h = some (.lit (.natVal n))) :
+    SpecR (σ := σ) (Pre C s ([cH].zip [Enc.idxW h])) (litBody C) s (pure n : AM Nat) (PostH C s) := by
+  refine specR_prologue (postH_locals C s) (lit_none C _) ?_
+  unfold litCore
+  refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
+  refine specR_assignI lDh (vv cH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
+  refine specR_congr (m' := ConRon.Arena.view h >>= fun _ => (pure n : AM Nat))
+    (by simp only [bind, StateT.bind]; rw [view_run, hv]; rfl) ?_
+  refine ILP.specR_viewIv h (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
+    (fun v P hv' _ hl => ?_)
+  rw [hv] at hv'; cases hv'
+  have ev : encEView (.lit (.natVal n)) = 0 :: limbs n := rfl
+  rw [ev] at hl ⊢
+  simp only [List.length_cons] at hl
+  refine specR_assignI cLn _ (BitVec.ofNat 64 (limbs n).length) (by decide)
+    (by simp +decide [sev, Env.get]; exact Ex.ofNat_succ_sub_one _) ?_
+  refine specR_allocI cO (.panop .mul [.op .add [vv cLn, .const 1], .const 8]) ((limbs n).length + 1) (by omega)
+    (by decide) (fun v => by simp [sev, Env.get]; rw [word_add1_eq]; exact CV.mul8_eq _) (fun H' wsN hpre hwl hcap => ?_)
+  have hj : H'.length < (ctxH C (H' ++ wsN)).H.length := by show H'.length < (H' ++ wsN).length; simp; omega
+  refine specR_heapStoreI (C := ctxH C (H' ++ wsN)) (ctxOK_H hok _) (vv cO) (vv cLn) H'.length hj
+    (BitVec.ofNat 64 (limbs n).length) (by simp; rfl) (by simp) ?_
+  refine specR_assignI cQ _ (cellA C (H'.length + 1)) (by decide) (by simp [sev]; exact cellA_add8 C _) ?_
+  refine specR_assignI cK (.const 8) (BitVec.ofNat 64 (8 * (0 + 1))) (by decide) rfl ?_
+  refine specR_assignI cI (.const 0) (BitVec.ofNat 64 0) (by decide) rfl ?_
+  let B0 := (H' ++ wsN).set H'.length (BitVec.ofNat 64 (limbs n).length)
+  have hB0 : B0.length = H'.length + ((limbs n).length + 1) := by simp [B0, hwl]
+  refine specR_envWeak (Γb := litG ([(cLn, BitVec.ofNat 64 (limbs n).length), (cO, cellA C H'.length),
+    (lFl, C.FLe), (lDh, Enc.idxW h), (lDir, C.L.DIR)]) C H'.length 0) (fun x v hx => ?_) ?_
+  · simp only [litG, Env.get_cons] at hx ⊢
+    by_cases e1 : x = cI
+    · subst e1; simpa using hx
+    by_cases e2 : x = cK
+    · subst e2; simpa using hx
+    by_cases e3 : x = cQ
+    · subst e3; simpa using hx
+    by_cases e4 : x = cLn
+    · subst e4; simpa using hx
+    by_cases e5 : x = cO
+    · subst e5; simpa using hx
+    by_cases e6 : x = lFl
+    · subst e6; simpa using hx
+    by_cases e7 : x = lDh
+    · subst e7; simp at hx; subst hx; simp
+    by_cases e8 : x = lDir
+    · subst e8; simp at hx; subst hx; simp [Env.get, ctxEnv]
+    simp [e1, e2, e3, e4, e5, e6, e7, e8, Env.get] at hx
+  refine lit_loop (C := C) hok h n hv B0 H'.length (by rw [hB0]; omega) (by omega)
+    (by decide) (by simp) (by simp) (by simp) (by simp) (by simp +decide [Env.get]) ?_
+  refine specR_returnI _ (cellA C H'.length) (by simp [litG]) (fun t ht => ?_)
+  refine ⟨fillI B0 (limbs n) (H'.length + 1) (limbs n).length, H'.length, ?_, rfl, ?_, rfl,
+    sr_of_eq ht.sr rfl rfl rfl rfl⟩
+  · exact CV.prefix_fillI _ _ _ C.H (by have := hpre.length_le; omega)
+      (prefix_set_ge (hpre.trans (List.prefix_append _ _)) _ (hpre.length_le) _) _
+  · have hl0 := fillI_length B0 (limbs n) (H'.length + 1)
+    constructor
+    · rw [fillI_get?, if_neg (by omega)]
+      show ((H' ++ wsN).set H'.length _)[H'.length]? = _
+      rw [List.getElem?_set_self (show H'.length < (H' ++ wsN).length by simp; omega)]
+    · intro i hi
+      rw [fillI_get?, if_pos ⟨by omega, by omega, by rw [hB0]; omega⟩]
+      simp [show H'.length + 1 + i - (H'.length + 1) = i by omega, List.getD_eq_getElem?_getD,
+        List.getElem?_eq_getElem hi]
 
 end
 
