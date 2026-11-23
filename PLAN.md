@@ -471,8 +471,11 @@ Next: Core bodies bottom-up (constant instantiation `constTyAt`/`constValAt` wit
   - `shiftRight` (`T/Big/Shr.lean`) works limb by limb with two-step word shifts.
   - `shiftLeft` (`T/Big/Shl.lean`) is the verified product with the one-limb block `[2^r]`, then `q` zero limbs and a copy.
   - `sev` now evaluates variable shift amounts.
+  - `div`/`mod` (`T/Big/Div.lean`, `dm_spec`) use a proved 64-step restoring word division (`T/Big/WDiv.lean`, `T/Big/WDivMath.lean`). `b = 0` follows `Nat` (`a / 0 = 0`, `a % 0 = a`). A one-limb `a` with a longer `b` answers `0` or `a`. Other multi-limb operands decline.
+  - `gcd` (`T/Big/Gcd.lean`, `gcd_spec`) is Euclid on one-limb operands. Its outer loop is counted by the ghost `eSteps`, and each remainder comes from the word division loop.
+  - `pow` (`T/Big/Pow.lean`, `pow_spec`) is a recursive Pancake function: `pow(a, e)` squares `pow(a, e / 2)` and multiplies by `a` when `e` is odd, through `bigMul`. It is proved by strong induction on the word `e`. `specR_callPH` is the generic rule for calling a helper whose spec answers a fresh block.
 - **Remaining for `reduceNat`.**
-  - Arithmetic: `div`/`mod`, `gcd`, `pow`, `log2`.
+  - `natSizeBytes` and the `pow`/`shiftLeft` guards.
   - Literal interning from a heap block, with the large key region.
   - Then `natBinOpResult` and `reduceNat`.
 
