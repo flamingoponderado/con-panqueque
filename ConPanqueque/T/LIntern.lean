@@ -96,14 +96,14 @@ theorem internLParam_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : 
   rcases lInternParam_spec ra t C.L C.FLn C.FLl C.FLs C.FLe C.KB s.store n ht.sr.rep hok.sepLP
       (by simpa using ht.sr.kbuf 0 (by decide)) hok.b0LP hok.b1LP (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl)
       (ht.env _ _ rfl) (ht.env _ _ rfl) hw with
-    hs | ⟨hr, hsr, hc, hg, hd, _, hm⟩
+    ⟨hs | ⟨hr, hsr, hc, hg, hd, _, hm⟩, hV⟩
   · exact Or.inl hs
+  have hv := hV.resolve_left (fun hs => stop_ne_returned hs _ hr)
+  have hrun := internLNode_ok s (.param n) (lcap_of _ _ (fun _ => Nat.le_trans (tabAt_size_le hsr.l.pp) (hok.sepLP.cap 0 (by decide))) (fun _ => Nat.le_trans (tabAt_size_le hsr.l.sp) (hok.sepLP.cap 1 (by decide))))
   right
   refine ⟨_, hr, (s.store.ls.intern (.param n)).2, { s with store := withL s.store (s.store.ls.intern (.param n)).1 },
     ?_, rfl, ?_⟩
-  · refine internLNode_ok s _ (lcap_of _ _ (fun _ => ?_) (fun _ => ?_))
-    · exact Nat.le_trans (tabAt_size_le hsr.l.pp) (hok.sepLP.cap 0 (by decide))
-    · exact Nat.le_trans (tabAt_size_le hsr.l.sp) (hok.sepLP.cap 1 (by decide))
+  · exact hrun
   · exact ⟨hsr, by rw [hg]; exact ht.sr.gdir, by rw [hg]; exact ht.sr.gfln, by rw [hg]; exact ht.sr.gfll,
       by rw [hg]; exact ht.sr.gfls, by rw [hg]; exact ht.sr.gfle, by rw [hg]; exact ht.sr.gkb,
       by rw [hc]; exact ht.sr.code, fun j hj => by rw [hd]; exact ht.sr.kbuf j hj,
@@ -124,7 +124,7 @@ theorem internLParam_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : 
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
         (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
-        (by rw [hg])⟩
+        (by rw [hg]), internLNode_wf ht.sr.twf (lviewOK_param hv) hrun⟩
 
 def fInternLZero := ofString "internLZero"
 def internLZeroBody : ProgHOL 64 := prologue zeroScratch (lZeroWith (rRest 3 0 lFll))
@@ -142,12 +142,11 @@ theorem internLZero_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : C
       (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) hw with
     hs | ⟨hr, hsr, hc, hg, hd, _, hm⟩
   · exact Or.inl hs
+  have hrun := internLNode_ok s (.zero) (lcap_of _ _ (fun _ => Nat.le_trans (tabAt_size_le hsr.l.pz) (hok.sepLZ.cap 0 (by decide))) (fun _ => Nat.le_trans (tabAt_size_le hsr.l.sz) (hok.sepLZ.cap 1 (by decide))))
   right
   refine ⟨_, hr, (s.store.ls.intern (.zero)).2, { s with store := withL s.store (s.store.ls.intern (.zero)).1 },
     ?_, rfl, ?_⟩
-  · refine internLNode_ok s _ (lcap_of _ _ (fun _ => ?_) (fun _ => ?_))
-    · exact Nat.le_trans (tabAt_size_le hsr.l.pz) (hok.sepLZ.cap 0 (by decide))
-    · exact Nat.le_trans (tabAt_size_le hsr.l.sz) (hok.sepLZ.cap 1 (by decide))
+  · exact hrun
   · exact ⟨hsr, by rw [hg]; exact ht.sr.gdir, by rw [hg]; exact ht.sr.gfln, by rw [hg]; exact ht.sr.gfll,
       by rw [hg]; exact ht.sr.gfls, by rw [hg]; exact ht.sr.gfle, by rw [hg]; exact ht.sr.gkb,
       by rw [hc]; exact ht.sr.code, fun j hj => by rw [hd]; exact ht.sr.kbuf j hj,
@@ -168,7 +167,7 @@ theorem internLZero_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : C
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
         (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
-        (by rw [hg])⟩
+        (by rw [hg]), internLNode_wf ht.sr.twf (lviewOK_zero) hrun⟩
 
 def fInternLSucc := ofString "internLSucc"
 def internLSuccBody : ProgHOL 64 := prologue succScratch (lSuccWith (rRest 4 1 lFll))
@@ -184,14 +183,14 @@ theorem internLSucc_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : C
     fun y hy => ht.decl y (List.mem_append_right _ hy)
   rcases lInternSucc_spec ra t C.L C.FLn C.FLl C.FLs C.FLe C.KB s.store u ht.sr.rep hok.sepLS
       (by simpa using ht.sr.kbuf 0 (by decide)) hok.b0LS hok.b1LS (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) hw with
-    hs | ⟨hr, hsr, hc, hg, hd, _, hm⟩
+    ⟨hs | ⟨hr, hsr, hc, hg, hd, _, hm⟩, hV⟩
   · exact Or.inl hs
+  have hv := hV.resolve_left (fun hs => stop_ne_returned hs _ hr)
+  have hrun := internLNode_ok s (.succ u) (lcap_of _ _ (fun _ => Nat.le_trans (tabAt_size_le hsr.l.ps) (hok.sepLS.cap 0 (by decide))) (fun _ => Nat.le_trans (tabAt_size_le hsr.l.ss) (hok.sepLS.cap 1 (by decide))))
   right
   refine ⟨_, hr, (s.store.ls.intern (.succ u)).2, { s with store := withL s.store (s.store.ls.intern (.succ u)).1 },
     ?_, rfl, ?_⟩
-  · refine internLNode_ok s _ (lcap_of _ _ (fun _ => ?_) (fun _ => ?_))
-    · exact Nat.le_trans (tabAt_size_le hsr.l.ps) (hok.sepLS.cap 0 (by decide))
-    · exact Nat.le_trans (tabAt_size_le hsr.l.ss) (hok.sepLS.cap 1 (by decide))
+  · exact hrun
   · exact ⟨hsr, by rw [hg]; exact ht.sr.gdir, by rw [hg]; exact ht.sr.gfln, by rw [hg]; exact ht.sr.gfll,
       by rw [hg]; exact ht.sr.gfls, by rw [hg]; exact ht.sr.gfle, by rw [hg]; exact ht.sr.gkb,
       by rw [hc]; exact ht.sr.code, fun j hj => by rw [hd]; exact ht.sr.kbuf j hj,
@@ -212,7 +211,7 @@ theorem internLSucc_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : C
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
         (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
-        (by rw [hg])⟩
+        (by rw [hg]), internLNode_wf ht.sr.twf (lviewOK_succ hv) hrun⟩
 
 def fInternLMax := ofString "internLMax"
 def internLMaxBody : ProgHOL 64 := prologue lbin2Scratch (lBin2With maxHashE (rRest 5 2 lFll))
@@ -229,14 +228,14 @@ theorem internLMax_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ct
   rcases lInternMax_spec ra t C.L C.FLn C.FLl C.FLs C.FLe C.KB s.store u v ht.sr.rep hok.sepLM
       ⟨by simpa using ht.sr.kbuf 0 (by decide), by simpa using ht.sr.kbuf 1 (by decide)⟩ (kb_ne_kb8 C.KB)
       hok.b0LM hok.b1LM (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) hw with
-    hs | ⟨hr, hsr, hc, hg, hd, _, hm⟩
+    ⟨hs | ⟨hr, hsr, hc, hg, hd, _, hm⟩, hV⟩
   · exact Or.inl hs
+  have hv := hV.resolve_left (fun hs => stop_ne_returned hs _ hr)
+  have hrun := internLNode_ok s (.max u v) (lcap_of _ _ (fun _ => Nat.le_trans (tabAt_size_le hsr.l.pm) (hok.sepLM.cap 0 (by decide))) (fun _ => Nat.le_trans (tabAt_size_le hsr.l.sm) (hok.sepLM.cap 1 (by decide))))
   right
   refine ⟨_, hr, (s.store.ls.intern (.max u v)).2, { s with store := withL s.store (s.store.ls.intern (.max u v)).1 },
     ?_, rfl, ?_⟩
-  · refine internLNode_ok s _ (lcap_of _ _ (fun _ => ?_) (fun _ => ?_))
-    · exact Nat.le_trans (tabAt_size_le hsr.l.pm) (hok.sepLM.cap 0 (by decide))
-    · exact Nat.le_trans (tabAt_size_le hsr.l.sm) (hok.sepLM.cap 1 (by decide))
+  · exact hrun
   · exact ⟨hsr, by rw [hg]; exact ht.sr.gdir, by rw [hg]; exact ht.sr.gfln, by rw [hg]; exact ht.sr.gfll,
       by rw [hg]; exact ht.sr.gfls, by rw [hg]; exact ht.sr.gfle, by rw [hg]; exact ht.sr.gkb,
       by rw [hc]; exact ht.sr.code, fun j hj => by rw [hd]; exact ht.sr.kbuf j hj,
@@ -257,7 +256,7 @@ theorem internLMax_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ct
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
         (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
-        (by rw [hg])⟩
+        (by rw [hg]), internLNode_wf ht.sr.twf (lviewOK_max hv) hrun⟩
 
 def fInternLImax := ofString "internLImax"
 def internLImaxBody : ProgHOL 64 := prologue lbin2Scratch (lBin2With imaxHashE (rRest 6 2 lFll))
@@ -274,14 +273,14 @@ theorem internLImax_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : C
   rcases lInternImax_spec ra t C.L C.FLn C.FLl C.FLs C.FLe C.KB s.store u v ht.sr.rep hok.sepLI
       ⟨by simpa using ht.sr.kbuf 0 (by decide), by simpa using ht.sr.kbuf 1 (by decide)⟩ (kb_ne_kb8 C.KB)
       hok.b0LI hok.b1LI (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) (ht.env _ _ rfl) hw with
-    hs | ⟨hr, hsr, hc, hg, hd, _, hm⟩
+    ⟨hs | ⟨hr, hsr, hc, hg, hd, _, hm⟩, hV⟩
   · exact Or.inl hs
+  have hv := hV.resolve_left (fun hs => stop_ne_returned hs _ hr)
+  have hrun := internLNode_ok s (.imax u v) (lcap_of _ _ (fun _ => Nat.le_trans (tabAt_size_le hsr.l.pi) (hok.sepLI.cap 0 (by decide))) (fun _ => Nat.le_trans (tabAt_size_le hsr.l.si) (hok.sepLI.cap 1 (by decide))))
   right
   refine ⟨_, hr, (s.store.ls.intern (.imax u v)).2, { s with store := withL s.store (s.store.ls.intern (.imax u v)).1 },
     ?_, rfl, ?_⟩
-  · refine internLNode_ok s _ (lcap_of _ _ (fun _ => ?_) (fun _ => ?_))
-    · exact Nat.le_trans (tabAt_size_le hsr.l.pi) (hok.sepLI.cap 0 (by decide))
-    · exact Nat.le_trans (tabAt_size_le hsr.l.si) (hok.sepLI.cap 1 (by decide))
+  · exact hrun
   · exact ⟨hsr, by rw [hg]; exact ht.sr.gdir, by rw [hg]; exact ht.sr.gfln, by rw [hg]; exact ht.sr.gfll,
       by rw [hg]; exact ht.sr.gfls, by rw [hg]; exact ht.sr.gfle, by rw [hg]; exact ht.sr.gkb,
       by rw [hc]; exact ht.sr.code, fun j hj => by rw [hd]; exact ht.sr.kbuf j hj,
@@ -302,6 +301,6 @@ theorem internLImax_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : C
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
         (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
-        (by rw [hg])⟩
+        (by rw [hg]), internLNode_wf ht.sr.twf (lviewOK_imax hv) hrun⟩
 
 end ConPanqueque.T

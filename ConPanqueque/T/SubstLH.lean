@@ -206,7 +206,7 @@ theorem sr_lpl {C : Ctx} {s s' : AState} {t : PState σ} (h : SR C s t) (h1 : s'
   exact ⟨by rw [h1]; exact h.rep, h.gdir, h.gfln, h.gfll, h.gfls, h.gfle, h.gkb, h.code, h.kbuf,
     fun k => by rw [e1]; exact h.memo k, fun k => by rw [e2]; exact h.memoN k,
     fun k => cacheAt_mirror (h.cache k) h3,
-    modeAt_mirror h.mode h3, h.env, h4.trans h.pins, h.heap⟩
+    modeAt_mirror h.mode h3, h.env, h4.trans h.pins, h.heap, by rw [h1]; exact h.twf⟩
 
 /-- Moving a spec from the computation the port performs to the twin's, run by run. -/
 theorem specR_transfer {α : Type} {P : PState σ → Prop} {c : ProgHOL 64} {s : AState} {m m' : AM α}

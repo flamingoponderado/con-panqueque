@@ -143,8 +143,11 @@ theorem internLs_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx)
       (by simp only [t1]; rw [lookup_setVar_other _ _ (by decide)]; exact ht.env _ _ rfl)
       (by simp only [t1]; rw [lookup_setVar_other _ _ (by decide)]; exact ht.env _ _ rfl)
       (by simp only [t1]; rw [lookup_setVar_other _ _ (by decide)]; exact ht.env _ _ rfl) hw with
-    hs' | ⟨hr, hsr, hc, hg, hd, _, hm⟩
+    ⟨hs' | ⟨hr, hsr, hc, hg, hd, _, hm⟩, hV⟩
   · exact Or.inl hs'
+  have hv := hV.resolve_left (fun hs => stop_ne_returned hs _ hr)
+  have hrun := internLsNode_ok s hs (lscap_of _ _ (fun _ => Nat.le_trans (tabAt_size_le hsr.ls.pl) (hok.sepLs.cap 0 (by decide)))
+    (fun _ => Nat.le_trans (tabAt_size_le hsr.ls.sl) (hok.sepLs.cap 1 (by decide))))
   right
   have keyne : ∀ c, (∃ i, i < C.HN ∧ c = C.HB + BitVec.ofNat 64 (8 * i) ∧ (i < o ∨ o + hs.length ≤ i)) →
       ∀ j, j < hs.length → c ≠ cellA C o + BitVec.ofNat 64 (8 * j) := by
@@ -152,9 +155,7 @@ theorem internLs_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx)
     rw [cellA_off]
     exact cellA_ne C i (o + j) hi (by omega) hlay (by omega)
   refine ⟨_, hr, (s.store.lss.intern hs).2, { s with store := withLs s.store (s.store.lss.intern hs).1 }, ?_, rfl, ?_⟩
-  · refine internLsNode_ok s _ (lscap_of _ _ (fun _ => ?_) (fun _ => ?_))
-    · exact Nat.le_trans (tabAt_size_le hsr.ls.pl) (hok.sepLs.cap 0 (by decide))
-    · exact Nat.le_trans (tabAt_size_le hsr.ls.sl) (hok.sepLs.cap 1 (by decide))
+  · exact hrun
   · exact ⟨hsr, by rw [hg]; exact ht.sr.gdir, by rw [hg]; exact ht.sr.gfln, by rw [hg]; exact ht.sr.gfll,
       by rw [hg]; exact ht.sr.gfls, by rw [hg]; exact ht.sr.gfle, by rw [hg]; exact ht.sr.gkb,
       by rw [hc]; exact ht.sr.code, fun j hj => by rw [hd]; exact ht.sr.kbuf j hj,
@@ -189,6 +190,7 @@ theorem internLs_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx)
         (fun i hi => by
           have hi' : i < H0.length := hi
           have := hp0.length_le
-          exact hm _ (hok.heapOut i (by omega)) (keyne _ ⟨i, by omega, rfl, Or.inl (by omega)⟩)) hd (by rw [hg]; rfl)⟩
+          exact hm _ (hok.heapOut i (by omega)) (keyne _ ⟨i, by omega, rfl, Or.inl (by omega)⟩)) hd (by rw [hg]; rfl),
+      internLsNode_wf ht.sr.twf hv hrun⟩
 
 end ConPanqueque.T

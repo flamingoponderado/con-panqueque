@@ -286,13 +286,14 @@ theorem litBlk_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
       (ht.env _ _ (by simp [Γc])) hw with
     hs | ⟨hr, hsr, hc, hg, hd, _, hm⟩
   · exact Or.inl hs
+  have hrun := internNodeE_lit s (.natVal n)
+      (Nat.le_trans (tabAt_size_le hsr.e.p8) (hok.sepLit.cap 0 (by decide)))
+      (Nat.le_trans (tabAt_size_le hsr.e.s8) (hok.sepLit.cap 1 (by decide)))
   right
   refine ⟨_, hr, (s.store.intern (.lit (.natVal n))).2, { s with store := (s.store.intern (.lit (.natVal n))).1 }, ?_,
     Bf, ?_, rfl, ?_⟩
   · show internNodeE (.lit (.natVal n)) s = _
-    exact internNodeE_lit s _
-      (Nat.le_trans (tabAt_size_le hsr.e.p8) (hok.sepLit.cap 0 (by decide)))
-      (Nat.le_trans (tabAt_size_le hsr.e.s8) (hok.sepLit.cap 1 (by decide)))
+    exact hrun
   · exact CV.prefix_fillI _ _ _ _ (by omega)
       (prefix_set_ge (hpre.trans (List.prefix_append _ ws)) _ hpl _) _
   · exact ⟨hsr, by rw [hg]; exact ht.sr.gdir, by rw [hg]; exact ht.sr.gfln, by rw [hg]; exact ht.sr.gfll,
@@ -309,7 +310,8 @@ theorem litBlk_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
       envAt_frame ht.sr.env (fun b c hc => hm c (hok.memoOut (envR b) c hc))
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk)) (fun i hi => hm _ (hok.envOut i hi)) hd
         ⟨by rw [hg], by rw [hg]⟩, ht.sr.pins,
-      heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi)) hd (by rw [hg])⟩
+      heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi)) hd (by rw [hg]),
+        internNodeE_wf ht.sr.twf viewOK_lit hrun⟩
 
 end
 

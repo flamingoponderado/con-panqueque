@@ -3,6 +3,7 @@ import ConPanqueque.V.View
 import ConPanqueque.T.MemoRep
 import ConRon.Arena.Env
 import ConRon.Arena.Pins
+import ConRon.Arena.WF
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena
@@ -414,6 +415,8 @@ structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   pins : s.pins = C.pins
   /-- The value heap. -/
   heap : HeapEx t C.HB C.HN C.H
+  /-- The twin store is well formed (con-ron's `StoreWF`). -/
+  twf : StoreWF s.store
 
 theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u.memory = t.memory)
     (hd : u.memaddrs = t.memaddrs) (hg : u.globals = t.globals) (hc : u.code = t.code) : SR C s u :=
@@ -427,7 +430,7 @@ theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u
     modeAt_frame h.mode (fun _ _ _ _ => by rw [hm]) (fun _ _ _ _ => by rw [hm]) hd (by rw [hg]),
     envAt_frame h.env (fun _ _ _ => by rw [hm]) (fun _ _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd
       ⟨by rw [hg], by rw [hg]⟩, h.pins,
-    heapEx_frame h.heap (fun _ _ => by rw [hm]) hd (by rw [hg])⟩
+    heapEx_frame h.heap (fun _ _ => by rw [hm]) hd (by rw [hg]), h.twf⟩
 
 theorem eval_gv (t : PState σ) (g : MlS) (w : BitVec 64) (h : t.globals.lookup g = some (.val (.word w))) :
     EV t (.var .global g) = some (.val (.word w)) := by
