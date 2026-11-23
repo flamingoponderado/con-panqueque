@@ -384,3 +384,13 @@ Verified (each a Pancake function with its `SpecR`):
 Next: the `instLPGo` walk (ten arms; the `instLPC` memo is mirrored through
 `specR_memoGetI`/`SetI`), then `instLPFast` (name/level readbacks, memo
 clears).
+
+### Progress (2026-11-24, `instantiateLevelParams` complete)
+
+`instLPFast` is refined (`T/InstLPFast.lean`, `ilpf_spec`), with the walk `instLPGo` (`T/InstLP.lean`, `ilp_spec`).
+
+- Dispatch: the `hasLP` cutoff (bit 0 of the derived word), then tag tests on the handle word.
+- Arms: `app`, `lam`, `forallE`, `letE`, `proj` and `fvar` go through the mirrored `instLPC` memo; `sort` and `const` go through the level and level-list substitutions; `bvar` and `lit` return the handle unchanged.
+- Fuel: induction on fuel; at fuel 0 the port hangs where the twin fails.
+- Precondition: con-ron's own instLP invariants (`StateOK`, `InstLPMemoF`, `InstLPLMemoA`, `InstLPLsMemoA`, the readback-cache invariants). After each recursive call they are re-established from con-ron's `instLPGo_spec`, applied to the twin's run.
+- Memo clears: the twin's clear also empties two memos the port does not mirror. A general clear lemma (`specR_memoClearIG`) only asks the twin's post-state to agree on the mirrored memos.
