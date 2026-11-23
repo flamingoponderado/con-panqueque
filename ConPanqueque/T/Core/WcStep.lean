@@ -14,7 +14,8 @@ steps are functions given by their specs.
 
 namespace ConPanqueque.T.WC
 
-open ConPanqueque.T ConPanqueque.T.Ex ConPanqueque.T.Knot
+open ConPanqueque.T ConPanqueque.T.Ex ConPanqueque.T.Knot ConPanqueque.T.Big
+open ConPanqueque.V.Enc
 
 def zN2 := ofString "wsn"
 def zP2 := ofString "wsp"
@@ -408,6 +409,10 @@ def fStepProj := ofString "whnfCoreStepProj"
 @[simp] theorem ws_sP_ne_pH : sP ≠ pH := by decide
 @[simp] theorem ws_pH_ne_sP : pH ≠ sP := by decide
 
+theorem postWS_locals {σ : Type} (C : Ctx) : ∀ (a : WhnfStep) w s' (st : PState σ)
+    (L : HolFiniteMapExact MlS (ValueHOL 64)), PostWS C a w s' st → PostWS C a w s' { st with locals := L } :=
+  fun _ _ _ _ _ ⟨H', h1, h2, h3⟩ => ⟨H', h1, h2, sr_of_eq h3 rfl rfl rfl rfl⟩
+
 def stParams : List MlS := [kFu, kD, sH, sE]
 def apParams : List MlS := [kFu, kC, kD, sE]
 def prParams : List MlS := [kFu, kC, kD, sE, sN, sI, sP]
@@ -439,5 +444,235 @@ def wcsCore : ProgHOL 64 :=
     (.return (.shift .lsl (vv sE) (.const 1)))))))))
 
 def wcsBody : ProgHOL 64 := prologue wcsLocals wcsCore
+
+
+section
+variable {σ : Type}
+
+theorem wcs_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ wcsLocals → (ctxEnv C ++ wcsParams.zip vals).get x = none :=
+  Knot.params_none C wcsLocals wcsParams vals (by decide) (by decide)
+
+/-- Calling a step function (its post `PostWS`). -/
+theorem specR_callWS {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {m : AM WhnfStep}
+    (x f : MlS) (ps : List MlS) (es : List (ExpHOL 64)) (Bd : ProgHOL 64) (vs : List (BitVec 64))
+    (hnd : ps.Nodup) (hl : vs.length = ps.length) (hx : x ∈ D)
+    (hC : C.code.lookup f = some (ps.map (fun p => (p, ShapeHOL.one)), Bd, .one))
+    (hes : EvAll (fun e v => sev Γ e = some v) es vs)
+    (hspec : SpecR (σ := σ) (Pre C s (ps.zip vs)) Bd s m (PostWS C)) :
+    SpecR (σ := σ) (Inv C s Γ M D) (.seq (.call (some (some (.local, x), none)) f es) (.return (vv x))) s m (PostWS C) := by
+  refine specR_congr (m' := m >>= fun st => pure st) (by simp) ?_
+  refine specR_callNIH x f ps es Bd vs hnd hl hx hC hes (PostWS C) (fun st w _ _ => w = encWS st)
+    (fun st w s' t' ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ps vs hl hlk) hspec)
+    (fun st w s' H' hp hw => ?_)
+  subst hw
+  exact specR_returnI _ (encWS st) (by simp) (fun t ht => ⟨H', hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+theorem wcs_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
+    (hok : CtxOK C) (Bst Bap Bpr : ProgHOL 64)
+    (hcst : C.code.lookup fStuck = some (stParams.map (fun p => (p, ShapeHOL.one)), Bst, .one))
+    (hcap : C.code.lookup fStepApp = some (apParams.map (fun p => (p, ShapeHOL.one)), Bap, .one))
+    (hcpr : C.code.lookup fStepProj = some (prParams.map (fun p => (p, ShapeHOL.one)), Bpr, .one))
+    (hcI : C.code.lookup ExI.fInst1F = some ([pFu, pH, ExI.pV, ExI.pD].map (fun p => (p, ShapeHOL.one)),
+      ExI.fastBody C, .one))
+    (hcI' : ExI.Codes C (ExI.body C))
+    (s : AState) (cheap : Bool) (d : Nat) (h e : EIdx)
+    (hSt : SpecR (σ := σ) (Pre C s (stParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW h, Enc.idxW e])) Bst s
+      (whnfStuck mode (knot mode C n) C.fe d h e) (PostWS C))
+    (hAp : SpecR (σ := σ) (Pre C s (apParams.zip [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d, Enc.idxW e])) Bap s
+      (whnfCoreStepApp mode (knot mode C n) C.fe cheap d e) (PostWS C))
+    (hPr : ∀ sn i pe, i < 2 ^ 64 → SpecR (σ := σ) (Pre C s (prParams.zip [BitVec.ofNat 64 n, boolW cheap,
+      BitVec.ofNat 64 d, Enc.idxW e, Enc.idxW sn, BitVec.ofNat 64 i, Enc.idxW pe])) Bpr s
+      (whnfCoreStepProj mode (knot mode C n) C.fe cheap d e sn i pe) (PostWS C)) :
+    SpecR (σ := σ) (Pre C s (wcsParams.zip [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d, Enc.idxW h,
+      Enc.idxW e])) wcsBody s (whnfCoreStep mode (knot mode C n) C.fe cheap d h e) (PostWS C) := by
+  refine specR_prologue (postWS_locals C) (wcs_none C _) ?_
+  unfold wcsCore
+  refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
+  refine specR_assignI lDh (vv sE) (Enc.idxW e) (by decide) (by simp +decide [Env.get, wcsParams, ctxEnv]) ?_
+  refine ILP.specR_viewIv e (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
+    (fun v P hv htn hl => ?_)
+  have hret0 : ∀ {Γ' : Env} {M' : Mem}, Γ'.get sE = some (Enc.idxW e) →
+      SpecR (σ := σ) (Inv C s Γ' M' (ctxLocals ++ wcsLocals)) (.return (.shift .lsl (vv sE) (.const 1))) s
+        (pure (.done e)) (PostWS C) := fun hE =>
+    specR_returnI _ (encWS (.done e)) (by simp [sev, vv, hE, encWS]) (fun t ht =>
+      ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  cases v with
+  | app f a =>
+    refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    show SpecR _ _ s (if isStuckHead h then whnfStuck mode (knot mode C n) C.fe d h e
+      else whnfCoreStepApp mode (knot mode C n) C.fe cheap d e) _
+    have hsh := sev_stuckHead ((lRp, P) :: (lRn, BitVec.ofNat 64 (encEView (.app f a)).length) ::
+      (lDt, BitVec.ofNat 64 e.tier.toNat) :: (lDg, BitVec.ofNat 64 (ENodeView.app f a).tagN) ::
+      (lDi, BitVec.ofNat 64 e.idxNat) :: (lDh, Enc.idxW e) :: (lFl, C.FLe) ::
+      (ctxEnv C ++ wcsParams.zip [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d, Enc.idxW h, Enc.idxW e])) sH h
+      (by simp +decide [Env.get, wcsParams, ctxEnv])
+    by_cases hstk : isStuckHead h = true
+    · rw [if_pos hstk]
+      refine specR_ifI _ 1 (by rw [hsh, hstk]; rfl) (fun _ => ?_) (fun h => absurd h (by decide))
+      refine Big.specR_dropM ?_
+      exact specR_callWS zX2 fStuck stParams [vv kFu, vv kD, vv sH, vv sE] Bst
+        [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW h, Enc.idxW e] (by decide) rfl (by decide) hcst
+        ⟨by simp +decide [Env.get, wcsParams, ctxEnv], by simp +decide [Env.get, wcsParams, ctxEnv],
+          by simp +decide [Env.get, wcsParams, ctxEnv], by simp +decide [Env.get, wcsParams, ctxEnv], trivial⟩ hSt
+    · rw [if_neg hstk]
+      refine specR_ifI _ 0 (by rw [hsh]; simp [hstk, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
+      refine Big.specR_dropM ?_
+      exact specR_callWS zX2 fStepApp apParams [vv kFu, vv kC, vv kD, vv sE] Bap
+        [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d, Enc.idxW e] (by decide) rfl (by decide) hcap
+        ⟨by simp +decide [Env.get, wcsParams, ctxEnv], by simp +decide [Env.get, wcsParams, ctxEnv],
+          by simp +decide [Env.get, wcsParams, ctxEnv], by simp +decide [Env.get, wcsParams, ctxEnv], trivial⟩ hAp
+  | proj sn i pe =>
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    show SpecR _ _ s (whnfCoreStepProj mode (knot mode C n) C.fe cheap d e sn i pe) _
+    have er : encEView (.proj sn i pe) = Enc.idxW sn :: Enc.idxW pe :: limbs i := rfl
+    refine specR_loadI' zN2 (vv lRp) P (P + BitVec.ofNat 64 0) (Enc.idxW sn) (by decide) (by simp) (by simp)
+      (by simpa [er] using wordsAt_mem0 P (Enc.idxW sn) (Enc.idxW pe :: limbs i) []) ?_
+    refine specR_loadI' zP2 _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW pe) (by decide) (by simp +decide [sev]) rfl
+      (by simpa [er] using wordsAt_mem1 P (Enc.idxW sn) (Enc.idxW pe) (limbs i) []) ?_
+    have hlen : (encEView (.proj sn i pe)).length = (limbs i).length + 2 := by rw [er]; simp
+    have hl58 : (limbs i).length + 2 < 2 ^ 61 := by rw [← hlen]; exact hl
+    rcases (by omega : (limbs i).length = 0 ∨ (limbs i).length = 1 ∨ 2 ≤ (limbs i).length) with h0 | h1 | h2
+    · have hi0 : i = 0 := by have := (limbs_length_lt_iff i 0).mp (by omega); simpa using this
+      subst hi0
+      refine specR_ifI _ 1 (by simp [sev, hlen, h0, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+        (fun h => absurd h (by decide))
+      refine specR_assignI zI2 (.const 0) (BitVec.ofNat 64 0) (by decide) rfl ?_
+      refine Big.specR_dropM ?_
+      exact specR_callWS zX2 fStepProj prParams [vv kFu, vv kC, vv kD, vv sE, vv zN2, vv zI2, vv zP2] Bpr
+        [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d, Enc.idxW e, Enc.idxW sn, BitVec.ofNat 64 0, Enc.idxW pe]
+        (by decide) rfl (by decide) hcpr
+        ⟨by simp +decide [Env.get, wcsParams, ctxEnv], by simp +decide [Env.get, wcsParams, ctxEnv],
+          by simp +decide [Env.get, wcsParams, ctxEnv], by simp +decide [Env.get, wcsParams, ctxEnv],
+          by simp, by simp, by simp, trivial⟩ (hPr sn 0 pe (by decide))
+    · have hiB : i < B := by have := (limbs_length_lt_iff i 1).mp (by omega); simpa using this
+      have h2w : BitVec.ofNat 64 ((limbs i).length + 2) ≠ 2#64 := by
+        rw [h1]; decide
+      refine specR_ifI _ 0 (by simp [sev, hlen, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact h2w)
+        (fun h => absurd rfl h) (fun _ => ?_)
+      refine specR_ifI _ 1 (by simp [sev, hlen, h1, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+        (fun h => absurd h (by decide))
+      have hx2 : (Enc.idxW sn :: Enc.idxW pe :: limbs i)[2]'(by simp; omega) = BitVec.ofNat 64 i := by
+        show (limbs i)[0]'(by omega) = _
+        rw [limbs_getElem i 0 (by omega)]; simp [Nat.mod_eq_of_lt hiB]
+      refine specR_loadI' zI2 _ (P + 16) (P + BitVec.ofNat 64 (8 * 2)) (BitVec.ofNat 64 i) (by decide)
+        (by simp +decide [sev]) rfl (by
+          have := wordsAt_get P (Enc.idxW sn :: Enc.idxW pe :: limbs i) 2 (by simp; omega) []
+          rw [hx2] at this; simpa [er] using this) ?_
+      refine Big.specR_dropM ?_
+      exact specR_callWS zX2 fStepProj prParams [vv kFu, vv kC, vv kD, vv sE, vv zN2, vv zI2, vv zP2] Bpr
+        [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d, Enc.idxW e, Enc.idxW sn, BitVec.ofNat 64 i, Enc.idxW pe]
+        (by decide) rfl (by decide) hcpr
+        ⟨by simp +decide [Env.get, wcsParams, ctxEnv], by simp +decide [Env.get, wcsParams, ctxEnv],
+          by simp +decide [Env.get, wcsParams, ctxEnv], by simp +decide [Env.get, wcsParams, ctxEnv],
+          by simp, by simp, by simp, trivial⟩ (hPr sn i pe hiB)
+    · have h2w : BitVec.ofNat 64 ((limbs i).length + 2) ≠ 2#64 := by
+        intro h0; have := congrArg BitVec.toNat h0; simp at this; omega
+      have h3w : BitVec.ofNat 64 ((limbs i).length + 2) ≠ 3#64 := by
+        intro h0; have := congrArg BitVec.toNat h0; simp at this; omega
+      refine specR_ifI _ 0 (by simp [sev, hlen, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact h2w)
+        (fun h => absurd rfl h) (fun _ => ?_)
+      refine specR_ifI _ 0 (by simp [sev, hlen, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact h3w)
+        (fun h => absurd rfl h) (fun _ => ?_)
+      exact specR_hangI
+  | letE ty v b =>
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    show SpecR _ _ s (instantiate1Fast coreWalkFuel b v 0 >>= fun e' => pure (WhnfStep.cont e')) _
+    have er : encEView (.letE ty v b) = [Enc.idxW ty, Enc.idxW v, Enc.idxW b] := rfl
+    refine specR_loadI' zV2 _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW v) (by decide) (by simp +decide [sev]) rfl
+      (by simpa [er] using wordsAt_mem1 P (Enc.idxW ty) (Enc.idxW v) [Enc.idxW b] []) ?_
+    refine specR_loadI' zB2 _ (P + 16) (P + BitVec.ofNat 64 (8 * 2)) (Enc.idxW b) (by decide) (by simp +decide [sev]) rfl
+      (by simpa [er] using wordsAt_get P [Enc.idxW ty, Enc.idxW v, Enc.idxW b] 2 (by simp) []) ?_
+    refine Big.specR_dropM ?_
+    refine ILP.callE_spec zX2 ExI.fInst1F [pFu, pH, ExI.pV, ExI.pD]
+      [.const (BitVec.ofNat 64 coreWalkFuel), vv zB2, vv zV2, .const 0] (ExI.fastBody C)
+      [BitVec.ofNat 64 coreWalkFuel, Enc.idxW b, Enc.idxW v, BitVec.ofNat 64 0] (by decide) rfl (by decide) hcI
+      ⟨rfl, by simp, by simp, rfl, trivial⟩
+      (ExI.fast_spec ra C hok hcI' s coreWalkFuel b v 0 CV.coreWalkFuel_lt (by decide)) (fun e' s' => ?_)
+    exact specR_returnI _ (encWS (.cont e')) (by simp [sev, vv, encWS]) (fun t ht =>
+      ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  | bvar i =>
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    exact specR_hangI
+  | sort u =>
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    exact hret0 (by simp +decide [Env.get, wcsParams, ctxEnv])
+  | fvar idx ty =>
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    exact hret0 (by simp +decide [Env.get, wcsParams, ctxEnv])
+  | forallE ty b =>
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    exact hret0 (by simp +decide [Env.get, wcsParams, ctxEnv])
+  | lam ty b =>
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    exact hret0 (by simp +decide [Env.get, wcsParams, ctxEnv])
+  | const c us =>
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    exact hret0 (by simp +decide [Env.get, wcsParams, ctxEnv])
+  | lit l =>
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    exact hret0 (by simp +decide [Env.get, wcsParams, ctxEnv])
+
+
+end
 
 end ConPanqueque.T.WC
