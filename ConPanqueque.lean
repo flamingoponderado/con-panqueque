@@ -333,3 +333,4 @@ import ConPanqueque.T.Floor
 import ConPanqueque.T.Comp.TwinFacts
 import ConPanqueque.T.CtxTr
 import ConPanqueque.T.Comp.Ents
+import ConPanqueque.T.Comp.InferProjC

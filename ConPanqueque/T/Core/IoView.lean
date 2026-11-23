@@ -79,7 +79,7 @@ theorem pjio_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C
     (hQw : ∀ s1 d' e' a s2, Q s1 → (knot mode C n).whnf d' e' s1 = .ok (a, s2) → Q s2)
     (hQgaa : ∀ s1 e' a s2, Q s1 → getAppArgs coreWalkFuel e' s1 = .ok (a, s2) → Q s2)
     (hGd : ∀ (H : List (BitVec 64)) s1 (tbl : IProjTable) ot i us, C.H <+: H → Q s1 → TblE C.EB C.EH ot tbl →
-      (∃ T, C.fe.findTable? T = some tbl) →
+      (∃ T, C.fe.findTable? T = some tbl) → i < 2 ^ 63 →
       SpecR (σ := σ) (Pre (ctxH C H) s1 (gdParams.zip [BitVec.ofNat 64 n, ecell C ot, BitVec.ofNat 64 i,
         Enc.idxW us])) (gdBody C) s1 (checkProjGuard (knot mode C n) C.fe (tbl.entry i) us) (PostU (ctxH C H)))
     (hQgd : ∀ s1 (tbl : IProjTable) i us a s2, Q s1 → checkProjGuard (knot mode C n) C.fe (tbl.entry i) us s1 = .ok (a, s2) → Q s2)
@@ -244,7 +244,7 @@ theorem pjio_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C
     (fun a w s' _ => checkProjGuard (knot mode C n) C.fe (tbl.entry i) us s3 = .ok (a, s'))
     (fun a w s' st ⟨hrun, H', hp, hsr⟩ => ⟨H', hp, hrun, hsr⟩)
     (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu gdParams _ rfl hlk)
-      (hGd H3 s3 tbl ot i us hp13 hq3 htb ⟨_, hft⟩)))
+      (hGd H3 s3 tbl ot i us hp13 hq3 htb ⟨_, hft⟩ (by omega))))
     (fun g w s4 H4 hp4 hrun4 => ?_)
   have hq4 := hQgd s3 tbl i us g s4 hq3 hrun4
   refine specR_congr (m' := (tbl.entry i).typeAt us targs pe >>= fun r => pure r) (by simp [IProjTable.entry]) ?_
