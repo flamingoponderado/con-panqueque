@@ -194,3 +194,4 @@ import ConPanqueque.T.Core.WcChain
 import ConPanqueque.T.Core.WcTags
 import ConPanqueque.T.Core.WhnfCore
 import ConPanqueque.T.Core.WcStep
+import ConPanqueque.T.Core.WcStuck
