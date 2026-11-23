@@ -317,3 +317,4 @@ import ConPanqueque.T.Core.HeadProofPW
 import ConPanqueque.T.Core.ProofPW
 import ConPanqueque.T.Core.PropIrrel
 import ConPanqueque.T.Core.IsPropType
+import ConPanqueque.T.Core.UnitLikeCode
