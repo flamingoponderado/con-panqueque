@@ -312,3 +312,4 @@ import ConPanqueque.T.Core.PropPW
 import ConPanqueque.T.Core.SubstPWAt
 import ConPanqueque.T.Core.PropRO
 import ConPanqueque.T.Core.HeadTypePW
+import ConPanqueque.T.Core.TypeSortPW
