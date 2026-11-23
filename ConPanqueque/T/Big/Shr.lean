@@ -1448,7 +1448,62 @@ theorem shr_spec (C : Ctx) (hok : CtxOK C) (s : AState) (a b : Nat) (oa ob : Nat
     change SpecR (Inv (ctxH C ((fillI B0 (shrW a q r n) (H'.length + 1) (n - 1)).set (H'.length + 1 + (n - 1)) _)) s _
       [] _) _ _ _ _
     rw [fillI_succ_eq _ _ _ _ _ (shrW_get a q r n (n - 1) (by omega)), show n - 1 + 1 = n by omega]
-    sorry
+    refine specR_assignI rK (.const 0) (BitVec.ofNat 64 0) (by decide) rfl ?_
+    refine specR_assignI rL (.const 0) (BitVec.ofNat 64 0) (by decide) rfl ?_
+    refine specR_assignI rQo _ (cellA C (H'.length + 1)) (by decide) (by simp [sev, shrG, Γ0]; exact cellA_add8 C _) ?_
+    have hab : a >>> b = a / 2 ^ (64 * q + r) := by rw [Nat.shiftRight_eq_div_pow, hbdm]
+    let Bf := fillI B0 (shrW a q r n) (H'.length + 1) n
+    have hlf : Bf.length = B0.length := hl n
+    have hWf : ∀ k, k < n → Bf[H'.length + 1 + k]? = some (BitVec.ofNat 64 ((a >>> b) / B ^ k % B)) := by
+      intro k hk
+      rw [fillI_get?, if_pos ⟨by omega, by omega, by rw [hB0]; omega⟩]
+      simp [show H'.length + 1 + k - (H'.length + 1) = k by omega, List.getD_eq_getElem?_getD, shrW_get a q r n k hk,
+        hab, dg]
+    refine specR_envWeak (Γb := shrG3 Γ0 C H'.length (a >>> b) 0) (fun z v hz => ?_) ?_
+    · simp only [shrG3, shrG, Γ0, Env.get_cons, Nat.pow_zero, Nat.mod_one, Nat.add_zero] at hz ⊢
+      by_cases e1 : z = rK
+      · subst e1; simpa using hz
+      by_cases e2 : z = rQo
+      · subst e2; simpa using hz
+      by_cases e3 : z = rL
+      · subst e3; simp at hz ⊢; rw [← hz, limbs_zero]; rfl
+      simp only [e1, e2, e3, ite_false] at hz ⊢
+      by_cases f1 : z = rNm1
+      · subst f1; simpa using hz
+      by_cases f2 : z = rR
+      · subst f2; simpa using hz
+      by_cases f3 : z = rR2
+      · subst f3; simpa using hz
+      by_cases f4 : z = rCnt
+      · subst f4; simpa using hz
+      by_cases f5 : z = rO
+      · subst f5; simpa using hz
+      simp [f1, f2, f3, f4, f5, Env.get] at hz
+    refine shr_trim (a >>> b) n Bf (shrW a q r n) H'.length hWf (by omega) (by decide)
+      (by simp [Γ0]) (by simp [Γ0, Env.get]) ?_
+    have hres : a >>> b < B ^ n := by
+      rw [hab]
+      apply Nat.div_lt_of_lt_mul
+      calc a < B ^ (limbs a).length := haB
+        _ = 2 ^ (64 * q + r) * B ^ n / 2 ^ r := by
+          have hB : B = 2 ^ 64 := rfl
+          rw [hB, ← Nat.pow_mul, ← Nat.pow_mul, ← Nat.pow_add, show 64 * q + r + 64 * n = 64 * (limbs a).length + r by omega,
+            Nat.pow_add, Nat.mul_div_cancel _ (Nat.pow_pos (by decide))]
+        _ ≤ 2 ^ (64 * q + r) * B ^ n := Nat.div_le_self _ _
+    have hmod : (a >>> b) % B ^ n = a >>> b := Nat.mod_eq_of_lt hres
+    have hj2 : H'.length < (ctxH C Bf).H.length := by show _ < Bf.length; rw [hlf, hB0]; omega
+    refine specR_heapStoreI (ctxOK_H hok _) (vv rO) (vv rL) _ hj2 (BitVec.ofNat 64 (limbs (a >>> b)).length)
+      (by simp [shrG3, Γ0]; rfl) (by simp [shrG3, hmod]) ?_
+    refine specR_returnI _ (cellA C H'.length) (by simp [shrG3, Γ0]) (fun t ht => ?_)
+    refine ⟨_, H'.length, ?_, rfl, ?_, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
+    · exact prefix_set_ge (CV.prefix_fillI _ _ _ C.H (by omega) (hpre.trans (List.prefix_append _ _)) _) _ hpl _
+    · have hlen := (limbs_length_lt_iff (a >>> b) n).mpr hres
+      constructor
+      · rw [List.getElem?_set_self (by show H'.length < Bf.length; rw [hlf, hB0]; omega)]
+      · intro i hi
+        rw [List.getElem?_set_ne (by omega)]
+        show Bf[H'.length + 1 + i]? = _
+        rw [hWf i (by omega), limbs_getElem (a >>> b) i hi]
   · refine specR_ifI _ 0 (by simp [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, (not_congr hqa).mpr hq])
       (fun h => absurd rfl h) (fun _ => ?_)
     rw [shr_zero_res a b _ haB (by omega)]
