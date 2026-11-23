@@ -467,4 +467,172 @@ theorem pw_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
 
 end
 
+section
+variable {σ : Type}
+
+theorem pm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
+    (hok : CtxOK C) (Brs : ProgHOL 64) (hc : PmCodes C Brs)
+    (s : AState) (d : Nat) (c : NIdx) (isK' : Bool) (rules : List IRecRule) (rw : BitVec 64) (m : EIdx)
+    (hW : ∀ (H : List (BitVec 64)) s1, C.H <+: H → ∀ e', Callee (σ := σ) (ctxH C H) kParams
+      [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d e')
+      (PostK (ctxH C H)))
+    (hRs : ∀ (m' : EIdx) (H : List (BitVec 64)) s1, C.H <+: H →
+      SpecR (σ := σ) (Pre (ctxH C H) s1 (pmParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW c, boolW isK',
+        rw, Enc.idxW m'])) Brs s1 (majorToCtorRescue mode (knot mode C n) C.fe d c isK' rules m')
+        (PostK (ctxH C H))) :
+    SpecR (σ := σ) (Pre C s (pmParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW c, boolW isK', rw,
+      Enc.idxW m])) pmBody s (prepareMajor mode (knot mode C n) C.fe d c isK' rules m) (PostMV C) := by
+  refine specR_prologue (postMV_locals C) (pm_none C _) ?_
+  unfold prepareMajor
+  cases isK'
+  · refine specR_ifI _ 0 (by simp +decide [Env.get, pmParams, ctxEnv, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
+    simp only [Bool.false_eq_true, ite_false]
+    refine specR_callNIH pmB fIsl [isH] [vv pmM] islBody [Enc.idxW m] (by decide) rfl (by decide) hc.isl
+      ⟨by simp +decide [Env.get, pmParams, ctxEnv], trivial⟩ (Knot.PostB C) (fun b w _ _ => w = boolW b)
+      (fun b w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu [isH] _ rfl hlk) (isl_spec C s m))
+      (fun b w s1 H1 hp1 hw => ?_)
+    subst hw
+    cases b
+    · refine specR_ifI _ 0 (by simp [sev, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
+      simp only [Bool.false_eq_true, ite_false]
+      refine specR_callNIH (C := ctxH C H1) pmV fMc pmParams [vv kFu, vv kD, vv pmC, vv pmK, vv pmR, vv pmM] mcBody
+        [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW c, boolW false, rw, Enc.idxW m] (by decide) rfl (by decide)
+        hc.mc ⟨by simp +decide [Env.get, pmParams, ctxEnv], by simp +decide [Env.get, pmParams, ctxEnv],
+          by simp +decide [Env.get, pmParams, ctxEnv], by simp +decide [Env.get, pmParams, ctxEnv],
+          by simp +decide [Env.get, pmParams, ctxEnv], by simp +decide [Env.get, pmParams, ctxEnv], trivial⟩
+        (PostMV (ctxH C H1)) (fun v w _ _ => w = encMV v) (fun v w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+        (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu pmParams _ rfl hlk)
+          (mc_spec mode n (ctxH C H1) (ctxOK_H hok H1) (cwCodes_H hc.cw H1) Brs hc.rs s1 d c false rules rw m
+            (fun H s2 hp => hRs m H s2 (hp1.trans hp))))
+        (fun vE w s2 H2 hp2 hw => ?_)
+      subst hw
+      have hpX : C.H <+: H2 := hp1.trans hp2
+      cases hct : vE.isCtor
+      · refine specR_ifI _ 0 (by simp [sev, encMV_and1, hct]) (fun h => absurd rfl h) (fun _ => ?_)
+        simp only [hct, Bool.false_eq_true, ite_false]
+        refine specR_assignI pmE _ (Enc.idxW vE.expr) (by decide) (by simp [sev]; exact encMV_shr1 _) ?_
+        refine specR_bindPure ?_
+        refine specR_callNIH (C := ctxH C H2) pmX fPw pmParams [vv kFu, vv kD, vv pmC, vv pmK, vv pmR, vv pmE] pwBody
+          [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW c, boolW false, rw, Enc.idxW vE.expr] (by decide) rfl
+          (by decide) hc.pw
+          ⟨by simp +decide [Env.get, pmParams, ctxEnv], by simp +decide [Env.get, pmParams, ctxEnv],
+            by simp +decide [Env.get, pmParams, ctxEnv], by simp +decide [Env.get, pmParams, ctxEnv],
+            by simp +decide [Env.get, pmParams, ctxEnv], by simp, trivial⟩
+          (PostMV (ctxH C H2)) (fun v w _ _ => w = encMV v) (fun v w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+          (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu pmParams _ rfl hlk)
+            (pw_spec ra mode n (ctxH C H2) (ctxOK_H hok H2) Brs (pmCodes_H hc H2) s2 d c false rules rw vE.expr
+              (fun H s2 hp e' => hW H s2 (hpX.trans hp) e') (fun m' H s2 hp => hRs m' H s2 (hpX.trans hp))))
+          (fun v' w s3 H3 hp3 hw => ?_)
+        subst hw
+        exact specR_returnI _ (encMV v') (by simp)
+          (fun t ht => ⟨H3, hpX.trans hp3, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      · refine specR_ifI _ 1 (by simp [sev, encMV_and1, hct]) (fun _ => ?_) (fun h => absurd h (by decide))
+        simp only [hct, ite_true]
+        refine specR_assignI pmE _ (Enc.idxW vE.expr) (by decide) (by simp [sev]; exact encMV_shr1 _) ?_
+        refine specR_callNIH (C := ctxH C H2) pmS fNs [nsE] [vv pmE] (nsBody C) [Enc.idxW vE.expr] (by decide) rfl
+          (by decide) hc.ns ⟨by simp, trivial⟩ (Knot.PostB (ctxH C H2)) (fun b w _ _ => w = boolW b)
+          (fun b w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+          (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu [nsE] _ rfl hlk)
+            (ns_spec (ctxH C H2) (ctxOK_H hok H2) s2 vE.expr))
+          (fun b w s3 H3 hp3 hw => ?_)
+        subst hw
+        have hpX3 : C.H <+: H3 := hpX.trans hp3
+        cases b
+        · refine specR_ifI _ 0 (by simp [sev, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
+          simp only [Bool.false_eq_true, ite_false]
+          exact specR_returnI _ (encMV vE) (by simp)
+            (fun t ht => ⟨H3, hpX3, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+        · refine specR_ifI _ 1 (by simp [sev, boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
+          simp only [ite_true]
+          refine specR_bindPure ?_
+          refine specR_callNIH (C := ctxH C H3) pmX fPw pmParams [vv kFu, vv kD, vv pmC, vv pmK, vv pmR, vv pmE] pwBody
+            [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW c, boolW false, rw, Enc.idxW vE.expr] (by decide) rfl
+            (by decide) hc.pw
+            ⟨by simp +decide [Env.get, pmParams, ctxEnv], by simp +decide [Env.get, pmParams, ctxEnv],
+              by simp +decide [Env.get, pmParams, ctxEnv], by simp +decide [Env.get, pmParams, ctxEnv],
+              by simp +decide [Env.get, pmParams, ctxEnv], by simp, trivial⟩
+            (PostMV (ctxH C H3)) (fun v w _ _ => w = encMV v) (fun v w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+            (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu pmParams _ rfl hlk)
+              (pw_spec ra mode n (ctxH C H3) (ctxOK_H hok H3) Brs (pmCodes_H hc H3) s3 d c false rules rw vE.expr
+                (fun H s2 hp e' => hW H s2 (hpX3.trans hp) e') (fun m' H s2 hp => hRs m' H s2 (hpX3.trans hp))))
+            (fun v' w s4 H4 hp4 hw => ?_)
+          subst hw
+          exact specR_returnI _ (encMV v') (by simp)
+            (fun t ht => ⟨H4, hpX3.trans hp4, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    · refine specR_ifI _ 1 (by simp [sev, boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
+      simp only [ite_true, pure_bind]
+      refine specR_assignI pmV _ (encMV (.stuck m)) (by decide)
+        (by simp +decide [sev, Env.get, pmParams, ctxEnv, encMV_stuck]) ?_
+      have hpX : C.H <+: H1 := hp1
+      cases hct : (MajorView.stuck m).isCtor
+      · refine specR_ifI _ 0 (by simp [sev, encMV_and1, hct]) (fun h => absurd rfl h) (fun _ => ?_)
+        simp only [hct, Bool.false_eq_true, ite_false]
+        refine specR_assignI pmE _ (Enc.idxW (MajorView.stuck m).expr) (by decide) (by simp [sev]; exact encMV_shr1 _) ?_
+        refine specR_bindPure ?_
+        refine specR_callNIH (C := ctxH C H1) pmX fPw pmParams [vv kFu, vv kD, vv pmC, vv pmK, vv pmR, vv pmE] pwBody
+          [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW c, boolW false, rw, Enc.idxW (MajorView.stuck m).expr] (by decide) rfl
+          (by decide) hc.pw
+          ⟨by simp +decide [Env.get, pmParams, ctxEnv], by simp +decide [Env.get, pmParams, ctxEnv],
+            by simp +decide [Env.get, pmParams, ctxEnv], by simp +decide [Env.get, pmParams, ctxEnv],
+            by simp +decide [Env.get, pmParams, ctxEnv], by simp, trivial⟩
+          (PostMV (ctxH C H1)) (fun v w _ _ => w = encMV v) (fun v w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+          (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu pmParams _ rfl hlk)
+            (pw_spec ra mode n (ctxH C H1) (ctxOK_H hok H1) Brs (pmCodes_H hc H1) s1 d c false rules rw (MajorView.stuck m).expr
+              (fun H s2 hp e' => hW H s2 (hpX.trans hp) e') (fun m' H s2 hp => hRs m' H s2 (hpX.trans hp))))
+          (fun v' w s3 H3 hp3 hw => ?_)
+        subst hw
+        exact specR_returnI _ (encMV v') (by simp)
+          (fun t ht => ⟨H3, hpX.trans hp3, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      · refine specR_ifI _ 1 (by simp [sev, encMV_and1, hct]) (fun _ => ?_) (fun h => absurd h (by decide))
+        simp only [hct, ite_true]
+        refine specR_assignI pmE _ (Enc.idxW (MajorView.stuck m).expr) (by decide) (by simp [sev]; exact encMV_shr1 _) ?_
+        refine specR_callNIH (C := ctxH C H1) pmS fNs [nsE] [vv pmE] (nsBody C) [Enc.idxW (MajorView.stuck m).expr] (by decide) rfl
+          (by decide) hc.ns ⟨by simp, trivial⟩ (Knot.PostB (ctxH C H1)) (fun b w _ _ => w = boolW b)
+          (fun b w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+          (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu [nsE] _ rfl hlk)
+            (ns_spec (ctxH C H1) (ctxOK_H hok H1) s1 (MajorView.stuck m).expr))
+          (fun b w s3 H3 hp3 hw => ?_)
+        subst hw
+        have hpX3 : C.H <+: H3 := hpX.trans hp3
+        cases b
+        · refine specR_ifI _ 0 (by simp [sev, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
+          simp only [Bool.false_eq_true, ite_false]
+          exact specR_returnI _ (encMV (MajorView.stuck m)) (by simp)
+            (fun t ht => ⟨H3, hpX3, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+        · refine specR_ifI _ 1 (by simp [sev, boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
+          simp only [ite_true]
+          refine specR_bindPure ?_
+          refine specR_callNIH (C := ctxH C H3) pmX fPw pmParams [vv kFu, vv kD, vv pmC, vv pmK, vv pmR, vv pmE] pwBody
+            [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW c, boolW false, rw, Enc.idxW (MajorView.stuck m).expr] (by decide) rfl
+            (by decide) hc.pw
+            ⟨by simp +decide [Env.get, pmParams, ctxEnv], by simp +decide [Env.get, pmParams, ctxEnv],
+              by simp +decide [Env.get, pmParams, ctxEnv], by simp +decide [Env.get, pmParams, ctxEnv],
+              by simp +decide [Env.get, pmParams, ctxEnv], by simp, trivial⟩
+            (PostMV (ctxH C H3)) (fun v w _ _ => w = encMV v) (fun v w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+            (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu pmParams _ rfl hlk)
+              (pw_spec ra mode n (ctxH C H3) (ctxOK_H hok H3) Brs (pmCodes_H hc H3) s3 d c false rules rw (MajorView.stuck m).expr
+                (fun H s2 hp e' => hW H s2 (hpX3.trans hp) e') (fun m' H s2 hp => hRs m' H s2 (hpX3.trans hp))))
+            (fun v' w s4 H4 hp4 hw => ?_)
+          subst hw
+          exact specR_returnI _ (encMV v') (by simp)
+            (fun t ht => ⟨H4, hpX3.trans hp4, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  · refine specR_ifI _ 1 (by simp +decide [Env.get, pmParams, ctxEnv, boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
+    simp only [ite_true]
+    refine specR_congr (m' := majorToCtor mode (knot mode C n) C.fe d c true rules m >>= fun r => pure r) (by simp) ?_
+    refine specR_callNIH pmX fMc pmParams [vv kFu, vv kD, vv pmC, vv pmK, vv pmR, vv pmM] mcBody
+      [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW c, boolW true, rw, Enc.idxW m] (by decide) rfl (by decide)
+      hc.mc ⟨by simp +decide [Env.get, pmParams, ctxEnv], by simp +decide [Env.get, pmParams, ctxEnv],
+        by simp +decide [Env.get, pmParams, ctxEnv], by simp +decide [Env.get, pmParams, ctxEnv],
+        by simp +decide [Env.get, pmParams, ctxEnv], by simp +decide [Env.get, pmParams, ctxEnv], trivial⟩
+      (PostMV C) (fun v w _ _ => w = encMV v) (fun v w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu pmParams _ rfl hlk)
+        (mc_spec mode n C hok hc.cw Brs hc.rs s d c true rules rw m
+          (fun H s2 hp => hRs m H s2 hp)))
+      (fun v w s1 H1 hp1 hw => ?_)
+    subst hw
+    exact specR_returnI _ (encMV v) (by simp) (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+end
+
 end ConPanqueque.T.WC
