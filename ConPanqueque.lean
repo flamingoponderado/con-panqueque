@@ -208,3 +208,4 @@ import ConPanqueque.T.Str.Utf8
 import ConPanqueque.T.Str.LitW
 import ConPanqueque.T.Str.Spine
 import ConPanqueque.T.Str.StrCtor
+import ConPanqueque.T.Core.ProjLit
