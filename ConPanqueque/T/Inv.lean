@@ -719,4 +719,10 @@ theorem specR_call5IM {α β : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem}
   exact specR_bind (Q1 := fun a s' t' => ∃ w st, Rf a w s' st ∧ Inv C s' ((x, w) :: Γ) [] D t') hc
     (fun a s' u ⟨w, st, hr, hu⟩ => hk a w s' st hr u hu) t rfl
 
+/-- Forget the memory frame. -/
+theorem specR_dropMem {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {c : ProgHOL 64}
+    {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop} (h : SpecR (Inv C s Γ [] D) c s m R) :
+    SpecR (Inv C s Γ M D) c s m R :=
+  fun t ht => h t ⟨ht.sr, ht.env, fun _ _ h => absurd h (by simp), ht.decl⟩
+
 end ConPanqueque.T

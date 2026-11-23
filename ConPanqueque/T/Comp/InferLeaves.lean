@@ -35,14 +35,13 @@ structure IkCodes (C : Ctx) : Prop where
   ilpf : C.code.lookup fInstLPF = some (ILP.ilpParams.map (fun p => (p, ShapeHOL.one)), ilpfBody C, .one)
 
 theorem ik_pre (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxOK C) (hc : IkCodes C)
-    (s : AState) (e : EIdx) (c : NIdx) (us : LsIdx) (hv : s.store.view e = some (.const c us)) :
+    (s : AState) (c : NIdx) (us : LsIdx) :
     SpecR (σ := σ) (Pre C s (ibcParams.zip [Enc.idxW c, Enc.idxW us])) (ikBody C) s (ibConstT C.fe c us)
       (PostK C) := fun t ht => by
   have h := ht.1
-  obtain ⟨vs, hvs⟩ := sr_lsChild h hv (us := us) (by simp [ENodeView.lschildren])
   refine WC.ik_spec C hok hc.mg hc.mp hc.ct s c us (fun ci o ok hf _ hblk => ?_) t ht
   obtain ⟨ks, hks⟩ := sr_lpDen h c ci hf
-  exact CT.ct_spec ra C hok hc.ilp hc.ilpf s ci.toConstantVal ks us vs ok hblk (sr_lpLen h c ci hf) hks hvs
+  exact CT.ct_spec ra C hok hc.ilp hc.ilpf s ci.toConstantVal ks us ok hblk (sr_lpLen h c ci hf) hks
     (sr_stateOK h) h.cok.rn h.cok.rl h.cok.rls (sr_tyDen h c ci hf)
 
 end

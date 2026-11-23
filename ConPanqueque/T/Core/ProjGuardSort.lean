@@ -1,5 +1,8 @@
 import ConPanqueque.T.Core.FamilyNZ
 import ConPanqueque.T.Core.CheckGuard
+import ConPanqueque.T.LsView
+import ConPanqueque.T.SRFacts
+import ConPanqueque.T.PinRead
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena ConRon.Bridge
@@ -35,6 +38,7 @@ def gsCore (C : Ctx) : ProgHOL 64 :=
     (.seq (.assign .local fzX (.load .one (.const (ecell C (C.PO + pinCount + 1)))))
     (.seq (.call (some (some (.local, fzZ), none)) fZw [vv fzX, .op .sub [vv fzR, .const 1]])
       (.ite (vv fzZ) (.return (.op .add [vv fzX, .const 1])) (.return (.const 0)))))
+  (.seq (.assign .local lDh (vv fzU)) (.seq (.assign .local lFl (vv lFls)) (.seq lsViewP
   (.seq (.assign .local fzP (.load .one (.op .add [vv fzQ, .const 16])))
   (.seq (.assign .local fzL (.load .one (vv fzP)))
   (.seq (.assign .local lCn (.op .add [vv fzL, .const 1]))
@@ -50,10 +54,11 @@ def gsCore (C : Ctx) : ProgHOL 64 :=
   (.seq (.call (some (some (.local, fzS), none)) fFsl [vv kFu, .const 0, .op .add [vv fzA, vv fzI], vv fzY])
   (.ite (.cmp .equal (vv fzS) (.const 0)) hang
   (.seq (.call (some (some (.local, fzZ), none)) fNz0 [.op .sub [vv fzS, .const 1]])
-    (.ite (vv fzZ) (.return (.const 0)) (.return (vv fzS))))))))))))))))))))
+    (.ite (vv fzZ) (.return (.const 0)) (.return (vv fzS)))))))))))))))))))))))
 
+def gsLocals : List MlS := fzLocals ++ [lDh, lFl, lDt, lDg, lDi, lRp, lRn]
 
-def gsBody (C : Ctx) : ProgHOL 64 := prologue fzLocals (gsCore C)
+def gsBody (C : Ctx) : ProgHOL 64 := prologue gsLocals (gsCore C)
 
 section
 variable {σ : Type}
@@ -67,6 +72,10 @@ theorem postGS_locals (C : Ctx) : ∀ a w s' (st : PState σ) (L : HolFiniteMapE
     PostGS C a w s' st → PostGS C a w s' { st with locals := L } :=
   fun _ _ _ _ _ ⟨H', hp, hs, h1, h2⟩ => ⟨H', hp, sr_of_eq hs rfl rfl rfl rfl, h1, h2⟩
 
+theorem gs_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ gsLocals → (ctxEnv C ++ fzParams.zip vals).get x = none :=
+  Knot.params_none C gsLocals fzParams vals (by decide) (by decide)
+
 theorem gs_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C) (hc : FzCodes C) (hzw : ZwCodes C) (hn : n < 2 ^ 64)
     (hW : ∀ (H : List (BitVec 64)) s1, C.H <+: H → ∀ d e', Callee (σ := σ) (ctxH C H) kParams
@@ -76,7 +85,6 @@ theorem gs_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     (hci : CIE C.EB C.EH o (.indInfo cvT caps)) (us : LsIdx)
     (hwf : LStoreWF s.store.ls) (hst : StateOK s)
     (ks : List ConLeche.Name) (hks : Frontend.denoteNList s.store.ns cvT.levelParams = some ks)
-    (vs : List ConLeche.Level) (hus : denoteLs s.store.lss us = some vs)
     (hrn : ReadNCacheOK s.caches.readNC s.store) (hrl : ReadLCacheOK s.caches.readLC s.store)
     (hrls : ReadLsCacheOK s.caches.readLsC s.store) (hden : (denoteE s.store cvT.type).isSome = true)
     (hsd : ∀ u, formerResSort cvT.type s = .ok (some u, s) → (denoteL s.store.ls u).isSome = true)
@@ -91,7 +99,7 @@ theorem gs_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
   have hcv' : CVE C.EB C.EH (o + 1) cvT := hcv
   obtain ⟨_, ⟨wl, hwl, o', hwl', hblk⟩, hty⟩ := id hcv'
   subst hwl'
-  refine specR_prologue (postGS_locals C) (fz_none C _) ?_
+  refine specR_prologue (postGS_locals C) (gs_none C _) ?_
   unfold gsCore
   refine specR_envLoadI fzT (.op .add [vv fzQ, .const 24]) (o + 3) _ (by decide)
     (by simp +decide [sev, Env.get, fzParams, ctxEnv]; exact fn_ecell24 C o) (by simpa [Nat.add_assoc] using hty) ?_
@@ -117,6 +125,14 @@ theorem gs_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
   · refine specR_ifI _ 0 (by simp +decide [sev, Env.get, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
       (fun h => absurd rfl h) (fun _ => ?_)
     dsimp only
+    refine specR_assignI lDh (vv fzU) (Enc.idxW us) (by decide) (by simp +decide [Env.get, fzParams, ctxEnv]) ?_
+    refine specR_assignI lFl (vv lFls) C.FLs (by decide) (by simp +decide [Env.get, fzParams, ctxEnv] <;> rfl) ?_
+    refine specR_lsviewPI (C := ctxH C H1) us (by simp +decide) (by simp +decide <;> rfl)
+      (by simp +decide [Env.get, fzParams, ctxEnv] <;> rfl) ⟨by decide, by decide, by decide, by decide, by decide⟩
+      (fun v1 P1 hv1 _ _ => ?_)
+    refine specR_atEntry fun t0 ht0 => ?_
+    obtain ⟨vs, hus⟩ := Option.isSome_iff_exists.mp (denoteLs_total' (sr_lswf ht0.sr) (by rw [hv1]; rfl))
+    refine specR_dropMem ?_
     have hl0 : C.EH[o']? = some (BitVec.ofNat 64 cvT.levelParams.length) := by simpa using hblk.1
     refine specR_envLoadI (C := ctxH C H1) fzP (.op .add [vv fzQ, .const 16]) (o + 2) _ (by decide)
       (by simp +decide [sev, Env.get, fzParams, ctxEnv]; exact fn_ecell16 C o)

@@ -1,4 +1,7 @@
 import ConPanqueque.T.Core.ConstVal
+import ConPanqueque.T.LsView
+import ConPanqueque.T.SRFacts
+import ConPanqueque.T.PinRead
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena
@@ -20,7 +23,10 @@ open ConRon.Bridge
 
 def fCT := ofString "constTyAt"
 
+def ctLocals : List MlS := CV.cvLocals ++ [lDh, lFl, lDt, lDg, lDi, lRp, lRn]
+
 def ctMissP (C : Ctx) : ProgHOL 64 :=
+  .seq (.assign .local lDh (vv cUs)) (.seq (.assign .local lFl (vv lFls)) (.seq lsViewP (
   .seq (.assign .local cLen (.load .one (vv cLp)))
   (.seq (.assign .local lCn (.op .add [vv cLen, .const 1]))
   (allocP C cP (.panop .mul [vv lCn, .const 8])
@@ -28,10 +34,10 @@ def ctMissP (C : Ctx) : ProgHOL 64 :=
   (.seq copyLoop
   (.seq (.call (some (some (.local, cY), none)) fInstLPF
       [.const (BitVec.ofNat 64 coreWalkFuel), vv cV, vv cP, vv cUs])
-  (fixSetP C .constTy cZ (vv cN) (vv cUs) (vv cY) (.return (vv cY))))))))))
+  (fixSetP C .constTy cZ (vv cN) (vv cUs) (vv cY) (.return (vv cY)))))))))))))
 
 def ctBody (C : Ctx) : ProgHOL 64 :=
-  prologue cvLocals (fixGetP C .constTy cX (vv cN) (vv cUs)
+  prologue ctLocals (fixGetP C .constTy cX (vv cN) (vv cUs)
     (.ite (.cmp .notEqual (vv cX) (.const 0)) (.return (.op .sub [vv cX, .const 1])) (ctMissP C)))
 
 section
@@ -46,16 +52,20 @@ theorem constTyAt_eq (cv : IConstantVal) (us : LsIdx) (s : AState) :
             FixK.ty.setOp (cv.name, us) x >>= fun _ => pure x) s := by
   rfl
 
+theorem ct_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ ctLocals → (ctxEnv C ++ cvParams.zip vals).get x = none :=
+  Knot.params_none C ctLocals cvParams vals (by decide) (by decide)
+
 theorem ct_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : CodesILP C (ilpBody C))
     (hcf : C.code.lookup fInstLPF = some (ilpParams.map (fun p => (p, ShapeHOL.one)), ilpfBody C, .one))
     (s : AState) (cv : IConstantVal) (ks : List ConLeche.Name) (us : LsIdx)
-    (vsL : List ConLeche.Level) (o : Nat) (hlp : EBlk C.EH o (cv.levelParams.map Enc.idxW)) (hlen : cv.levelParams.length + 1 < 2 ^ 60)
-    (hks : Frontend.denoteNList s.store.ns cv.levelParams = some ks) (hus : denoteLs s.store.lss us = some vsL)
+    (o : Nat) (hlp : EBlk C.EH o (cv.levelParams.map Enc.idxW)) (hlen : cv.levelParams.length + 1 < 2 ^ 60)
+    (hks : Frontend.denoteNList s.store.ns cv.levelParams = some ks)
     (hst : StateOK s) (hcn : ReadNCacheOK s.caches.readNC s.store) (hcl : ReadLCacheOK s.caches.readLC s.store)
     (hcls : ReadLsCacheOK s.caches.readLsC s.store) (hden : (denoteE s.store cv.type).isSome = true) :
     SpecR (σ := σ) (Pre C s (cvParams.zip [Enc.idxW cv.name, ecell C o, Enc.idxW cv.type, Enc.idxW us])) (ctBody C) s
       (constTyAt cv us) (PostK C) := by
-  refine specR_prologue (postK_locals C) (cv_none C _) ?_
+  refine specR_prologue (postK_locals C) (ct_none C _) ?_
   refine specR_congr (constTyAt_eq cv us s) ?_
   refine specR_fixGetI hok .ty hc.memoGet hc.memoProbe cX (vv cN) (vv cUs) cv.name us (by decide)
     (by simp +decide [Env.get, cvParams, ctxEnv]) (by simp +decide [Env.get, cvParams, ctxEnv])
@@ -65,6 +75,14 @@ theorem ct_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     refine specR_ifI _ 0 (by simp [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, optW, optWG])
       (fun h => absurd rfl h) (fun _ => ?_)
     unfold ctMissP
+    refine specR_assignI lDh (vv cUs) (Enc.idxW us) (by decide) (by simp +decide [Env.get, cvParams, ctxEnv]) ?_
+    refine specR_assignI lFl (vv lFls) C.FLs (by decide) (by simp +decide [Env.get, cvParams, ctxEnv] <;> rfl) ?_
+    refine specR_lsviewPI us (by simp +decide) (by simp +decide <;> rfl)
+      (by simp +decide [Env.get, cvParams, ctxEnv] <;> rfl) ⟨by decide, by decide, by decide, by decide, by decide⟩
+      (fun v1 P1 hv1 _ _ => ?_)
+    refine specR_atEntry fun t0 ht0 => ?_
+    obtain ⟨vsL, hus⟩ := Option.isSome_iff_exists.mp (denoteLs_total' (sr_lswf ht0.sr) (by rw [hv1]; rfl))
+    refine specR_dropMem ?_
     have hl0 : C.EH[o]? = some (BitVec.ofNat 64 cv.levelParams.length) := by have := hlp.1; simpa using this
     refine specR_envLoadI cLen (vv cLp) o _ (by decide) (by simp +decide [Env.get, cvParams, ctxEnv]) hl0 ?_
     refine specR_assignI lCn _ (BitVec.ofNat 64 (cv.levelParams.length + 1)) (by decide)
