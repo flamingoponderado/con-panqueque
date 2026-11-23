@@ -597,3 +597,30 @@ A `lvlsEq?` refusal halts the port (`liftFueled`).
 **Composition note.** `io_spec`'s `hFam` and `re_spec`'s `hFz` are unconditional callee hypotheses. The new specs need `Q`-states and closure facts. When the knot is discharged, those hypotheses must become `∀ s1, Q s1 → …`, and the closure facts must come from con-ron's preservation lemmas (`CheckOK`).
 
 **Remaining for ι:** `fabScopeOk`, which needs the scratch seen-set region.
+
+### Progress (2026-11-24): `fabScopeOk`; the ι callees are complete
+
+`fso_spec` (`T/Core/FabScope.lean`) is proved. It has no twin-side preconditions, so it discharges the rescue's `hFab` hypothesis directly.
+
+The three walks thread functional memos through their results (not `AState`). The port mirrors each memo as a heap list (`T/Core/MemoList.lean`):
+- nodes `[k₁, k₂, v, next]`, newest first;
+- insert allocates a fresh node, so the heap only grows;
+- lookup returns the first match (`ml_spec`), matching `HashMap.insert`'s overwrite;
+- representations: `WsRep` (handle and depth), `LbRep` (handle), `SeenRep` (seen set), `AccRep` (leaf list; `leafMem` is a lookup).
+
+Each walk returns a fresh pair block.
+
+The walks:
+- `wscopedBGo`: `ws_spec`, `T/Core/Wscoped.lean`.
+- `leavesSubGo`: `lz_spec`, `T/Core/LeavesSub.lean`, adapted from `ws_spec`.
+- `fvarLeavesGo`: `fl_spec`, `T/Core/FvarLeaves.lean`.
+- `looseBVarsBounded` reuses `ExM.lbb_spec`.
+
+All three ι callees (`iotaFam`, `familyNeverZeroAt`, `fabScopeOk`) now have specs.
+
+**Next:**
+- Compose the ι arm: restrict the callee hypotheses to `Q`-states and discharge them from these specs.
+- The knot's entry discharge.
+- `inferBody`/`defeqBody`/`inferBodyIO`.
+
+(`ConPanqueque/GetArgs.lean` is an unfinished executable helper with a `sorry`. It is not imported by the library.)
