@@ -90,3 +90,25 @@ theorem lt_of_div_lt {a b k : Nat} (h : a / k < b / k) : a < b :=
   Nat.lt_of_not_le fun hc => absurd (Nat.div_le_div_right (c := k) hc) (Nat.not_le.mpr h)
 
 end ConPanqueque.T.Big
+
+namespace ConPanqueque.T.Big
+
+open ConPanqueque.V.Enc
+
+/-- A number's limbs are its first `L` digits when it has exactly `L` limbs. -/
+theorem limbs_eq_digits (n L : Nat) (hn : n < B ^ L) (htop : L = 0 ∨ B ^ (L - 1) ≤ n) :
+    limbs n = (List.range L).map (fun k => BitVec.ofNat 64 (n / B ^ k % B)) := by
+  have hlen : (limbs n).length = L := by
+    have h1 := (limbs_length_lt_iff n L).mpr hn
+    rcases htop with h | h
+    · subst h; omega
+    · have h2 : ¬ (limbs n).length ≤ L - 1 := by
+        rw [limbs_length_lt_iff]; omega
+      omega
+  apply List.ext_getElem
+  · simp [hlen]
+  · intro k h1 h2
+    rw [limbs_getElem n k h1]
+    simp
+
+end ConPanqueque.T.Big
