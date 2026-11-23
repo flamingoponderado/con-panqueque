@@ -233,3 +233,4 @@ import ConPanqueque.T.Core.RescueEta
 import ConPanqueque.T.Core.RescueAnd
 import ConPanqueque.T.Core.FormerSort
 import ConPanqueque.T.Core.NeverZero
+import ConPanqueque.T.Core.NzWalk
