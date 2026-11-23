@@ -127,6 +127,8 @@ structure Ctx where
   plain mode memos saved by the enclosing `enterEager` (held on side `false` while side `true` is active). -/
   EO : BitVec 64
   saved : Option ModeMemos
+  /-- The store floor: the twin store at some earlier point, which the current store extends. -/
+  St : EStore
   /-- The environment (fixed while a declaration is checked), and its heap: base, capacity, image. -/
   fe : IFEnv
   EB : BitVec 64
@@ -503,6 +505,8 @@ structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   twf : StoreWF s.store
   /-- The environment's constants denote in the twin store. -/
   envd : EnvDen C.fe s.store
+  /-- The store only grew since the context's floor. -/
+  floor : Ext C.St s.store
   /-- The twin-only caches are correct. -/
   cok : CachesOK s
 
@@ -518,7 +522,7 @@ theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u
     modeAt_frame h.mode (fun _ _ _ _ => by rw [hm]) (fun _ _ _ _ => by rw [hm]) hd (by rw [hg]),
     envAt_frame h.env (fun _ _ _ => by rw [hm]) (fun _ _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd
       ⟨by rw [hg], by rw [hg]⟩, h.pins,
-    heapEx_frame h.heap (fun _ _ => by rw [hm]) hd (by rw [hg]), h.twf, h.envd, h.cok⟩
+    heapEx_frame h.heap (fun _ _ => by rw [hm]) hd (by rw [hg]), h.twf, h.envd, h.floor, h.cok⟩
 
 theorem eval_gv (t : PState σ) (g : MlS) (w : BitVec 64) (h : t.globals.lookup g = some (.val (.word w))) :
     EV t (.var .global g) = some (.val (.word w)) := by

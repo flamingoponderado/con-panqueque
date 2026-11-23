@@ -124,7 +124,7 @@ theorem internLParam_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : 
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
         (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
-        (by rw [hg]), (internLNode_wf ht.sr.twf (lviewOK_param hv) hrun).1, envDen_ext ht.sr.envd (internLNode_wf ht.sr.twf (lviewOK_param hv) hrun).2, cachesOK_ext ht.sr.cok (internLNode_wf ht.sr.twf (lviewOK_param hv) hrun).2 rfl⟩
+        (by rw [hg]), (internLNode_wf ht.sr.twf (lviewOK_param hv) hrun).1, envDen_ext ht.sr.envd (internLNode_wf ht.sr.twf (lviewOK_param hv) hrun).2, Ext.trans ht.sr.floor (internLNode_wf ht.sr.twf (lviewOK_param hv) hrun).2, cachesOK_ext ht.sr.cok (internLNode_wf ht.sr.twf (lviewOK_param hv) hrun).2 rfl⟩
 
 def fInternLZero := ofString "internLZero"
 def internLZeroBody : ProgHOL 64 := prologue zeroScratch (lZeroWith (rRest 3 0 lFll))
@@ -167,7 +167,7 @@ theorem internLZero_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : C
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
         (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
-        (by rw [hg]), (internLNode_wf ht.sr.twf (lviewOK_zero) hrun).1, envDen_ext ht.sr.envd (internLNode_wf ht.sr.twf (lviewOK_zero) hrun).2, cachesOK_ext ht.sr.cok (internLNode_wf ht.sr.twf (lviewOK_zero) hrun).2 rfl⟩
+        (by rw [hg]), (internLNode_wf ht.sr.twf (lviewOK_zero) hrun).1, envDen_ext ht.sr.envd (internLNode_wf ht.sr.twf (lviewOK_zero) hrun).2, Ext.trans ht.sr.floor (internLNode_wf ht.sr.twf (lviewOK_zero) hrun).2, cachesOK_ext ht.sr.cok (internLNode_wf ht.sr.twf (lviewOK_zero) hrun).2 rfl⟩
 
 def fInternLSucc := ofString "internLSucc"
 def internLSuccBody : ProgHOL 64 := prologue succScratch (lSuccWith (rRest 4 1 lFll))
@@ -211,7 +211,7 @@ theorem internLSucc_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : C
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
         (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
-        (by rw [hg]), (internLNode_wf ht.sr.twf (lviewOK_succ hv) hrun).1, envDen_ext ht.sr.envd (internLNode_wf ht.sr.twf (lviewOK_succ hv) hrun).2, cachesOK_ext ht.sr.cok (internLNode_wf ht.sr.twf (lviewOK_succ hv) hrun).2 rfl⟩
+        (by rw [hg]), (internLNode_wf ht.sr.twf (lviewOK_succ hv) hrun).1, envDen_ext ht.sr.envd (internLNode_wf ht.sr.twf (lviewOK_succ hv) hrun).2, Ext.trans ht.sr.floor (internLNode_wf ht.sr.twf (lviewOK_succ hv) hrun).2, cachesOK_ext ht.sr.cok (internLNode_wf ht.sr.twf (lviewOK_succ hv) hrun).2 rfl⟩
 
 def fInternLMax := ofString "internLMax"
 def internLMaxBody : ProgHOL 64 := prologue lbin2Scratch (lBin2With maxHashE (rRest 5 2 lFll))
@@ -256,7 +256,7 @@ theorem internLMax_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ct
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
         (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
-        (by rw [hg]), (internLNode_wf ht.sr.twf (lviewOK_max hv) hrun).1, envDen_ext ht.sr.envd (internLNode_wf ht.sr.twf (lviewOK_max hv) hrun).2, cachesOK_ext ht.sr.cok (internLNode_wf ht.sr.twf (lviewOK_max hv) hrun).2 rfl⟩
+        (by rw [hg]), (internLNode_wf ht.sr.twf (lviewOK_max hv) hrun).1, envDen_ext ht.sr.envd (internLNode_wf ht.sr.twf (lviewOK_max hv) hrun).2, Ext.trans ht.sr.floor (internLNode_wf ht.sr.twf (lviewOK_max hv) hrun).2, cachesOK_ext ht.sr.cok (internLNode_wf ht.sr.twf (lviewOK_max hv) hrun).2 rfl⟩
 
 def fInternLImax := ofString "internLImax"
 def internLImaxBody : ProgHOL 64 := prologue lbin2Scratch (lBin2With imaxHashE (rRest 6 2 lFll))
@@ -301,6 +301,6 @@ theorem internLImax_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : C
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
         (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
-        (by rw [hg]), (internLNode_wf ht.sr.twf (lviewOK_imax hv) hrun).1, envDen_ext ht.sr.envd (internLNode_wf ht.sr.twf (lviewOK_imax hv) hrun).2, cachesOK_ext ht.sr.cok (internLNode_wf ht.sr.twf (lviewOK_imax hv) hrun).2 rfl⟩
+        (by rw [hg]), (internLNode_wf ht.sr.twf (lviewOK_imax hv) hrun).1, envDen_ext ht.sr.envd (internLNode_wf ht.sr.twf (lviewOK_imax hv) hrun).2, Ext.trans ht.sr.floor (internLNode_wf ht.sr.twf (lviewOK_imax hv) hrun).2, cachesOK_ext ht.sr.cok (internLNode_wf ht.sr.twf (lviewOK_imax hv) hrun).2 rfl⟩
 
 end ConPanqueque.T
