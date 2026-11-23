@@ -79,7 +79,7 @@ theorem specR_memoClearIG {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoK) (cl
       (fun k' _ => hoN k')
       (fun k' e => by injection e with e; subst e; rw [hsame]; exact hmem)
       (fun k' e => by simp at e)
-      (fun _ _ => hoC) (fun _ e => by simp at e)
+      (fun _ _ => hoC) (fun _ e => by simp at e) (fun _ _ => by simp) hoC
   rw [he]
   rcases hk t4 (inv_after_clear ht hsr' hl4 hj4) with hs | ⟨w, hr', a, s', hk', hR⟩
   · exact Or.inl hs

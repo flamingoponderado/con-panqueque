@@ -110,6 +110,8 @@ theorem specR_memoSetNI {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoNK) (set
     fun j hj => by rw [hd']; exact hsr.kbuf j hj, fun mk' => ?_, fun nk => ?_,
     fun ck => cacheAt_frame (hsr.cache ck) (fun c hc => hfr c (hok.memoDis (.c ck) (.n mk) c (by simp) hc))
       (fun kk hkk => hfr _ (hok.mdescMemo (.n mk) (.c ck) kk hkk)) hd',
+    modeAt_frame hsr.mode (fun b ck c hc => hfr c (hok.memoDis (.m b ck) (.n mk) c (by simp) hc))
+      (fun b ck kk hkk => hfr _ (hok.mdescMemo (.n mk) (.m b ck) kk hkk)) hd' (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all),
     heapEx_frame hsr.heap (fun i hi => hfr _ (hok.heapMemo (.n mk) i hi)) hd' (by rw [hg])⟩⟩
   · show MemoAt _ _ _ (memoSel mk' (memoUpdN mk s.memos _)); rw [memoSel_updN]
     exact memoAt_frame (hsr.memo mk') (fun c hc => hfr c (hok.memoDis (.e mk') (.n mk) c (by simp) hc))

@@ -64,8 +64,13 @@ inductive CacheK | whnfCore | whnfCoreCheap | whnf | infer | inferIO | defeq | c
 
 /-- A memo's region: one of the `(EIdx × Nat) → EIdx` memos, one of the `EIdx → Nat` ones, or a mirrored
 cache. -/
-inductive Region | e (k : MemoK) | n (k : MemoNK) | c (k : CacheK)
+inductive Region | e (k : MemoK) | n (k : MemoNK) | c (k : CacheK) | m (b : Bool) (k : CacheK)
   deriving DecidableEq
+
+/-- The six mode memos (swapped by the eager tower); the other three caches are fixed. -/
+def CacheK.isMode : CacheK → Bool
+  | .constTy | .constVal | .ruleBody => false
+  | _ => true
 
 /-- An `EIdx → Nat` memo: key `[idxW h]`, value `ofNat n`, every value below `2^63`. -/
 def encN (h : EIdx) : List (BitVec 64) := [Enc.idxW h]
@@ -101,6 +106,10 @@ structure Ctx where
   HB : BitVec 64
   HN : Nat
   H : List (BitVec 64)
+  /-- The eager tower: the offset from side `false` to side `true` of the mode memo descriptors, and the
+  plain mode memos saved by the enclosing `enterEager` (held on side `false` while side `true` is active). -/
+  EO : BitVec 64
+  saved : Option ModeMemos
 
 def gDir := ofString "Gdir"
 def gFln := ofString "Gfln"
@@ -109,6 +118,8 @@ def gFls := ofString "Gfls"
 def gFle := ofString "Gfle"
 def gKb := ofString "Gkb"
 def gHt := ofString "Ght"
+/-- The active mode-memo side's descriptor offset: `0` (plain) or `EO` (eager). -/
+def gEo := ofString "Geo"
 
 /-- The value heap at `HB` (capacity `HN` words) holds the image `H`, its top in `Ght`. Values are
 immutable once allocated, so facts about `H` survive every later step. -/
@@ -143,14 +154,9 @@ theorem heapEx_frame {σ : Type} {t u : PanSemStateFiniteExact 64 σ} {HB : BitV
 
 variable {σ : Type}
 
-/-- The mirrored cache `k` in memory. -/
+/-- The fixed cache `k` in memory (the mode memos are `ModeAt`'s). -/
 def CacheAt (t : PState σ) (C : Ctx) (cs : Caches) : CacheK → Prop
-  | .whnfCore => MemoAtG encN Enc.idxW t (C.mG (.c .whnfCore)) (C.mg (.c .whnfCore)) cs.whnfCoreC
-  | .whnfCoreCheap => MemoAtG encN Enc.idxW t (C.mG (.c .whnfCoreCheap)) (C.mg (.c .whnfCoreCheap)) cs.whnfCoreCheapC
-  | .whnf => MemoAtG encN Enc.idxW t (C.mG (.c .whnf)) (C.mg (.c .whnf)) cs.whnfC
-  | .infer => MemoAtG encN Enc.idxW t (C.mG (.c .infer)) (C.mg (.c .infer)) cs.inferC
-  | .inferIO => MemoAtG encN Enc.idxW t (C.mG (.c .inferIO)) (C.mg (.c .inferIO)) cs.inferIOC
-  | .defeq => MemoAtG encEE boolW t (C.mG (.c .defeq)) (C.mg (.c .defeq)) cs.defeqC
+  | .whnfCore | .whnfCoreCheap | .whnf | .infer | .inferIO | .defeq => True
   | .constTy => MemoAtG encNL Enc.idxW t (C.mG (.c .constTy)) (C.mg (.c .constTy)) cs.constTyC
   | .constVal => MemoAtG encNL Enc.idxW t (C.mG (.c .constVal)) (C.mg (.c .constVal)) cs.constValC
   | .ruleBody => MemoAtG encRB Enc.idxW t (C.mG (.c .ruleBody)) (C.mg (.c .ruleBody)) cs.ruleBodyC
@@ -160,35 +166,71 @@ theorem cacheAt_frame {C : Ctx} {cs : Caches} {t u : PState σ} {k : CacheK} (h 
     (hdsc : ∀ j, j < 8 → u.memory (C.mG (.c k) + BitVec.ofNat 64 (8 * j)) =
       t.memory (C.mG (.c k) + BitVec.ofNat 64 (8 * j)))
     (hd : u.memaddrs = t.memaddrs) : CacheAt u C cs k := by
-  cases k <;> exact memoAtG_frame h hm hdsc hd
+  cases k <;> first | trivial | exact memoAtG_frame h hm hdsc hd
+
+/-- Mode memo `k` of the set `mm`, on side `b`. -/
+def CacheAtM (t : PState σ) (C : Ctx) (b : Bool) (mm : ModeMemos) : CacheK → Prop
+  | .whnfCore => MemoAtG encN Enc.idxW t (C.mG (.m b .whnfCore)) (C.mg (.m b .whnfCore)) mm.whnfCoreC
+  | .whnfCoreCheap => MemoAtG encN Enc.idxW t (C.mG (.m b .whnfCoreCheap)) (C.mg (.m b .whnfCoreCheap)) mm.whnfCoreCheapC
+  | .whnf => MemoAtG encN Enc.idxW t (C.mG (.m b .whnf)) (C.mg (.m b .whnf)) mm.whnfC
+  | .infer => MemoAtG encN Enc.idxW t (C.mG (.m b .infer)) (C.mg (.m b .infer)) mm.inferC
+  | .inferIO => MemoAtG encN Enc.idxW t (C.mG (.m b .inferIO)) (C.mg (.m b .inferIO)) mm.inferIOC
+  | .defeq => MemoAtG encEE boolW t (C.mG (.m b .defeq)) (C.mg (.m b .defeq)) mm.defeqC
+  | .constTy | .constVal | .ruleBody => True
+
+def SideAt (t : PState σ) (C : Ctx) (b : Bool) (mm : ModeMemos) : Prop := ∀ k, CacheAtM t C b mm k
+
+/-- The eager tower. Plain (`gEo = 0`): side `false` holds the active mode memos and side `true` the stored
+eager ones. Eager (`gEo = EO`): side `true` holds the active (eager) memos, side `false` the plain ones the
+enclosing `enterEager` saved, and the twin's eager slot is empty. -/
+def ModeAt (t : PState σ) (C : Ctx) (cs : Caches) : Prop :=
+  (t.globals.lookup gEo = some (.val (.word 0)) ∧ SideAt t C false cs.modeMemos ∧ SideAt t C true cs.eagerMemos) ∨
+  (t.globals.lookup gEo = some (.val (.word C.EO)) ∧ SideAt t C true cs.modeMemos ∧
+    (∃ mm, C.saved = some mm ∧ SideAt t C false mm) ∧ cs.eagerMemos = ModeMemos.empty)
+
+theorem sideAt_frame {C : Ctx} {mm : ModeMemos} {t u : PState σ} {b : Bool} (h : SideAt t C b mm)
+    (hm : ∀ k c, inR (C.mg (.m b k)) c → u.memory c = t.memory c)
+    (hdsc : ∀ k j, j < 8 → u.memory (C.mG (.m b k) + BitVec.ofNat 64 (8 * j)) =
+      t.memory (C.mG (.m b k) + BitVec.ofNat 64 (8 * j)))
+    (hd : u.memaddrs = t.memaddrs) : SideAt u C b mm := by
+  intro k
+  have hk := h k
+  cases k <;> first | trivial | exact memoAtG_frame hk (hm _) (hdsc _) hd
+
+theorem modeAt_frame {C : Ctx} {cs : Caches} {t u : PState σ} (h : ModeAt t C cs)
+    (hm : ∀ b k c, inR (C.mg (.m b k)) c → u.memory c = t.memory c)
+    (hdsc : ∀ b k j, j < 8 → u.memory (C.mG (.m b k) + BitVec.ofNat 64 (8 * j)) =
+      t.memory (C.mG (.m b k) + BitVec.ofNat 64 (8 * j)))
+    (hd : u.memaddrs = t.memaddrs) (hg : u.globals.lookup gEo = t.globals.lookup gEo) : ModeAt u C cs := by
+  rcases h with ⟨g, h1, h2⟩ | ⟨g, h1, ⟨mm, hs, h2⟩, h3⟩
+  · exact Or.inl ⟨by rw [hg]; exact g, sideAt_frame h1 (hm _) (hdsc _) hd, sideAt_frame h2 (hm _) (hdsc _) hd⟩
+  · exact Or.inr ⟨by rw [hg]; exact g, sideAt_frame h1 (hm _) (hdsc _) hd,
+      ⟨mm, hs, sideAt_frame h2 (hm _) (hdsc _) hd⟩, h3⟩
 
 /-- Two cache records agree on the mirrored tables. -/
 def MirrorEq (a b : Caches) : Prop :=
-  a.whnfCoreC = b.whnfCoreC ∧ a.whnfCoreCheapC = b.whnfCoreCheapC ∧ a.whnfC = b.whnfC ∧ a.inferC = b.inferC ∧
-    a.inferIOC = b.inferIOC ∧ a.defeqC = b.defeqC ∧ a.constTyC = b.constTyC ∧ a.constValC = b.constValC ∧
+  a.modeMemos = b.modeMemos ∧ a.eagerMemos = b.eagerMemos ∧ a.constTyC = b.constTyC ∧ a.constValC = b.constValC ∧
     a.ruleBodyC = b.ruleBodyC
 
-theorem mirrorEq_refl (a : Caches) : MirrorEq a a := ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
+theorem mirrorEq_refl (a : Caches) : MirrorEq a a := ⟨rfl, rfl, rfl, rfl, rfl⟩
 
 theorem mirrorEq_trans {a b c : Caches} (h1 : MirrorEq a b) (h2 : MirrorEq b c) : MirrorEq a c := by
-  obtain ⟨a1, a2, a3, a4, a5, a6, a7, a8, a9⟩ := h1
-  obtain ⟨b1, b2, b3, b4, b5, b6, b7, b8, b9⟩ := h2
-  exact ⟨a1.trans b1, a2.trans b2, a3.trans b3, a4.trans b4, a5.trans b5, a6.trans b6, a7.trans b7, a8.trans b8,
-    a9.trans b9⟩
+  obtain ⟨a1, a2, a3, a4, a5⟩ := h1
+  obtain ⟨b1, b2, b3, b4, b5⟩ := h2
+  exact ⟨a1.trans b1, a2.trans b2, a3.trans b3, a4.trans b4, a5.trans b5⟩
 
 theorem cacheAt_mirror {C : Ctx} {a b : Caches} {t : PState σ} {k : CacheK} (h : CacheAt t C b k)
     (he : MirrorEq a b) : CacheAt t C a k := by
-  obtain ⟨e1, e2, e3, e4, e5, e6, e7, e8, e9⟩ := he
-  cases k
-  · simp only [CacheAt] at h ⊢; rw [e1]; exact h
-  · simp only [CacheAt] at h ⊢; rw [e2]; exact h
-  · simp only [CacheAt] at h ⊢; rw [e3]; exact h
-  · simp only [CacheAt] at h ⊢; rw [e4]; exact h
-  · simp only [CacheAt] at h ⊢; rw [e5]; exact h
-  · simp only [CacheAt] at h ⊢; rw [e6]; exact h
-  · simp only [CacheAt] at h ⊢; rw [e7]; exact h
-  · simp only [CacheAt] at h ⊢; rw [e8]; exact h
-  · simp only [CacheAt] at h ⊢; rw [e9]; exact h
+  obtain ⟨_, _, e7, e8, e9⟩ := he
+  cases k <;> simp only [CacheAt] at h ⊢
+  · rw [e7]; exact h
+  · rw [e8]; exact h
+  · rw [e9]; exact h
+
+theorem modeAt_mirror {C : Ctx} {a b : Caches} {t : PState σ} (h : ModeAt t C b) (he : MirrorEq a b) :
+    ModeAt t C a := by
+  obtain ⟨e1, e2, _, _, _⟩ := he
+  unfold ModeAt; rw [e1, e2]; exact h
 
 structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   rep : SRep t C.L C.FLn C.FLl C.FLs C.FLe s.store
@@ -207,6 +249,8 @@ structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   memoN : ∀ k, MemoAtN t (C.mG (.n k)) (C.mg (.n k)) (memoSelN k s.memos)
   /-- The mirrored caches. -/
   cache : ∀ k, CacheAt t C s.caches k
+  /-- The mode memos and the eager tower. -/
+  mode : ModeAt t C s.caches
   /-- The value heap. -/
   heap : HeapEx t C.HB C.HN C.H
 
@@ -219,6 +263,7 @@ theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u
     fun j hj => by rw [hd]; exact h.kbuf j hj, fun k => memoAt_of_eq (h.memo k) hm hd,
     fun k => memoAtN_frame (h.memoN k) (fun _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd,
     fun k => cacheAt_frame (h.cache k) (fun _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd,
+    modeAt_frame h.mode (fun _ _ _ _ => by rw [hm]) (fun _ _ _ _ => by rw [hm]) hd (by rw [hg]),
     heapEx_frame h.heap (fun _ _ => by rw [hm]) hd (by rw [hg])⟩
 
 theorem eval_gv (t : PState σ) (g : MlS) (w : BitVec 64) (h : t.globals.lookup g = some (.val (.word w))) :

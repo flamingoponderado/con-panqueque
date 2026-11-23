@@ -69,7 +69,8 @@ theorem sr_congrS {C : Ctx} {s s' : AState} {t : PState σ} (h : SR C s t) (h1 :
   obtain ⟨s0, m0, c0, p0⟩ := s
   simp only at h1 h2 h3; subst h1 h2
   exact ⟨h.rep, h.gdir, h.gfln, h.gfll, h.gfls, h.gfle, h.gkb, h.code, h.kbuf, h.memo, h.memoN,
-    fun k => cacheAt_mirror (h.cache k) h3, h.heap⟩
+    fun k => cacheAt_mirror (h.cache k) h3,
+    modeAt_mirror h.mode h3, h.heap⟩
 
 theorem specR_ofRun {α : Type} {P : PState σ → Prop} {c : ProgHOL 64} {s s' : AState} {m : AM α} {a : α}
     {R R' : α → BitVec 64 → AState → PState σ → Prop} (hrun : m s = .ok (a, s'))
