@@ -753,6 +753,45 @@ theorem subW_get (x y lx k : Nat) (hk : k < lx) :
     (subW x y lx)[k]? = some (BitVec.ofNat 64 ((x - y) / B ^ k % B)) := by
   simp [subW, hk]
 
+theorem limbs_len_eq (m L : Nat) (h1 : m < B ^ L) (h2 : L = 0 ∨ B ^ (L - 1) ≤ m) : (limbs m).length = L := by
+  have a := (limbs_length_lt_iff m L).mpr h1
+  rcases h2 with h | h
+  · subst h; omega
+  · have b : ¬ (limbs m).length ≤ L - 1 := by rw [limbs_length_lt_iff]; omega
+    omega
+
+theorem len_mod_succ (n k : Nat) :
+    (limbs (n % B ^ (k + 1))).length = if n / B ^ k % B ≠ 0 then k + 1 else (limbs (n % B ^ k)).length := by
+  rw [@Nat.mod_pow_succ n B k]
+  by_cases hd : n / B ^ k % B = 0
+  · simp [hd]
+  · rw [if_pos hd]
+    apply limbs_len_eq
+    · have := Nat.mod_lt n (pow_pos' k)
+      have hd2 := Nat.mod_lt (n / B ^ k) Bpos
+      rw [Nat.pow_succ]
+      generalize n % B ^ k = a at *
+      generalize n / B ^ k % B = d at *
+      generalize B ^ k = P at *
+      have : P * d + P ≤ P * B := by rw [← Nat.mul_succ]; exact Nat.mul_le_mul_left _ hd2
+      rw [Nat.mul_comm P B] at this ⊢
+      omega
+    · right; simp only [Nat.add_sub_cancel]
+      have : B ^ k * 1 ≤ B ^ k * (n / B ^ k % B) := Nat.mul_le_mul_left _ (by omega)
+      rw [Nat.mul_one] at this
+      exact Nat.le_trans this (Nat.le_add_left _ _)
+
+theorem trim_word (L k d : Nat) (hd : d < B) :
+    BitVec.ofNat 64 L + (if BitVec.ofNat 64 d ≠ 0 then (1 : BitVec 64) else 0) *
+      (BitVec.ofNat 64 k + 1 - BitVec.ofNat 64 L) = BitVec.ofNat 64 (if d ≠ 0 then k + 1 else L) := by
+  by_cases h : d = 0
+  · subst h; simp
+  · have : BitVec.ofNat 64 d ≠ 0 := by
+      intro e; have := congrArg BitVec.toNat e; simp at this; rw [Nat.mod_eq_of_lt hd] at this; exact h this
+    simp only [this, ne_eq, not_false_eq_true, ite_true, h, BitVec.one_mul]
+    have e1 : ∀ x : BitVec 64, (1 : BitVec 64) * x = x := fun x => BitVec.one_mul x
+    rw [e1, BitVec.add_comm, BitVec.sub_add_cancel]; exact word_add1_eq k
+
 section
 variable {σ : Type}
 
@@ -910,6 +949,46 @@ theorem sub_loop2 {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ1 : Env}
     have f4 : z ≠ sD := by intro e; subst e; rw [n4] at hz; simp at hz
     simp [e1, e2, e3, e5, f1, f2, f3, f4, hz]
 
+
+def subG3 (Γ2 : Env) (C : Ctx) (od n k : Nat) : Env :=
+  (sK, BitVec.ofNat 64 k) :: (sQo, cellA C (od + 1 + k)) :: (sL, BitVec.ofNat 64 (limbs (n % B ^ k)).length) :: Γ2
+
+theorem sub_loop3 {α : Type} {C : Ctx} {s : AState} {Γ2 : Env} {D : List MlS} {rest : ProgHOL 64}
+    {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop} (n lx : Nat) (Bf W : List (BitVec 64)) (od : Nat)
+    (hW : ∀ k, k < lx → Bf[od + 1 + k]? = some (BitVec.ofNat 64 (n / B ^ k % B))) (h61 : lx < 2 ^ 61)
+    (hD : sU ∈ D ∧ sL ∈ D ∧ sQo ∈ D ∧ sK ∈ D)
+    (hLa : Γ2.get sLa = some (BitVec.ofNat 64 lx)) (hn : Γ2.get sU = none)
+    (hr : SpecR (Inv (ctxH C Bf) s (subG3 Γ2 C od n lx) [] D) rest s m R) :
+    SpecR (Inv (ctxH C Bf) s (subG3 Γ2 C od n 0) [] D) (.seq subLoop3 rest) s m R := by
+  obtain ⟨du, dl, dq, dk⟩ := hD
+  refine specR_forI (σ := σ) (D := D) (M := []) _ _ rest lx (fun _ => ctxH C Bf) (subG3 Γ2 C od n)
+    (fun i hi => ⟨if Flapjack.Compiler.Encoders.Asm.wordCmpHOL .lower (BitVec.ofNat 64 i) (BitVec.ofNat 64 lx)
+      then 1 else 0, by simp [sev, subG3, Env.get, hLa], ?_⟩) (fun i hi => ?_) hr
+  · have e := word_lt_iff i lx (by unfold B; omega) (by unfold B; omega)
+    by_cases h' : i < lx
+    · simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, e.mpr h', h']
+    · have : ¬ BitVec.ofNat 64 i < BitVec.ofNat 64 lx := fun x => h' (e.mp x)
+      simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, this, h']
+  refine step_seq (step_heapLoadI' (C := ctxH C Bf) sU (vv sQo) (od + 1 + i) _ (hW i hi) du
+    (by simp [subG3]; rfl)) ?_
+  refine step_seq (step_assignI sL trimE (BitVec.ofNat 64 (limbs (n % B ^ (i + 1))).length) dl ?_) ?_
+  · simp only [trimE, sev, sev_vv, Env.get_cons, subG3]
+    simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+    rw [len_mod_succ, ← trim_word _ i _ (Nat.mod_lt _ Bpos)]
+    simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+  refine step_seq (step_assignI sQo _ (cellA C (od + 1 + i + 1)) dq (by simp [sev, subG3]; exact cellA_add8 C _)) ?_
+  refine step_mono (step_assignI sK _ (BitVec.ofNat 64 (i + 1)) dk (by simp [sev, subG3]; exact word_add1_eq i))
+    (fun _ h => h) (fun t ht => inv_envMono ht (fun z v hz => ?_))
+  simp only [subG3, Env.get_cons] at hz ⊢
+  by_cases e1 : z = sK
+  · subst e1; simp_all
+  by_cases e2 : z = sQo
+  · subst e2; simp_all [Nat.add_assoc]
+  by_cases e3 : z = sL
+  · subst e3; simp_all
+  simp only [e1, e2, e3, ite_false] at hz
+  have f1 : z ≠ sU := by intro e; subst e; rw [hn] at hz; simp at hz
+  simp [e1, e2, e3, f1, hz]
 
 end
 
