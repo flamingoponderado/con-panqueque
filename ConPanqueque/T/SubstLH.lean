@@ -294,6 +294,56 @@ theorem substLH_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
     · rw [c3, q7]; exact mirrorEq_refl _
     · rw [p3, q8]
 
+/-- The memo-free core: substitute at any level representation, then re-intern. -/
+theorem substLH_core (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
+    (hcS : C.code.lookup fSubstM = some (substMParams.map (fun p => (p, ShapeHOL.one)), substBodyM C, .one))
+    (hcN : C.code.lookup NEq.fNeq = some ([(NEq.pNa, .one), (NEq.pNb, .one)], NEq.neqBody, .one))
+    (hcG : C.code.lookup fGoM = some (goParams.map (fun p => (p, ShapeHOL.one)), goBody, .one))
+    (hcZ : C.code.lookup fInternLZero = some ([], internLZeroBody, .one))
+    (hcSu : C.code.lookup fInternLSucc = some ([(lEu, .one)], internLSuccBody, .one))
+    (hcMx : C.code.lookup fInternLMax = some ([(lEu, .one), (lEv, .one)], internLMaxBody, .one))
+    (hcIm : C.code.lookup fInternLImax = some ([(lEu, .one), (lEv, .one)], internLImaxBody, .one))
+    (hcP : C.code.lookup fInternLParam = some ([(lEn, .one)], internLParamBody, .one))
+    (hcV : C.code.lookup fInternLv = some ([(pLa, .one)], internLvBody, .one))
+    (s : AState) (ko : Nat) (khs : List NIdx) (ks : List ConLeche.Name) (us : LsIdx) (uh : List LIdx)
+    (vs : List ConLeche.Level) (hks : Frontend.denoteNList s.store.ns khs = some ks)
+    (hu : s.store.lss.view us = some uh) (hvs : denoteLList s.store.ls uh = some vs) (hwf : StoreWF s.store)
+    (H : List (BitVec 64)) (hb : BlkAt H ko (khs.map Enc.idxW)) (w : BitVec 64) (l : ConLeche.Level)
+    (hw : LRep C.HB H s.store.ls w l) :
+    SpecR (Pre (σ := σ) (ctxH C H) s (substMParams.zip [w, cellA C ko, Enc.idxW us])) (substLHBody C) s
+      (internLevel (ConLeche.Level.subst ks vs l))
+      (fun h w' s'' st => ∃ H', H <+: H' ∧ w' = Enc.idxW h ∧ SR (ctxH C H') s'' st ∧ StoreWF s''.store ∧
+        (∃ ls', s'' = { s with store := withL s.store ls' } ∧ LGrow s.store.ls ls') ∧
+        ∃ f, denoteLAux s''.store.ls f h = some (ConLeche.Level.subst ks vs l)) := by
+  refine specR_congr (m' := pure (ConLeche.Level.subst ks vs l) >>= fun t => internLevel t >>= fun h => pure h)
+    (by simp only [pure_bind, bind_pure]) ?_
+  refine specR_prologue (fun _ _ _ _ _ ⟨H', a, b, c, d⟩ => ⟨H', a, b, sr_of_eq c rfl rfl rfl rfl, d⟩)
+    (params_noneSubM _ _ _ _) ?_
+  refine callLv_spec (C := ctxH C H) lA1 fSubstM substMParams [vv pLa, vv pKp, vv pUs] (substBodyM C)
+    [w, cellA C ko, Enc.idxW us] (by decide) rfl (by decide) hcS
+    ⟨by simp +decide [ctxEnv, substMParams], by simp +decide [ctxEnv, substMParams] <;> rfl,
+      by simp +decide [ctxEnv, substMParams], trivial⟩ _
+    (substM_spec C hok hcS hcN hcG s ko khs ks us uh vs hks hu hvs l H w hb hw)
+    (fun H1 c1 hp1 hc1 => ?_)
+  refine callIL (C := ctxH C H1) lW (vv lA1) internLvBody c1 _ (by decide) hcV (by simp)
+    (internLv_spec ra C hok hcZ hcSu hcMx hcIm hcP hcV _ H1 c1 s hwf hc1) (fun h s'' hr wf g d => ?_)
+  exact specR_returnI (vv lW) (Enc.idxW h) (by simp) (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl,
+    wf, g, d⟩)
+
+/-- A twin step that changes only caches the state relation does not see, with no port effect. -/
+theorem specR_quiet {α β : Type} {C : Ctx} {s s' : AState} {Γ : Env} {M : Mem} {D : List MlS} {c : ProgHOL 64}
+    {m0 : AM α} {a : α} {k : α → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    (hrun : m0 s = .ok (a, s')) (h1 : s'.store = s.store) (h2 : s'.memos = s.memos)
+    (h3 : MirrorEq s'.caches s.caches) (h4 : s'.pins = s.pins)
+    (h : SpecR (Inv C s' Γ M D) c s' (k a) R) : SpecR (Inv C s Γ M D) c s (m0 >>= k) R := by
+  intro t ht
+  have ht' : Inv C s' Γ M D t := ⟨LLeq.sr_congrS ht.sr h1 h2 h3 h4, ht.env, ht.mem, ht.decl⟩
+  rcases h t ht' with hs | ⟨w, hr, b, s2, hm, hq⟩
+  · exact Or.inl hs
+  · refine Or.inr ⟨w, hr, b, s2, ?_, hq⟩
+    show (do let r ← m0 s; match r with | (a, s) => k a s) = _
+    rw [hrun]; exact hm
+
 end
 
 end ConPanqueque.T
