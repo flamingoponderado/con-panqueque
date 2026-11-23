@@ -787,4 +787,186 @@ def wapCore (C : Ctx) : ProgHOL 64 :=
 
 def wapBody (C : Ctx) : ProgHOL 64 := prologue wapLocals (wapCore C)
 
+
+section
+variable {σ : Type}
+
+theorem wap_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ wapLocals → (ctxEnv C ++ wapParams.zip vals).get x = none :=
+  Knot.params_none C wapLocals wapParams vals (by decide) (by decide)
+
+theorem cellA_idx (C : Ctx) (o i : Nat) : cellA C o + (BitVec.ofNat 64 i * 8#64 + 8#64) = cellA C (o + 1 + i) := by
+  rw [show BitVec.ofNat 64 i * 8#64 + 8#64 = BitVec.ofNat 64 (8 * (i + 1)) from Big.add8_eq i]
+  unfold cellA; rw [BitVec.add_assoc, BitVec.ofNat_add_ofNat]; congr 2; omega
+
+theorem wap_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
+    (hok : CtxOK C)
+    (hcwap : C.code.lookup fWap = some (wapParams.map (fun p => (p, ShapeHOL.one)), wapBody C, .one))
+    (hcbp : C.code.lookup fBp = some (bpParams.map (fun p => (p, ShapeHOL.one)), bpBody, .one))
+    (hcwai : C.code.lookup fWai = some (waiParams.map (fun p => (p, ShapeHOL.one)), waiBody C, .one))
+    (hcapp : C.code.lookup ExPre.fAppend = some (ExPre.appParams.map (fun p => (p, ShapeHOL.one)),
+      ExPre.appBody C, .one))
+    (hcm : C.code.lookup ExK.fMka = some ([(ExK.pF, .one), (ExK.pP, .one), (ExK.pI, .one), (ExK.pN, .one)],
+      ExK.mkaBody, .one))
+    (hcI : C.code.lookup fInternApp = some ([(lEf, .one), (lEa, .one)], internAppBody, .one))
+    (d : Nat) (args nodes : Array EIdx) (oa on : Nat) (hba : BlkAt C.H oa (args.toList.map Enc.idxW))
+    (hbn : BlkAt C.H on (nodes.toList.map Enc.idxW)) (hnd : nodes.size = args.size) (hsz : args.size < 2 ^ 58)
+    (hBp : ∀ (H : List (BitVec 64)) s1 t st, C.H <+: H → st < 2 ^ 63 → ∀ i, i ≤ args.size →
+      SpecR (σ := σ) (Pre (ctxH C H) s1 (bpParams.zip [Enc.idxW t, BitVec.ofNat 64 st, cellA C oa, BitVec.ofNat 64 i,
+        BitVec.ofNat 64 args.size])) bpBody s1 (betaPeel t st args i) (PostWS (ctxH C H)))
+    (hWai : ∀ (H : List (BitVec 64)) s1 hd (va : Array EIdx) ov, C.H <+: H → BlkAt H ov (va.toList.map Enc.idxW) →
+      va.size < 2 ^ 63 → SpecR (σ := σ) (Pre (ctxH C H) s1 (waiParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d,
+        Enc.idxW hd, cellA C ov, BitVec.ofNat 64 va.size])) (waiBody C) s1
+        (whnfAppIota mode (knot mode C n) C.fe d hd va va.size) (UD.PostO (ctxH C H))) :
+    ∀ k (H : List (BitVec 64)) s v hd (va : Array EIdx) ov same i, C.H <+: H →
+      BlkAt H ov (va.toList.map Enc.idxW) → va.size < 2 ^ 58 → args.size - i = k → i ≤ args.size →
+      SpecR (σ := σ) (Pre (ctxH C H) s (wapParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW v, Enc.idxW hd,
+        cellA C ov, boolW same, cellA C oa, cellA C on, BitVec.ofNat 64 i, BitVec.ofNat 64 args.size])) (wapBody C) s
+        (whnfApp mode (knot mode C n) C.fe d v hd va same args nodes i) (PostWS (ctxH C H)) := by
+  intro k
+  induction k with
+  | zero =>
+    intro H s v hd va ov same i hpre hbv hvs hk hi
+    refine specR_prologue (postWS_locals _) (wap_none _ _) ?_
+    unfold wapCore
+    rw [whnfApp, dif_neg (by omega)]
+    have hlw := word_lt_iff i args.size (by unfold B; omega) (by unfold B; omega)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, wapParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL,
+      (not_congr hlw).mpr (by omega)]) (fun h => absurd rfl h) (fun _ => ?_)
+    exact specR_returnI _ (encWS (.done v)) (by simp +decide [sev, Env.get, wapParams, ctxEnv, encWS])
+      (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  | succ k ih =>
+    intro H s v hd va ov same i hpre hbv hvs hk hi
+    have hlt : i < args.size := by omega
+    have hok' := ctxOK_H hok H
+    refine specR_prologue (postWS_locals _) (wap_none _ _) ?_
+    unfold wapCore
+    rw [whnfApp, dif_pos hlt]
+    have hlw := word_lt_iff i args.size (by unfold B; omega) (by unfold B; omega)
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get, wapParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL,
+      hlw.mpr hlt]) (fun _ => ?_) (fun h => absurd h (by decide))
+    have hai : (ctxH C H).H[oa + 1 + i]? = some (Enc.idxW args[i]) := by
+      have := (blkAt_mono hba hpre).2 i (by simp; omega); simp at this; exact this
+    have hni : (ctxH C H).H[on + 1 + i]? = some (Enc.idxW nodes[i]!) := by
+      have := (blkAt_mono hbn hpre).2 i (by simp; omega)
+      rw [getElem!_pos nodes i (by omega)]; simp at this; exact this
+    refine UD.specR_heapLoadI' (C := ctxH C H) yA _ (oa + 1 + i) _ hai (by decide)
+      (by simp +decide [sev, Env.get, wapParams, ctxEnv]; exact cellA_idx C oa i) ?_
+    refine UD.specR_heapLoadI' (C := ctxH C H) yNo _ (on + 1 + i) _ hni (by decide)
+      (by simp +decide [sev, Env.get, wapParams, ctxEnv]; exact cellA_idx C on i) ?_
+    -- the shared tail, from the applied node `ap`
+    have hrest : ∀ (ap : EIdx) (s1 : AState) (Γ : Env), Γ.get yAp = some (Enc.idxW ap) →
+        Γ.get yNo = some (Enc.idxW nodes[i]!) → Γ.get yA = some (Enc.idxW args[i]) →
+        Γ.get yVa = some (cellA C ov) → Γ.get kFu = some (BitVec.ofNat 64 n) →
+        Γ.get kD = some (BitVec.ofNat 64 d) → Γ.get yHd = some (Enc.idxW hd) →
+        Γ.get yAr = some (cellA C oa) → Γ.get yNd = some (cellA C on) → Γ.get yI = some (BitVec.ofNat 64 i) →
+        Γ.get yN = some (BitVec.ofNat 64 args.size) →
+        SpecR (σ := σ) (Inv (ctxH C H) s1 Γ [] (ctxLocals ++ wapLocals)) (wapRest C) s1
+          (whnfAppIota mode (knot mode C n) C.fe d hd (va.push args[i]) (va.push args[i]).size >>= fun o =>
+            match o with
+            | none => whnfApp mode (knot mode C n) C.fe d ap hd (va.push args[i]) (ap == nodes[i]!) args nodes (i + 1)
+            | some e2 => mkAppNFrom e2 args (i + 1) >>= fun e3 => pure (WhnfStep.cont e3)) (PostWS (ctxH C H)) := by
+      intro ap s1 Γ hAp hNo hA hVa hFu hD hHd hAr hNd hI hN
+      unfold wapRest
+      have hI1 : ∀ Γ' : Env, Γ'.get yI = some (BitVec.ofNat 64 i) →
+          sev Γ' (.op .add [vv yI, .const 1]) = some (BitVec.ofNat 64 (i + 1)) := by
+        intro Γ' h'; simp only [sev, sev_vv, h']; simp; exact word_add1_eq i
+      have heqb : sev Γ (.cmp .equal (vv yAp) (vv yNo)) = some (boolW (ap == nodes[i]!)) := by
+        simp only [sev, sev_vv, hAp, hNo]
+        by_cases he : ap = nodes[i]!
+        · rw [he]; simp [boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+        · have : Enc.idxW ap ≠ Enc.idxW nodes[i]! := fun x => he (Enc.idxW_inj x)
+          simp [boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, this, he]
+      refine specR_assignI yS2 _ (boolW (ap == nodes[i]!)) (by decide) heqb ?_
+      refine ExPre.specR_callApp (C := ctxH C H) hok' hcapp yVa2 (vv yVa) (vv yA) ov _ (Enc.idxW args[i])
+        (by decide) hbv (by simp [hVa]; rfl) (by simp [hA]) (fun H2 o2 hp2 hb2 => ?_)
+      have hb2' : BlkAt H2 o2 ((va.push args[i]).toList.map Enc.idxW) := by simpa using hb2
+      obtain ⟨hlo, hlv⟩ := blkAt_get0 hb2'
+      have hw0 : (ctxH C H2).H[o2]? = some (BitVec.ofNat 64 (va.push args[i]).size) := by
+        show H2[o2]? = _; rw [List.getElem?_eq_getElem hlo, hlv]; simp
+      refine specR_atEntry fun t2 ht2 => ?_
+      have hsm := blk_small0 (C := ctxH C H2) (ctxOK_H hok _) ht2.sr hb2'
+      simp only [List.length_map, Array.length_toList] at hsm
+      refine UD.specR_heapLoadI' (C := ctxH C H2) yK (vv yVa2) o2 _ hw0 (by decide) (by simp; rfl) ?_
+      refine specR_callNIH (C := ctxH C H2) yO fWai waiParams [vv kFu, vv kD, vv yHd, vv yVa2, vv yK] (waiBody C)
+        [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW hd, cellA C o2, BitVec.ofNat 64 (va.push args[i]).size]
+        (by decide) rfl (by decide) hcwai ⟨by simp [hFu], by simp [hD], by simp [hHd], by simp; rfl, by simp, trivial⟩
+        (UD.PostO (ctxH C H2)) (fun r w _ _ => w = optW r) (fun r w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+        (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu waiParams _ rfl hlk)
+          (hWai H2 s1 hd (va.push args[i]) o2 (hpre.trans hp2) hb2' (by simp; omega)))
+        (fun r w s2 H3 hp3 hw => ?_)
+      subst hw
+      rcases r with _ | e2
+      · refine specR_ifI _ 1 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+          (fun h => absurd h (by decide))
+        refine specR_mono (R := PostWS (ctxH C H3)) ?_ (fun _ h => h) (fun a w s' t ⟨H', hp', hw', hsr'⟩ =>
+          ⟨H', (hp2.trans hp3).trans hp', hw', hsr'⟩)
+        exact specR_callWS (D := ctxLocals ++ wapLocals) yX fWap wapParams
+          [vv kFu, vv kD, vv yAp, vv yHd, vv yVa2, vv yS2, vv yAr, vv yNd, .op .add [vv yI, .const 1], vv yN]
+          (wapBody C) [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ap, Enc.idxW hd, cellA C o2,
+            boolW (ap == nodes[i]!), cellA C oa, cellA C on, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 args.size]
+          (by decide) rfl (by decide) hcwap
+          ⟨by simp [hFu], by simp [hD], by simp [hAp], by simp [hHd], by simp; rfl, by simp, by simp [hAr],
+            by simp [hNd], hI1 _ (by simp [hI]), by simp [hN], trivial⟩
+          (ih H3 s2 ap hd (va.push args[i]) o2 (ap == nodes[i]!) (i + 1) (hpre.trans (hp2.trans hp3))
+            (blkAt_mono hb2' hp3) hsm (by omega) (by omega))
+      · have hne : optW (some e2) ≠ 0 := WB.idxW_succ_ne e2
+        refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
+          (fun h => absurd rfl h) (fun _ => ?_)
+        refine ILP.callE_spec (C := ctxH C H3) yE3 ExK.fMka [ExK.pF, ExK.pP, ExK.pI, ExK.pN]
+          [.op .sub [vv yO, .const 1], vv yAr, .op .add [vv yI, .const 1], vv yN] ExK.mkaBody
+          [Enc.idxW e2, cellA C oa, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 args.toList.length] (by decide) rfl
+          (by decide) hcm ⟨by simp [sev, optWG, BitVec.add_sub_cancel], by simp [hAr], hI1 _ (by simp [hI]),
+            by simp [hN], trivial⟩
+          (ExK.mkAppNFrom_spec ra (ctxH C H3) (ctxOK_H hok _) hcm hcI oa args
+            (blkAt_mono hba (hpre.trans (hp2.trans hp3))) (by omega) (i + 1) (by omega) e2 s2) (fun e3 s3 => ?_)
+        exact specR_returnI _ (encWS (.cont e3)) (by simp [sev, vv, encWS]) (fun t ht =>
+          ⟨H3, hp2.trans hp3, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    refine Knot.specR_tagIteV yV v 5 (by decide) (by decide) (by simp +decide [Env.get, wapParams, ctxEnv])
+      (fun htg => ?_) (fun htg => ?_)
+    · rw [if_pos (show (v.tag == ETag.lam) = true by simp [htg, ETag.lam])]
+      refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]; rfl) ?_
+      refine specR_assignI lDh (vv yV) (Enc.idxW v) (by decide) (by simp +decide [Env.get, wapParams, ctxEnv]) ?_
+      refine specR_viewP v (by simp) (by simp +decide [Env.get]; rfl) (by simp +decide [Env.get, ctxEnv]) (by decide)
+        (fun vw P hv htn _ => ?_)
+      have h5 : vw.tagN = 5 := by rw [htn, htg]; rfl
+      obtain ⟨ty, b, rfl⟩ : ∃ ty b, vw = .lam ty b := by
+        cases vw <;> simp [ENodeView.tagN] at h5 ⊢
+      have hvb : s.store.viewBind v = some (ty, b) := viewBind_of_view_lam (by rw [htg]; rfl) hv
+      refine specR_runBind (by rw [viewBind_run, hvb]) ?_
+      refine specR_loadI' yB _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW b) (by decide) (by simp +decide [sev]) rfl
+        (by simpa [encEView, Enc.encBind] using wordsAt_mem1 P (Enc.idxW ty) (Enc.idxW b) [] []) ?_
+      refine specR_dropM ?_
+      exact specR_callWS yX fBp bpParams [vv yB, vv yI, vv yAr, .op .add [vv yI, .const 1], vv yN] bpBody
+        [Enc.idxW b, BitVec.ofNat 64 i, cellA C oa, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 args.size] (by decide)
+        rfl (by decide) hcbp
+        ⟨by simp, by simp +decide [Env.get, wapParams, ctxEnv], by simp +decide [Env.get, wapParams, ctxEnv],
+          by simp +decide [sev, Env.get, wapParams, ctxEnv]; exact word_add1_eq i,
+          by simp +decide [Env.get, wapParams, ctxEnv], trivial⟩
+        (hBp H s b i hpre (by omega) (i + 1) (by omega))
+    · rw [if_neg (show ¬ (v.tag == ETag.lam) = true by simpa [ETag.lam] using htg)]
+      cases same
+      · refine specR_ifI _ 0 (by simp +decide [sev, Env.get, wapParams, ctxEnv, boolW]) (fun h => absurd rfl h)
+          (fun _ => ?_)
+        show SpecR _ _ s (internAppE v args[i] >>= _) _
+        refine specR_internAppI (C := ctxH C H) ra hok' hcI yAp (vv yV) (vv yA) v args[i] (by decide)
+          (by simp +decide [Env.get, wapParams, ctxEnv]) (by simp) (fun ap s1 => ?_)
+        exact hrest ap s1 _ (by simp) (by simp) (by simp) (by simp +decide [Env.get, wapParams, ctxEnv])
+          (by simp +decide [Env.get, wapParams, ctxEnv]) (by simp +decide [Env.get, wapParams, ctxEnv])
+          (by simp +decide [Env.get, wapParams, ctxEnv]) (by simp +decide [Env.get, wapParams, ctxEnv])
+          (by simp +decide [Env.get, wapParams, ctxEnv]) (by simp +decide [Env.get, wapParams, ctxEnv])
+          (by simp +decide [Env.get, wapParams, ctxEnv])
+      · refine specR_ifI _ 1 (by simp +decide [sev, Env.get, wapParams, ctxEnv, boolW]) (fun _ => ?_)
+          (fun h => absurd h (by decide))
+        refine specR_assignI yAp (vv yNo) (Enc.idxW nodes[i]!) (by decide) (by simp) ?_
+        show SpecR _ _ s (pure nodes[i]! >>= _) _
+        rw [pure_bind]
+        exact hrest nodes[i]! s _ (by simp) (by simp) (by simp) (by simp +decide [Env.get, wapParams, ctxEnv])
+          (by simp +decide [Env.get, wapParams, ctxEnv]) (by simp +decide [Env.get, wapParams, ctxEnv])
+          (by simp +decide [Env.get, wapParams, ctxEnv]) (by simp +decide [Env.get, wapParams, ctxEnv])
+          (by simp +decide [Env.get, wapParams, ctxEnv]) (by simp +decide [Env.get, wapParams, ctxEnv])
+          (by simp +decide [Env.get, wapParams, ctxEnv])
+
+end
+
 end ConPanqueque.T.WC
