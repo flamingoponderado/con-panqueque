@@ -338,4 +338,108 @@ theorem specR_viewIv {β : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D 
 
 end
 
+/-- The code the walk calls. -/
+structure CodesILP (C : Ctx) (B : ProgHOL 64) : Prop where
+  ilp : C.code.lookup fInstLP = some (ilpParams.map (fun p => (p, ShapeHOL.one)), B, .one)
+  memoGet : C.code.lookup fMemoGet = some ([(pG, .one), (pLen, .one)], memoGetBody, .one)
+  memoProbe : C.code.lookup fMemoProbe = some ([(pG, .one), (pLen, .one)], memoProbeBody, .one)
+  memoSet : C.code.lookup fMemoSet = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoSetBody, .one)
+  memoIns : C.code.lookup fMemoIns = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoInsBody, .one)
+  internApp : C.code.lookup fInternApp = some ([(lEf, .one), (lEa, .one)], internAppBody, .one)
+  internLam : C.code.lookup fInternLam = some ([(lEf, .one), (lEa, .one)], bin2Body lamDataE 14, .one)
+  internForallE : C.code.lookup fInternForallE = some ([(lEf, .one), (lEa, .one)], bin2Body forDataE 15, .one)
+  internLet : C.code.lookup fInternLet = some ([(lEty, .one), (lEvl, .one), (lEbd, .one)], letBody, .one)
+  internProj : C.code.lookup fInternProj = some ([(lEp, .one), (lEe, .one), (lIw, .one)], projBody, .one)
+  internFVar : C.code.lookup fInternFVar = some ([(lEty, .one), (lIw, .one)], fvarBody, .one)
+  internSort : C.code.lookup fInternSort = some ([(lEu, .one)], sortBody, .one)
+  internConst : C.code.lookup fInternConst = some ([(lEn, .one), (lEus, .one)], constBody, .one)
+  substLH : C.code.lookup fSubstLH = some (substMParams.map (fun p => (p, ShapeHOL.one)), substLHBody C, .one)
+  substLsH : C.code.lookup fSubstLsH = some (slsParams.map (fun p => (p, ShapeHOL.one)), substLsHBody, .one)
+  substM : C.code.lookup fSubstM = some (substMParams.map (fun p => (p, ShapeHOL.one)), substBodyM C, .one)
+  neq : C.code.lookup NEq.fNeq = some ([(NEq.pNa, .one), (NEq.pNb, .one)], NEq.neqBody, .one)
+  goM : C.code.lookup fGoM = some (goParams.map (fun p => (p, ShapeHOL.one)), goBody, .one)
+  lZero : C.code.lookup fInternLZero = some ([], internLZeroBody, .one)
+  lSucc : C.code.lookup fInternLSucc = some ([(lEu, .one)], internLSuccBody, .one)
+  lMax : C.code.lookup fInternLMax = some ([(lEu, .one), (lEv, .one)], internLMaxBody, .one)
+  lImax : C.code.lookup fInternLImax = some ([(lEu, .one), (lEv, .one)], internLImaxBody, .one)
+  lParam : C.code.lookup fInternLParam = some ([(lEn, .one)], internLParamBody, .one)
+  lv : C.code.lookup fInternLv = some ([(pLa, .one)], internLvBody, .one)
+  lsGoS : C.code.lookup fLsGoS = some (lsgParams.map (fun p => (p, ShapeHOL.one)), lsgBody C, .one)
+  internLs : C.code.lookup fInternLs = some ([(pKey, .one), (lEc, .one)], internLsBody, .one)
+
+theorem kids2 {st : EStore} (hwf : StoreWF st) {h : EIdx} {v : ENodeView} (hv : st.view h = some v)
+    (hd : (denoteE st h).isSome = true) {f a : EIdx}
+    (hfa : denoteEView st v = opt2 (fun x y => x) (denoteE st f) (denoteE st a) ∨ False ∨
+      (∃ g : ConLeche.Expr → ConLeche.Expr → ConLeche.Expr, denoteEView st v = opt2 g (denoteE st f) (denoteE st a))) :
+    (denoteE st f).isSome = true ∧ (denoteE st a).isSome = true := by
+  rw [denoteE_view_eq hwf hv] at hd
+  rcases hfa with e | e | ⟨g, e⟩
+  · rw [e] at hd; simp only [opt2] at hd; split at hd <;> simp_all
+  · exact e.elim
+  · rw [e] at hd; simp only [opt2] at hd; split at hd <;> simp_all
+
+/-- The `app` arm after a memo miss. -/
+def appMiss (ks : List ConLeche.Name) (vsL : List ConLeche.Level) (n : Nat) (h f a : EIdx) : AM EIdx := do
+  let f'' ← instLPGo ks vsL n f
+  let a'' ← instLPGo ks vsL n a
+  let r ← internRebuiltApp h (f'' == f && a'' == a) f'' a''
+  instLPSet (h, 0) r
+  pure r
+
+section
+variable {σ : Type}
+open ConRon.Bridge.ExprOps
+
+theorem appI_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (B : ProgHOL 64)
+    (hc : CodesILP C B) (ko : Nat) (khs : List NIdx) (ks : List ConLeche.Name) (usH : LsIdx)
+    (vsL : List ConLeche.Level) (n : Nat) (ih : RecILP (σ := σ) C B ko khs ks usH vsL n)
+    {H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} (h f a : EIdx) (hv : s.store.view h = some (.app f a))
+    (hp : PInv s khs ks usH vsL) (hden : (denoteE s.store h).isSome = true) (hb : BlkAt H ko (khs.map Enc.idxW))
+    (hfu : Γ.get pFu = some (BitVec.ofNat 64 (n + 1))) (hh : Γ.get pH = some (Enc.idxW h))
+    (hkp : Γ.get pKp = some (cellA C ko)) (hus : Γ.get pUs = some (Enc.idxW usH))
+    (hkb : Γ.get lKb = some C.KB) (hfle : Γ.get lFle = some C.FLe) (hdir : Γ.get lDir = some C.L.DIR) :
+    SpecR (Inv (σ := σ) (ctxH C H) s Γ M DI) (binI (C.mG (.e .instLP)) fInternApp) s
+      (instLPArmApp ks vsL n h f a) (PostILP (ctxH C H)) := by
+  obtain ⟨df, da⟩ := kids2 hp.ok.wf hv hden (f := f) (a := a) (Or.inr (Or.inr ⟨ConLeche.Expr.app, rfl⟩))
+  refine specR_congr (m' := do match ← instLPGet (h, 0) with | some r => pure r | none => appMiss ks vsL n h f a)
+    (by rw [instLPArmApp]; rfl) ?_
+  unfold binI
+  refine probedL_spec hok hc.memoGet hc.memoProbe h _ _ hh hkb ?_
+  unfold viewH
+  refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [hfle]) ?_
+  refine specR_assignI lDh (vv pH) (Enc.idxW h) (by decide) (by simp +decide [hh]) ?_
+  refine specR_congr (m' := ConRon.Arena.view h >>= fun v => match v with
+    | .app f' a' => appMiss ks vsL n h f' a'
+    | _ => appMiss ks vsL n h f a)
+    (by simp only [bind, StateT.bind]; rw [view_run, hv]; rfl) ?_
+  refine specR_viewIv h (by simp) (by simp +decide [hfle] <;> rfl) (by simp +decide [hdir] <;> rfl) (by decide)
+    (fun v P hv' _ _ => ?_)
+  rw [hv] at hv'; cases hv'
+  unfold appMiss
+  simp only [encEView, Enc.encApp, wordsAt, List.length_cons, List.length_nil, List.range_succ, List.range_zero,
+    List.nil_append, List.zip_cons_cons, List.zip_nil_left, List.map_cons, List.map_nil, List.cons_append,
+    List.nil_append]
+  refine specR_loadI' lA1 _ (P + BitVec.ofNat 64 (8 * 0)) _ (Enc.idxW f) (by decide) (by simp +decide [sev])
+    rfl (List.mem_cons_self ..) ?_
+  refine specR_loadI' lA2 _ (P + BitVec.ofNat 64 (8 * 1)) _ (Enc.idxW a) (by decide) (by simp +decide [sev])
+    rfl (List.mem_cons_of_mem _ (List.mem_cons_self ..)) ?_
+  refine callI_spec C B hc.ilp ko khs ks usH vsL n ih lY lA1 f (by decide) (by simp +decide [hfu])
+    (by simp +decide) (by simp +decide [hkp]) (by simp +decide [hus]) hp df hb
+    (fun f' s1 H1 hp1 pv1 _ x1 _ _ => ?_)
+  refine callI_spec (H := H1) C B hc.ilp ko khs ks usH vsL n ih lZ lA2 a (by decide) (by simp +decide [hfu])
+    (by simp +decide) (by simp +decide [hkp]) (by simp +decide [hus]) pv1
+    (by obtain ⟨e, he⟩ := Option.isSome_iff_exists.mp da; rw [x1.expr a e he]; rfl) (blkAt_mono hb hp1)
+    (fun a' s2 H2 hp2 _ _ _ _ _ => ?_)
+  refine rebuild_spec (C := ctxH C H2) _ (eqW f' f &&& eqW a' a) (f' == f && a' == a) h _ _ (internAppE f' a') ?_
+    (eqW2_iff _ _ _ _) (by simp +decide [hh]) ?_ ?_
+  · simp +decide [sev, eqE, eqW]
+  · exact setRetL_spec hok (hp1.trans hp2) hc.memoSet hc.memoIns h h (by simp +decide [hh]) (by simp +decide [hkb])
+      (by simp +decide)
+  · refine specR_internAppI ra (ctxOK_H hok H2) hc.internApp lW (vv lY) (vv lZ) f' a' (by decide) (by simp +decide)
+      (by simp +decide) (fun r s3 => ?_)
+    exact setRetL_spec hok (hp1.trans hp2) hc.memoSet hc.memoIns h r (by simp +decide [hh]) (by simp +decide [hkb])
+      (by simp +decide)
+
+end
+
 end ConPanqueque.T.ILP
