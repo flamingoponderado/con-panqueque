@@ -1,4 +1,7 @@
 import ConPanqueque.T.Core.IotaPins
+import ConPanqueque.T.LsView
+import ConPanqueque.T.Floor
+import ConPanqueque.T.CtxTr
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena ConRon.Bridge
@@ -989,7 +992,8 @@ def fFa := ofString "recFireArgs"
 @[simp] theorem fa_lCz_ne_faB : lCz ≠ faB := by decide
 
 def faParams : List MlS := [faR, faKs, faU, faA, faRp, faCn]
-def faLocals : List MlS := [faT, faKl, faKb, faL, faM, faM2, faTk, faAc, faPs, faPn, faX, faB, lCn, lSrc, lDst, lCi, lCz]
+def faLocals : List MlS := [faT, faKl, faKb, faL, faM, faM2, faTk, faAc, faPs, faPn, faX, faB, lCn, lSrc, lDst, lCi, lCz,
+  lDh, lFl, lDt, lDg, lDi, lRp, lRn]
 
 def faCore (C : Ctx) : ProgHOL 64 :=
   .seq (.assign .local faT (.load .one (.op .add [vv faR, .const 16])))
@@ -1013,7 +1017,9 @@ def faCore (C : Ctx) : ProgHOL 64 :=
     (.seq (.assign .local faM (.op .add [vv faL, .op .and [.op .sub [vv faCn, vv faL], .op .sub [.const 0, vv faM2]]]))
     (takeCopyP C faB faA faM (.return (vv faB)))))))
 
-def faBody (C : Ctx) : ProgHOL 64 := prologue faLocals (faCore C)
+/-- `recFireArgs`, after checking its level list's view (halting on an invalid handle). -/
+def faBody (C : Ctx) : ProgHOL 64 :=
+  prologue faLocals (.seq (.assign .local lDh (vv faU)) (.seq (.assign .local lFl (vv lFls)) (.seq lsViewP (faCore C))))
 
 section
 variable {σ : Type}
@@ -1044,6 +1050,12 @@ theorem fa_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       BitVec.ofNat 64 rP, BitVec.ofNat 64 cnP])) (faBody C) s (recFireArgs rl cnP lps us args rP)
       (PostA (ctxH C H)) := by
   refine specR_prologue (postA_locals _) (fa_none _ _) ?_
+  refine specR_assignI lDh (vv faU) (Enc.idxW us) (by decide) (by simp +decide [Env.get, faParams, ctxEnv]) ?_
+  refine specR_assignI lFl (vv lFls) C.FLs (by decide) (by simp +decide [Env.get, faParams, ctxEnv] <;> rfl) ?_
+  refine specR_lsviewPI (C := ctxH C H) us (by simp +decide) (by simp +decide <;> rfl)
+    (by simp +decide [Env.get, faParams, ctxEnv] <;> rfl) ⟨by decide, by decide, by decide, by decide, by decide⟩
+    (fun _ _ _ _ _ => ?_)
+  refine specR_dropMem ?_
   unfold faCore recFireArgs
   have hl0 : C.EH[ok]? = some (BitVec.ofNat 64 lps.length) := by simpa using hks0.1
   obtain ⟨hlo, hlv0⟩ := blkAt_get0 hba
@@ -1169,6 +1181,37 @@ theorem fa_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     rw [← List.map_take, take_min] at hb'
     exact specR_returnI _ (cellA C o) (by simp +decide [Env.get] <;> rfl)
       (fun t ht => ⟨H', o, hp', rfl, hb', sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+
+/-- `recFireArgs` from facts at its entry state: the level list's view is checked first (an invalid handle halts),
+then the floor is raised to the entry store, where the level parameters, the list and the pins denote. -/
+theorem fa_spec' (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : FaCodes C) (s : AState)
+    (rl : IRecRule) (qr : Nat) (hrule : RuleE C.EB C.EH qr rl) (lps : List NIdx) (ok : Nat)
+    (hks0 : EBlk C.EH ok (lps.map Enc.idxW)) (hll : lps.length + 1 < 2 ^ 60) (us : LsIdx)
+    (ks : List ConLeche.Name) (args : List EIdx) (rP cnP : Nat)
+    (hrP : rP < 2 ^ 63) (hcn : cnP < 2 ^ 63)
+    (hks : Frontend.denoteNList s.store.ns lps = some ks)
+    (hp : ∀ lv pins, rl.fire = .nested lv pins → ∀ p, p ∈ pins → (denoteE s.store p).isSome = true)
+    (H : List (BitVec 64)) (hp' : C.H <+: H) (oa : Nat) (hba : BlkAt H oa (args.map Enc.idxW))
+    (hal : args.length < 2 ^ 58) :
+    SpecR (σ := σ) (Pre (ctxH C H) s (faParams.zip [ecell C qr, ecell C ok, Enc.idxW us, cellA C oa,
+      BitVec.ofNat 64 rP, BitVec.ofNat 64 cnP])) (faBody C) s (recFireArgs rl cnP lps us args rP)
+      (PostA (ctxH C H)) := by
+  by_cases hu : (s.store.lss.view us).isSome = true
+  · intro t ht
+    obtain ⟨rk, w⟩ := ht.1.twf
+    obtain ⟨vs, hvs⟩ := Option.isSome_iff_exists.mp (denoteLs_total' w.lss hu)
+    refine specR_preRaise (C := ctxH C H) (R' := PostA (ctxSt (ctxH C H) s.store))
+      (fa_spec ra (ctxSt C s.store) (ctxOK_St hok _) (by ctx_tr hc) s rl qr hrule lps ok hks0 hll us ks vs args rP cnP
+        hrP hcn hks hvs hp H hp' oa hba hal)
+      (fun a w s' st hx ⟨H', o, h1, h2, h3, h4⟩ => ⟨H', o, h1, h2, h3, sr_lower h4 hx⟩) t ht
+  · refine specR_prologue (postA_locals _) (fa_none _ _) ?_
+    refine specR_assignI lDh (vv faU) (Enc.idxW us) (by decide) (by simp +decide [Env.get, faParams, ctxEnv]) ?_
+    refine specR_assignI lFl (vv lFls) C.FLs (by decide) (by simp +decide [Env.get, faParams, ctxEnv] <;> rfl) ?_
+    refine specR_lsviewPI (C := ctxH C H) us (by simp +decide) (by simp +decide <;> rfl)
+      (by simp +decide [Env.get, faParams, ctxEnv] <;> rfl) ⟨by decide, by decide, by decide, by decide, by decide⟩
+      (fun v0 _ hv0 _ _ => ?_)
+    exact absurd (by rw [hv0]; rfl) hu
 
 end
 

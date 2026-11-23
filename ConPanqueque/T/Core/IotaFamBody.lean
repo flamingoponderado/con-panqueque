@@ -1582,7 +1582,7 @@ def fmX := ofString "fmx"
 @[simp] theorem fm_ioMa_ne_fmQ : ioMa ≠ fmQ := by decide
 @[simp] theorem fm_ioMa_ne_fmX : ioMa ≠ fmX := by decide
 
-def fmLocals : List MlS := [fmIsK, fmRp, fmMI, fmKs, fmJs, fmCn, fmInd, fmNc, fmAg, fmL, fmC, fmE, fmA, fmML, fmT2, fmMq, fmAl, fmD, fmNm, fmTy, fmTc, fmZ, fmI, fmT3, fmQ, fmX, lCn, lSrc, lDst, lCi, lCz]
+def fmLocals : List MlS := [fmIsK, fmRp, fmMI, fmKs, fmJs, fmCn, fmInd, fmNc, fmAg, fmL, fmC, fmE, fmA, fmML, fmT2, fmMq, fmAl, fmD, fmNm, fmTy, fmTc, fmZ, fmI, fmT3, fmQ, fmX, lCn, lSrc, lDst, lCi, lCz, lDh, lFl, lDt, lDg, lDi, lRp, lRn]
 
 def fmCore (C : Ctx) : ProgHOL 64 :=
   (.seq (.assign .local fmIsK (.load .one (.op .add [vv iQ, .const 48])))
@@ -1623,7 +1623,9 @@ def fmCore (C : Ctx) : ProgHOL 64 :=
       .op .sub [vv fmMI, vv fmQ]])
     (.return (vv fmX)))))))))))))))))))))))))))))))))))
 
-def fmBody (C : Ctx) : ProgHOL 64 := prologue fmLocals (fmCore C)
+/-- `iotaFam`, after checking the recursor's level list's view (halting on an invalid handle). -/
+def fmBody (C : Ctx) : ProgHOL 64 :=
+  prologue fmLocals (.seq (.assign .local lDh (vv iU)) (.seq (.assign .local lFl (vv lFls)) (.seq lsViewP (fmCore C))))
 
 section
 variable {σ : Type}
@@ -1700,6 +1702,12 @@ theorem fm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
   obtain ⟨⟨hnm, ⟨wj, hwj, oj, hwj', hjs⟩, hty⟩, _, ⟨hcnW, hcnb⟩, _, hind⟩ := id hcij
   subst hwj'
   refine specR_prologue (postB_locals _) (fm_none _ _) ?_
+  refine specR_assignI lDh (vv iU) (Enc.idxW us) (by decide) (by simp +decide [Env.get, fmParams, ctxEnv]) ?_
+  refine specR_assignI lFl (vv lFls) C.FLs (by decide) (by simp +decide [Env.get, fmParams, ctxEnv] <;> rfl) ?_
+  refine specR_lsviewPI (C := ctxH C H) us (by simp +decide) (by simp +decide <;> rfl)
+    (by simp +decide [Env.get, fmParams, ctxEnv] <;> rfl) ⟨by decide, by decide, by decide, by decide, by decide⟩
+    (fun _ _ _ _ _ => ?_)
+  refine specR_dropMem ?_
   unfold fmCore iotaFam
   simp only [hv, Bool.not_true, Bool.false_eq_true, ↓reduceIte]
   refine specR_envLoadI fmIsK (.op .add [vv iQ, .const 48]) (q + 6) _ (by decide)

@@ -1,5 +1,8 @@
 import ConPanqueque.T.Core.IotaCase3
 import ConPanqueque.T.Core.IotaCerts
+import ConPanqueque.T.LsView
+import ConPanqueque.T.SRFacts
+import ConPanqueque.T.PinRead
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena ConRon.Bridge
@@ -765,7 +768,8 @@ def fRf := ofString "recFireLevels"
 @[simp] theorem rf_lCz_ne_rfZ : lCz ≠ rfZ := by decide
 
 def rfParams : List MlS := [rfR, rfKs, rfU, rfJs]
-def rfLocals : List MlS := [rfKl, rfKb, rfA, rfT, rfS, rfN, rfB, rfL, rfZ, lCn, lSrc, lDst, lCi, lCz]
+def rfLocals : List MlS := [rfKl, rfKb, rfA, rfT, rfS, rfN, rfB, rfL, rfZ, lCn, lSrc, lDst, lCi, lCz,
+  lDh, lFl, lDt, lDg, lDi, lRp, lRn]
 
 def rfCore (C : Ctx) : ProgHOL 64 :=
   .seq (.assign .local rfKl (.load .one (vv rfKs)))
@@ -788,7 +792,9 @@ def rfCore (C : Ctx) : ProgHOL 64 :=
     (.seq (.call (some (some (.local, rfZ), none)) fInternLs [.op .add [vv rfB, .const 8], vv rfL])
       (.return (vv rfZ)))))))))))))))))
 
-def rfBody (C : Ctx) : ProgHOL 64 := prologue rfLocals (rfCore C)
+/-- `recFireLevels`, after checking its level list's view (halting on an invalid handle). -/
+def rfBody (C : Ctx) : ProgHOL 64 :=
+  prologue rfLocals (.seq (.assign .local lDh (vv rfU)) (.seq (.assign .local lFl (vv lFls)) (.seq lsViewP (rfCore C))))
 
 section
 variable {σ : Type}
@@ -813,7 +819,7 @@ theorem rf_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (rl : IRecRule) (qr : Nat) (hrule : RuleE C.EB C.EH qr rl) (lps cvjLps : List NIdx) (ok oj : Nat)
     (hks0 : EBlk C.EH ok (lps.map Enc.idxW)) (hjs : EBlk C.EH oj (cvjLps.map Enc.idxW)) (us : LsIdx)
     (ks : List ConLeche.Name) (hks : Frontend.denoteNList s.store.ns lps = some ks)
-    (vs : List ConLeche.Level) (hus : denoteLs s.store.lss us = some vs) (hwf : StoreWF s.store)
+    (hwf : StoreWF s.store)
     (hrn : ReadNCacheOK s.caches.readNC s.store) (hrl : ReadLCacheOK s.caches.readLC s.store)
     (hrls : ReadLsCacheOK s.caches.readLsC s.store)
     (hpl : rl.fire = .plain → ∃ pns, Frontend.denoteNList s.store.ns cvjLps = some pns)
@@ -824,6 +830,13 @@ theorem rf_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     SpecR (σ := σ) (Pre (ctxH C H) s (rfParams.zip [ecell C qr, ecell C ok, Enc.idxW us, ecell C oj])) (rfBody C) s
       (recFireLevels rl lps us cvjLps) (PostLI (ctxH C H)) := by
   refine specR_prologue (postLI_locals _) (rf_none _ _) ?_
+  refine specR_assignI lDh (vv rfU) (Enc.idxW us) (by decide) (by simp +decide [Env.get, rfParams, ctxEnv]) ?_
+  refine specR_assignI lFl (vv lFls) C.FLs (by decide) (by simp +decide [Env.get, rfParams, ctxEnv] <;> rfl) ?_
+  refine specR_lsviewPI (C := ctxH C H) us (by simp +decide) (by simp +decide <;> rfl)
+    (by simp +decide [Env.get, rfParams, ctxEnv] <;> rfl) ⟨by decide, by decide, by decide, by decide, by decide⟩
+    (fun v0 P0 hv0 _ _ => ?_)
+  obtain ⟨vs, hus⟩ := Option.isSome_iff_exists.mp (denoteLs_total' (by obtain ⟨rk, w⟩ := hwf; exact w.lss) (by rw [hv0]; rfl))
+  refine specR_dropMem ?_
   unfold rfCore
   have hl0 : C.EH[ok]? = some (BitVec.ofNat 64 lps.length) := by simpa using hks0.1
   rcases hv : s.store.lss.view us with _ | uh
