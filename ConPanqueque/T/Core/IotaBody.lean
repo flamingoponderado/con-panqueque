@@ -2394,23 +2394,33 @@ theorem specR_callPure {α β : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem
     (fun u hu h1 h2 => specR_run (hB u hu h1 h2))
     (fun b w s' H' hp ⟨hb, hs, hq⟩ => by subst hb hs; exact hk w H' hp hq)
 
+theorem findRule_mem : ∀ {rules : List IRecRule} {c : NIdx} {rl : IRecRule}, findRule rules c = some rl → rl ∈ rules
+  | [], _, _, h => by rw [findRule] at h; cases h
+  | r :: rs, c, rl, h => by
+    rw [findRule] at h
+    split at h
+    · cases h; exact List.mem_cons_self
+    · exact List.mem_cons_of_mem _ (findRule_mem h)
+
 theorem io_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C) (Bpm Bfm Brb : ProgHOL 64) (hc : IoCodes C Bpm Bfm Brb)
     (s : AState) (d : Nat) (c : NIdx) (us : LsIdx) (cv : IConstantVal) (mI rP : Nat) (isK : Bool)
     (rules : List IRecRule) (q : Nat) (hci : CIE C.EB C.EH q (.recInfo cv mI rP isK rules))
+    (hfc : C.fe.find? c = some (.recInfo cv mI rP isK rules))
     (sargs : List EIdx) (oa : Nat) (hba : BlkAt C.H oa (sargs.map Enc.idxW)) (hle : mI + 1 ≤ sargs.length)
     (hPm : ∀ (H : List (BitVec 64)) s1 (m : EIdx) (rw : BitVec 64), C.H <+: H → RulesE C.EB C.EH rw rules →
       SpecR (σ := σ) (Pre (ctxH C H) s1 (pmParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW c, boolW isK,
         rw, Enc.idxW m])) Bpm s1 (prepareMajor mode (knot mode C n) C.fe d c isK rules m) (PostMV (ctxH C H)))
     (hFam : mode.verifiedChecks = true → ∀ (H : List (BitVec 64)) s1 (usj : LsIdx) qj cvj cnP nF ind qr
       (rl : IRecRule) om (margs : List EIdx), C.H <+: H → CIE C.EB C.EH qj (.ctorInfo cvj cnP nF ind) →
-      RuleE C.EB C.EH qr rl → BlkAt H om (margs.map Enc.idxW) →
+      RuleE C.EB C.EH qr rl → (∃ cj, C.fe.find? cj = some (.ctorInfo cvj cnP nF ind)) → rl ∈ rules →
+      BlkAt H om (margs.map Enc.idxW) →
       SpecR (σ := σ) (Pre (ctxH C H) s1 (fmParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW c, Enc.idxW us,
         ecell C q, cellA C oa, BitVec.ofNat 64 (mI + 1), Enc.idxW usj, ecell C qj, ecell C qr, cellA C om])) Bfm s1
         (iotaFam mode (knot mode C n) C.fe d cv us mI rP isK (sargs.take (mI + 1)) usj cvj cnP ind rl margs)
         (Knot.PostB (ctxH C H)))
     (hRb : ∀ (H : List (BitVec 64)) s1 (wl : BitVec 64) (rl : IRecRule) (k : Nat), C.H <+: H →
-      ENList C.EB C.EH wl cv.levelParams →
+      ENList C.EB C.EH wl cv.levelParams → rl ∈ rules →
       SpecR (σ := σ) (Pre (ctxH C H) s1 (rbParams.zip [Enc.idxW c, Enc.idxW rl.ctor, wl, Enc.idxW rl.rhs,
         BitVec.ofNat 64 k, Enc.idxW us])) Brb s1 (ruleBodyAt c rl.ctor cv.levelParams rl.rhs k us)
         (PostK (ctxH C H))) :
@@ -2628,7 +2638,7 @@ theorem io_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       ⟨by simp +decide [Env.get, ioParams, ctxEnv], by simp, by simp, by simp,
         by simp +decide [sev, Env.get, ioParams, ctxEnv, BitVec.ofNat_add_ofNat], by simp +decide [Env.get, ioParams, ctxEnv],
         trivial⟩
-      (hRb H5 s5 wl rl (rP + rl.nfields) hpX hlps) (fun body s7 H7 hp7 => ?_)
+      (hRb H5 s5 wl rl (rP + rl.nfields) hpX hlps (findRule_mem hfrr)) (fun body s7 H7 hp7 => ?_)
     have hpX7 : C.H <+: H7 := hpX.trans hp7
     have hok7 := ctxOK_H hok H7
     set pp := if rP < mI + 1 then rP else mI + 1 with hpp
@@ -2681,7 +2691,7 @@ theorem io_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
         by simp +decide [Env.get, ioParams, ctxEnv], by simp, by simp, by simp, by simp, trivial⟩
       (Knot.PostB (ctxH C H5)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu fmParams _ rfl hlk)
-        (hFam hv H5 s5 usj qj cvj cnP nF ind qr rl om margs hp15 hcij hrule hbm))
+        (hFam hv H5 s5 usj qj cvj cnP nF ind qr rl om margs hp15 hcij hrule ⟨_, hfind⟩ (findRule_mem hfrr) hbm))
       (fun b w s6 H6 hp6 hw => ?_)
     subst hw
     cases b
@@ -2708,7 +2718,7 @@ theorem io_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       ⟨by simp +decide [Env.get, ioParams, ctxEnv], by simp, by simp, by simp,
         by simp +decide [sev, Env.get, ioParams, ctxEnv, BitVec.ofNat_add_ofNat], by simp +decide [Env.get, ioParams, ctxEnv],
         trivial⟩
-      (hRb H6 s6 wl rl (rP + rl.nfields) hpX hlps) (fun body s7 H7 hp7 => ?_)
+      (hRb H6 s6 wl rl (rP + rl.nfields) hpX hlps (findRule_mem hfrr)) (fun body s7 H7 hp7 => ?_)
     have hpX7 : C.H <+: H7 := hpX.trans hp7
     have hok7 := ctxOK_H hok H7
     set pp := if rP < mI + 1 then rP else mI + 1 with hpp

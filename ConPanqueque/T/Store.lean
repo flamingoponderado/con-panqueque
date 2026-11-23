@@ -460,7 +460,15 @@ def TblDen (fe : IFEnv) (st : EStore) : Prop :=
 def PinDen (p : Pins) (st : EStore) : Prop :=
   denoteL st.ls p.zeroLevel = some .zero
 
-def EnvDen (fe : IFEnv) (p : Pins) (st : EStore) : Prop := ConstDen fe st ∧ TblDen fe st ∧ PinDen p st
+/-- Every recursor rule's fire data denote: its levels (few of them) and its nested pins. -/
+def RecDen (fe : IFEnv) (st : EStore) : Prop :=
+  ∀ c cv mI rP isK rules, fe.find? c = some (.recInfo cv mI rP isK rules) → ∀ rl ∈ rules,
+    (∀ lv, ((∃ pins, rl.fire = .nested lv pins) ∨ rl.fire = .levels lv) →
+      (∀ u ∈ lv, (denoteL st.ls u).isSome = true) ∧ lv.length < 2 ^ 60) ∧
+    (∀ lv pins, rl.fire = .nested lv pins → ∀ p ∈ pins, (denoteE st p).isSome = true)
+
+def EnvDen (fe : IFEnv) (p : Pins) (st : EStore) : Prop :=
+  ConstDen fe st ∧ TblDen fe st ∧ PinDen p st ∧ RecDen fe st
 
 theorem denoteN_isSome_ext {st st' : EStore} (hx : Ext st st') {n : NIdx} (h : (denoteN st.ns n).isSome = true) :
     (denoteN st'.ns n).isSome = true := by
@@ -475,12 +483,17 @@ theorem denoteE_isSome_ext {st st' : EStore} (hx : Ext st st') {e : EIdx} (h : (
 
 theorem envDen_ext {fe : IFEnv} {p : Pins} {st st' : EStore} (h : EnvDen fe p st) (hx : Ext st st') :
     EnvDen fe p st' := by
-  refine ⟨fun c ci hc => ?_, fun T tbl hT => ?_, hx.lss.ls.lvl _ _ h.2.2⟩
+  refine ⟨fun c ci hc => ?_, fun T tbl hT => ?_, hx.lss.ls.lvl _ _ h.2.2.1, fun c cv mI rP isK rules hc rl hrl => ?_⟩
   · obtain ⟨h1, h2, h3, h4, h5⟩ := h.1 c ci hc
     exact ⟨fun n hn => denoteN_isSome_ext hx (h1 n hn), denoteE_isSome_ext hx h2, h3,
       fun cv v hint hci => denoteE_isSome_ext hx (h4 cv v hint hci), h5⟩
   · obtain ⟨h1, h2, h3⟩ := h.2.1 T tbl hT
     exact ⟨fun n hn => denoteN_isSome_ext hx (h1 n hn), fun b hb => denoteE_isSome_ext hx (h2 b hb), h3⟩
+  · obtain ⟨h1, h2⟩ := h.2.2.2 c cv mI rP isK rules hc rl hrl
+    refine ⟨fun lv hlv => ⟨fun u hu => ?_, (h1 lv hlv).2⟩, fun lv pins hf p hp => denoteE_isSome_ext hx (h2 lv pins hf p hp)⟩
+    obtain ⟨l, hl⟩ := Option.isSome_iff_exists.mp ((h1 lv hlv).1 u hu)
+    show (denoteL st'.lss.ls u).isSome = true
+    rw [hx.lss.ls.lvl _ _ hl]; rfl
 
 structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   rep : SRep t C.L C.FLn C.FLl C.FLs C.FLe s.store

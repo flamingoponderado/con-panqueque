@@ -95,10 +95,18 @@ theorem sr_tblLen {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) {T : NId
   (h.envd.2.1 T tbl hT).2.2
 
 theorem sr_zeroLevel {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) :
-    denoteL s.store.ls C.pins.zeroLevel = some .zero := h.envd.2.2
+    denoteL s.store.ls C.pins.zeroLevel = some .zero := h.envd.2.2.1
 
 theorem sr_capsLen {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) {c : NIdx} {cv : IConstantVal}
     {caps : IIndCaps} (hc : C.fe.find? c = some (.indInfo cv caps)) : caps.nparams + caps.nIdx < 2 ^ 63 :=
   (h.envd.1 c _ hc).2.2.2.2 cv caps rfl
+
+theorem sr_recDen {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) {c : NIdx} {cv : IConstantVal}
+    {mI rP : Nat} {isK : Bool} {rules : List IRecRule} (hc : C.fe.find? c = some (.recInfo cv mI rP isK rules))
+    {rl : IRecRule} (hrl : rl ∈ rules) :
+    (∀ lv, ((∃ pins, rl.fire = .nested lv pins) ∨ rl.fire = .levels lv) →
+      (∀ u ∈ lv, (denoteL s.store.ls u).isSome = true) ∧ lv.length < 2 ^ 60) ∧
+    (∀ lv pins, rl.fire = .nested lv pins → ∀ p ∈ pins, (denoteE s.store p).isSome = true) :=
+  h.envd.2.2.2 c cv mI rP isK rules hc rl hrl
 
 end ConPanqueque.T
