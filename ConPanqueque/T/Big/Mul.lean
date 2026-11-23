@@ -1,5 +1,6 @@
 import ConPanqueque.T.Big.Sub
 import ConPanqueque.T.Big.MulLimbs
+import ConPanqueque.T.Big.MulRow
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena
@@ -2604,6 +2605,85 @@ theorem step_mulacc {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} (
   have f : ∀ y, Γ.get y = none → z ≠ y := fun y hy e => by subst e; rw [hy] at hz; simp at hz
   simp [e1, e2, f _ n1, f _ n2, f _ n3, f _ n4, f _ n5, f _ n6, f _ n7, f _ n8, f _ n9, f _ n10, f _ n11, f _ n12,
     f _ n13, f _ n14, f _ n15, f _ n17, hz]
+
+def mulGin (Γr : Env) (C : Ctx) (od ob x y i j : Nat) : Env :=
+  (mJ, BitVec.ofNat 64 j) :: (mQr, cellA C (od + 1 + i + j)) :: (mQb, cellA C (ob + 1 + j)) ::
+    (mC, BitVec.ofNat 64 (cr x y i j)) :: Γr
+
+theorem step_mulInner {C : Ctx} (hok : CtxOK C) {s : AState} {Γr : Env} {D : List MlS} (x y N : Nat)
+    (B0 : List (BitVec 64)) (od ob i : Nat) (hbb : BlkAt B0 ob (limbs y)) (hlb : ob + 1 + (limbs y).length ≤ od + 1)
+    (hN : i + (limbs y).length < N) (hdst : od + 1 + N ≤ B0.length) (h61 : (limbs y).length < 2 ^ 61)
+    (hD : ∀ z ∈ mulTemps, z ∈ D) (hD2 : mV ∈ D ∧ mR ∈ D ∧ mC ∈ D ∧ mQb ∈ D ∧ mQr ∈ D ∧ mJ ∈ D)
+    (hLb : Γr.get mLb = some (BitVec.ofNat 64 (limbs y).length))
+    (hU : Γr.get mU = some (BitVec.ofNat 64 (x / B ^ i % B)))
+    (hn : ∀ z ∈ mulTemps, Γr.get z = none) (hnV : Γr.get mV = none) (hnR : Γr.get mR = none) :
+    Step (Inv (σ := σ) (ctxH C (setR B0 (od + 1) (Rl x y N i 0))) s (mulGin Γr C od ob x y i 0) [] D) mulInner
+      (Inv (ctxH C (setR B0 (od + 1) (Rl x y N i (limbs y).length))) s
+        (mulGin Γr C od ob x y i (limbs y).length) [] D) := by
+  obtain ⟨dv, dr, dc, dqb, dqr, dj⟩ := hD2
+  refine step_forI (σ := σ) (D := D) (M := []) _ _ (limbs y).length
+    (fun j => ctxH C (setR B0 (od + 1) (Rl x y N i j))) (mulGin Γr C od ob x y i)
+    (fun j hj => ⟨if Flapjack.Compiler.Encoders.Asm.wordCmpHOL .lower (BitVec.ofNat 64 j)
+      (BitVec.ofNat 64 (limbs y).length) then 1 else 0, by simp [sev, mulGin, Env.get, hLb], ?_⟩) (fun j hj => ?_)
+  · have e := word_lt_iff j (limbs y).length (by unfold B; omega) (by unfold B; omega)
+    by_cases h' : j < (limbs y).length
+    · simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, e.mpr h', h']
+    · have : ¬ BitVec.ofNat 64 j < BitVec.ofNat 64 (limbs y).length := fun x => h' (e.mp x)
+      simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, this, h']
+  have hRl := Rl_length x y N i j
+  have hlen : od + 1 + (Rl x y N i j).length ≤ B0.length := by rw [hRl]; omega
+  -- y's limb, below the result
+  have hyj : (setR B0 (od + 1) (Rl x y N i j))[ob + 1 + j]? = some (BitVec.ofNat 64 (y / B ^ j % B)) := by
+    rw [setR_get_lo _ _ _ _ (by omega) (by omega), hbb.2 j (by simpa using hj)]
+    simp [limbs_getElem y j hj]
+  refine step_seq (step_heapLoadI' (C := ctxH C _) mV (vv mQb) (ob + 1 + j) _ hyj dv (by simp [mulGin]; rfl)) ?_
+  have hrd : (setR B0 (od + 1) (Rl x y N i j))[od + 1 + i + j]? =
+      some (BitVec.ofNat 64 (dg (Pm x y i) (i + j))) := by
+    rw [show od + 1 + i + j = od + 1 + (i + j) by omega, setR_get_in _ _ _ _ hlen (by rw [hRl]; omega)]
+    have := Rl_read x y N i j (by omega)
+    rw [List.getElem?_eq_getElem (by rw [hRl]; omega)] at this
+    exact this
+  refine step_seq (step_heapLoadI' (C := ctxH C _) mR (vv mQr) (od + 1 + i + j) _ hrd dr (by simp [mulGin]; rfl)) ?_
+  have hdx := Nat.mod_lt (x / B ^ i) Bpos
+  have hdy := Nat.mod_lt (y / B ^ j) Bpos
+  have hdr := Nat.mod_lt (Pm x y i / B ^ (i + j)) Bpos
+  have hcr := cr_lt x y i j
+  refine step_seq (step_mulacc (x / B ^ i % B) (y / B ^ j % B) (dg (Pm x y i) (i + j)) (cr x y i j) hdx hdy hdr hcr
+    (by simp [mulGin, hU]) (by simp) (by simp) (by simp [mulGin]) hD
+    (fun z hz => by
+      have h1 := hn z hz
+      simp only [mulTemps, List.mem_cons, List.not_mem_nil, or_false] at hz
+      rcases hz with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> simpa [mulGin] using h1)) ?_
+  obtain ⟨ds, dc2⟩ := digit_step x y i j
+  rw [← ds, ← dc2]
+  have hj1 : od + 1 + i + j < (ctxH C (setR B0 (od + 1) (Rl x y N i j))).H.length := by
+    show _ < (setR B0 (od + 1) (Rl x y N i j)).length; rw [setR_length _ _ _ hlen]; omega
+  refine step_seq (step_heapStoreI (ctxOK_H hok _) (vv mQr) (vv mLo3) _ hj1 (BitVec.ofNat 64 (dg (Tm x y i (j + 1)) (i + j)))
+    (by simp [mulGin]; rfl) (by simp)) ?_
+  change Step (Inv (ctxH C ((setR B0 (od + 1) (Rl x y N i j)).set (od + 1 + i + j) _)) s _ [] D) _ _
+  rw [show od + 1 + i + j = od + 1 + (i + j) by omega, setR_set _ _ _ _ _ hlen (by rw [hRl]; omega),
+    Rl_step x y N i j (by omega)]
+  refine step_seq (step_assignI mC (vv mHi3) (BitVec.ofNat 64 (cr x y i (j + 1))) dc (by simp)) ?_
+  refine step_seq (step_assignI mQb _ (cellA C (ob + 1 + j + 1)) dqb (by simp [sev, mulGin]; exact cellA_add8 C _)) ?_
+  refine step_seq (step_assignI mQr _ (cellA C (od + 1 + (i + j) + 1)) dqr
+    (by simp [sev, mulGin]; rw [show od + 1 + i + j = od + 1 + (i + j) by omega]; exact cellA_add8 C _)) ?_
+  refine step_mono (step_assignI mJ _ (BitVec.ofNat 64 (j + 1)) dj (by simp [sev, mulGin]; exact word_add1_eq j))
+    (fun _ h => h) (fun t ht => inv_envMono ht (fun z v hz => ?_))
+  simp only [mulGin, Env.get_cons] at hz ⊢
+  by_cases e1 : z = mJ
+  · subst e1; simp_all
+  by_cases e2 : z = mQr
+  · subst e2; simp_all [Nat.add_assoc]
+  by_cases e3 : z = mQb
+  · subst e3; simp_all [Nat.add_assoc]
+  by_cases e4 : z = mC
+  · subst e4; simp_all
+  simp only [e1, e2, e3, e4, ite_false] at hz
+  have f : ∀ w, Γr.get w = none → z ≠ w := fun w hw e => by subst e; rw [hw] at hz; simp at hz
+  have hn' : ∀ w ∈ mulTemps, z ≠ w := fun w hw => f w (hn w hw)
+  simp only [mulTemps, List.mem_cons, List.not_mem_nil, or_false, forall_eq_or_imp, forall_eq] at hn'
+  obtain ⟨g1, g2, g3, g4, g5, g6, g7, g8, g9, g10, g11, g12, g13, g14, g15, g16, g17, g18⟩ := hn'
+  simp [e1, e2, e3, e4, f _ hnV, f _ hnR, g16, g18, hz]
 
 end
 
