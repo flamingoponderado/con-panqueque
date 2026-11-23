@@ -119,7 +119,7 @@ theorem ef_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C0 : Ctx) (hok0 : C
     (hcp : C0.code.lookup fInternProj = some ([(lEp, .one), (lEe, .one), (lIw, .one)], projBody, .one))
     (hca : C0.code.lookup ExPre.fAppend = some (ExPre.appParams.map (fun p => (p, ShapeHOL.one)), ExPre.appBody C0, .one))
     (hcf : C0.code.lookup fEf = some (efParams.map (fun p => (p, ShapeHOL.one)), efBody, .one))
-    (T : NIdx) (b : EIdx) (n : Nat) (hn : n < 2 ^ 62) :
+    (T : NIdx) (b : EIdx) (n : Nat) (hn : n < 2 ^ 63) :
     ∀ k j (H : List (BitVec 64)) (acc : List EIdx) (oa : Nat) (s : AState), C0.H <+: H → n - j = k → j ≤ n →
       BlkAt H oa (acc.map Enc.idxW) →
       SpecR (σ := σ) (Pre (ctxH C0 H) s (efParams.zip [Enc.idxW T, Enc.idxW b, cellA C0 oa, BitVec.ofNat 64 j,
