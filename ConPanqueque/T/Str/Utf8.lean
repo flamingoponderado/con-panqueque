@@ -82,4 +82,49 @@ theorem u8dec_toByteArray (s : String) :
   simp only [List.utf8Encode, List.data_toByteArray]
   exact u8dec_chars s.toList
 
+/-- The shape of one character's bytes, as the decoder reads them. -/
+def EncShape (L : List Nat) (cp : Nat) : Prop :=
+  (∃ b0, L = [b0] ∧ b0 < 0x80 ∧ cp = b0) ∨
+  (∃ b0 b1, L = [b0, b1] ∧ ¬ b0 < 0x80 ∧ b0 < 0xE0 ∧ 0xC0 ≤ b0 ∧ 0x80 ≤ b1 ∧ b1 < 256 ∧
+    cp = (b0 - 0xC0) * 64 + (b1 - 0x80)) ∨
+  (∃ b0 b1 b2, L = [b0, b1, b2] ∧ ¬ b0 < 0x80 ∧ ¬ b0 < 0xE0 ∧ b0 < 0xF0 ∧ 0x80 ≤ b1 ∧ b1 < 256 ∧
+    0x80 ≤ b2 ∧ b2 < 256 ∧ cp = (b0 - 0xE0) * 4096 + (b1 - 0x80) * 64 + (b2 - 0x80)) ∨
+  (∃ b0 b1 b2 b3, L = [b0, b1, b2, b3] ∧ ¬ b0 < 0x80 ∧ ¬ b0 < 0xE0 ∧ ¬ b0 < 0xF0 ∧ b0 < 256 ∧ 0x80 ≤ b1 ∧
+    b1 < 256 ∧ 0x80 ≤ b2 ∧ b2 < 256 ∧ 0x80 ≤ b3 ∧ b3 < 256 ∧
+    cp = (b0 - 0xF0) * 262144 + (b1 - 0x80) * 4096 + (b2 - 0x80) * 64 + (b3 - 0x80))
+
+theorem encShape (c : Char) : EncShape ((String.utf8EncodeChar c).map UInt8.toNat) c.toNat := by
+  have hv : c.val.toNat < 0x110000 := by
+    have := c.valid; simp only [UInt32.isValidChar, Nat.isValidChar] at this; omega
+  have hc : c.toNat = c.val.toNat := rfl
+  unfold String.utf8EncodeChar
+  by_cases h1 : c.val.toNat ≤ 0x7f
+  · rw [if_pos h1]
+    simp only [List.map_cons, List.map_nil]
+    rw [u8_ofNat_toNat _ (by omega)]
+    exact Or.inl ⟨_, rfl, by omega, hc⟩
+  rw [if_neg h1]
+  by_cases h2 : c.val.toNat ≤ 0x7ff
+  · rw [if_pos h2]
+    simp only [List.map_cons, List.map_nil]
+    rw [u8_ofNat_toNat _ (by omega), u8_ofNat_toNat _ (by omega)]
+    exact Or.inr (Or.inl ⟨_, _, rfl, by omega, by omega, by omega, by omega, by omega, by rw [hc]; omega⟩)
+  rw [if_neg h2]
+  by_cases h3 : c.val.toNat ≤ 0xffff
+  · rw [if_pos h3]
+    simp only [List.map_cons, List.map_nil]
+    rw [u8_ofNat_toNat _ (by omega), u8_ofNat_toNat _ (by omega), u8_ofNat_toNat _ (by omega)]
+    exact Or.inr (Or.inr (Or.inl ⟨_, _, _, rfl, by omega, by omega, by omega, by omega, by omega, by omega, by omega,
+      by rw [hc]; omega⟩))
+  rw [if_neg h3]
+  simp only [List.map_cons, List.map_nil]
+  rw [u8_ofNat_toNat _ (by omega), u8_ofNat_toNat _ (by omega), u8_ofNat_toNat _ (by omega),
+    u8_ofNat_toNat _ (by omega)]
+  exact Or.inr (Or.inr (Or.inr ⟨_, _, _, _, rfl, by omega, by omega, by omega, by omega, by omega, by omega, by omega,
+    by omega, by omega, by omega, by rw [hc]; omega⟩))
+
+theorem cp_lt (c : Char) : c.toNat < 2 ^ 21 := by
+  have := c.valid; simp only [UInt32.isValidChar, Nat.isValidChar] at this
+  show c.val.toNat < _; omega
+
 end ConPanqueque.T.Str
