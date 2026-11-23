@@ -302,3 +302,6 @@ import ConPanqueque.T.Core.DefeqStuck
 import ConPanqueque.T.Core.DefeqLazy
 import ConPanqueque.T.Core.DefeqBody
 import ConPanqueque.T.Core.PropTele
+import ConPanqueque.T.Core.ZeWalk
+import ConPanqueque.T.Core.ZeParam
+import ConPanqueque.T.Core.ZeSubst
