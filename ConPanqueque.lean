@@ -114,6 +114,7 @@ import ConPanqueque.T.LvlLeq
 import ConPanqueque.T.LvlImax
 import ConPanqueque.T.LvlRest
 import ConPanqueque.T.LvlLeqCore
+import ConPanqueque.T.LvlEquiv
 import ConPanqueque.T.CallN
 import ConPanqueque.V.DerWrite
 import ConPanqueque.LevelFns
