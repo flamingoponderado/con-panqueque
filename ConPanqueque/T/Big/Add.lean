@@ -1,6 +1,8 @@
 import ConPanqueque.T.Big.Cmp
 import ConPanqueque.T.Big.AddMath
 import ConPanqueque.T.Core.ConstVal
+import ConPanqueque.T.Big.LitCopy
+import ConPanqueque.T.Core.Unfold
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena
@@ -901,6 +903,119 @@ theorem add_loop2 {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ1 : Env}
     have f3 : z ≠ aS1 := by intro e; subst e; rw [n3] at hz; simp at hz
     have f4 : z ≠ aS := by intro e; subst e; rw [n4] at hz; simp at hz
     simp [e1, e2, e3, e5, f1, f2, f3, f4, hz]
+
+theorem add_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ addLocals → (ctxEnv C ++ addParams.zip vals).get x = none :=
+  Knot.params_none C addLocals addParams vals (by decide) (by decide)
+
+theorem add_spec (C : Ctx) (hok : CtxOK C) (s : AState) (x y : Nat) (oa ob : Nat)
+    (hba : BlkAt C.H oa (limbs x)) (hbb : BlkAt C.H ob (limbs y)) (hxy : (limbs y).length ≤ (limbs x).length)
+    (h61 : (limbs x).length < 2 ^ 60) :
+    SpecR (σ := σ) (Pre C s (addParams.zip [cellA C oa, cellA C ob])) (addBody C) s (pure (x + y) : AM Nat)
+      (PostH C s) := by
+  refine specR_prologue (postH_locals C s) (add_none C _) ?_
+  unfold addCore
+  have hla0 : C.H[oa]? = some (BitVec.ofNat 64 (limbs x).length) := by simpa using hba.1
+  have hlb0 : C.H[ob]? = some (BitVec.ofNat 64 (limbs y).length) := by simpa using hbb.1
+  refine UD.specR_heapLoadI' aLa (vv aX) oa _ hla0 (by decide) (by simp +decide [Env.get, addParams, ctxEnv]) ?_
+  refine UD.specR_heapLoadI' aLb (vv aY) ob _ hlb0 (by decide) (by simp +decide [Env.get, addParams, ctxEnv]) ?_
+  refine specR_allocI aO (.panop .mul [.op .add [vv aLa, .const 2], .const 8]) ((limbs x).length + 2) (by omega)
+    (by decide) (fun v => by
+      simp [sev, Env.get]
+      rw [show (2#64 : BitVec 64) = BitVec.ofNat 64 2 from rfl, BitVec.ofNat_add_ofNat]; exact CV.mul8_eq _)
+    (fun H' wsN hpre hwl hcap => ?_)
+  have hbl := blkAt_len hba
+  have hbl2 := blkAt_len hbb
+  have hpl := hpre.length_le
+  let B0 := H' ++ wsN
+  have hB0 : B0.length = H'.length + ((limbs x).length + 2) := by simp [B0, hwl]
+  have hba' : BlkAt B0 oa (limbs x) := blkAt_mono hba (hpre.trans (List.prefix_append _ _))
+  have hbb' : BlkAt B0 ob (limbs y) := blkAt_mono hbb (hpre.trans (List.prefix_append _ _))
+  refine specR_assignI aQa _ (cellA C (oa + 1)) (by decide) (by simp [sev, Env.get, addParams, ctxEnv]; exact cellA_add8 C _) ?_
+  refine specR_assignI aQb _ (cellA C (ob + 1)) (by decide) (by simp [sev, Env.get, addParams, ctxEnv]; exact cellA_add8 C _) ?_
+  refine specR_assignI aQo _ (cellA C (H'.length + 1)) (by decide) (by simp [sev, Env.get]; exact cellA_add8 C _) ?_
+  refine specR_assignI aC (.const 0) (BitVec.ofNat 64 0) (by decide) rfl ?_
+  refine specR_assignI aI (.const 0) (BitVec.ofNat 64 0) (by decide) rfl ?_
+  let Γ0 : Env := [(aLa, BitVec.ofNat 64 (limbs x).length), (aLb, BitVec.ofNat 64 (limbs y).length),
+    (aO, cellA C H'.length)]
+  refine specR_envWeak (Γb := addG1 Γ0 C H'.length oa ob x y 0) (fun z v hz => ?_) ?_
+  · simp only [addG1, Γ0, Env.get_cons, S_zero, Nat.zero_div, Nat.add_zero] at hz ⊢
+    by_cases e1 : z = aI
+    · subst e1; simpa using hz
+    by_cases e2 : z = aC
+    · subst e2; simpa using hz
+    by_cases e3 : z = aQo
+    · subst e3; simpa using hz
+    by_cases e4 : z = aQb
+    · subst e4; simpa using hz
+    by_cases e5 : z = aQa
+    · subst e5; simpa using hz
+    by_cases e6 : z = aLa
+    · subst e6; simpa using hz
+    by_cases e7 : z = aLb
+    · subst e7; simpa using hz
+    by_cases e8 : z = aO
+    · subst e8; simpa using hz
+    simp [e1, e2, e3, e4, e5, e6, e7, e8, Env.get] at hz
+  refine add_loop1 hok x y B0 H'.length oa ob hxy hba' hbb' (by omega) (by omega) (by rw [hB0]; omega) (by omega)
+    (by decide) (by simp [Γ0]) (by simp [Γ0, Env.get]) ?_
+  refine specR_envWeak (Γb := addG2 Γ0 C H'.length oa x y (limbs y).length 0) (fun z v hz => ?_) ?_
+  · simp only [addG1, addG2, Env.get_cons, Nat.add_zero] at hz ⊢
+    by_cases e1 : z = aI
+    · subst e1; simpa using hz
+    by_cases e2 : z = aC
+    · subst e2; simpa using hz
+    by_cases e3 : z = aQo
+    · subst e3; simpa using hz
+    by_cases e5 : z = aQa
+    · subst e5; simpa using hz
+    have e4 : z ≠ aQb := by intro e; subst e; simp [Γ0, Env.get] at hz
+    simp [e1, e2, e3, e4, e5] at hz ⊢; exact hz
+  refine add_loop2 hok x y B0 H'.length oa hxy hba' (by omega) (by rw [hB0]; omega) (by omega) (by decide)
+    (by simp [Γ0]) (by simp [Γ0, Env.get]) ?_
+  have hly : (limbs y).length + ((limbs x).length - (limbs y).length) = (limbs x).length := by omega
+  -- the top digit and the length
+  have hxB : x < B ^ (limbs x).length := (limbs_length_lt_iff x _).mp (Nat.le_refl _)
+  have hyB : y < B ^ (limbs x).length :=
+    Nat.lt_of_lt_of_le ((limbs_length_lt_iff y _).mp (Nat.le_refl _)) (Nat.pow_le_pow_right Bpos hxy)
+  have hSf := S_full x y _ hxB hyB
+  have hcl := carry_le x y (limbs x).length
+  generalize hc : S x y (limbs x).length / B ^ (limbs x).length = c at hcl
+  have hcd : (x + y) / B ^ (limbs x).length = c := by rw [← hSf]; exact hc
+  have hW : (sumW x y (limbs x).length)[(limbs x).length]? = some (BitVec.ofNat 64 c) := by
+    rw [sumW_get x y _ _ (by omega), hcd, Nat.mod_eq_of_lt (by unfold B; omega)]
+  have hl := fillI_length B0 (sumW x y (limbs x).length) (H'.length + 1)
+  have hj1 : H'.length + 1 + (limbs x).length <
+      (ctxH C (fillI B0 (sumW x y (limbs x).length) (H'.length + 1) (limbs x).length)).H.length := by
+    show _ < (fillI _ _ _ _).length; rw [hl, hB0]; omega
+  refine specR_heapStoreI (ctxOK_H hok _) (vv aQo) (vv aC) _ hj1 (BitVec.ofNat 64 c) (by simp [addG2, hly]; rfl)
+    (by simp [addG2, hly, hc]) ?_
+  change SpecR (Inv (ctxH C ((fillI B0 (sumW x y (limbs x).length) (H'.length + 1) (limbs x).length).set
+    (H'.length + 1 + (limbs x).length) (BitVec.ofNat 64 c))) s _ [] _) _ _ _ _
+  rw [fillI_succ_eq _ _ _ _ _ hW]
+  have hl2 := fillI_length B0 (sumW x y (limbs x).length) (H'.length + 1)
+  have hj2 : H'.length <
+      (ctxH C (fillI B0 (sumW x y (limbs x).length) (H'.length + 1) ((limbs x).length + 1))).H.length := by
+    show _ < (fillI _ _ _ _).length; rw [hl2, hB0]; omega
+  refine specR_heapStoreI (ctxOK_H hok _) (vv aO) _ _ hj2 (BitVec.ofNat 64 ((limbs x).length + c))
+    (by simp [addG2, Γ0]; rfl) (by simp [sev, addG2, Γ0]; rw [BitVec.ofNat_add_ofNat, hly, hc]) ?_
+  refine specR_returnI _ (cellA C H'.length) (by simp [addG2, Γ0]) (fun t ht => ?_)
+  refine ⟨_, H'.length, ?_, rfl, ?_, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
+  · exact prefix_set_ge (CV.prefix_fillI _ _ _ C.H (by omega) (hpre.trans (List.prefix_append _ _)) _) _ hpl _
+  · have hfin := add_final x y hyB
+    rw [hc] at hfin
+    rw [hfin]
+    have hl3 := fillI_length B0 (sumW x y (limbs x).length) (H'.length + 1)
+    constructor
+    · rw [List.getElem?_set_self (by show H'.length < (fillI _ _ _ _).length; rw [hl3, hB0]; omega)]
+      simp
+    · intro i hi
+      simp only [List.length_map, List.length_range] at hi
+      rw [List.getElem?_set_ne (by omega)]
+      show (fillI B0 (sumW x y (limbs x).length) (H'.length + 1) ((limbs x).length + 1))[H'.length + 1 + i]? = _
+      rw [fillI_get?, if_pos ⟨by omega, by omega, by rw [hB0]; omega⟩]
+      simp [show H'.length + 1 + i - (H'.length + 1) = i by omega, List.getD_eq_getElem?_getD,
+        sumW_get x y (limbs x).length i (by omega)]
 
 end
 
