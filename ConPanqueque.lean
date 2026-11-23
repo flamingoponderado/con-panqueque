@@ -342,3 +342,5 @@ import ConPanqueque.T.Comp.IotaC
 import ConPanqueque.T.Comp.WhnfCoreC
 import ConPanqueque.T.Comp.LazyDeltaC
 import ConPanqueque.T.Comp.DefeqProjC
+import ConPanqueque.T.Comp.DefeqStuckC
+import ConPanqueque.T.Comp.DefeqBodyC
