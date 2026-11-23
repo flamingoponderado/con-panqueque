@@ -504,4 +504,51 @@ def wclCore (C : Ctx) : ProgHOL 64 :=
 
 def wclBody (C : Ctx) : ProgHOL 64 := prologue wclLocals (wclCore C)
 
+
+section
+variable {σ : Type}
+
+def PostWS (C : Ctx) (st : WhnfStep) (w : BitVec 64) (s' : AState) (t : PState σ) : Prop :=
+  ∃ H', C.H <+: H' ∧ w = encWS st ∧ SR (ctxH C H') s' t
+
+theorem idxW_lt (h : EIdx) : (Enc.idxW h).toNat < 2 ^ 32 := by simp [Enc.idxW]; exact h.word.toNat_lt
+
+theorem encWS_shr (st : WhnfStep) : encWS st >>> 1 = Enc.idxW (match st with | .done v => v | .cont e => e) := by
+  apply BitVec.eq_of_toNat_eq
+  cases st with
+  | done v =>
+    have := idxW_lt v
+    simp [encWS, BitVec.toNat_ushiftRight, BitVec.toNat_shiftLeft, Nat.shiftLeft_eq, Nat.shiftRight_eq_div_pow]
+    omega
+  | cont e =>
+    have := idxW_lt e
+    simp [encWS, BitVec.toNat_ushiftRight, BitVec.toNat_add, BitVec.toNat_shiftLeft, Nat.shiftLeft_eq,
+      Nat.shiftRight_eq_div_pow]
+    omega
+
+theorem encWS_and1 (st : WhnfStep) : encWS st &&& 1#64 = boolW (match st with | .done _ => false | .cont _ => true) := by
+  apply BitVec.eq_of_toNat_eq
+  have e1 : (1#64 : BitVec 64).toNat = 2 ^ 1 - 1 := rfl
+  cases st with
+  | done v =>
+    have := idxW_lt v
+    simp only [encWS, BitVec.toNat_and, e1, Nat.and_two_pow_sub_one_eq_mod, BitVec.toNat_shiftLeft, Nat.shiftLeft_eq]
+    simp [boolW]; omega
+  | cont e =>
+    have := idxW_lt e
+    simp only [encWS, BitVec.toNat_and, e1, Nat.and_two_pow_sub_one_eq_mod, BitVec.toNat_add, BitVec.toNat_shiftLeft,
+      Nat.shiftLeft_eq]
+    simp [boolW]; omega
+
+theorem pushKey_rev (b : Bool) (e : EIdx) (xs : List EIdx) :
+    pushKey b e xs.reverse.toArray = (if b then e :: xs else xs).reverse.toArray := by
+  cases b <;> simp [pushKey]
+
+theorem pushCheapKey_rev (safe b : Bool) (e : EIdx) (ys : List EIdx) :
+    pushCheapKey safe b e ys.reverse.toArray =
+      (if safe then (if b then e :: ys else ys) else []).reverse.toArray := by
+  cases safe <;> cases b <;> simp [pushCheapKey, pushKey]
+
+end
+
 end ConPanqueque.T.WC
