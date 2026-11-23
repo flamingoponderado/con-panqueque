@@ -1862,7 +1862,95 @@ theorem fm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
   simp only [↓reduceIte]
   refine specR_ifI _ 0 (by simp [sev, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
     (fun _ => ?_)
-  sorry
+  refine specR_envLoadI (C := ctxH C H6) fmNm (.op .add [vv ioQj, .const 8]) (qj + 1) _ (by decide)
+    (by simp +decide [sev, Env.get, fmParams, ctxEnv]; exact (show _ = ecell C (qj + 1) by simpa using fm_e C qj 1))
+    hnm ?_
+  refine specR_envLoadI (C := ctxH C H6) fmTy (.op .add [vv ioQj, .const 24]) (qj + 3) _ (by decide)
+    (by simp +decide [sev, Env.get, fmParams, ctxEnv]; exact (show _ = ecell C (qj + 3) by simpa using fm_e C qj 3))
+    (by simpa [Nat.add_assoc] using hty : C.EH[qj + 3]? = _) ?_
+  refine specR_callNIH (C := ctxH C H6) fmTc CT.fCT CV.cvParams [vv fmNm, vv fmJs, vv fmTy, vv ioUj] (CT.ctBody C)
+    [Enc.idxW cvj.name, ecell C oj, Enc.idxW cvj.type, Enc.idxW usj] (by decide) rfl (by decide) hc.ct
+    ⟨by simp +decide [Env.get] <;> rfl, by simp +decide [Env.get] <;> rfl, by simp +decide [Env.get] <;> rfl,
+      by simp +decide [Env.get, fmParams, ctxEnv], trivial⟩
+    (fun a w s' st => constTyAt cvj usj s6 = .ok (a, s') ∧ PostK (ctxH C H6) a w s' st)
+    (fun a w s' _ => constTyAt cvj usj s6 = .ok (a, s') ∧ w = Enc.idxW a)
+    (fun a w s' st ⟨hrun, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hrun, hw⟩, hsr⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu CV.cvParams _ rfl hlk)
+      (hCt H6 s6 oj (hp.trans hp16) hq6 hjs)))
+    (fun tyC w s7 H7 hp7 ⟨hr7, hw⟩ => ?_)
+  subst hw
+  have hp17 : H <+: H7 := hp16.trans hp7
+  refine specR_emptyBlk (C0 := C) hok fmZ (by decide) (fun H8 oZ hp8 hbZ => ?_)
+  have hp18 : H <+: H8 := hp17.trans hp8
+  have hbm8 := blkAt_mono hbm hp18
+  simp only [iotaCertsFull]
+  refine specR_callNIH (C := ctxH C H8) fmI fIc icParams
+    [vv kFu, vv kD, vv fmTc, .op .add [vv ioMa, .const 8], vv fmML, vv fmZ, .const 0] (icBody C)
+    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW tyC, cellA C (om + 1), BitVec.ofNat 64 margs.length, cellA C oZ,
+      BitVec.ofNat 64 0] (by decide) rfl (by decide) hc.ic.self
+    ⟨by simp +decide [Env.get, fmParams, ctxEnv], by simp +decide [Env.get, fmParams, ctxEnv], by simp +decide [Env.get],
+      by simp +decide [sev, Env.get, fmParams, ctxEnv]; exact cellA_add8 C om, by simp +decide [Env.get],
+      by simp <;> rfl, rfl, trivial⟩
+    (PostB (ctxH C H8)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu icParams _ rfl hlk)
+      (ic_spec ra mode n C hok hc.ic d hI hD margs (om + 1) hml (2 * (margs.length - 0) + 0) 0 [] tyC oZ H8 s7
+        (by simp) (hp.trans hp18)
+        (fun j hj => by have h := hbm8.2 j (by simpa using hj); rw [List.getElem_map] at h; exact h)
+        (by simpa using hbZ) (by simp) (by simp)))
+    (fun b8 w s8 H9 hp9 hw => ?_)
+  subst hw
+  have hp19 : H <+: H9 := hp18.trans hp9
+  cases b8
+  · simp only [Bool.false_eq_true, ↓reduceIte]
+    refine specR_ifI _ 1 (by simp [sev, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨H9, hp19, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  simp only [↓reduceIte]
+  refine specR_ifI _ 0 (by simp [sev, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
+    (fun _ => ?_)
+  refine specR_assignI fmT3 _ (if BitVec.ofNat 64 rP < BitVec.ofNat 64 mI then 1#64 else 0#64) (by decide)
+    (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) ?_
+  generalize hqq : (if rP < mI then rP else mI) = qq
+  have hqm : qq ≤ mI := by rw [← hqq]; split <;> omega
+  refine specR_assignI fmQ _ (BitVec.ofNat 64 qq) (by decide)
+    (by simp +decide [sev, Env.get]; rw [← hqq]; simpa using min_word rP mI (by omega) (by omega)) ?_
+  generalize hidx : ((sargs.take (mI + 1)).take mI).drop rP = idx
+  have hidxl : idx.length = mI - qq := by
+    rw [← hidx, ← hqq]; simp only [List.length_drop, List.length_take]; split <;> omega
+  have hb9 := blkAt_mono hb1 (hp2.trans (hp3.trans (hp4.trans (hp5.trans (hp6.trans (hp7.trans (hp8.trans hp9)))))))
+  refine specR_bindPure ?_
+  refine specR_callNIH (C := ctxH C H9) fmX fIx ixParams
+    [vv kFu, vv kD, vv fmMI, vv fmRp, vv fmCn, vv fmTc, .op .add [vv ioMa, .const 8], vv fmML,
+      .op .add [.op .add [vv fmAg, .const 8], .shift .lsl (vv fmQ) (.const 3)], .op .sub [vv fmMI, vv fmQ]] ixBody
+    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, BitVec.ofNat 64 mI, BitVec.ofNat 64 rP, BitVec.ofNat 64 cnP, Enc.idxW tyC,
+      cellA C (om + 1), BitVec.ofNat 64 margs.length, cellA C (oA + 1 + qq), BitVec.ofNat 64 idx.length]
+    (by decide) rfl (by decide) hc.ixf
+    ⟨by simp +decide [Env.get, fmParams, ctxEnv], by simp +decide [Env.get, fmParams, ctxEnv], by simp +decide [Env.get],
+      by simp +decide [Env.get], by simp +decide [Env.get], by simp +decide [Env.get],
+      by simp +decide [sev, Env.get, fmParams, ctxEnv]; exact cellA_add8 C om, by simp +decide [Env.get],
+      by simp +decide [sev, Env.get]; rw [← cellA_shl C (oA + 1) qq (by omega), ← cellA_add8]; rfl,
+      by simp +decide [sev, Env.get]; rw [ix_wsub mI qq hqm (by omega), hidxl], trivial⟩
+    (PostB (ctxH C H9)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ixParams _ rfl hlk)
+      (ix_spec ra mode n C hok hc.ix d hD mI rP cnP tyC (by omega) (by omega) (by omega) margs idx (om + 1)
+        (oA + 1 + qq) H9 s8 (hp.trans hp19)
+        (fun j hj => by have h := (blkAt_mono hbm hp19).2 j (by simpa using hj); rw [List.getElem_map] at h; exact h)
+        (fun j hj => by
+          have hrq : rP ≤ mI := by
+            by_contra hc'; rw [← hidx] at hj; simp at hj; omega
+          have hq' : qq = rP := by rw [← hqq]; split <;> omega
+          subst hq'
+          have h := hb9.2 (qq + j) (by simp; omega)
+          rw [List.getElem_map] at h
+          rw [show oA + 1 + qq + j = oA + 1 + (qq + j) by omega, h]
+          congr 2
+          subst hidx
+          simp only [List.getElem_drop, List.getElem_take])
+        (by omega) (by omega)))
+    (fun b w s9 H10 hp10 hw => ?_)
+  subst hw
+  exact specR_returnI _ (boolW b) (by simp)
+    (fun t ht => ⟨H10, hp19.trans hp10, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 end
 
