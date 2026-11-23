@@ -750,10 +750,10 @@ structure PjCodes (C : Ctx) : Prop where
 
 theorem pj_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) (hc : PjCodes C)
     (Q : AState → Prop)
-    (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferE C fIB) s1 ((knot mode C n).infer d' e')
       (PostK (ctxH C H)))
-    (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d' e')
       (PostK (ctxH C H)))
     (hQi : ∀ s1 d' e' a s2, Q s1 → (knot mode C n).infer d' e' s1 = .ok (a, s2) → Q s2)
@@ -768,7 +768,7 @@ theorem pj_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
       TblE C.EB C.EH ot tbl → (∃ T, C.fe.findTable? T = some tbl) → BlkAt H oa (targs.map Enc.idxW) → i < 2 ^ 63 →
       SpecR (σ := σ) (Pre (ctxH C H) s1 (taParams.zip [ecell C ot, BitVec.ofNat 64 i, Enc.idxW us, cellA C oa,
         Enc.idxW pe])) (taBody C) s1 ((tbl.entry i).typeAt us targs pe) (PostK (ctxH C H)))
-    (s : AState) (hq : Q s) (d : Nat) (sn : NIdx) (i : Nat) (pe : EIdx) (hi : i < 2 ^ 64) :
+    (s : AState) (hq : Q s) (d : Nat) (hd : d < 2 ^ 63) (sn : NIdx) (i : Nat) (pe : EIdx) (hi : i < 2 ^ 64) :
     SpecR (σ := σ) (Pre C s (iprParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW sn, BitVec.ofNat 64 i,
       Enc.idxW pe])) (pjBody C) s (inferProj (knot mode C n) C.fe d sn i pe) (PostK C) := by
   refine specR_prologue (postK_locals C) (pj_none C _) ?_
@@ -776,11 +776,11 @@ theorem pj_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
   simp only [bind_assoc]
   refine Big.specR_callKC (C := C) pjA fI kParams [vv kFu, vv kD, vv ibPe] (inferE C fIB)
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW pe] (by decide) rfl (by decide) hc.i
-    ⟨by simp +decide [Env.get, iprParams, ctxEnv], by simp +decide [Env.get, iprParams, ctxEnv], by simp +decide [Env.get, iprParams, ctxEnv], trivial⟩ (hI C.H s d pe (List.prefix_refl _)) (fun a s1 H1 hp1 hrun1 => ?_)
+    ⟨by simp +decide [Env.get, iprParams, ctxEnv], by simp +decide [Env.get, iprParams, ctxEnv], by simp +decide [Env.get, iprParams, ctxEnv], trivial⟩ (hI C.H s d pe (List.prefix_refl _) hd) (fun a s1 H1 hp1 hrun1 => ?_)
   have hq1 := hQi s d pe a s1 hq hrun1
   refine Big.specR_callKC (C := ctxH C H1) pjTe fW kParams [vv kFu, vv kD, vv pjA] (whnfE C fWB)
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a] (by decide) rfl (by decide) hc.w
-    ⟨by simp +decide [Env.get, iprParams, ctxEnv], by simp +decide [Env.get, iprParams, ctxEnv], by simp, trivial⟩ (hW H1 s1 d a hp1) (fun te s2 H2 hp2 hrun2 => ?_)
+    ⟨by simp +decide [Env.get, iprParams, ctxEnv], by simp +decide [Env.get, iprParams, ctxEnv], by simp, trivial⟩ (hW H1 s1 d a hp1 hd) (fun te s2 H2 hp2 hrun2 => ?_)
   have hq2 := hQw s1 d a te s2 hq1 hrun2
   have hp12 : C.H <+: H2 := hp1.trans hp2
   refine specR_callNIM (C := ctxH C H2) pjHh fGetAppFn [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv pjTe]

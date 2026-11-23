@@ -367,7 +367,7 @@ theorem postOK_locals (C : Ctx) : ∀ (a : Option LIdx) w s' (st : PState σ)
 
 theorem fq_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C) (hc : FqCodes C)
-    (hW : ∀ (H : List (BitVec 64)) s1, C.H <+: H → ∀ d e', Callee (σ := σ) (ctxH C H) kParams
+    (hW : ∀ (H : List (BitVec 64)) s1, C.H <+: H → ∀ d e', d < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d e')
       (PostK (ctxH C H))) :
     ∀ k d (e : EIdx) (s : AState) (H : List (BitVec 64)), C.H <+: H → d + k < 2 ^ 63 →
@@ -384,7 +384,7 @@ theorem fq_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (by decide) rfl (by decide) hc.w
       ⟨by simp +decide [Env.get, fqParams, ctxEnv], by simp +decide [Env.get, fqParams, ctxEnv],
         by simp +decide [Env.get, fqParams, ctxEnv], trivial⟩
-      (hW H s hp d e) (fun w s1 H1 hp1 _ => ?_)
+      (hW H s hp d e (by omega)) (fun w s1 H1 hp1 _ => ?_)
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, fqParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
       (fun _ => ?_) (fun h => absurd h (by decide))
     refine Knot.specR_tagIteV fqW w 2 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
@@ -415,7 +415,7 @@ theorem fq_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (by decide) rfl (by decide) hc.w
       ⟨by simp +decide [Env.get, fqParams, ctxEnv], by simp +decide [Env.get, fqParams, ctxEnv],
         by simp +decide [Env.get, fqParams, ctxEnv], trivial⟩
-      (hW H s hp d e) (fun w s1 H1 hp1 _ => ?_)
+      (hW H s hp d e (by omega)) (fun w s1 H1 hp1 _ => ?_)
     have hne : BitVec.ofNat 64 (k + 1) ≠ 0 := by
       intro e; have := congrArg BitVec.toNat e; simp at this; omega
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, fqParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)

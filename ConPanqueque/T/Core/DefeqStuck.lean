@@ -2596,7 +2596,7 @@ theorem dk_etaB (d : Nat) (a b ty bd : EIdx) (Hb H : List (BitVec 64)) (hpb : C.
 
 
 variable (hc2 : DkCodes2 C)
-  (hD : ∀ (H : List (BitVec 64)) s1 d a b, C.H <+: H → Callee (σ := σ) (ctxH C H) dParams
+  (hD : ∀ (H : List (BitVec 64)) s1 d a b, C.H <+: H → d < 2 ^ 63 → Callee (σ := σ) (ctxH C H) dParams
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b] (dE C) s1 ((knot mode C n).defeq d a b)
     (PostB (ctxH C H)))
   (hLS : ∀ (H : List (BitVec 64)) s1 (u v : LsIdx), C.H <+: H →
@@ -2677,7 +2677,7 @@ theorem dk_cc (d : Nat) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb
   simp only [liftFueled, pure_bind, ↓reduceIte]
   exact specR_returnI _ 1 rfl (fun t ht => ⟨H, hbH, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
-theorem dk_aa (d : Nat) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb) (hbH : Hb <+: H) (s : AState) (Γ : Env) (M : Mem)
+theorem dk_aa (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb) (hbH : Hb <+: H) (s : AState) (Γ : Env) (M : Mem)
     (hFu : Γ.get kFu = some (BitVec.ofNat 64 n)) (hDd : Γ.get kD = some (BitVec.ofNat 64 d))
     (hA : Γ.get dkA = some (Enc.idxW a)) (hB : Γ.get dkB = some (Enc.idxW b)) :
     SpecR (σ := σ) (Inv (ctxH C H) s Γ M DK) dkAA s
@@ -2763,7 +2763,7 @@ theorem dk_aa (d : Nat) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW fa, Enc.idxW fb] (by decide) rfl (by decide) hc2.d
     ⟨by simp [hFu], by simp [hDd], by simp, by simp, trivial⟩
     (PostB (ctxH C H2)) (fun r_ w _ _ => w = boolW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-    (fun u hu _ hlk => hD H2 s2 d fa fb hpH2 u hu (fun i hi _ => hlk i (by omega)))
+    (fun u hu _ hlk => hD H2 s2 d fa fb hpH2 hdd u hu (fun i hi _ => hlk i (by omega)))
     (fun q w s3 H3 hp3 hw => ?_)
   subst hw
   have hbH3 : Hb <+: H3 := hbH2.trans hp3
@@ -2783,7 +2783,7 @@ theorem dk_aa (d : Nat) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb
       by simp [sev]; exact cellA_add8 C o2, by simp, trivial⟩
     (PostB (ctxH C H3)) (fun r_ w _ _ => w = boolW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu dlParams _ rfl hlk)
-      (dl_spec mode n C hc2.dl d (fun H s1 hp a b => hD H s1 d a b hp) aa bb (o1 + 1) (o2 + 1) H3 s3 (hpH2.trans hp3)
+      (dl_spec mode n C hc2.dl d (fun H s1 hp a b => hD H s1 d a b hp hdd) aa bb (o1 + 1) (o2 + 1) H3 s3 (hpH2.trans hp3)
         (fun j hj => by have h := hba3.2 j (by simpa using hj); rw [List.getElem_map] at h; exact h)
         (fun j hj => by have h := hbb3.2 j (by simpa using hj); rw [List.getElem_map] at h; exact h)
         (by omega) (by omega)))
@@ -2798,7 +2798,7 @@ theorem dk_aa (d : Nat) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb
   simp only [↓reduceIte]
   exact specR_returnI _ 1 rfl (fun t ht => ⟨H4, hbH4, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
-theorem dk_la (d : Nat) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb) (hbH : Hb <+: H) (s : AState) (Γ : Env) (M : Mem)
+theorem dk_la (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb) (hbH : Hb <+: H) (s : AState) (Γ : Env) (M : Mem)
     (hFu : Γ.get kFu = some (BitVec.ofNat 64 n)) (hDd : Γ.get kD = some (BitVec.ofNat 64 d))
     (hA : Γ.get dkA = some (Enc.idxW a)) (hB : Γ.get dkB = some (Enc.idxW b)) (l : ConLeche.Literal) (fo x : EIdx) (Pl Pp : BitVec 64)
     (hPl : Γ.get dkPa = some Pl) (hPp : Γ.get dkPb = some Pp)
@@ -2875,12 +2875,12 @@ theorem dk_la (d : Nat) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW c, Enc.idxW b] (by decide) rfl (by decide) hc2.d
       ⟨by simp [hFu], by simp [hDd], by simp [hA, hB], by simp [hA, hB], trivial⟩
       (PostB (ctxH C H1)) (fun r_ w _ _ => w = boolW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-      (fun u hu _ hlk => hD H1 s1 d c b (hpH.trans hp1) u hu (fun i hi _ => hlk i (by omega)))
+      (fun u hu _ hlk => hD H1 s1 d c b (hpH.trans hp1) hdd u hu (fun i hi _ => hlk i (by omega)))
       (fun r w s2 H2 hp2 hw => ?_)
     subst hw
     exact specR_returnI _ (boolW r) (by simp) (fun t ht => ⟨H2, hbH.trans (hp1.trans hp2), rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
-theorem dk_al (d : Nat) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb) (hbH : Hb <+: H) (s : AState) (Γ : Env) (M : Mem)
+theorem dk_al (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb) (hbH : Hb <+: H) (s : AState) (Γ : Env) (M : Mem)
     (hFu : Γ.get kFu = some (BitVec.ofNat 64 n)) (hDd : Γ.get kD = some (BitVec.ofNat 64 d))
     (hA : Γ.get dkA = some (Enc.idxW a)) (hB : Γ.get dkB = some (Enc.idxW b)) (l : ConLeche.Literal) (fo x : EIdx) (Pl Pp : BitVec 64)
     (hPl : Γ.get dkPb = some Pl) (hPp : Γ.get dkPa = some Pp)
@@ -2957,12 +2957,12 @@ theorem dk_al (d : Nat) (a b : EIdx) (Hb H : List (BitVec 64)) (hpb : C.H <+: Hb
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW c] (by decide) rfl (by decide) hc2.d
       ⟨by simp [hFu], by simp [hDd], by simp [hA, hB], by simp [hA, hB], trivial⟩
       (PostB (ctxH C H1)) (fun r_ w _ _ => w = boolW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-      (fun u hu _ hlk => hD H1 s1 d a c (hpH.trans hp1) u hu (fun i hi _ => hlk i (by omega)))
+      (fun u hu _ hlk => hD H1 s1 d a c (hpH.trans hp1) hdd u hu (fun i hi _ => hlk i (by omega)))
       (fun r w s2 H2 hp2 hw => ?_)
     subst hw
     exact specR_returnI _ (boolW r) (by simp) (fun t ht => ⟨H2, hbH.trans (hp1.trans hp2), rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
-theorem dk_spec (s : AState) (d : Nat) (a b : EIdx) :
+theorem dk_spec (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     SpecR (σ := σ) (Pre C s (dkParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b])) (dkBody C) s
       (defeqStuck mode (knot mode C n) C.fe d a b) (PostB C) := by
   refine specR_prologue (postB_locals C) (Knot.params_none C dkLocals dkParams _ (by decide) (by decide)) ?_
@@ -3338,7 +3338,7 @@ theorem dk_spec (s : AState) (d : Nat) (a b : EIdx) :
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_aa mode n C hok hc hSI hEC hc2 hD hLS hTC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_aa mode n C hok hc hSI hEC hc2 hD hLS hTC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3366,7 +3366,7 @@ theorem dk_spec (s : AState) (d : Nat) (a b : EIdx) :
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_al mode n C hok hc hSI hEC hc2 hD hLS hTC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) l2 f1 x1 Pb Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_al mode n C hok hc hSI hEC hc2 hD hLS hTC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) l2 f1 x1 Pb Pa (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (fun y hy => List.mem_append_left _ hy)
       (List.mem_append_right _ (by simpa [encEView, Enc.encApp] using wordsAt_mem0 Pa (Enc.idxW f1) [Enc.idxW x1] [])) hvb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -3653,7 +3653,7 @@ theorem dk_spec (s : AState) (d : Nat) (a b : EIdx) :
   · refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     try dsimp only
-    exact dk_la mode n C hok hc hSI hEC hc2 hD hLS hTC d a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) l1 f2 x2 Pa Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
+    exact dk_la mode n C hok hc hSI hEC hc2 hD hLS hTC d hdd a b C.H C.H (List.prefix_refl _) (List.prefix_refl _) s _ _ (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv]) l1 f2 x2 Pa Pb (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
       (fun y hy => List.mem_append_right _ (List.mem_append_left _ hy))
       (by simpa [encEView, Enc.encApp] using wordsAt_mem0 Pb (Enc.idxW f2) [Enc.idxW x2] _) hva (by simp +decide [Env.get, dkParams, ctxEnv]) (by simp +decide [Env.get, dkParams, ctxEnv])
   · refine specR_ifI _ 1 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))

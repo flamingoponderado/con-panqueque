@@ -7,7 +7,7 @@ open ConRon.Arena ConRon.Bridge
 # `quickDefEq`
 
 The easy cases: the same handle; two sorts (`lvlEq?`, a callee); two literals (row equality); two ∀s or two λs
-(the binder-telescope congruence, from an empty variable block; a depth of `2 ^ 62` or more declines). Any
+(the binder-telescope congruence, from an empty variable block; a depth of `2 ^ 61` or more halts). Any
 other pair is "not an easy case". Answers `obW`.
 -/
 
@@ -407,7 +407,7 @@ def fQd := ofString "quickDefEq"
 def qdParams : List MlS := [kFu, kD, qdA, qdB]
 def qdLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, qdU, qdV, qdQ, qdT1, qdB1, qdT2, qdB2, qdE, qdR]
 def qdBody (C : Ctx) : ProgHOL 64 := prologue qdLocals
-  (.ite (.cmp .equal (vv qdA) (vv qdB)) (.return (.const 2)) (.ite (tagIsE qdA 2) (.ite (tagIsE qdB 2) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv qdA)) (.seq eViewP (.seq (.assign .local qdU (.load .one (vv lRp))) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv qdB)) (.seq eViewP (.seq (.assign .local qdV (.load .one (vv lRp))) (.seq (.call (some (some (.local, qdQ), none)) LLeq.fEqv [(vv qdU), (vv qdV)]) (.ite (.cmp .equal (vv qdQ) (.const 0)) hang (.return (vv qdQ)))))))))))) (.return (.const 0))) (.ite (tagIsE qdA 8) (.ite (tagIsE qdB 8) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv qdA)) (.seq eViewP (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv qdB)) (.seq eViewP (.seq (.call (some (some (.local, qdQ), none)) LE.fLe [(vv qdA), (vv qdB)]) (.return (.op .add [(vv qdQ), (.const 1)]))))))))) (.return (.const 0))) (.ite (tagIsE qdA 6) (.ite (tagIsE qdB 6) (.ite (.cmp .lower (vv kD) (.const (BitVec.ofNat 64 (2 ^ 62)))) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv qdA)) (.seq eViewP (.seq (.assign .local qdT1 (.load .one (vv lRp))) (.seq (.assign .local qdB1 (.load .one (.op .add [(vv lRp), (.const 8)]))) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv qdB)) (.seq eViewP (.seq (.assign .local qdT2 (.load .one (vv lRp))) (.seq (.assign .local qdB2 (.load .one (.op .add [(vv lRp), (.const 8)]))) (allocP C qdE (.const 8) (.seq (.store (vv qdE) (.const 0)) (.seq (.call (some (some (.local, qdR), none)) fDb [(vv kFu), (vv kD), (.const 0), (.const (BitVec.ofNat 64 bindersFuel)), (vv qdE), (vv qdT1), (vv qdB1), (vv qdT2), (vv qdB2)]) (.return (.op .add [(vv qdR), (.const 1)]))))))))))))))) hang) (.return (.const 0))) (.ite (tagIsE qdA 5) (.ite (tagIsE qdB 5) (.ite (.cmp .lower (vv kD) (.const (BitVec.ofNat 64 (2 ^ 62)))) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv qdA)) (.seq eViewP (.seq (.assign .local qdT1 (.load .one (vv lRp))) (.seq (.assign .local qdB1 (.load .one (.op .add [(vv lRp), (.const 8)]))) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv qdB)) (.seq eViewP (.seq (.assign .local qdT2 (.load .one (vv lRp))) (.seq (.assign .local qdB2 (.load .one (.op .add [(vv lRp), (.const 8)]))) (allocP C qdE (.const 8) (.seq (.store (vv qdE) (.const 0)) (.seq (.call (some (some (.local, qdR), none)) fDb [(vv kFu), (vv kD), (.const 1), (.const (BitVec.ofNat 64 bindersFuel)), (vv qdE), (vv qdT1), (vv qdB1), (vv qdT2), (vv qdB2)]) (.return (.op .add [(vv qdR), (.const 1)]))))))))))))))) hang) (.return (.const 0))) (.return (.const 0)))))))
+  (.ite (.cmp .equal (vv qdA) (vv qdB)) (.return (.const 2)) (.ite (tagIsE qdA 2) (.ite (tagIsE qdB 2) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv qdA)) (.seq eViewP (.seq (.assign .local qdU (.load .one (vv lRp))) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv qdB)) (.seq eViewP (.seq (.assign .local qdV (.load .one (vv lRp))) (.seq (.call (some (some (.local, qdQ), none)) LLeq.fEqv [(vv qdU), (vv qdV)]) (.ite (.cmp .equal (vv qdQ) (.const 0)) hang (.return (vv qdQ)))))))))))) (.return (.const 0))) (.ite (tagIsE qdA 8) (.ite (tagIsE qdB 8) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv qdA)) (.seq eViewP (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv qdB)) (.seq eViewP (.seq (.call (some (some (.local, qdQ), none)) LE.fLe [(vv qdA), (vv qdB)]) (.return (.op .add [(vv qdQ), (.const 1)]))))))))) (.return (.const 0))) (.ite (tagIsE qdA 6) (.ite (tagIsE qdB 6) (.ite (.cmp .lower (vv kD) (.const (BitVec.ofNat 64 (2 ^ 61)))) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv qdA)) (.seq eViewP (.seq (.assign .local qdT1 (.load .one (vv lRp))) (.seq (.assign .local qdB1 (.load .one (.op .add [(vv lRp), (.const 8)]))) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv qdB)) (.seq eViewP (.seq (.assign .local qdT2 (.load .one (vv lRp))) (.seq (.assign .local qdB2 (.load .one (.op .add [(vv lRp), (.const 8)]))) (allocP C qdE (.const 8) (.seq (.store (vv qdE) (.const 0)) (.seq (.call (some (some (.local, qdR), none)) fDb [(vv kFu), (vv kD), (.const 0), (.const (BitVec.ofNat 64 bindersFuel)), (vv qdE), (vv qdT1), (vv qdB1), (vv qdT2), (vv qdB2)]) (.return (.op .add [(vv qdR), (.const 1)]))))))))))))))) hang) (.return (.const 0))) (.ite (tagIsE qdA 5) (.ite (tagIsE qdB 5) (.ite (.cmp .lower (vv kD) (.const (BitVec.ofNat 64 (2 ^ 61)))) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv qdA)) (.seq eViewP (.seq (.assign .local qdT1 (.load .one (vv lRp))) (.seq (.assign .local qdB1 (.load .one (.op .add [(vv lRp), (.const 8)]))) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv qdB)) (.seq eViewP (.seq (.assign .local qdT2 (.load .one (vv lRp))) (.seq (.assign .local qdB2 (.load .one (.op .add [(vv lRp), (.const 8)]))) (allocP C qdE (.const 8) (.seq (.store (vv qdE) (.const 0)) (.seq (.call (some (some (.local, qdR), none)) fDb [(vv kFu), (vv kD), (.const 1), (.const (BitVec.ofNat 64 bindersFuel)), (vv qdE), (vv qdT1), (vv qdB1), (vv qdT2), (vv qdB2)]) (.return (.op .add [(vv qdR), (.const 1)]))))))))))))))) hang) (.return (.const 0))) (.return (.const 0)))))))
 
 section
 variable {σ : Type}
@@ -419,10 +419,10 @@ structure QdCodes (C : Ctx) (v : Bool) : Prop where
 
 theorem qd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C) (hc : QdCodes C mode.verifiedChecks)
-    (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferE C fIB) s1 ((knot mode C n).infer d' e')
       (PostK (ctxH C H)))
-    (hD : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → Callee (σ := σ) (ctxH C H) dParams
+    (hD : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) dParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW a, Enc.idxW b] (dE C) s1 ((knot mode C n).defeq d' a b)
       (PostB (ctxH C H)))
     (hLE : ∀ (H : List (BitVec 64)) s1 (u v : LIdx), C.H <+: H → (denoteL s1.store.ls u).isSome = true →
@@ -534,13 +534,13 @@ theorem qd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       exact specR_returnI _ (LLeq.obW none) rfl (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     have hbn : ¬ (a.tag != b.tag) = true := by rw [bne_iff_ne, hA6, hB6]; simp
     rw [if_neg hbn, if_pos (by simp [hA6, ETag.sort, ETag.lit, ETag.forallE, ETag.lam])]
-    by_cases hd2 : d < 2 ^ 62
+    by_cases hd2 : d < 2 ^ 61
     swap
-    · have hl : ¬ (BitVec.ofNat 64 d < BitVec.ofNat 64 (2 ^ 62)) := by
+    · have hl : ¬ (BitVec.ofNat 64 d < BitVec.ofNat 64 (2 ^ 61)) := by
         rw [BitVec.lt_def, BitVec.toNat_ofNat, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hd]; norm_num; omega
       exact specR_ifI _ 0 (by simp +decide [sev, Env.get, qdParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; first | exact hl | (rw [Nat.mod_eq_of_lt (show d < 18446744073709551616 by omega)]; omega))
         (fun h => absurd rfl h) (fun _ => specR_hangI)
-    have hl : BitVec.ofNat 64 d < BitVec.ofNat 64 (2 ^ 62) := by
+    have hl : BitVec.ofNat 64 d < BitVec.ofNat 64 (2 ^ 61) := by
       rw [BitVec.lt_def, BitVec.toNat_ofNat, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hd]; norm_num; omega
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, qdParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; first | exact hl | (rw [Nat.mod_eq_of_lt (show d < 18446744073709551616 by omega)]; omega))
       (fun _ => ?_) (fun h => absurd h (by decide))
@@ -594,13 +594,13 @@ theorem qd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       exact specR_returnI _ (LLeq.obW none) rfl (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     have hbn : ¬ (a.tag != b.tag) = true := by rw [bne_iff_ne, hA5, hB5]; simp
     rw [if_neg hbn, if_pos (by simp [hA5, ETag.sort, ETag.lit, ETag.forallE, ETag.lam])]
-    by_cases hd2 : d < 2 ^ 62
+    by_cases hd2 : d < 2 ^ 61
     swap
-    · have hl : ¬ (BitVec.ofNat 64 d < BitVec.ofNat 64 (2 ^ 62)) := by
+    · have hl : ¬ (BitVec.ofNat 64 d < BitVec.ofNat 64 (2 ^ 61)) := by
         rw [BitVec.lt_def, BitVec.toNat_ofNat, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hd]; norm_num; omega
       exact specR_ifI _ 0 (by simp +decide [sev, Env.get, qdParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; first | exact hl | (rw [Nat.mod_eq_of_lt (show d < 18446744073709551616 by omega)]; omega))
         (fun h => absurd rfl h) (fun _ => specR_hangI)
-    have hl : BitVec.ofNat 64 d < BitVec.ofNat 64 (2 ^ 62) := by
+    have hl : BitVec.ofNat 64 d < BitVec.ofNat 64 (2 ^ 61) := by
       rw [BitVec.lt_def, BitVec.toNat_ofNat, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hd]; norm_num; omega
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, qdParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; first | exact hl | (rw [Nat.mod_eq_of_lt (show d < 18446744073709551616 by omega)]; omega))
       (fun _ => ?_) (fun h => absurd h (by decide))

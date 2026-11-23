@@ -104,7 +104,7 @@ structure PjAll (C : Ctx) : Prop where
 
 theorem pj_pre (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx}
     (hok : CtxOK C) (hc : PjAll C) (hn : n < 2 ^ 64) (hE : Ents (σ := σ) mode n C)
-    (s : AState) (d : Nat) (sn : NIdx) (i : Nat) (pe : EIdx) (hi : i < 2 ^ 64) :
+    (s : AState) (d : Nat) (hd : d < 2 ^ 63) (sn : NIdx) (i : Nat) (pe : EIdx) (hi : i < 2 ^ 64) :
     SpecR (σ := σ) (Pre C s (iprParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW sn, BitVec.ofNat 64 i,
       Enc.idxW pe])) (pjBody C) s (inferProj (knot mode C n) C.fe d sn i pe) (PostK C) :=
   pj_spec mode n C hok hc.pj (fun _ => True) hE.hI hE.hW (fun _ _ _ _ _ _ _ => trivial)
@@ -114,7 +114,7 @@ theorem pj_pre (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Chec
         (by ctx_tr hc.ik) (by ctx_tr hc.cg) hn (hE.at H C.St) tbl ot htb i hi us s1)
     (fun _ _ _ _ _ _ _ _ => trivial)
     (fun H s1 tbl ot i us targs oa pe hp _ htb hT hba hi => ta_pre ra hok hc.ta H s1 tbl ot i us targs oa pe hp htb hT hba hi)
-    s trivial d sn i pe hi
+    s trivial d hd sn i pe hi
 
 end
 

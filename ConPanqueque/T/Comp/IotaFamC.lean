@@ -47,7 +47,7 @@ variable {σ : Type}
 
 theorem fm_pre (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode)
     (hv : mode.verifiedChecks = true) (n : Nat) {C : Ctx} (hok : CtxOK C) (hc : FmAll C) (hn : n < 2 ^ 64)
-    (hE : Ents (σ := σ) mode n C) (d : Nat)
+    (hE : Ents (σ := σ) mode n C) (d : Nat) (hd : d < 2 ^ 63)
     (s : AState) (c : NIdx) (us : LsIdx) (cv : IConstantVal) (mI rP : Nat) (isK : Bool) (rules : List IRecRule)
     (q : Nat) (hci : CIE C.EB C.EH q (.recInfo cv mI rP isK rules))
     (hfc : C.fe.find? c = some (.recInfo cv mI rP isK rules))
@@ -65,7 +65,7 @@ theorem fm_pre (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Chec
       (Knot.PostB (ctxH C H)) := by
   obtain ⟨_, _, _, ⟨_, hrp⟩, _⟩ := id hci
   obtain ⟨_, _, ⟨_, hcnb⟩, _⟩ := id hcij
-  refine fm_spec ra mode hv n C hok hc.fm d (fun H s1 hp e => hE.hI H s1 d e hp) (fun H s1 hp a b => hE.hD H s1 d a b hp)
+  refine fm_spec ra mode hv n C hok hc.fm d (fun H s1 hp e => hE.hI H s1 d e hp hd) (fun H s1 hp a b => hE.hD H s1 d a b hp hd)
     s c us cv mI rP isK rules q hci sargs oa hba hle hsl usj qj cvj cnP nF ind hcij qr rl hrule om margs hml
     (fun _ => True) trivial ?_ (fun _ _ _ _ _ => trivial) ?_ (fun _ _ _ _ _ _ => trivial) ?_
     (fun _ _ _ _ _ _ => trivial) ?_ (fun _ _ _ _ _ => trivial) (fun _ _ _ _ _ _ _ => trivial) ?_ H hp hbm

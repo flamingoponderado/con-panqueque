@@ -749,7 +749,7 @@ structure LdCodes (C : Ctx) : Prop where
 section
 variable {σ : Type}
 
-theorem lds_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hc : LdCodes C) (Q : AState → Prop) (d : Nat)
+theorem lds_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hc : LdCodes C) (Q : AState → Prop) (d : Nat) (hdd : d < 2 ^ 63)
     (hQuk : ∀ s1 e a s2, Q s1 → unfoldableHead C.fe e s1 = .ok (a, s2) → Q s2)
     (hQhn : ∀ s1 e a s2, Q s1 → headHint C.fe e s1 = .ok (a, s2) → Q s2)
     (hQsq : ∀ s1 a b r s2, Q s1 → sameConstHeads a b s1 = .ok (r, s2) → Q s2)
@@ -767,7 +767,7 @@ theorem lds_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hc : LdCodes C
       Enc.idxW e])) tuBody s1 (tryUnfoldProjApp (knot mode C n) d e) (UD.PostO (ctxH C H)))
     (hUF : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ e, SpecR (σ := σ) (Pre (ctxH C H) s1 ([UD.uE].zip [Enc.idxW e])) (UD.ufBody C) s1
       (unfoldDefinition C.fe e) (UD.PostO (ctxH C H)))
-    (hWC : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ c d e, Callee (σ := σ) (ctxH C H) wcParams
+    (hWC : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ c d e, d < 2 ^ 63 → Callee (σ := σ) (ctxH C H) wcParams
       [BitVec.ofNat 64 n, boolW c, BitVec.ofNat 64 d, Enc.idxW e] wcE s1 ((knot mode C n).whnfCore c d e)
       (PostK (ctxH C H)))
     (hDS : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ d a b, SpecR (σ := σ) (Pre (ctxH C H) s1 (dsParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d,
@@ -842,7 +842,7 @@ theorem lds_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hc : LdCodes C
         ⟨by simp +decide [Env.get, ldParams, ctxEnv], rfl, by simp +decide [Env.get, ldParams, ctxEnv], by simp +decide [sev, Env.get, ldParams, ctxEnv, optWG]; exact BitVec.add_sub_cancel _ _, trivial⟩
         (fun r_ w s' st => (knot mode C n).whnfCore true d ouv s4 = .ok (r_, s') ∧ PostK (ctxH C H4) r_ w s' st) (fun r_ w s' H' => w = Enc.idxW r_ ∧ (knot mode C n).whnfCore true d ouv s4 = .ok (r_, s'))
         (fun r_ w s' st ⟨hr, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hr⟩, hsr⟩)
-        (fun u hu _ hlk => specR_run (hWC H4 s4 hpa4 hq4 true d ouv u hu (fun i hi _ => hlk i (by omega))))
+        (fun u hu _ hlk => specR_run (hWC H4 s4 hpa4 hq4 true d ouv hdd u hu (fun i hi _ => hlk i (by omega))))
         (fun e3 w5 s5 H5 hp5 ⟨hw5, hrun5⟩ => ?_)
       have hq5 := hQwc s4 true d ouv e3 s5 hq4 hrun5
       have hpa5 : C.H <+: H5 := hpa4.trans hp5
@@ -905,7 +905,7 @@ theorem lds_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hc : LdCodes C
         ⟨by simp +decide [Env.get, ldParams, ctxEnv], rfl, by simp +decide [Env.get, ldParams, ctxEnv], by simp +decide [sev, Env.get, ldParams, ctxEnv, optWG]; exact BitVec.add_sub_cancel _ _, trivial⟩
         (fun r_ w s' st => (knot mode C n).whnfCore true d ouv s9 = .ok (r_, s') ∧ PostK (ctxH C H9) r_ w s' st) (fun r_ w s' H' => w = Enc.idxW r_ ∧ (knot mode C n).whnfCore true d ouv s9 = .ok (r_, s'))
         (fun r_ w s' st ⟨hr, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hr⟩, hsr⟩)
-        (fun u hu _ hlk => specR_run (hWC H9 s9 hpa9 hq9 true d ouv u hu (fun i hi _ => hlk i (by omega))))
+        (fun u hu _ hlk => specR_run (hWC H9 s9 hpa9 hq9 true d ouv hdd u hu (fun i hi _ => hlk i (by omega))))
         (fun e3 w10 s10 H10 hp10 ⟨hw10, hrun10⟩ => ?_)
       have hq10 := hQwc s9 true d ouv e3 s10 hq9 hrun10
       have hpa10 : C.H <+: H10 := hpa9.trans hp10
@@ -1011,7 +1011,7 @@ theorem lds_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hc : LdCodes C
             ⟨by simp +decide [Env.get, ldParams, ctxEnv], rfl, by simp +decide [Env.get, ldParams, ctxEnv], by simp +decide [sev, Env.get, ldParams, ctxEnv, optWG]; exact BitVec.add_sub_cancel _ _, trivial⟩
             (fun r_ w s' st => (knot mode C n).whnfCore true d a2 s23 = .ok (r_, s') ∧ PostK (ctxH C H23) r_ w s' st) (fun r_ w s' H' => w = Enc.idxW r_ ∧ (knot mode C n).whnfCore true d a2 s23 = .ok (r_, s'))
             (fun r_ w s' st ⟨hr, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hr⟩, hsr⟩)
-            (fun u hu _ hlk => specR_run (hWC H23 s23 hpa23 hq23 true d a2 u hu (fun i hi _ => hlk i (by omega))))
+            (fun u hu _ hlk => specR_run (hWC H23 s23 hpa23 hq23 true d a2 hdd u hu (fun i hi _ => hlk i (by omega))))
             (fun a3 w24 s24 H24 hp24 ⟨hw24, hrun24⟩ => ?_)
           have hq24 := hQwc s23 true d a2 a3 s24 hq23 hrun24
           have hpa24 : C.H <+: H24 := hpa23.trans hp24
@@ -1021,7 +1021,7 @@ theorem lds_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hc : LdCodes C
             ⟨by simp +decide [Env.get, ldParams, ctxEnv], rfl, by simp +decide [Env.get, ldParams, ctxEnv], by simp +decide [sev, Env.get, ldParams, ctxEnv, optWG]; exact BitVec.add_sub_cancel _ _, trivial⟩
             (fun r_ w s' st => (knot mode C n).whnfCore true d b2 s24 = .ok (r_, s') ∧ PostK (ctxH C H24) r_ w s' st) (fun r_ w s' H' => w = Enc.idxW r_ ∧ (knot mode C n).whnfCore true d b2 s24 = .ok (r_, s'))
             (fun r_ w s' st ⟨hr, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hr⟩, hsr⟩)
-            (fun u hu _ hlk => specR_run (hWC H24 s24 hpa24 hq24 true d b2 u hu (fun i hi _ => hlk i (by omega))))
+            (fun u hu _ hlk => specR_run (hWC H24 s24 hpa24 hq24 true d b2 hdd u hu (fun i hi _ => hlk i (by omega))))
             (fun b3 w25 s25 H25 hp25 ⟨hw25, hrun25⟩ => ?_)
           have hq25 := hQwc s24 true d b2 b3 s25 hq24 hrun25
           have hpa25 : C.H <+: H25 := hpa24.trans hp25
@@ -1090,7 +1090,7 @@ theorem lds_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hc : LdCodes C
             ⟨by simp +decide [Env.get, ldParams, ctxEnv], rfl, by simp +decide [Env.get, ldParams, ctxEnv], by simp +decide [sev, Env.get, ldParams, ctxEnv, optWG]; exact BitVec.add_sub_cancel _ _, trivial⟩
             (fun r_ w s' st => (knot mode C n).whnfCore true d a2 s18 = .ok (r_, s') ∧ PostK (ctxH C H18) r_ w s' st) (fun r_ w s' H' => w = Enc.idxW r_ ∧ (knot mode C n).whnfCore true d a2 s18 = .ok (r_, s'))
             (fun r_ w s' st ⟨hr, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hr⟩, hsr⟩)
-            (fun u hu _ hlk => specR_run (hWC H18 s18 hpa18 hq18 true d a2 u hu (fun i hi _ => hlk i (by omega))))
+            (fun u hu _ hlk => specR_run (hWC H18 s18 hpa18 hq18 true d a2 hdd u hu (fun i hi _ => hlk i (by omega))))
             (fun a3 w19 s19 H19 hp19 ⟨hw19, hrun19⟩ => ?_)
           have hq19 := hQwc s18 true d a2 a3 s19 hq18 hrun19
           have hpa19 : C.H <+: H19 := hpa18.trans hp19
@@ -1100,7 +1100,7 @@ theorem lds_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hc : LdCodes C
             ⟨by simp +decide [Env.get, ldParams, ctxEnv], rfl, by simp +decide [Env.get, ldParams, ctxEnv], by simp +decide [sev, Env.get, ldParams, ctxEnv, optWG]; exact BitVec.add_sub_cancel _ _, trivial⟩
             (fun r_ w s' st => (knot mode C n).whnfCore true d b2 s19 = .ok (r_, s') ∧ PostK (ctxH C H19) r_ w s' st) (fun r_ w s' H' => w = Enc.idxW r_ ∧ (knot mode C n).whnfCore true d b2 s19 = .ok (r_, s'))
             (fun r_ w s' st ⟨hr, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hr⟩, hsr⟩)
-            (fun u hu _ hlk => specR_run (hWC H19 s19 hpa19 hq19 true d b2 u hu (fun i hi _ => hlk i (by omega))))
+            (fun u hu _ hlk => specR_run (hWC H19 s19 hpa19 hq19 true d b2 hdd u hu (fun i hi _ => hlk i (by omega))))
             (fun b3 w20 s20 H20 hp20 ⟨hw20, hrun20⟩ => ?_)
           have hq20 := hQwc s19 true d b2 b3 s20 hq19 hrun20
           have hpa20 : C.H <+: H20 := hpa19.trans hp20
@@ -1143,7 +1143,7 @@ theorem lds_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hc : LdCodes C
       ⟨by simp +decide [Env.get, ldParams, ctxEnv], rfl, by simp +decide [Env.get, ldParams, ctxEnv], by simp +decide [sev, Env.get, ldParams, ctxEnv, optWG]; exact BitVec.add_sub_cancel _ _, trivial⟩
       (fun r_ w s' st => (knot mode C n).whnfCore true d ouv s27 = .ok (r_, s') ∧ PostK (ctxH C H27) r_ w s' st) (fun r_ w s' H' => w = Enc.idxW r_ ∧ (knot mode C n).whnfCore true d ouv s27 = .ok (r_, s'))
       (fun r_ w s' st ⟨hr, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hr⟩, hsr⟩)
-      (fun u hu _ hlk => specR_run (hWC H27 s27 hpa27 hq27 true d ouv u hu (fun i hi _ => hlk i (by omega))))
+      (fun u hu _ hlk => specR_run (hWC H27 s27 hpa27 hq27 true d ouv hdd u hu (fun i hi _ => hlk i (by omega))))
       (fun e3 w28 s28 H28 hp28 ⟨hw28, hrun28⟩ => ?_)
     have hq28 := hQwc s27 true d ouv e3 s28 hq27 hrun28
     have hpa28 : C.H <+: H28 := hpa27.trans hp28
@@ -1181,7 +1181,7 @@ theorem lds_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hc : LdCodes C
     ⟨by simp +decide [Env.get, ldParams, ctxEnv], rfl, by simp +decide [Env.get, ldParams, ctxEnv], by simp +decide [sev, Env.get, ldParams, ctxEnv, optWG]; exact BitVec.add_sub_cancel _ _, trivial⟩
     (fun r_ w s' st => (knot mode C n).whnfCore true d ouv s30 = .ok (r_, s') ∧ PostK (ctxH C H30) r_ w s' st) (fun r_ w s' H' => w = Enc.idxW r_ ∧ (knot mode C n).whnfCore true d ouv s30 = .ok (r_, s'))
     (fun r_ w s' st ⟨hr, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hr⟩, hsr⟩)
-    (fun u hu _ hlk => specR_run (hWC H30 s30 hpa30 hq30 true d ouv u hu (fun i hi _ => hlk i (by omega))))
+    (fun u hu _ hlk => specR_run (hWC H30 s30 hpa30 hq30 true d ouv hdd u hu (fun i hi _ => hlk i (by omega))))
     (fun e3 w31 s31 H31 hp31 ⟨hw31, hrun31⟩ => ?_)
   have hq31 := hQwc s30 true d ouv e3 s31 hq30 hrun31
   have hpa31 : C.H <+: H31 := hpa30.trans hp31

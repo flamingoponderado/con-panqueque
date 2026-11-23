@@ -79,7 +79,7 @@ theorem gs_none (C : Ctx) (vals : List (BitVec 64)) :
 
 theorem gs_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C) (hc : FzCodes C) (hzw : ZwCodes C) (hn : n < 2 ^ 64)
-    (hW : ∀ (H : List (BitVec 64)) s1, C.H <+: H → ∀ d e', Callee (σ := σ) (ctxH C H) kParams
+    (hW : ∀ (H : List (BitVec 64)) s1, C.H <+: H → ∀ d e', d < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d e')
       (PostK (ctxH C H)))
     (s : AState) (d : Nat) (cvT : IConstantVal) (caps : IIndCaps) (o : Nat)

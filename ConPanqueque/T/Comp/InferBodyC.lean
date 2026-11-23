@@ -38,20 +38,20 @@ variable {σ : Type}
 
 theorem ib_body (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx}
     (hok : CtxOK C) (hc : IbAll C) (hn : n < 2 ^ 64) (hE : Ents (σ := σ) mode n C)
-    (s : AState) (d : Nat) (e : EIdx) (hd : d < 2 ^ 64) :
+    (s : AState) (d : Nat) (e : EIdx) (hd : d < 2 ^ 63) :
     SpecR (σ := σ) (Pre C s (kParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e])) ibBody s
       (ConRon.Arena.inferBody (knot mode C n) C.fe d e) (PostK C) :=
-  ib_spec mode n C _ _ _ _ _ _ _ _ hc.ib s d e hd
+  ib_spec mode n C _ _ _ _ _ _ _ _ hc.ib s d e (by omega)
     (fun u => is_spec ra C hok hc.lsucc hc.sort s u)
     (fun c us _ => ik_pre ra hok hc.ik s c us)
     (fun l hv => il_spec ra C hok hc.ic s e l hv)
     (fun ty b => qf_spec ra mode n C hok hc.tq hE.hI hE.hW s d hd ty b)
     (fun ty b => qm_spec ra mode n C hok hc.qn hE.hI hE.hW s d hd ty b)
-    (qa_spec ra mode n C hok hc.qa hE.hI hE.hW hE.hD hE.hDE s d e)
-    (fun sn i pe hi => pj_pre ra mode n hok hc.pj hn hE s d sn i pe hi)
+    (qa_spec ra mode n C hok hc.qa hE.hI hE.hW hE.hD hE.hDE s d hd e)
+    (fun sn i pe hi => pj_pre ra mode n hok hc.pj hn hE s d hd sn i pe hi)
     (fun ty v b => lt_spec ra mode n C hok hc.ci hc.cw hc.cd hc.cI hc.cI' s d ty v b
-      (fun H s1 hp e' => hE.hI H s1 d e' hp) (fun H s1 hp e' => hE.hW H s1 d e' hp)
-      (fun H s1 hp a b => hE.hD H s1 d a b hp))
+      (fun H s1 hp e' => hE.hI H s1 d e' hp hd) (fun H s1 hp e' => hE.hW H s1 d e' hp hd)
+      (fun H s1 hp a b => hE.hD H s1 d a b hp hd))
 
 end
 

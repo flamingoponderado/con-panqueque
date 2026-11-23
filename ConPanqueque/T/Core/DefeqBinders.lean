@@ -1375,13 +1375,13 @@ variable {σ : Type}
 theorem di_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hci : C.code.lookup fI = some (pmap kParams, inferE C fIB, .one))
     (hcd : C.code.lookup fD = some (pmap dParams, dE C, .one))
-    (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferE C fIB) s1 ((knot mode C n).infer d' e')
       (PostK (ctxH C H)))
-    (hD : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → Callee (σ := σ) (ctxH C H) dParams
+    (hD : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) dParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW a, Enc.idxW b] (dE C) s1 ((knot mode C n).defeq d' a b)
       (PostB (ctxH C H)))
-    (s : AState) (d : Nat) (lam : Bool) (b1 b2 : EIdx) :
+    (s : AState) (d : Nat) (hdd : d + 1 < 2 ^ 63) (lam : Bool) (b1 b2 : EIdx) :
     SpecR (σ := σ) (Pre C s (diParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, boolW lam, Enc.idxW b1, Enc.idxW b2]))
       (diBody mode.verifiedChecks) s (defeqBindersInner mode (knot mode C n) lam d b1 b2) (PostB C) := by
   refine specR_prologue (postB_locals C) (Knot.params_none C diLocals diParams _ (by decide) (by decide)) ?_
@@ -1393,7 +1393,7 @@ theorem di_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     ⟨by simp +decide [Env.get, diParams, ctxEnv], by simp, by simp +decide [Env.get, diParams, ctxEnv],
       by simp +decide [Env.get, diParams, ctxEnv], trivial⟩
     (PostB C) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-    (fun u hu _ hlk => hD C.H s (d + 1) b1 b2 (List.prefix_refl _) u hu (fun i hi _ => hlk i (by omega)))
+    (fun u hu _ hlk => hD C.H s (d + 1) b1 b2 (List.prefix_refl _) (by omega) u hu (fun i hi _ => hlk i (by omega)))
     (fun q w s1 H1 hp1 hw => ?_)
   subst hw
   cases q
@@ -1420,17 +1420,17 @@ theorem di_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
   refine Big.specR_callKC (C := ctxH C H1) diT1 fI kParams [vv kFu, vv diD1, vv diB1] (inferE C fIB)
     [BitVec.ofNat 64 n, BitVec.ofNat 64 (d + 1), Enc.idxW b1] (by decide) rfl (by decide) hci
     ⟨by simp +decide [Env.get, diParams, ctxEnv], by simp, by simp +decide [Env.get, diParams, ctxEnv], trivial⟩
-    (hI H1 s1 (d + 1) b1 hp1) (fun t1 s2 H2 hp2 _ => ?_)
+    (hI H1 s1 (d + 1) b1 hp1 (by omega)) (fun t1 s2 H2 hp2 _ => ?_)
   refine Big.specR_callKC (C := ctxH C H2) diT2 fI kParams [vv kFu, vv diD1, vv diB2] (inferE C fIB)
     [BitVec.ofNat 64 n, BitVec.ofNat 64 (d + 1), Enc.idxW b2] (by decide) rfl (by decide) hci
     ⟨by simp +decide [Env.get, diParams, ctxEnv], by simp, by simp +decide [Env.get, diParams, ctxEnv], trivial⟩
-    (hI H2 s2 (d + 1) b2 (hp1.trans hp2)) (fun t2 s3 H3 hp3 _ => ?_)
+    (hI H2 s2 (d + 1) b2 (hp1.trans hp2) (by omega)) (fun t2 s3 H3 hp3 _ => ?_)
   refine specR_congr (m' := (knot mode C n).defeq (d + 1) t1 t2 >>= fun r => pure r) (by simp) ?_
   refine specR_callNIH (C := ctxH C H3) diR fD dParams [vv kFu, vv diD1, vv diT1, vv diT2] (dE C)
     [BitVec.ofNat 64 n, BitVec.ofNat 64 (d + 1), Enc.idxW t1, Enc.idxW t2] (by decide) rfl (by decide) hcd
     ⟨by simp +decide [Env.get, diParams, ctxEnv], by simp, by simp, by simp, trivial⟩
     (PostB (ctxH C H3)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-    (fun u hu _ hlk => hD H3 s3 (d + 1) t1 t2 (hp1.trans (hp2.trans hp3)) u hu (fun i hi _ => hlk i (by omega)))
+    (fun u hu _ hlk => hD H3 s3 (d + 1) t1 t2 (hp1.trans (hp2.trans hp3)) (by omega) u hu (fun i hi _ => hlk i (by omega)))
     (fun r w s4 H4 hp4 hw => ?_)
   subst hw
   exact specR_returnI _ (boolW r) (by simp)
@@ -1449,15 +1449,15 @@ structure DbCodes (C : Ctx) (v : Bool) : Prop where
 
 theorem db_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C) (hc : DbCodes C mode.verifiedChecks)
-    (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferE C fIB) s1 ((knot mode C n).infer d' e')
       (PostK (ctxH C H)))
-    (hD : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → Callee (σ := σ) (ctxH C H) dParams
+    (hD : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) dParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW a, Enc.idxW b] (dE C) s1 ((knot mode C n).defeq d' a b)
       (PostB (ctxH C H)))
     (lam : Bool) :
     ∀ fuel (d : Nat) (fvs : List EIdx) (ofv : Nat) (ty1 b1 ty2 b2 : EIdx) (H : List (BitVec 64)) (s : AState),
-      C.H <+: H → BlkAt H ofv (fvs.map Enc.idxW) → d + fuel < 2 ^ 63 →
+      C.H <+: H → BlkAt H ofv (fvs.map Enc.idxW) → d + fuel + 1 < 2 ^ 63 →
       SpecR (σ := σ) (Pre (ctxH C H) s (dbParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, boolW lam,
         BitVec.ofNat 64 fuel, cellA C ofv, Enc.idxW ty1, Enc.idxW b1, Enc.idxW ty2, Enc.idxW b2])) dbBody s
         (defeqBinders mode (knot mode C n) lam fuel d fvs.toArray ty1 b1 ty2 b2) (PostB (ctxH C H)) := by
@@ -1535,9 +1535,9 @@ theorem db_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
           (PostB (ctxH C H3)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
           (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu diParams _ rfl hlk)
             (di_spec mode n (ctxH C H3) hc.ci hc.d
-              (fun H' s1 d' e' hp' => hI H' s1 d' e' ((hp.trans (hpH.trans (hp2.trans hp3))).trans hp'))
-              (fun H' s1 d' a b hp' => hD H' s1 d' a b ((hp.trans (hpH.trans (hp2.trans hp3))).trans hp'))
-              s4 d lam x1 x2))
+              (fun H' s1 d' e' hp' hd' => hI H' s1 d' e' ((hp.trans (hpH.trans (hp2.trans hp3))).trans hp') hd')
+              (fun H' s1 d' a b hp' hd' => hD H' s1 d' a b ((hp.trans (hpH.trans (hp2.trans hp3))).trans hp') hd')
+              s4 d (by omega) lam x1 x2))
           (fun r w s5 H5 hp5 hw => ?_)
         subst hw
         exact specR_returnI _ (boolW r) (by simp)
@@ -1572,7 +1572,7 @@ theorem db_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW dom1, Enc.idxW dom2] (by decide) rfl (by decide) hc.d
       ⟨by simp +decide [Env.get, dbParams, ctxEnv], by simp +decide [Env.get, dbParams, ctxEnv], by simp, by simp, trivial⟩
       (PostB (ctxH C H)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-      (fun u hu _ hlk => hD H s2 d dom1 dom2 hp u hu (fun i hi _ => hlk i (by omega)))
+      (fun u hu _ hlk => hD H s2 d dom1 dom2 hp (by omega) u hu (fun i hi _ => hlk i (by omega)))
       (fun ok w s3 H3 hp3 hw => ?_)
     subst hw
     cases ok
@@ -1662,9 +1662,9 @@ theorem db_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
           (PostB (ctxH C H3)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
           (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu diParams _ rfl hlk)
             (di_spec mode n (ctxH C H3) hc.ci hc.d
-              (fun H' s1 d' e' hp' => hI H' s1 d' e' ((hp.trans (hpH.trans (hp2.trans hp3))).trans hp'))
-              (fun H' s1 d' a b hp' => hD H' s1 d' a b ((hp.trans (hpH.trans (hp2.trans hp3))).trans hp'))
-              s4 d lam x1 x2))
+              (fun H' s1 d' e' hp' hd' => hI H' s1 d' e' ((hp.trans (hpH.trans (hp2.trans hp3))).trans hp') hd')
+              (fun H' s1 d' a b hp' hd' => hD H' s1 d' a b ((hp.trans (hpH.trans (hp2.trans hp3))).trans hp') hd')
+              s4 d (by omega) lam x1 x2))
           (fun r w s5 H5 hp5 hw => ?_)
         subst hw
         exact specR_returnI _ (boolW r) (by simp)
@@ -1756,7 +1756,7 @@ theorem db_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW dom1, Enc.idxW dom2] (by decide) rfl (by decide) hc.d
       ⟨by simp +decide [Env.get, dbParams, ctxEnv], by simp +decide [Env.get, dbParams, ctxEnv], by simp, by simp, trivial⟩
       (PostB (ctxH C H)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-      (fun u hu _ hlk => hD H s2 d dom1 dom2 hp u hu (fun i hi _ => hlk i (by omega)))
+      (fun u hu _ hlk => hD H s2 d dom1 dom2 hp (by omega) u hu (fun i hi _ => hlk i (by omega)))
       (fun ok w s3 H3 hp3 hw => ?_)
     subst hw
     cases ok

@@ -1012,7 +1012,7 @@ structure QeCodes (C : Ctx) : Prop where
 
 theorem qe_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C) (hc : QeCodes C)
-    (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferE C fIB) s1 ((knot mode C n).infer d' e')
       (PostK (ctxH C H)))
     (s : AState) (d k : Nat) (t : EIdx) (fvs stk : List EIdx) (ofv ost : Nat)
@@ -1041,7 +1041,7 @@ theorem qe_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     (by simp +decide [sev, Env.get, qeParams, ctxEnv]; exact BitVec.ofNat_add_ofNat ..) ?_
   refine Big.specR_callKC (C := ctxH C H) qeB fI kParams [vv kFu, vv qeDk, vv qeO] (inferE C fIB)
     [BitVec.ofNat 64 n, BitVec.ofNat 64 (d + k), Enc.idxW ob] (by decide) rfl (by decide) hc.i
-    ⟨by simp +decide [Env.get, qeParams, ctxEnv], by simp, by simp, trivial⟩ (hI H s1 (d + k) ob hp) (fun bt s2 H2 hp2 _ => ?_)
+    ⟨by simp +decide [Env.get, qeParams, ctxEnv], by simp, by simp, trivial⟩ (hI H s1 (d + k) ob hp (by omega)) (fun bt s2 H2 hp2 _ => ?_)
   refine ILP.callE_spec (C := ctxH C H2) qeC fAbsRF absRFParams
     [.const (BitVec.ofNat 64 coreWalkFuel), vv kD, vv qeK, .const 0, vv qeB] (ExR.fastBodyR C)
     [BitVec.ofNat 64 coreWalkFuel, BitVec.ofNat 64 d, BitVec.ofNat 64 k, BitVec.ofNat 64 0, Enc.idxW bt]

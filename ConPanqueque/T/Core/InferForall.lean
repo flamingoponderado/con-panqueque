@@ -336,13 +336,13 @@ theorem qf_none (C : Ctx) (vals : List (BitVec 64)) :
 
 theorem qf_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C) (hc : TqCodes C)
-    (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferE C fIB) s1 ((knot mode C n).infer d' e')
       (PostK (ctxH C H)))
-    (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d' e')
       (PostK (ctxH C H)))
-    (s : AState) (d : Nat) (hd : d < 2 ^ 64) (ty b : EIdx) :
+    (s : AState) (d : Nat) (hd : d < 2 ^ 63) (ty b : EIdx) :
     SpecR (σ := σ) (Pre C s (ifaParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ty, Enc.idxW b]))
       (qfBody C) s (inferForall (knot mode C n) C.fe d ty b) (PostK C) := by
   refine specR_prologue (postK_locals C) (qf_none C _) ?_
@@ -350,20 +350,20 @@ theorem qf_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
   by_cases hd2 : d < 2 ^ 62
   swap
   · have hl : ¬ (BitVec.ofNat 64 d < BitVec.ofNat 64 (2 ^ 62)) := by
-      rw [BitVec.lt_def, BitVec.toNat_ofNat, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hd]; norm_num; omega
+      rw [BitVec.lt_def, BitVec.toNat_ofNat, BitVec.toNat_ofNat, Nat.mod_eq_of_lt (show d < 2 ^ 64 by omega)]; norm_num; omega
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ifaParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; first | exact hl | (rw [Nat.mod_eq_of_lt (show d < 18446744073709551616 by omega)]; omega))
       (fun h => absurd rfl h) (fun _ => specR_hangI)
   have hl : BitVec.ofNat 64 d < BitVec.ofNat 64 (2 ^ 62) := by
-    rw [BitVec.lt_def, BitVec.toNat_ofNat, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hd]; norm_num; omega
+    rw [BitVec.lt_def, BitVec.toNat_ofNat, BitVec.toNat_ofNat, Nat.mod_eq_of_lt (show d < 2 ^ 64 by omega)]; norm_num; omega
   refine specR_ifI _ 1 (by simp +decide [sev, Env.get, ifaParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; first | exact hl | (rw [Nat.mod_eq_of_lt (show d < 18446744073709551616 by omega)]; omega))
     (fun _ => ?_) (fun h => absurd h (by decide))
   unfold inferForall
   refine Big.specR_callKC (C := C) qfA fI kParams [vv kFu, vv kD, vv ibT1] (inferE C fIB)
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ty] (by decide) rfl (by decide) hc.pz.i
-    ⟨by simp +decide [Env.get, ifaParams, ctxEnv], by simp +decide [Env.get, ifaParams, ctxEnv], by simp +decide [Env.get, ifaParams, ctxEnv], trivial⟩ (hI C.H s d ty (List.prefix_refl _)) (fun tty s2 H2 hp2 _ => ?_)
+    ⟨by simp +decide [Env.get, ifaParams, ctxEnv], by simp +decide [Env.get, ifaParams, ctxEnv], by simp +decide [Env.get, ifaParams, ctxEnv], trivial⟩ (hI C.H s d ty (List.prefix_refl _) (by omega)) (fun tty s2 H2 hp2 _ => ?_)
   refine Big.specR_callKC (C := ctxH C H2) qfH fW kParams [vv kFu, vv kD, vv qfA] (whnfE C fWB)
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW tty] (by decide) rfl (by decide) hc.pz.w
-    ⟨by simp +decide [Env.get, ifaParams, ctxEnv], by simp +decide [Env.get, ifaParams, ctxEnv], by simp, trivial⟩ (hW H2 s2 d tty hp2) (fun w s3 H3 hp3 _ => ?_)
+    ⟨by simp +decide [Env.get, ifaParams, ctxEnv], by simp +decide [Env.get, ifaParams, ctxEnv], by simp, trivial⟩ (hW H2 s2 d tty hp2 (by omega)) (fun w s3 H3 hp3 _ => ?_)
   have hp13 : C.H <+: H3 := hp2.trans hp3
   refine Knot.specR_tagIteV qfH w 2 (by decide) (by decide) (by simp) (fun htg2 => ?_) (fun htg2 => ?_)
   · rw [if_pos (show (w.tag == ETag.sort) = true by simp [htg2, ETag.sort])]

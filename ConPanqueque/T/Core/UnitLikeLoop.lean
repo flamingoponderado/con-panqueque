@@ -39,17 +39,17 @@ theorem ull_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     (hQl : ∀ F s1 d T b s2, Q s1 → unitLikeLoop (knot mode C n) C.fe F d T s1 = .ok (b, s2) → Q s2)
     (hQs : ∀ s1 fu lps us e h s2, Q s1 → instLPFast fu lps us e s1 = .ok (h, s2) → Q s2)
     (hQr : ∀ s1 fu e vs st nn dd h s2, Q s1 → instantiateRevRange fu e vs st nn dd s1 = .ok (h, s2) → Q s2)
-    (hIO : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hIO : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferIOE C fIOB) s1 ((knot mode C n).inferIO d' e')
       (PostK (ctxH C H)))
-    (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d' e')
       (PostK (ctxH C H)))
     (hLE : ∀ (H : List (BitVec 64)) s1 (u v : LIdx), C.H <+: H → (denoteL s1.store.ls u).isSome = true →
       (denoteL s1.store.ls v).isSome = true →
       SpecR (σ := σ) (Pre (ctxH C H) s1 [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s1 (lvlEq? u v)
         (LLeq.PostOB (ctxH C H))) :
-    ∀ (F : Nat), F < 2 ^ 64 → ∀ (H : List (BitVec 64)) (s : AState) (d : Nat) (T : EIdx), C.H <+: H → Q s → d < 2 ^ 64 →
+    ∀ (F : Nat), F < 2 ^ 64 → ∀ (H : List (BitVec 64)) (s : AState) (d : Nat) (T : EIdx), C.H <+: H → Q s → d < 2 ^ 63 →
       SpecR (σ := σ) (Pre (ctxH C H) s (ullParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, BitVec.ofNat 64 F, Enc.idxW T]))
         ullBody s (unitLikeLoop (knot mode C n) C.fe F d T) (PostB (ctxH C H)) := by
   intro F
@@ -68,7 +68,7 @@ theorem ull_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     rw [unitLikeLoop]
     refine Big.specR_callKC (C := ctxH C H) ullW fW kParams [vv kFu, vv kD, vv ullT] (whnfE C fWB)
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW T] (by decide) rfl (by decide) hc.w
-      ⟨by simp +decide [Env.get, ullParams, ctxEnv], by simp +decide [Env.get, ullParams, ctxEnv], by simp +decide [Env.get, ullParams, ctxEnv], trivial⟩ (hW H s d T hpH) (fun w s1 H1 hp1 hr1 => ?_)
+      ⟨by simp +decide [Env.get, ullParams, ctxEnv], by simp +decide [Env.get, ullParams, ctxEnv], by simp +decide [Env.get, ullParams, ctxEnv], trivial⟩ (hW H s d T hpH hd) (fun w s1 H1 hp1 hr1 => ?_)
     have hq1 := hQw _ _ _ _ _ hq hr1
     refine Knot.specR_tagIteV ullW w 6 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
     swap
@@ -102,11 +102,11 @@ theorem ull_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     by_cases hd2 : d < 2 ^ 62
     swap
     · have hl : ¬ (BitVec.ofNat 64 d < BitVec.ofNat 64 (2 ^ 62)) := by
-        rw [BitVec.lt_def, BitVec.toNat_ofNat, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hd]; norm_num; omega
+        rw [BitVec.lt_def, BitVec.toNat_ofNat, BitVec.toNat_ofNat, Nat.mod_eq_of_lt (show d < 2 ^ 64 by omega)]; norm_num; omega
       exact specR_ifI _ 0 (by simp +decide [sev, Env.get, ullParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; first | exact hl | (rw [Nat.mod_eq_of_lt (show d < 18446744073709551616 by omega)]; omega))
         (fun h => absurd rfl h) (fun _ => specR_hangI)
     have hl : BitVec.ofNat 64 d < BitVec.ofNat 64 (2 ^ 62) := by
-      rw [BitVec.lt_def, BitVec.toNat_ofNat, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hd]; norm_num; omega
+      rw [BitVec.lt_def, BitVec.toNat_ofNat, BitVec.toNat_ofNat, Nat.mod_eq_of_lt (show d < 2 ^ 64 by omega)]; norm_num; omega
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, ullParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; first | exact hl | (rw [Nat.mod_eq_of_lt (show d < 18446744073709551616 by omega)]; omega))
       (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_internFVarR (C := ctxH C H1) ra (ctxOK_H hok H1) hc.fv ullV (vv ullDm) (vv kD) dom d (by omega) (by decide)

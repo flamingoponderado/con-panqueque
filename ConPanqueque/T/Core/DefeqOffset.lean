@@ -258,10 +258,10 @@ theorem of_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     (hiz : C.code.lookup fIz = some ([izE].map (fun p => (p, ShapeHOL.one)), izBody C, .one))
     (hnp : C.code.lookup fNp = some ([npE].map (fun p => (p, ShapeHOL.one)), npBody C, .one))
     (hnl : NlCodes C) (hcd : C.code.lookup fD = some (pmap dParams, dE C, .one))
-    (hD : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → Callee (σ := σ) (ctxH C H) dParams
+    (hD : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) dParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW a, Enc.idxW b] (dE C) s1 ((knot mode C n).defeq d' a b)
       (PostB (ctxH C H)))
-    (s : AState) (d : Nat) (a b : EIdx) :
+    (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) :
     SpecR (σ := σ) (Pre C s (ofParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b])) ofBody s
       (defeqOffset (knot mode C n) d a b) (PostOBH C) := by
   refine specR_prologue (postOBH_locals C) (Knot.params_none C ofLocals ofParams _ (by decide) (by decide)) ?_
@@ -312,7 +312,7 @@ theorem of_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       ⟨by simp [hF], by simp [hDv], by simp [sev, optW, optWG]; exact BitVec.add_sub_cancel _ _,
         by simp [sev, optW, optWG]; exact BitVec.add_sub_cancel _ _, trivial⟩
       (PostB (ctxH C H2)) (fun b w _ _ => w = boolW b) (fun b w s'' st ⟨H'', hp'', hw, hsr⟩ => ⟨H'', hp'', hw, hsr⟩)
-      (fun u hu _ hlk => hD H2 s2 d x y (hp'.trans (hp1.trans hp2)) u hu (fun i hi _ => hlk i (by omega)))
+      (fun u hu _ hlk => hD H2 s2 d x y (hp'.trans (hp1.trans hp2)) hdd u hu (fun i hi _ => hlk i (by omega)))
       (fun ok w s3 H3 hp3 hw => ?_)
     subst hw
     exact specR_returnI _ (LLeq.obW (some ok)) (by simp [sev, obW_some])

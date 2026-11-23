@@ -463,10 +463,10 @@ structure CgCodes (C : Ctx) : Prop where
 
 theorem cg_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) (hc : CgCodes C)
     (gs : Level) (gh : LIdx) (hfl : denoteL C.St.ls gh = some gs)
-    (hIO : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hIO : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferIOE C fIOB) s1 ((knot mode C n).inferIO d' e')
       (PostK (ctxH C H)))
-    (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d' e')
       (PostK (ctxH C H)))
     (rows : List (Nat × EIdx)) (o : Nat) (H0 : List (BitVec 64)) (hp0 : C.H <+: H0)
@@ -512,10 +512,10 @@ theorem cg_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
     simp only [hri] at h1 h2 ⊢
     refine Big.specR_callKC (C := ctxH C H) cgT fIO kParams [vv kFu, vv cgD, vv cgE] (inferIOE C fIOB)
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW dom] (by decide) rfl (by decide) hc.io
-      ⟨by simp +decide [Env.get, cgParams, ctxEnv], by simp, by simp, trivial⟩ (hIO H s d dom (hp0.trans hp)) (fun t s2 H2 hp2 hrun2 => ?_)
+      ⟨by simp +decide [Env.get, cgParams, ctxEnv], by simp, by simp, trivial⟩ (hIO H s d dom (hp0.trans hp) hd63) (fun t s2 H2 hp2 hrun2 => ?_)
     refine Big.specR_callKC (C := ctxH C H2) cgW fW kParams [vv kFu, vv cgD, vv cgT] (whnfE C fWB)
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW t] (by decide) rfl (by decide) hc.w
-      ⟨by simp +decide [Env.get, cgParams, ctxEnv], by simp, by simp, trivial⟩ (hW H2 s2 d t (hp0.trans (hp.trans hp2))) (fun w s3 H3 hp3 hrun3 => ?_)
+      ⟨by simp +decide [Env.get, cgParams, ctxEnv], by simp, by simp, trivial⟩ (hW H2 s2 d t (hp0.trans (hp.trans hp2)) hd63) (fun w s3 H3 hp3 hrun3 => ?_)
     refine Knot.specR_tagIteV cgW w 2 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
     swap
     · rw [if_neg (show ¬ (w.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]

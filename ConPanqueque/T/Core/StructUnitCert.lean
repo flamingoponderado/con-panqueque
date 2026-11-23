@@ -50,10 +50,10 @@ theorem suc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     (hQl : ∀ F s1 d T b s2, Q s1 → unitLikeLoop (knot mode C n) C.fe F d T s1 = .ok (b, s2) → Q s2)
     (hQs : ∀ s1 fu lps us e h s2, Q s1 → instLPFast fu lps us e s1 = .ok (h, s2) → Q s2)
     (hQr : ∀ s1 fu e vs st nn dd h s2, Q s1 → instantiateRevRange fu e vs st nn dd s1 = .ok (h, s2) → Q s2)
-    (hIO : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hIO : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferIOE C fIOB) s1 ((knot mode C n).inferIO d' e')
       (PostK (ctxH C H)))
-    (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d' e')
       (PostK (ctxH C H)))
     (hLE : ∀ (H : List (BitVec 64)) s1 (u v : LIdx), C.H <+: H → (denoteL s1.store.ls u).isSome = true →
@@ -61,10 +61,10 @@ theorem suc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
       SpecR (σ := σ) (Pre (ctxH C H) s1 [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s1 (lvlEq? u v)
         (LLeq.PostOB (ctxH C H)))
     (hQio : ∀ s1 d e r s2, Q s1 → (knot mode C n).inferIO d e s1 = .ok (r, s2) → Q s2)
-    (hD : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → Callee (σ := σ) (ctxH C H) dParams
+    (hD : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) dParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW a, Enc.idxW b] (dE C) s1 ((knot mode C n).defeq d' a b)
       (PostB (ctxH C H))) :
-    ∀ (H : List (BitVec 64)) (s : AState) (d : Nat) (a b : EIdx), C.H <+: H → Q s → d < 2 ^ 64 →
+    ∀ (H : List (BitVec 64)) (s : AState) (d : Nat) (a b : EIdx), C.H <+: H → Q s → d < 2 ^ 63 →
       SpecR (σ := σ) (Pre (ctxH C H) s (sucParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b]))
         sucBody s (structUnitCert (knot mode C n) C.fe d a b) (PostB (ctxH C H)) := by
   intro H s d a b hpH hq hd
@@ -72,11 +72,11 @@ theorem suc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
   unfold structUnitCert
   refine Big.specR_callKC (C := ctxH C H) sucTa fIO kParams [vv kFu, vv kD, vv (ofString "suc_a")] (inferIOE C fIOB)
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a] (by decide) rfl (by decide) hc.io
-    ⟨by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], trivial⟩ (hIO H s d a hpH) (fun ta s1 H1 hp1 hr1 => ?_)
+    ⟨by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], trivial⟩ (hIO H s d a hpH hd) (fun ta s1 H1 hp1 hr1 => ?_)
   have hq1 := hQio _ _ _ _ _ hq hr1
   refine Big.specR_callKC (C := ctxH C H1) sucWa fW kParams [vv kFu, vv kD, vv sucTa] (whnfE C fWB)
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ta] (by decide) rfl (by decide) hc.w
-    ⟨by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], by simp, trivial⟩ (hW H1 s1 d ta (hpH.trans hp1)) (fun wa s2 H2 hp2 hr2 => ?_)
+    ⟨by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], by simp, trivial⟩ (hW H1 s1 d ta (hpH.trans hp1) hd) (fun wa s2 H2 hp2 hr2 => ?_)
   have hq2 := hQw _ _ _ _ _ hq1 hr2
   have hp02 : H <+: H2 := hp1.trans hp2
   refine Knot.specR_tagIteV sucWa wa 6 (by decide) (by decide) (by simp) (fun htga => ?_) (fun htga => ?_)
@@ -98,11 +98,11 @@ theorem suc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
       simp only [↓reduceIte]
       refine Big.specR_callKC (C := ctxH C H4) sucTb fIO kParams [vv kFu, vv kD, vv (ofString "suc_b")] (inferIOE C fIOB)
         [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW b] (by decide) rfl (by decide) hc.io
-        ⟨by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], trivial⟩ (hIO H4 s4 d b (hpH.trans hp04)) (fun tb s5 H5 hp5 _ => ?_)
+        ⟨by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], trivial⟩ (hIO H4 s4 d b (hpH.trans hp04) hd) (fun tb s5 H5 hp5 _ => ?_)
       have hp05 : H <+: H5 := hp04.trans hp5
       refine Big.specR_callKC (C := ctxH C H5) sucWb fW kParams [vv kFu, vv kD, vv sucTb] (whnfE C fWB)
         [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW tb] (by decide) rfl (by decide) hc.w
-        ⟨by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], by simp, trivial⟩ (hW H5 s5 d tb (hpH.trans hp05)) (fun wb s6 H6 hp6 _ => ?_)
+        ⟨by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], by simp, trivial⟩ (hW H5 s5 d tb (hpH.trans hp05) hd) (fun wb s6 H6 hp6 _ => ?_)
       have hp06 : H <+: H6 := hp05.trans hp6
       refine Knot.specR_tagIteV sucWb wb 6 (by decide) (by decide) (by simp) (fun htgb => ?_) (fun htgb => ?_)
       swap
@@ -113,7 +113,7 @@ theorem suc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
           [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW wa, Enc.idxW wb] (by decide) rfl (by decide) hc.d
           ⟨by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], by simp, by simp, trivial⟩
           (PostB (ctxH C H6)) (fun b w' _ _ => w' = boolW b) (fun b w' s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-          (fun u hu _ hlk => hD H6 s6 d wa wb (hpH.trans hp06) u hu (fun i hi _ => hlk i (by omega)))
+          (fun u hu _ hlk => hD H6 s6 d wa wb (hpH.trans hp06) hd u hu (fun i hi _ => hlk i (by omega)))
           (fun r w7 s7 H7 hp7 hw => ?_)
         exact specR_returnI _ w7 (by simp) (fun t ht => ⟨H7, hp06.trans hp7, hw, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
@@ -135,7 +135,7 @@ theorem suc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
           [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW wa, Enc.idxW wb] (by decide) rfl (by decide) hc.d
           ⟨by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], by simp, by simp, trivial⟩
           (PostB (ctxH C H8)) (fun b w' _ _ => w' = boolW b) (fun b w' s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-          (fun u hu _ hlk => hD H8 s8 d wa wb (hpH.trans hp08) u hu (fun i hi _ => hlk i (by omega)))
+          (fun u hu _ hlk => hD H8 s8 d wa wb (hpH.trans hp08) hd u hu (fun i hi _ => hlk i (by omega)))
           (fun r w7 s7 H7 hp7 hw => ?_)
         exact specR_returnI _ w7 (by simp) (fun t ht => ⟨H7, hp08.trans hp7, hw, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
@@ -177,11 +177,11 @@ theorem suc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
       simp only [↓reduceIte]
       refine Big.specR_callKC (C := ctxH C H4) sucTb fIO kParams [vv kFu, vv kD, vv (ofString "suc_b")] (inferIOE C fIOB)
         [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW b] (by decide) rfl (by decide) hc.io
-        ⟨by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], trivial⟩ (hIO H4 s4 d b (hpH.trans hp04)) (fun tb s5 H5 hp5 _ => ?_)
+        ⟨by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], trivial⟩ (hIO H4 s4 d b (hpH.trans hp04) hd) (fun tb s5 H5 hp5 _ => ?_)
       have hp05 : H <+: H5 := hp04.trans hp5
       refine Big.specR_callKC (C := ctxH C H5) sucWb fW kParams [vv kFu, vv kD, vv sucTb] (whnfE C fWB)
         [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW tb] (by decide) rfl (by decide) hc.w
-        ⟨by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], by simp, trivial⟩ (hW H5 s5 d tb (hpH.trans hp05)) (fun wb s6 H6 hp6 _ => ?_)
+        ⟨by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], by simp, trivial⟩ (hW H5 s5 d tb (hpH.trans hp05) hd) (fun wb s6 H6 hp6 _ => ?_)
       have hp06 : H <+: H6 := hp05.trans hp6
       refine Knot.specR_tagIteV sucWb wb 6 (by decide) (by decide) (by simp) (fun htgb => ?_) (fun htgb => ?_)
       swap
@@ -192,7 +192,7 @@ theorem suc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
           [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW wa, Enc.idxW wb] (by decide) rfl (by decide) hc.d
           ⟨by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], by simp, by simp, trivial⟩
           (PostB (ctxH C H6)) (fun b w' _ _ => w' = boolW b) (fun b w' s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-          (fun u hu _ hlk => hD H6 s6 d wa wb (hpH.trans hp06) u hu (fun i hi _ => hlk i (by omega)))
+          (fun u hu _ hlk => hD H6 s6 d wa wb (hpH.trans hp06) hd u hu (fun i hi _ => hlk i (by omega)))
           (fun r w7 s7 H7 hp7 hw => ?_)
         exact specR_returnI _ w7 (by simp) (fun t ht => ⟨H7, hp06.trans hp7, hw, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
@@ -214,7 +214,7 @@ theorem suc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
           [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW wa, Enc.idxW wb] (by decide) rfl (by decide) hc.d
           ⟨by simp +decide [Env.get, sucParams, ctxEnv], by simp +decide [Env.get, sucParams, ctxEnv], by simp, by simp, trivial⟩
           (PostB (ctxH C H8)) (fun b w' _ _ => w' = boolW b) (fun b w' s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-          (fun u hu _ hlk => hD H8 s8 d wa wb (hpH.trans hp08) u hu (fun i hi _ => hlk i (by omega)))
+          (fun u hu _ hlk => hD H8 s8 d wa wb (hpH.trans hp08) hd u hu (fun i hi _ => hlk i (by omega)))
           (fun r w7 s7 H7 hp7 hw => ?_)
         exact specR_returnI _ w7 (by simp) (fun t ht => ⟨H7, hp08.trans hp7, hw, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 

@@ -576,10 +576,10 @@ structure SoCodes (C : Ctx) : Prop where
 
 theorem so_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C) (hc : SoCodes C)
-    (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d' e')
       (PostK (ctxH C H)))
-    (d : Nat) (args : List EIdx) (og : Nat) (H0 : List (BitVec 64)) (hp0 : C.H <+: H0)
+    (d : Nat) (hd : d < 2 ^ 63) (args : List EIdx) (og : Nat) (H0 : List (BitVec 64)) (hp0 : C.H <+: H0)
     (hga : BlkAt H0 og (args.map Enc.idxW)) (hsz : args.length < 2 ^ 58) :
     ∀ m (ty : EIdx) (acc : List EIdx) (oa i : Nat) (H : List (BitVec 64)) (s : AState), H0 <+: H →
       BlkAt H oa (acc.map Enc.idxW) → acc.length ≤ i → args.length - i = m → i ≤ args.length →
@@ -677,7 +677,7 @@ theorem so_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
           coreWalkFuel 0 acc.length 0 ty CV.coreWalkFuel_lt (by decide) (by omega) (by decide)) (fun ty2 s1 => ?_)
       refine Big.specR_callKC (C := ctxH C H) soW fW kParams [vv kFu, vv kD, vv soO] (whnfE C fWB)
         [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ty2] (by decide) rfl (by decide) hc.w
-        ⟨by simp +decide [Env.get, soParams, ctxEnv], by simp +decide [Env.get, soParams, ctxEnv], by simp, trivial⟩ (hW H s1 d ty2 (hp0.trans hp)) (fun w s2 H2 hp2 _ => ?_)
+        ⟨by simp +decide [Env.get, soParams, ctxEnv], by simp +decide [Env.get, soParams, ctxEnv], by simp, trivial⟩ (hW H s1 d ty2 (hp0.trans hp) hd) (fun w s2 H2 hp2 _ => ?_)
       refine Knot.specR_tagIteV soW w 6 (by decide) (by decide) (by simp) (fun htg2 => ?_) (fun htg2 => ?_)
       swap
       · rw [if_neg (show ¬ (w.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg2)]

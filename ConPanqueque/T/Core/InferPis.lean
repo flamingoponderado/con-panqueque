@@ -1404,10 +1404,10 @@ structure PzCodes (C : Ctx) : Prop where
 
 theorem pz_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C) (hc : PzCodes C)
-    (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferE C fIB) s1 ((knot mode C n).infer d' e')
       (PostK (ctxH C H)))
-    (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d' e')
       (PostK (ctxH C H)))
     (s : AState) (d k : Nat) (t : EIdx) (fvs : List EIdx) (stk : List LIdx) (ofv ost : Nat)
@@ -1437,11 +1437,11 @@ theorem pz_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     (by simp +decide [sev, Env.get, pzParams, ctxEnv]; exact BitVec.ofNat_add_ofNat ..) ?_
   refine Big.specR_callKC (C := ctxH C H) pzB fI kParams [vv kFu, vv pzDk, vv pzO] (inferE C fIB)
     [BitVec.ofNat 64 n, BitVec.ofNat 64 (d + k), Enc.idxW ob] (by decide) rfl (by decide) hc.i
-    ⟨by simp +decide [Env.get, pzParams, ctxEnv], by simp, by simp, trivial⟩ (hI H s1 (d + k) ob hp)
+    ⟨by simp +decide [Env.get, pzParams, ctxEnv], by simp, by simp, trivial⟩ (hI H s1 (d + k) ob hp (by omega))
     (fun bt s2 H2 hp2 _ => ?_)
   refine Big.specR_callKC (C := ctxH C H2) pzH fW kParams [vv kFu, vv pzDk, vv pzB] (whnfE C fWB)
     [BitVec.ofNat 64 n, BitVec.ofNat 64 (d + k), Enc.idxW bt] (by decide) rfl (by decide) hc.w
-    ⟨by simp +decide [Env.get, pzParams, ctxEnv], by simp, by simp, trivial⟩ (hW H2 s2 (d + k) bt (hp.trans hp2))
+    ⟨by simp +decide [Env.get, pzParams, ctxEnv], by simp, by simp, trivial⟩ (hW H2 s2 (d + k) bt (hp.trans hp2) (by omega))
     (fun hh s3 H3 hp3 _ => ?_)
   have hp13 : H <+: H3 := hp2.trans hp3
   refine Knot.specR_tagIteV pzH hh 2 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
@@ -1492,10 +1492,10 @@ structure TqCodes (C : Ctx) : Prop where
 
 theorem tq_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C) (hc : TqCodes C)
-    (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferE C fIB) s1 ((knot mode C n).infer d' e')
       (PostK (ctxH C H)))
-    (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d' e')
       (PostK (ctxH C H)))
     (d : Nat) :
@@ -1573,10 +1573,10 @@ theorem tq_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       (by simp +decide [sev, Env.get, tqParams, ctxEnv]; exact BitVec.ofNat_add_ofNat ..) ?_
     refine Big.specR_callKC (C := ctxH C H) tqA fI kParams [vv kFu, vv tqDk, vv tqO] (inferE C fIB)
       [BitVec.ofNat 64 n, BitVec.ofNat 64 (d + k), Enc.idxW tyo] (by decide) rfl (by decide) hc.pz.i
-      ⟨by simp +decide [Env.get, tqParams, ctxEnv], by simp, by simp, trivial⟩ (hI H s1 (d + k) tyo hp) (fun tty s2 H2 hp2 _ => ?_)
+      ⟨by simp +decide [Env.get, tqParams, ctxEnv], by simp, by simp, trivial⟩ (hI H s1 (d + k) tyo hp (by omega)) (fun tty s2 H2 hp2 _ => ?_)
     refine Big.specR_callKC (C := ctxH C H2) tqH fW kParams [vv kFu, vv tqDk, vv tqA] (whnfE C fWB)
       [BitVec.ofNat 64 n, BitVec.ofNat 64 (d + k), Enc.idxW tty] (by decide) rfl (by decide) hc.pz.w
-      ⟨by simp +decide [Env.get, tqParams, ctxEnv], by simp, by simp, trivial⟩ (hW H2 s2 (d + k) tty (hp.trans hp2)) (fun w s3 H3 hp3 _ => ?_)
+      ⟨by simp +decide [Env.get, tqParams, ctxEnv], by simp, by simp, trivial⟩ (hW H2 s2 (d + k) tty (hp.trans hp2) (by omega)) (fun w s3 H3 hp3 _ => ?_)
     have hp13 : H <+: H3 := hp2.trans hp3
     refine Knot.specR_tagIteV tqH w 2 (by decide) (by decide) (by simp) (fun htg2 => ?_) (fun htg2 => ?_)
     · rw [if_pos (show (w.tag == ETag.sort) = true by simp [htg2, ETag.sort])]

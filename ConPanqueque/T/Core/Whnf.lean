@@ -326,16 +326,16 @@ theorem wb_iter (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx} (hok : CtxOK C)
     (hQwc : ∀ s1 d e a s2, Q s1 → (knot mode C n).whnfCore false d e s1 = .ok (a, s2) → Q s2)
     (hQrn : ∀ s1 d e a s2, Q s1 → reduceNat (knot mode C n) C.fe d e s1 = .ok (a, s2) → Q s2)
     (hQuf : ∀ s1 e a s2, Q s1 → unfoldDefinition C.fe e s1 = .ok (a, s2) → Q s2)
-    (hWC : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ d e, Callee (σ := σ) (ctxH C H) wcParams
+    (hWC : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ d e, d < 2 ^ 63 → Callee (σ := σ) (ctxH C H) wcParams
       [BitVec.ofNat 64 n, boolW false, BitVec.ofNat 64 d, Enc.idxW e] wcE s1
       ((knot mode C n).whnfCore false d e) (PostK (ctxH C H)))
-    (hRN : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ d e,
+    (hRN : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ d e, d < 2 ^ 63 →
       SpecR (σ := σ) (Pre (ctxH C H) s1 (kParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e])) (rdBody C) s1
         (reduceNat (knot mode C n) C.fe d e) (UD.PostO (ctxH C H)))
     (hUF : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ e,
       SpecR (σ := σ) (Pre (ctxH C H) s1 ([UD.uE].zip [Enc.idxW e])) (UD.ufBody C) s1
         (unfoldDefinition C.fe e) (UD.PostO (ctxH C H)))
-    (d : Nat) (e : EIdx) {H : List (BitVec 64)} {s1 : AState} {e' : EIdx} {f : Nat}
+    (d : Nat) (hd : d < 2 ^ 63) (e : EIdx) {H : List (BitVec 64)} {s1 : AState} {e' : EIdx} {f : Nat}
     (hp : C.H <+: H) (hq : Q s1) (hf : f < 2 ^ 63) :
     Step (σ := σ) (Inv (ctxH C H) s1 (contEnv C n d e f e') [] (ctxLocals ++ wbLocals)) wbStep
       (fun t' => ∃ p', wbPts mode C n Q d e p' ∧ p'.m p'.s = whnfLoop (knot mode C n) C.fe d f e' s1 ∧
@@ -358,7 +358,7 @@ theorem wb_iter (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx} (hok : CtxOK C)
     (fun a w s' st => (knot mode C n).whnfCore false d e' s1 = .ok (a, s') ∧ PostK (ctxH C H) a w s' st)
     (fun a w s' _ => w = Enc.idxW a ∧ (knot mode C n).whnfCore false d e' s1 = .ok (a, s'))
     (fun a w s' st ⟨hrun, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hrun⟩, hsr⟩)
-    (fun u hu _ hlk => specR_run (hWC H s1 hp hq d e' u hu (fun i hi _ => hlk i hi)))) (step_post4 (fun e1 w1v s2 H2 hrun1 hp2 hq2' => ?_))
+    (fun u hu _ hlk => specR_run (hWC H s1 hp hq d e' hd u hu (fun i hi _ => hlk i hi)))) (step_post4 (fun e1 w1v s2 H2 hrun1 hp2 hq2' => ?_))
   obtain ⟨hw1, _⟩ := hq2'
   subst hw1
   have hq2 : Q s2 := hQwc s1 d e' e1 s2 hq hrun1
@@ -371,7 +371,7 @@ theorem wb_iter (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx} (hok : CtxOK C)
     (fun o w s' _ => w = optW o ∧ reduceNat (knot mode C n) C.fe d e1 s2 = .ok (o, s'))
     (fun o w s' st ⟨hrun, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hrun⟩, hsr⟩)
     (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu kParams _ rfl hlk)
-      (hRN H2 s2 (hp.trans hp2) hq2 d e1)))) (step_post4 (fun o wrv s3 H3 hrun2 hp3 hq3' => ?_))
+      (hRN H2 s2 (hp.trans hp2) hq2 d e1 hd)))) (step_post4 (fun o wrv s3 H3 hrun2 hp3 hq3' => ?_))
   obtain ⟨hw2, _⟩ := hq3'
   subst hw2
   have hq3 : Q s3 := hQrn s2 d e1 o s3 hq2 hrun2
@@ -471,16 +471,16 @@ theorem wb_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
     (hQwc : ∀ s1 d e a s2, Q s1 → (knot mode C n).whnfCore false d e s1 = .ok (a, s2) → Q s2)
     (hQrn : ∀ s1 d e a s2, Q s1 → reduceNat (knot mode C n) C.fe d e s1 = .ok (a, s2) → Q s2)
     (hQuf : ∀ s1 e a s2, Q s1 → unfoldDefinition C.fe e s1 = .ok (a, s2) → Q s2)
-    (hWC : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ d e, Callee (σ := σ) (ctxH C H) wcParams
+    (hWC : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ d e, d < 2 ^ 63 → Callee (σ := σ) (ctxH C H) wcParams
       [BitVec.ofNat 64 n, boolW false, BitVec.ofNat 64 d, Enc.idxW e] wcE s1
       ((knot mode C n).whnfCore false d e) (PostK (ctxH C H)))
-    (hRN : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ d e,
+    (hRN : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ d e, d < 2 ^ 63 →
       SpecR (σ := σ) (Pre (ctxH C H) s1 (kParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e])) (rdBody C) s1
         (reduceNat (knot mode C n) C.fe d e) (UD.PostO (ctxH C H)))
     (hUF : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ e,
       SpecR (σ := σ) (Pre (ctxH C H) s1 ([UD.uE].zip [Enc.idxW e])) (UD.ufBody C) s1
         (unfoldDefinition C.fe e) (UD.PostO (ctxH C H)))
-    (s : AState) (hs : Q s) (d : Nat) (e : EIdx) :
+    (s : AState) (hs : Q s) (d : Nat) (hd : d < 2 ^ 63) (e : EIdx) :
     SpecR (σ := σ) (Pre C s (kParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e])) wbBody s
       (whnfBody (knot mode C n) C.fe d e) (PostK C) := by
   refine specR_prologue (postK_locals C) (wb_none C _) ?_
@@ -495,7 +495,7 @@ theorem wb_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
     (Or.inl ⟨C.H, s, e, whnfLoopFuel, List.prefix_refl _, hs, hF, rfl⟩) (fun p hp _ => ?_)
   rcases hp with ⟨H, s1, e', f, hpH, hq, hf, rfl⟩ | ⟨H, s1, f, v, hpH, rfl⟩
   · refine ⟨1, by simp [contEnv], fun h => absurd h (by decide), fun _ => ?_⟩
-    exact wb_iter mode n hok hcwc hcrn hcuf Q hQwc hQrn hQuf hWC hRN hUF d e hpH hq hf
+    exact wb_iter mode n hok hcwc hcrn hcuf Q hQwc hQrn hQuf hWC hRN hUF d hd e hpH hq hf
   · refine ⟨0, by simp [doneEnv], fun _ => ?_, fun h => absurd rfl h⟩
     refine specR_returnI _ (Enc.idxW v) (by simp [doneEnv]) (fun t ht => ?_)
     exact ⟨H, hpH, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩

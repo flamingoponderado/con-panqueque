@@ -64,20 +64,20 @@ theorem uf_pre (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxO
 /-- `whnfBody`, given the knot's `whnfCore` and `whnf` entries at every extension of the heap. -/
 theorem wb_body (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx}
     (hok : CtxOK C) (hcwc : C.code.lookup fWC = some (pmap wcParams, wcE, .one)) (hc : WbCodes C)
-    (hWC : ∀ (H : List (BitVec 64)) s1 d e, Callee (σ := σ) (ctxH C H) wcParams
+    (hWC : ∀ (H : List (BitVec 64)) s1 d e, d < 2 ^ 63 → Callee (σ := σ) (ctxH C H) wcParams
       [BitVec.ofNat 64 n, boolW false, BitVec.ofNat 64 d, Enc.idxW e] wcE s1
       ((knot mode C n).whnfCore false d e) (PostK (ctxH C H)))
-    (hW : ∀ (H : List (BitVec 64)) s1 d e, Callee (σ := σ) (ctxH C H) kParams
+    (hW : ∀ (H : List (BitVec 64)) s1 d e, d < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (whnfE C fWB) s1 ((knot mode C n).whnf d e)
       (PostK (ctxH C H)))
-    (s : AState) (d : Nat) (e : EIdx) :
+    (s : AState) (d : Nat) (hd : d < 2 ^ 63) (e : EIdx) :
     SpecR (σ := σ) (Pre C s (kParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e])) WB.wbBody s
       (whnfBody (knot mode C n) C.fe d e) (PostK C) :=
   WB.wb_spec mode n C hok hcwc hc.rn hc.uf.uf (fun _ => True) (fun _ _ _ _ _ _ _ => trivial)
     (fun _ _ _ _ _ _ _ => trivial) (fun _ _ _ _ _ _ => trivial) (fun H s1 _ _ => hWC H s1)
-    (fun H s1 _ _ d e => rd_spec ra mode n (ctxH C H) (ctxOK_H hok H) (bigCodes_H hc.big H) (rdCodes_H hc.rd H)
-      (fun _ => True) (fun _ _ _ _ _ _ _ => trivial) (fun H' s2 _ _ => hW H' s2) s1 trivial d e)
-    (fun H s1 _ _ e => uf_pre ra (ctxOK_H hok H) (ufCodes_H hc.uf H) s1 e) s trivial d e
+    (fun H s1 _ _ d e hd' => rd_spec ra mode n (ctxH C H) (ctxOK_H hok H) (bigCodes_H hc.big H) (rdCodes_H hc.rd H)
+      (fun _ => True) (fun _ _ _ _ _ _ _ => trivial) (fun H' s2 _ _ => hW H' s2) s1 trivial d hd' e)
+    (fun H s1 _ _ e => uf_pre ra (ctxOK_H hok H) (ufCodes_H hc.uf H) s1 e) s trivial d hd e
 
 end
 

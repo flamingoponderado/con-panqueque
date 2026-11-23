@@ -868,13 +868,13 @@ theorem da_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
     (hcie : C.code.lookup fIe = some (ieParams.map (fun p => (p, ShapeHOL.one)), ieBody C, .one))
     (hcd : C.code.lookup fD = some (pmap dParams, dE C, .one))
     (hcde : C.code.lookup fDE = some (pmap dParams, dEE C, .one))
-    (hD : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → Callee (σ := σ) (ctxH C H) dParams
+    (hD : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) dParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW a, Enc.idxW b] (dE C) s1 ((knot mode C n).defeq d' a b)
       (PostB (ctxH C H)))
-    (hDE : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → Callee (σ := σ) (ctxH C H) dParams
+    (hDE : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) dParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW a, Enc.idxW b] (dEE C) s1 ((knot mode C n).defeqE d' a b)
       (PostB (ctxH C H)))
-    (s : AState) (d : Nat) (a ta ty : EIdx) :
+    (s : AState) (d : Nat) (hdd : d < 2 ^ 63) (a ta ty : EIdx) :
     SpecR (σ := σ) (Pre C s (daParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW ta,
       Enc.idxW ty])) daBody s (defeqArg (knot mode C n) d a ta ty) (PostB C) := by
   refine specR_prologue (postB_locals C) (da_none C _) ?_
@@ -892,7 +892,7 @@ theorem da_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ta, Enc.idxW ty] (by decide) rfl (by decide) hcd
       ⟨by simp +decide [Env.get, daParams, ctxEnv], by simp +decide [Env.get, daParams, ctxEnv], by simp +decide [Env.get, daParams, ctxEnv], by simp +decide [Env.get, daParams, ctxEnv], trivial⟩
       (PostB (ctxH C H1)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-      (fun u hu _ hlk => hD H1 s1 d ta ty hp1 u hu (fun i hi _ => hlk i (by omega)))
+      (fun u hu _ hlk => hD H1 s1 d ta ty hp1 hdd u hu (fun i hi _ => hlk i (by omega)))
       (fun q w s2 H2 hp2 hw => ?_)
     subst hw
     exact specR_returnI _ (boolW q) (by simp) (fun t ht => ⟨H2, hp1.trans hp2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
@@ -903,7 +903,7 @@ theorem da_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ta, Enc.idxW ty] (by decide) rfl (by decide) hcde
       ⟨by simp +decide [Env.get, daParams, ctxEnv], by simp +decide [Env.get, daParams, ctxEnv], by simp +decide [Env.get, daParams, ctxEnv], by simp +decide [Env.get, daParams, ctxEnv], trivial⟩
       (PostB (ctxH C H1)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-      (fun u hu _ hlk => hDE H1 s1 d ta ty hp1 u hu (fun i hi _ => hlk i (by omega)))
+      (fun u hu _ hlk => hDE H1 s1 d ta ty hp1 hdd u hu (fun i hi _ => hlk i (by omega)))
       (fun q w s2 H2 hp2 hw => ?_)
     subst hw
     exact specR_returnI _ (boolW q) (by simp) (fun t ht => ⟨H2, hp1.trans hp2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
@@ -926,19 +926,19 @@ structure SpCodes (C : Ctx) : Prop where
 
 theorem sp_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C) (hc : SpCodes C)
-    (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferE C fIB) s1 ((knot mode C n).infer d' e')
       (PostK (ctxH C H)))
-    (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+    (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d' e')
       (PostK (ctxH C H)))
-    (hD : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → Callee (σ := σ) (ctxH C H) dParams
+    (hD : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) dParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW a, Enc.idxW b] (dE C) s1 ((knot mode C n).defeq d' a b)
       (PostB (ctxH C H)))
-    (hDE : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → Callee (σ := σ) (ctxH C H) dParams
+    (hDE : ∀ (H : List (BitVec 64)) s1 d' a b, C.H <+: H → d' < 2 ^ 63 → Callee (σ := σ) (ctxH C H) dParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW a, Enc.idxW b] (dEE C) s1 ((knot mode C n).defeqE d' a b)
       (PostB (ctxH C H)))
-    (d : Nat) (args : List EIdx) (og : Nat) (H0 : List (BitVec 64)) (hp0 : C.H <+: H0)
+    (d : Nat) (hdd : d < 2 ^ 63) (args : List EIdx) (og : Nat) (H0 : List (BitVec 64)) (hp0 : C.H <+: H0)
     (hga : BlkAt H0 og (args.map Enc.idxW)) (hsz : args.length < 2 ^ 58) :
     ∀ m (ty : EIdx) (acc : List EIdx) (oa i : Nat) (H : List (BitVec 64)) (s : AState), H0 <+: H →
       BlkAt H oa (acc.map Enc.idxW) → acc.length ≤ i → args.length - i = m → i ≤ args.length →
@@ -1015,15 +1015,15 @@ theorem sp_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
           coreWalkFuel 0 acc.length 0 dom CV.coreWalkFuel_lt (by decide) (by omega) (by decide)) (fun dom2 s1 => ?_)
       refine Big.specR_callKC (C := ctxH C H) spTa fI kParams [vv kFu, vv kD, vv spX] (inferE C fIB)
         [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW args[i]] (by decide) rfl (by decide) hc.i
-        ⟨by simp +decide [Env.get, spParams, ctxEnv], by simp +decide [Env.get, spParams, ctxEnv], by simp, trivial⟩ (hI H s1 d args[i] (hp0.trans hp)) (fun ta s2 H2 hp2 _ => ?_)
+        ⟨by simp +decide [Env.get, spParams, ctxEnv], by simp +decide [Env.get, spParams, ctxEnv], by simp, trivial⟩ (hI H s1 d args[i] (hp0.trans hp) hdd) (fun ta s2 H2 hp2 _ => ?_)
       refine specR_callNIH (C := ctxH C H2) spQ fDa daParams [vv kFu, vv kD, vv spX, vv spTa, vv spO] daBody
         [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW args[i], Enc.idxW ta, Enc.idxW dom2] (by decide) rfl
         (by decide) hc.da ⟨by simp +decide [Env.get, spParams, ctxEnv], by simp +decide [Env.get, spParams, ctxEnv], by simp, by simp, by simp, trivial⟩
         (PostB (ctxH C H2)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
         (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu daParams _ rfl hlk)
           (da_spec mode n (ctxH C H2) (ctxOK_H hok H2) hc.ie hc.d hc.de
-            (fun H' s1 d' a b hp' => hD H' s1 d' a b ((hp0.trans (hp.trans hp2)).trans hp'))
-            (fun H' s1 d' a b hp' => hDE H' s1 d' a b ((hp0.trans (hp.trans hp2)).trans hp')) s2 d args[i] ta dom2))
+            (fun H' s1 d' a b hp' hd' => hD H' s1 d' a b ((hp0.trans (hp.trans hp2)).trans hp') hd')
+            (fun H' s1 d' a b hp' hd' => hDE H' s1 d' a b ((hp0.trans (hp.trans hp2)).trans hp') hd') s2 d hdd args[i] ta dom2))
         (fun q w s3 H3 hp3 hw => ?_)
       subst hw
       cases q
@@ -1071,7 +1071,7 @@ theorem sp_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
           coreWalkFuel 0 acc.length 0 ty CV.coreWalkFuel_lt (by decide) (by omega) (by decide)) (fun ty2 s1 => ?_)
       refine Big.specR_callKC (C := ctxH C H) spW fW kParams [vv kFu, vv kD, vv spO] (whnfE C fWB)
         [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ty2] (by decide) rfl (by decide) hc.w
-        ⟨by simp +decide [Env.get, spParams, ctxEnv], by simp +decide [Env.get, spParams, ctxEnv], by simp, trivial⟩ (hW H s1 d ty2 (hp0.trans hp)) (fun w s2 H2 hp2 _ => ?_)
+        ⟨by simp +decide [Env.get, spParams, ctxEnv], by simp +decide [Env.get, spParams, ctxEnv], by simp, trivial⟩ (hW H s1 d ty2 (hp0.trans hp) hdd) (fun w s2 H2 hp2 _ => ?_)
       refine Knot.specR_tagIteV spW w 6 (by decide) (by decide) (by simp) (fun htg2 => ?_) (fun htg2 => ?_)
       swap
       · rw [if_neg (show ¬ (w.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg2)]
@@ -1093,15 +1093,15 @@ theorem sp_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       refine specR_dropM ?_
       refine Big.specR_callKC (C := ctxH C H2) spTa fI kParams [vv kFu, vv kD, vv spX] (inferE C fIB)
         [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW args[i]] (by decide) rfl (by decide) hc.i
-        ⟨by simp +decide [Env.get, spParams, ctxEnv], by simp +decide [Env.get, spParams, ctxEnv], by simp, trivial⟩ (hI H2 s2 d args[i] (hp0.trans (hp.trans hp2))) (fun ta s3 H3 hp3 _ => ?_)
+        ⟨by simp +decide [Env.get, spParams, ctxEnv], by simp +decide [Env.get, spParams, ctxEnv], by simp, trivial⟩ (hI H2 s2 d args[i] (hp0.trans (hp.trans hp2)) hdd) (fun ta s3 H3 hp3 _ => ?_)
       refine specR_callNIH (C := ctxH C H3) spQ fDa daParams [vv kFu, vv kD, vv spX, vv spTa, vv spDm] daBody
         [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW args[i], Enc.idxW ta, Enc.idxW dom] (by decide) rfl
         (by decide) hc.da ⟨by simp +decide [Env.get, spParams, ctxEnv], by simp +decide [Env.get, spParams, ctxEnv], by simp, by simp, by simp, trivial⟩
         (PostB (ctxH C H3)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
         (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu daParams _ rfl hlk)
           (da_spec mode n (ctxH C H3) (ctxOK_H hok H3) hc.ie hc.d hc.de
-            (fun H' s1 d' a b hp' => hD H' s1 d' a b ((hp0.trans (hp.trans (hp2.trans hp3))).trans hp'))
-            (fun H' s1 d' a b hp' => hDE H' s1 d' a b ((hp0.trans (hp.trans (hp2.trans hp3))).trans hp')) s3 d args[i] ta dom))
+            (fun H' s1 d' a b hp' hd' => hD H' s1 d' a b ((hp0.trans (hp.trans (hp2.trans hp3))).trans hp') hd')
+            (fun H' s1 d' a b hp' hd' => hDE H' s1 d' a b ((hp0.trans (hp.trans (hp2.trans hp3))).trans hp') hd') s3 d hdd args[i] ta dom))
         (fun q w s4 H4 hp4 hw => ?_)
       subst hw
       cases q
