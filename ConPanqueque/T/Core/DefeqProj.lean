@@ -1384,6 +1384,87 @@ theorem lpr_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
       exact specR_returnI _ (boolW vv_) (by simp) (fun t ht => ⟨H11, hb11, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 
+
+theorem dj_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
+    (hcl : C.code.lookup fLpr = some (lprParams.map (fun p => (p, ShapeHOL.one)), lprBody mode.verifiedChecks C, .one))
+    (Q : AState → Prop) (d : Nat)
+    (hLP : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ sn i a b, i < 2 ^ 64 →
+      SpecR (σ := σ) (Pre (ctxH C H) s1 (lprParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW sn,
+        BitVec.ofNat 64 i, BitVec.ofNat 64 defeqLoopFuel, Enc.idxW a, Enc.idxW b])) (lprBody mode.verifiedChecks C) s1
+        (lazyDeltaProjReduction mode (knot mode C n) C.fe d sn i defeqLoopFuel a b) (PostB (ctxH C H)))
+    (s : AState) (hq : Q s) (a b : EIdx) :
+    SpecR (σ := σ) (Pre C s (djParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b]))
+      (djBody mode.verifiedChecks C) s (defeqProjPair mode (knot mode C n) C.fe d a b) (PostB C) := by
+  refine specR_prologue (postB_locals C) (Knot.params_none C djLocals djParams _ (by decide) (by decide)) ?_
+  unfold defeqProjPair
+  have ret0 : ∀ {Γ : Env} {M : Mem} {D : List MlS},
+      SpecR (σ := σ) (Inv C s Γ M D) (.return (.const 0)) s (pure false) (PostB C) := fun {Γ M D} =>
+    specR_returnI _ 0 rfl (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  refine Knot.specR_tagIteV djA a 9 (by decide) (by decide) (by simp +decide [Env.get, djParams, ctxEnv])
+    (fun hA => ?_) (fun hA => ?_)
+  swap
+  · rw [if_neg (by simp only [Bool.and_eq_true, beq_iff_eq]; exact fun h => hA (by rw [h.1]; rfl))]
+    exact ret0
+  refine Knot.specR_tagIteV djB b 9 (by decide) (by decide) (by simp +decide [Env.get, djParams, ctxEnv])
+    (fun hB => ?_) (fun hB => ?_)
+  swap
+  · rw [if_neg (by simp only [Bool.and_eq_true, beq_iff_eq]; exact fun h => hB (by rw [h.2]; rfl))]
+    exact ret0
+  rw [if_pos (by simp only [Bool.and_eq_true, beq_iff_eq]; exact ⟨by rw [hA]; rfl, by rw [hB]; rfl⟩)]
+  refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
+  refine specR_assignI lDh (vv djA) (Enc.idxW a) (by decide) (by simp +decide [Env.get, djParams, ctxEnv]) ?_
+  refine specR_viewP a (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
+    (fun va P hv htn hl => ?_)
+  refine specR_congr (Big.view_bind_eq a va _ s hv) ?_
+  have h9 : va.tagN = 9 := by rw [htn, hA]; rfl
+  obtain ⟨sn1, i1, e1, rfl⟩ : ∃ sn i e, va = .proj sn i e := by cases va <;> simp [ENodeView.tagN] at h9 ⊢
+  refine specR_projReadI djN1 djP1 djI1 sn1 i1 e1 P (by decide) (by decide) (by decide) (by decide) (by decide)
+    (by decide) (by decide) (by decide) (by simp) (by simp) hl (fun hi1 => ?_)
+  refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
+  refine specR_assignI lDh (vv djB) (Enc.idxW b) (by decide) (by simp +decide [Env.get, djParams, ctxEnv]) ?_
+  refine specR_viewP b (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
+    (fun vb P2 hv htn hl => ?_)
+  refine specR_congr (Big.view_bind_eq b vb _ s hv) ?_
+  have h9 : vb.tagN = 9 := by rw [htn, hB]; rfl
+  obtain ⟨sn2, i2, e2, rfl⟩ : ∃ sn i e, vb = .proj sn i e := by cases vb <;> simp [ENodeView.tagN] at h9 ⊢
+  refine specR_projReadI djN2 djP2 djI2 sn2 i2 e2 P2 (by decide) (by decide) (by decide) (by decide) (by decide)
+    (by decide) (by decide) (by decide) (by simp) (by simp) hl (fun hi2 => ?_)
+
+  dsimp only
+  by_cases hs : sn1 = sn2
+  · by_cases hii : i1 = i2
+    · subst hs hii
+      refine specR_ifI _ 1 (by simp +decide [sev, Env.get, djParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+        (fun h => absurd h (by decide))
+      simp only [beq_self_eq_true, Bool.and_self, ↓reduceIte]
+      refine specR_congr (m' := lazyDeltaProjReduction mode (knot mode C n) C.fe d sn1 i1 defeqLoopFuel e1 e2 >>=
+        fun r => pure r) (by simp) ?_
+      refine specR_callNIH (C := C) djR fLpr lprParams [vv kFu, vv kD, vv djN1, vv djI1,
+        .const (BitVec.ofNat 64 defeqLoopFuel), vv djP1, vv djP2] (lprBody mode.verifiedChecks C)
+        [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW sn1, BitVec.ofNat 64 i1, BitVec.ofNat 64 defeqLoopFuel,
+          Enc.idxW e1, Enc.idxW e2] (by decide) rfl (by decide) hcl
+        ⟨by simp +decide [Env.get, djParams, ctxEnv], by simp +decide [Env.get, djParams, ctxEnv], by simp +decide [Env.get, djParams, ctxEnv], by simp +decide [Env.get, djParams, ctxEnv], rfl, by simp +decide [Env.get, djParams, ctxEnv], by simp +decide [Env.get, djParams, ctxEnv], trivial⟩
+        (PostB C) (fun r_ w _ _ => w = boolW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+        (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu lprParams _ rfl hlk)
+          (hLP C.H s (List.prefix_refl _) hq sn1 i1 e1 e2 hi1))
+        (fun rr wr sr' Hr hpr hwr => ?_)
+      subst hwr
+      exact specR_returnI _ (boolW rr) (by simp) (fun t ht => ⟨Hr, hpr, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    · have hw : BitVec.ofNat 64 i1 ≠ BitVec.ofNat 64 i2 := by
+        intro x; apply hii
+        have := congrArg BitVec.toNat x
+        simp only [BitVec.toNat_ofNat] at this
+        rwa [Nat.mod_eq_of_lt hi1, Nat.mod_eq_of_lt hi2] at this
+      refine specR_ifI _ 0 (by simp +decide [sev, Env.get, djParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hw]) (fun h => absurd rfl h)
+        (fun _ => ?_)
+      simp only [show (i1 == i2) = false by simpa using hii, Bool.and_false, Bool.false_eq_true, ↓reduceIte]
+      exact ret0
+  · have hw : Enc.idxW sn1 ≠ Enc.idxW sn2 := fun x => hs (Enc.idxW_inj x)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, djParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hw]) (fun h => absurd rfl h)
+      (fun _ => ?_)
+    simp only [show (sn1 == sn2) = false by simpa using hs, Bool.false_and, Bool.false_eq_true, ↓reduceIte]
+    exact ret0
+
 end
 
 end ConPanqueque.T.WC
