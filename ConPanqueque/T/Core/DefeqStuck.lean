@@ -2461,9 +2461,9 @@ structure DkCodes2 (C : Ctx) : Prop where
   tc : C.code.lookup Str.fTc = some ([(Str.tcH, ShapeHOL.one)], Str.tcBody C, .one)
 
 
-structure DkCodes (C : Ctx) : Prop where
+structure DkCodes (C : Ctx) (v : Bool) : Prop where
   si : C.code.lookup fSi = some (siParams.map (fun p => (p, ShapeHOL.one)), siBody, .one)
-  ec : ∀ v, C.code.lookup fEc = some (ecParams.map (fun p => (p, ShapeHOL.one)), ecBody v C, .one)
+  ec : C.code.lookup fEc = some (ecParams.map (fun p => (p, ShapeHOL.one)), ecBody v C, .one)
 
 def dkBody (C : Ctx) : ProgHOL 64 := prologue dkLocals (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv dkA)) (.seq eViewP (.seq (.assign .local dkPa (vv lRp)) (.seq (.assign .local dkGa (vv lDg)) (.seq (.assign .local dkLa (vv lRn)) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv dkB)) (.seq eViewP (.seq (.assign .local dkPb (vv lRp)) (.seq (.assign .local dkGb (vv lDg)) (.seq (.assign .local dkLb (vv lRn)) (.ite (.cmp .equal (vv dkGa) (.const 8)) (.ite (.cmp .equal (vv dkGb) (.const 4)) (dkLA C) (.ite (.cmp .equal (vv dkGb) (.const 5)) dkEtaB dkSI)) (.ite (.cmp .equal (vv dkGa) (.const 4)) (.ite (.cmp .equal (vv dkGb) (.const 8)) (dkAL C) (.ite (.cmp .equal (vv dkGb) (.const 4)) dkAA (.ite (.cmp .equal (vv dkGb) (.const 5)) dkEtaB dkSI))) (.ite (.cmp .equal (vv dkGa) (.const 1)) (.ite (.cmp .equal (vv dkGb) (.const 1)) dkFv (.ite (.cmp .equal (vv dkGb) (.const 5)) dkEtaB dkSI)) (.ite (.cmp .equal (vv dkGa) (.const 3)) (.ite (.cmp .equal (vv dkGb) (.const 3)) dkCc (.ite (.cmp .equal (vv dkGb) (.const 5)) dkEtaB dkSI)) (.ite (.cmp .equal (vv dkGa) (.const 5)) dkEtaA (.ite (.cmp .equal (vv dkGb) (.const 5)) dkEtaB dkSI))))))))))))))))))
 
@@ -2511,7 +2511,7 @@ end
 
 section
 variable {σ : Type}
-variable (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) (hc : DkCodes C)
+variable (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) (hc : DkCodes C mode.verifiedChecks)
   (hSI : ∀ (H : List (BitVec 64)) s1 d a b, C.H <+: H → SpecR (σ := σ) (Pre (ctxH C H) s1 (siParams.zip
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b])) siBody s1
     (stuckIrrel (knot mode C n) C.fe d a b) (PostB (ctxH C H)))
@@ -2551,7 +2551,7 @@ theorem dk_etaA (d : Nat) (a b ty bd : EIdx) (Hb H : List (BitVec 64)) (hpb : C.
   refine specR_loadI' dkBb _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW bd) (by decide) (by simp [sev, hP]) rfl hm1 ?_
   refine specR_dropM ?_
   refine specR_callNIH (C := ctxH C H) dkE fEc ecParams [vv kFu, vv kD, vv dkT, vv dkBb, vv dkB] (ecBody mode.verifiedChecks C)
-    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ty, Enc.idxW bd, Enc.idxW b] (by decide) rfl (by decide) (hc.ec _)
+    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ty, Enc.idxW bd, Enc.idxW b] (by decide) rfl (by decide) hc.ec
     ⟨by simp [hFu], by simp [hDd], by simp, by simp, by simp [hB], trivial⟩
     (PostB (ctxH C H)) (fun r_ w _ _ => w = boolW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ecParams _ rfl hlk) (hEC H s d ty bd b (hpb.trans hbH)))
@@ -2579,7 +2579,7 @@ theorem dk_etaB (d : Nat) (a b ty bd : EIdx) (Hb H : List (BitVec 64)) (hpb : C.
   refine specR_loadI' dkBb _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW bd) (by decide) (by simp [sev, hP]) rfl hm1 ?_
   refine specR_dropM ?_
   refine specR_callNIH (C := ctxH C H) dkE fEc ecParams [vv kFu, vv kD, vv dkT, vv dkBb, vv dkA] (ecBody mode.verifiedChecks C)
-    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ty, Enc.idxW bd, Enc.idxW a] (by decide) rfl (by decide) (hc.ec _)
+    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ty, Enc.idxW bd, Enc.idxW a] (by decide) rfl (by decide) hc.ec
     ⟨by simp [hFu], by simp [hDd], by simp, by simp, by simp [hA], trivial⟩
     (PostB (ctxH C H)) (fun r_ w _ _ => w = boolW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ecParams _ rfl hlk) (hEC H s d ty bd a (hpb.trans hbH)))
