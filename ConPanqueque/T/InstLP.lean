@@ -964,4 +964,78 @@ theorem sortI_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
 
 end
 
+section
+variable {σ : Type}
+open ConRon.Bridge.ExprOps
+
+theorem constI_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (B : ProgHOL 64)
+    (hc : CodesILP C B) (ko : Nat) (khs : List NIdx) (ks : List ConLeche.Name) (usH : LsIdx)
+    (vsL : List ConLeche.Level) {H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} (h : EIdx) (nm : NIdx)
+    (vsH : LsIdx) (hv : s.store.view h = some (.const nm vsH))
+    (hp : PInv s khs ks usH vsL) (hden : (denoteE s.store h).isSome = true) (hb : BlkAt H ko (khs.map Enc.idxW))
+    (hh : Γ.get pH = some (Enc.idxW h))
+    (hkp : Γ.get pKp = some (cellA C ko)) (hus : Γ.get pUs = some (Enc.idxW usH))
+    (hfle : Γ.get lFle = some C.FLe) (hdir : Γ.get lDir = some C.L.DIR) :
+    SpecR (Inv (σ := σ) (ctxH C H) s Γ M DI) constI s
+      (do let vs' ← substLsMemoAt ks vsL vsH; internRebuiltConst h (vs' == vsH) nm vs') (PostILP (ctxH C H)) := by
+  obtain ⟨ls, hdls⟩ : ∃ ls, denoteLs s.store.lss vsH = some ls := by
+    have hd := hden
+    rw [denoteE_view_eq hp.ok.wf hv] at hd
+    simp only [denoteEView, opt2] at hd
+    split at hd <;> simp_all
+  obtain ⟨uh, hu1, hls⟩ : ∃ uh, s.store.lss.view vsH = some uh ∧ denoteLList s.store.ls uh = some ls := by
+    have := hdls; unfold denoteLs at this; split at this
+    · simp at this
+    · rename_i v hv'; exact ⟨v, hv', this⟩
+  obtain ⟨uh2, hu2, hvs2⟩ : ∃ uh2, s.store.lss.view usH = some uh2 ∧ denoteLList s.store.ls uh2 = some vsL := by
+    have := hp.levels; unfold denoteLs at this; split at this
+    · simp at this
+    · rename_i v hv'; exact ⟨v, hv', this⟩
+  unfold constI viewH
+  refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [hfle]) ?_
+  refine specR_assignI lDh (vv pH) (Enc.idxW h) (by decide) (by simp +decide [hh]) ?_
+  refine specR_congr (m' := ConRon.Arena.view h >>= fun w => match w with
+    | .const nm' vs' => (do let vs'' ← substLsMemoAt ks vsL vs'; internRebuiltConst h (vs'' == vs') nm' vs'')
+    | _ => (do let vs' ← substLsMemoAt ks vsL vsH; internRebuiltConst h (vs' == vsH) nm vs'))
+    (by simp only [bind, StateT.bind]; rw [view_run, hv]; rfl) ?_
+  refine specR_viewIv h (by simp) (by simp +decide [hfle] <;> rfl) (by simp +decide [hdir] <;> rfl) (by decide)
+    (fun w P hv' _ _ => ?_)
+  rw [hv] at hv'; cases hv'
+  simp only
+  refine specR_loadI' lA1 (vv lRp) P (P + BitVec.ofNat 64 0) (Enc.idxW nm) (by decide) (by simp [sev]) (by simp)
+    (by simpa [encEView, Enc.encConst] using wordsAt_mem0 P (Enc.idxW nm) [Enc.idxW vsH] M) ?_
+  refine specR_loadI' lA2 _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW vsH) (by decide) (by simp +decide [sev]) rfl
+    (by simpa [encEView, Enc.encConst] using wordsAt_mem1 P (Enc.idxW nm) (Enc.idxW vsH) [] M) ?_
+  refine specR_callNIH lA3 fSubstLsH slsParams [vv lA2, vv pKp, vv pUs] substLsHBody
+    [Enc.idxW vsH, cellA C ko, Enc.idxW usH] (by decide) rfl (by decide) hc.substLsH
+    ⟨by simp +decide, by simp +decide [hkp], by simp +decide [hus], trivial⟩
+    (PostSLsH (ctxH C H) s ks vsL ls) (fun a w s' H' => w = Enc.idxW a)
+    (fun a w s' st ⟨hw, hsr, _⟩ => ⟨H, List.prefix_refl _, hw, hsr⟩)
+    (fun u0 hu0 _ hlk => fun w hw => by
+      subst hw
+      exact substLsH_spec ra C hok hc.substM hc.neq hc.goM hc.lZero hc.lSucc hc.lMax hc.lImax hc.lParam hc.lv
+        hc.lsGoS hc.internLs s ko khs ks vsH uh usH uh2 vsL ls hp.names hu1 hls hu2 hvs2 hp.cls hp.mls hp.ok.wf H hb _
+        (pre_of_lookups hu0 slsParams _ rfl hlk))
+    (fun vs' w s1 H1 hp1 hw => ?_)
+  subst hw
+  unfold internRebuiltConst
+  by_cases e : vs' = vsH
+  · subst e
+    refine specR_ifI _ 1 (by simp +decide [eqE, sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun hw => absurd hw (by decide))
+    simp only [beq_self_eq_true, ite_true]
+    exact specR_returnI (vv pH) (Enc.idxW h) (by simp +decide [hh])
+      (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  · have hne : Enc.idxW vs' ≠ Enc.idxW vsH := fun x => e (Enc.idxW_inj x)
+    refine specR_ifI _ 0 (by simp +decide [eqE, sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun hw => absurd rfl hw) (fun _ => ?_)
+    have eb : (vs' == vsH) = false := by simp [e]
+    rw [eb]; simp only [Bool.false_eq_true, ite_false]
+    refine specR_congr (m' := internConstE nm vs' >>= fun r => pure r) (by simp) ?_
+    refine callE_spec (C := ctxH C H1) lW fInternConst [lEn, lEus] [vv lA1, vv lA3] constBody
+      [Enc.idxW nm, Enc.idxW vs'] (by decide) rfl (by decide) hc.internConst ⟨by simp +decide, by simp +decide, trivial⟩
+      (const_body_spec ra (ctxH C H1) (ctxOK_H hok H1) s1 nm vs') (fun r s2 => ?_)
+    exact specR_returnI (vv lW) (Enc.idxW r) (by simp)
+      (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+end
+
 end ConPanqueque.T.ILP
