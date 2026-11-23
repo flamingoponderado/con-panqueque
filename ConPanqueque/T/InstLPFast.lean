@@ -87,4 +87,118 @@ theorem specR_memoClearIG {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoK) (cl
 
 end
 
+def fInstLPF := ofString "instLPFast"
+def ilpfLocals : List MlS := inst1Locals ++ [lJ0]
+
+def ilpfBody (C : Ctx) : ProgHOL 64 :=
+  prologue ilpfLocals
+  (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv pH)) (.seq (storeDerived 9 10)
+  (.ite (.cmp .equal (.op .and [vv lDo1, .const 1]) (.const 0)) (.return (vv pH))
+  (clearCode (C.mg (.e .instLP))
+    (.seq (.call (some (some (.local, lW), none)) fInstLP [vv pFu, vv pH, vv pKp, vv pUs])
+      (clearCode (C.mg (.e .instLP)) (.return (vv lW)))))))))
+
+/-- The three per-call memos of `instantiateLevelParams`, cleared. -/
+def clr3 (s : AState) : AState := { s with memos := { s.memos with instLPC := ∅, instLPLC := ∅, instLPLsC := ∅ } }
+
+theorem instLPClear_run (s : AState) : instLPClear s = .ok ((), clr3 s) := rfl
+
+section
+variable {σ : Type}
+open ConRon.Bridge.ExprOps
+
+theorem params_noneILPF (vals : List (BitVec 64)) (C : Ctx) :
+    ∀ x, x ∈ ilpfLocals → (ctxEnv C ++ ilpParams.zip vals).get x = none := by
+  intro x hx
+  have hnot : x ∉ ilpParams := by
+    simp only [ilpfLocals, inst1Locals, List.cons_append, List.nil_append, List.mem_cons, List.not_mem_nil,
+      or_false] at hx
+    rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> decide
+  have hc : (ctxEnv C).get x = none := by
+    simp only [ilpfLocals, inst1Locals, List.cons_append, List.nil_append, List.mem_cons, List.not_mem_nil,
+      or_false] at hx
+    rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> rfl
+  have hz : ∀ (ps : List MlS) (vs : List (BitVec 64)), x ∉ ps → Env.get (ps.zip vs) x = none := by
+    intro ps vs hp
+    induction ps generalizing vs with
+    | nil => rfl
+    | cons p ps ih =>
+      cases vs with
+      | nil => rfl
+      | cons v vs =>
+        simp only [List.mem_cons, not_or] at hp
+        simp only [List.zip_cons_cons, Env.get, hp.1, ite_false]; exact ih vs hp.2
+  have happ : ∀ (A B : Env), A.get x = none → B.get x = none → (A ++ B).get x = none := by
+    intro A B hA hB
+    induction A with
+    | nil => exact hB
+    | cons p A ih =>
+      obtain ⟨y, v⟩ := p
+      simp only [List.cons_append, Env.get] at hA ⊢
+      split at hA
+      · simp at hA
+      · rename_i e; simp only [e, ite_false]; exact ih hA
+  exact happ _ _ hc (hz _ _ hnot)
+
+theorem ilpf_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : CodesILP C (ilpBody C))
+    (fuel : Nat) (hf : fuel < 2 ^ 64) (ko : Nat) (khs : List NIdx) (ks : List ConLeche.Name) (usH : LsIdx)
+    (vsL : List ConLeche.Level) (H : List (BitVec 64)) (s : AState) (h : EIdx)
+    (hks : Frontend.denoteNList s.store.ns khs = some ks) (hus : denoteLs s.store.lss usH = some vsL)
+    (hst : StateOK s) (hcn : ReadNCacheOK s.caches.readNC s.store) (hcl : ReadLCacheOK s.caches.readLC s.store)
+    (hcls : ReadLsCacheOK s.caches.readLsC s.store) (hden : (denoteE s.store h).isSome = true)
+    (hb : BlkAt H ko (khs.map Enc.idxW)) :
+    SpecR (Pre (σ := σ) (ctxH C H) s (ilpParams.zip [BitVec.ofNat 64 fuel, Enc.idxW h, cellA C ko, Enc.idxW usH]))
+      (ilpfBody C) s (instLPFast fuel khs usH h) (PostILP (ctxH C H)) := by
+  refine specR_prologue (postILP_locals _) (params_noneILPF _ _) ?_
+  unfold instLPFast
+  refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [ctxEnv] <;> rfl) ?_
+  refine specR_assignI lDh (vv pH) (Enc.idxW h) (by decide) (by simp +decide [ctxEnv, ilpParams]) ?_
+  refine specR_derivedEI h (by simp +decide) (by simp +decide <;> rfl) (by simp +decide [ctxEnv] <;> rfl)
+    ⟨by decide, by decide, by decide, by decide, by decide⟩ ?_
+  by_cases hlp : ConLeche.lpOfData (s.store.derived h) = false
+  · refine specR_ifI _ 1 (by simp +decide [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact (lp_bit _).mpr hlp) (fun _ => ?_)
+      (fun hw => absurd hw (by decide))
+    simp only [hlp, Bool.not_false, ite_true]
+    exact specR_returnI (vv pH) (Enc.idxW h) (by simp +decide [Env.kill, ctxEnv, ilpParams])
+      (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  have hlp' : ConLeche.lpOfData (s.store.derived h) = true := by simpa using hlp
+  have hne : (s.store.derived h).toBitVec &&& 1 ≠ 0 := fun e => hlp ((lp_bit _).mp e)
+  refine specR_ifI _ 0 (by simp +decide [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne) (fun hw => absurd rfl hw) (fun _ => ?_)
+  simp only [hlp', Bool.not_true, Bool.false_eq_true, ite_false]
+  obtain ⟨c1, e1, ec1, ok1⟩ := readNamesM_eq khs s ks hcn hks
+  obtain ⟨c2, e2, ec2, ok2⟩ := readLevelsM_eq usH (withC s c1) vsL (by rw [ec1]; exact hcls) hus
+  generalize hs3 : clr3 (withC (withC s c1) c2) = s3
+  have hrun : (readNamesM khs >>= fun _ => readLevelsM usH >>= fun _ => instLPClear) s = .ok ((), s3) := by
+    rw [← hs3]; simp only [bind, StateT.bind, Except.bind]; rw [e1]; simp only; rw [e2]; rfl
+  refine specR_congr (m' := (readNamesM khs >>= fun _ => readLevelsM usH >>= fun _ => instLPClear) >>= fun _ =>
+      (do let r ← instLPGo ks vsL fuel h; instLPClear; pure r))
+    (by simp only [bind, StateT.bind, Except.bind]; rw [e1]; simp only; rw [e2]) ?_
+  have hst3 : s3.store = s.store := by rw [← hs3]; rfl
+  refine specR_memoClearIG (C := ctxH C H) (ctxOK_H hok H) .instLP _ hrun hst3
+    (fun k hk => by rw [← hs3]; cases k <;> first | rfl | exact absurd rfl hk) (fun k => by rw [← hs3]; cases k <;> rfl)
+    (by rw [← hs3]; rfl) (by decide) ?_
+  have hp3 : PInv s3 khs ks usH vsL := by
+    rw [← hs3]
+    exact ⟨⟨hst.wf⟩, fun k r hk => by simp [clr3] at hk, fun k r hk => by simp [clr3] at hk, fun k r hk => by simp [clr3] at hk,
+      by simp only [withC]; rw [ec2]; simp only [withC]; rw [ec1]; exact hcl, ok2, hks, hus⟩
+  have hden3 : (denoteE s3.store h).isSome = true := by rw [hst3]; exact hden
+  refine specR_callNIH lW fInstLP ilpParams [vv pFu, vv pH, vv pKp, vv pUs] (ilpBody C)
+    [BitVec.ofNat 64 fuel, Enc.idxW h, cellA C ko, Enc.idxW usH] (by decide) rfl (by decide) hc.ilp
+    ⟨by simp +decide [Env.kill, ctxEnv, ilpParams], by simp +decide [Env.kill, ctxEnv, ilpParams],
+      by simp +decide [Env.kill, ctxEnv, ilpParams] <;> rfl, by simp +decide [Env.kill, ctxEnv, ilpParams], trivial⟩
+    (PostILP (ctxH C H)) (fun a w s' _ => w = Enc.idxW a)
+    (fun a w s' st ⟨H', hpH, hw, hsr⟩ => ⟨H', hpH, hw, hsr⟩)
+    (fun u hu _ hlk => fun w hw => by
+      subst hw
+      exact ilp_spec ra C hok hc ko khs ks usH vsL fuel hf H s3 h hp3 hden3 hb _
+        (pre_of_lookups hu ilpParams _ rfl hlk))
+    (fun r w s4 H4 hp4 hw => ?_)
+  subst hw
+  refine specR_memoClearIG (C := ctxH C H4) (ctxOK_H hok H4) .instLP instLPClear (instLPClear_run s4) rfl
+    (fun k hk => by cases k <;> first | rfl | exact absurd rfl hk) (fun k => by cases k <;> rfl) rfl (by decide) ?_
+  exact specR_returnI (vv lW) (Enc.idxW r) (by simp +decide [Env.kill])
+    (fun t ht => ⟨H4, hp4, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+end
+
 end ConPanqueque.T.ILP

@@ -130,6 +130,7 @@ import ConPanqueque.T.SubstLsH
 import ConPanqueque.T.SubstLsLoop
 import ConPanqueque.T.SubstLsTop
 import ConPanqueque.T.InstLP
+import ConPanqueque.T.InstLPFast
 import ConPanqueque.T.CallN
 import ConPanqueque.V.DerWrite
 import ConPanqueque.LevelFns
