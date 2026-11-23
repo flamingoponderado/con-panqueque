@@ -294,3 +294,4 @@ import ConPanqueque.T.Core.LazyDeltaStep
 import ConPanqueque.T.Core.LazyDelta
 import ConPanqueque.T.Core.DefeqProj
 import ConPanqueque.T.Core.EtaCert
+import ConPanqueque.T.Core.StructEta
