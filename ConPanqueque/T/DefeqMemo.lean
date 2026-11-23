@@ -65,7 +65,7 @@ theorem specR_defeqGetI {β : Type} {C : Ctx} (hok : CtxOK C)
   refine specR_storeKB2I hok ea eb (Enc.idxW a) (Enc.idxW b) hea heb (get_kb_eo hkb) ?_
   exact specR_memoGetGI encEE_inj (C.mG (.m C.side .defeq)) (C.mg (.m C.side .defeq)) s.caches.defeqC (a, b) _ rfl
     (fun u hu => hu.mode.2.1 .defeq) hcodeG hcodeP x (modeD C .defeq) (.const 2) hx (sev_modeD hok _ _) rfl
-    (by simp [encEE]) (fun u hM => words_kb2 hM) hk
+    (by simp [encEE]) (fun u hM => words_kb2 hM) (hk _)
 
 /-- The twin's `defeqSet a b v`, in a caller. -/
 theorem specR_defeqSetI {β : Type} {C : Ctx} (hok : CtxOK C)

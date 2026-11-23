@@ -128,6 +128,9 @@ structure Ctx where
   EB : BitVec 64
   EN : Nat
   EH : List (BitVec 64)
+  /-- The contents of the constant table and of the projection-table table. -/
+  envM : Std.HashMap NIdx (BitVec 64)
+  tblM : Std.HashMap NIdx (BitVec 64)
 
 def gDir := ofString "Gdir"
 def gFln := ofString "Gfln"
@@ -336,19 +339,23 @@ structure EHeapAt (t : PState σ) (EB : BitVec 64) (EN : Nat) (EH : List (BitVec
   val : ∀ i (hi : i < EH.length), t.memory (EB + BitVec.ofNat 64 (8 * i)) = .word EH[i]
   words : ∀ i, i < EN → ∃ w, t.memory (EB + BitVec.ofNat 64 (8 * i)) = .word w
 
+/-- The ghost tables represent the environment: the constant table answers `find?`, the other
+`findTable?`, with blocks in the environment heap. (Static: a `CtxOK` fact.) -/
+def EnvRel (C : Ctx) : Prop :=
+  (∀ n, match C.fe.find? n with
+    | none => C.envM[n]? = none
+    | some ci => ∃ o, C.envM[n]? = some (ecell C o) ∧ CIE C.EB C.EH o ci) ∧
+  (∀ n, match C.fe.findTable? n with
+    | none => C.tblM[n]? = none
+    | some tb => ∃ o, C.tblM[n]? = some (ecell C o) ∧ TblE C.EB C.EH o tb)
+
 /-- The environment `C.fe` in memory: its heap, the constant table (name ↦ the constant's block) and the
 projection-table table (structure name ↦ its table's block, exactly where `findTable?` answers), and the
 literal flags. -/
 def EnvAt (t : PState σ) (C : Ctx) : Prop :=
   EHeapAt t C.EB C.EN C.EH ∧
-  (∃ m : Std.HashMap NIdx (BitVec 64), MemoAtG encNI id t (C.mG .env) (C.mg .env) m ∧
-    ∀ n, match C.fe.find? n with
-      | none => m[n]? = none
-      | some ci => ∃ o, m[n]? = some (ecell C o) ∧ CIE C.EB C.EH o ci) ∧
-  (∃ m : Std.HashMap NIdx (BitVec 64), MemoAtG encNI id t (C.mG .tbl) (C.mg .tbl) m ∧
-    ∀ n, match C.fe.findTable? n with
-      | none => m[n]? = none
-      | some tb => ∃ o, m[n]? = some (ecell C o) ∧ TblE C.EB C.EH o tb) ∧
+  MemoAtG encNI id t (C.mG .env) (C.mg .env) C.envM ∧
+  MemoAtG encNI id t (C.mG .tbl) (C.mg .tbl) C.tblM ∧
   t.globals.lookup gLit = some (.val (.word (litW C.fe)))
 
 theorem envAt_frame {C : Ctx} {t u : PState σ} (h : EnvAt t C)
@@ -359,12 +366,12 @@ theorem envAt_frame {C : Ctx} {t u : PState σ} (h : EnvAt t C)
     (hd : u.memaddrs = t.memaddrs)
     (hg : u.globals.lookup gLit = t.globals.lookup gLit ∧ u.globals.lookup gEt = t.globals.lookup gEt) :
     EnvAt u C := by
-  obtain ⟨hH, ⟨m, hm, hr⟩, ⟨m', hm', hr'⟩, hl⟩ := h
+  obtain ⟨hH, hm, hm', hl⟩ := h
   refine ⟨⟨by rw [hg.2]; exact hH.top, hH.len, hH.lay, fun i hi => by rw [hd]; exact hH.dom i hi,
       fun i hi => by
         have e := hE i (Nat.lt_of_lt_of_le hi hH.len); unfold ecell at e; rw [e]; exact hH.val i hi,
       fun i hi => by have e := hE i hi; unfold ecell at e; rw [e]; exact hH.words i hi⟩,
-    ⟨m, memoAtG_frame hm (hT true) (hTd true) hd, hr⟩, ⟨m', memoAtG_frame hm' (hT false) (hTd false) hd, hr'⟩,
+    memoAtG_frame hm (hT true) (hTd true) hd, memoAtG_frame hm' (hT false) (hTd false) hd,
     by rw [hg.1]; exact hl⟩
 
 structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where

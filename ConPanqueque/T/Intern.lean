@@ -568,6 +568,10 @@ structure CtxOK (C : Ctx) : Prop where
     ecell C i ≠ descAddr C.L k tier + BitVec.ofNat 64 (8 * m)
   mdescEnv : ∀ r i k, i < C.EN → k < 8 → ecell C i ≠ C.mG r + BitVec.ofNat 64 (8 * k)
   heapEnv : ∀ i j, i < C.HN → j < C.EN → C.HB + BitVec.ofNat 64 (8 * i) ≠ ecell C j
+  /-- The ghost environment tables represent `C.fe`. -/
+  envRel : EnvRel C
+  /-- Environment-heap pointers plus one are nonzero (`find?` answers `0` for a miss). -/
+  envLay : C.EB.toNat + 8 * C.EN + 8 < 2 ^ 64
 
 def fInternApp := ofString "internApp"
 

@@ -28,17 +28,20 @@ theorem specR_memoGetGI {β : Type} {C : Ctx} (hinj : ∀ x y, enc x = enc y →
     (x : MlS) (eG eL : ExpHOL 64) (hx : x ∈ D) (heG : sev Γ eG = some G)
     (heL : sev Γ eL = some (BitVec.ofNat 64 (enc key).length)) (hkl : (enc key).length < 2 ^ 61)
     (hW : ∀ u : PState σ, (∀ a v, (a, v) ∈ M → u.memaddrs a ∧ u.memory a = .word v) → Words u C.KB (enc key))
-    (hk : ∀ r, SpecR (Inv C s ((x, optWG valW r) :: Γ) [] D) rest s (k r) R) :
+    (hk : SpecR (Inv C s ((x, optWG valW m[key]?) :: Γ) [] D) rest s (k m[key]?) R) :
     SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, x), none)) fMemoGet [eG, eL]) rest) s (getOp >>= k) R := by
   refine specR_call2IM x fMemoGet pG pLen (by decide) eG eL memoGetBody G
     (BitVec.ofNat 64 (enc key).length) hx hcodeG heG heL
-    (fun a w s' st => s' = s ∧ w = optWG valW a ∧ SR C s st) (fun _ _ _ _ hp => by rw [hp.1]; exact hp.2.2)
-    (fun u hsr hM h1 h2 => ?_) (fun a w s' st hp => by obtain ⟨rfl, rfl, _⟩ := hp; exact hk a)
+    (fun a w s' st => a = m[key]? ∧ s' = s ∧ w = optWG valW a ∧ SR C s st)
+    (fun _ _ _ _ hp => by rw [hp.2.1]; exact hp.2.2.2)
+    (fun u hsr hM h1 h2 => ?_) (fun a w s' st hp => by obtain ⟨rfl, rfl, rfl, _⟩ := hp; exact hk)
   have G' := memoGet_spec (σ := σ) (α := Unit) G C.KB g hinj m key s u (hmem u hsr) (hW u hM) hkl hsr.gkb h1 h2
     (by rw [hsr.code]; exact hcodeP)
-  refine specR_congr hget (specR_mono G' (fun v hv => hv) (fun a w s' st hp => ?_))
-  obtain ⟨hs, hw, hm, hd', hg, hc⟩ := hp
-  exact ⟨hs, hw, sr_of_eq hsr hm hd' hg hc⟩
+  refine specR_congr hget (specR_mono (specR_run G') (fun v hv => hv) (fun a w s' st hp => ?_))
+  obtain ⟨hrun, hs, hw, hm, hd', hg, hc⟩ := hp
+  have ha : a = m[key]? := by
+    simp only [pure, StateT.pure, Except.pure] at hrun; cases hrun; rfl
+  exact ⟨ha, hs, hw, sr_of_eq hsr hm hd' hg hc⟩
 
 theorem specR_memoSetGI {β : Type} {C : Ctx} (hinj : ∀ x y, enc x = enc y → x = y)
     (G : BitVec 64) (g : VGeo) (m : Std.HashMap K V) (key : K) (v : V) (setOp : AM Unit) {s s' : AState}
