@@ -506,4 +506,60 @@ theorem scRet_spec {C0 : Ctx} (hok : CtxOK C0)
 
 end
 
+
+/-- Push `key` onto the list in `x` when `b` (a `0`/`1` word); the node is allocated either way. -/
+def pushP (C : Ctx) (x nd kb kk : MlS) (rest : ProgHOL 64) : ProgHOL 64 :=
+  allocP C nd (.const 16) (.seq (.store (vv nd) (vv kk))
+    (.seq (.store (.op .add [vv nd, .const 8]) (vv x))
+    (.seq (.assign .local x (.op .add [vv x, .panop .mul [vv kb, .op .sub [vv nd, vv x]]])) rest)))
+
+section
+variable {σ : Type}
+
+theorem select_word (b : Bool) (p q : BitVec 64) : p + boolW b * (q - p) = if b then q else p := by
+  cases b
+  · simp [boolW]
+  · simp only [boolW, ite_true]; rw [show (1 : BitVec 64) * (q - p) = q - p from BitVec.one_mul _, BitVec.add_comm, BitVec.sub_add_cancel]
+
+theorem specR_pushI {α : Type} {C0 : Ctx} (hok : CtxOK C0) {H : List (BitVec 64)} {s : AState} {Γ : Env}
+    {D : List MlS} {rest : ProgHOL 64} {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop}
+    (x nd kb kk : MlS) (b : Bool) (key : EIdx) (p : BitVec 64) (xs : List EIdx)
+    (hne : x ≠ nd ∧ kb ≠ nd ∧ kk ≠ nd) (hxD : x ∈ D) (hnD : nd ∈ D)
+    (hx : Γ.get x = some p) (hl : LstAt C0 H p xs) (hb : Γ.get kb = some (boolW b))
+    (hk : Γ.get kk = some (Enc.idxW key)) (hpre : C0.H <+: H)
+    (hk' : ∀ (H' : List (BitVec 64)) p' w, C0.H <+: H' → H <+: H' → LstAt C0 H' p' (if b then key :: xs else xs) →
+      SpecR (Inv (ctxH C0 H') s ((x, p') :: (nd, w) :: Γ) [] D) rest s m R) :
+    SpecR (Inv (ctxH C0 H) s Γ [] D) (pushP C0 x nd kb kk rest) s m R := by
+  unfold pushP
+  obtain ⟨h1, h2, h3⟩ := hne
+  refine specR_allocI (C := ctxH C0 H) nd (.const 16) 2 (by norm_num) hnD (fun v => by simp [sev])
+    (fun H1 ws hp1 hwl _ => ?_)
+  have hpl := hp1.length_le
+  have hj : H1.length < (ctxH (ctxH C0 H) (H1 ++ ws)).H.length := by show _ < (H1 ++ ws).length; simp; omega
+  refine specR_heapStoreI (ctxOK_H hok _) (vv nd) (vv kk) _ hj (Enc.idxW key) (by simp; rfl)
+    (by simp [h3, h3.symm, hk]) ?_
+  have hj2 : H1.length + 1 < (ctxH (ctxH C0 H) ((H1 ++ ws).set H1.length (Enc.idxW key))).H.length := by
+    show _ < ((H1 ++ ws).set _ _).length; simp; omega
+  refine specR_heapStoreI (ctxOK_H hok _) _ (vv x) _ hj2 p (by simp [sev]; exact cellA_add8 C0 _)
+    (by simp [h1, h1.symm, hx]) ?_
+  let H2 := ((H1 ++ ws).set H1.length (Enc.idxW key)).set (H1.length + 1) p
+  have hpa := prefix_set_ge (List.prefix_append H1 ws) H1.length (Nat.le_refl _) (Enc.idxW key)
+  have hpb : H1 <+: H2 := prefix_set_ge hpa (H1.length + 1) (by omega) p
+  have hHH2 : H <+: H2 := hp1.trans hpb
+  refine specR_assignI x _ (if b then cellA C0 H1.length else p) hxD
+    (by simp [sev, h1, h1.symm, h2, h2.symm, hx, hb]; rw [select_word]; rfl) ?_
+  refine specR_envWeak (Γb := (x, if b then cellA C0 H1.length else p) :: (nd, cellA C0 H1.length) :: Γ)
+    (fun z v hz => hz) ?_
+  refine hk' H2 _ _ (hpre.trans hHH2) hHH2 ?_
+  have hl2 : LstAt C0 H2 p xs := lstAt_mono hHH2 p xs hl
+  cases b
+  · exact hl2
+  · refine ⟨H1.length, p, rfl, ?_, ?_, hl2⟩
+    · show (((H1 ++ ws).set H1.length (Enc.idxW key)).set (H1.length + 1) p)[H1.length]? = _
+      rw [List.getElem?_set_ne (by omega), List.getElem?_set_self (by simp; omega)]
+    · show (((H1 ++ ws).set H1.length (Enc.idxW key)).set (H1.length + 1) p)[H1.length + 1]? = _
+      rw [List.getElem?_set_self (by simp; omega)]
+
+end
+
 end ConPanqueque.T.WC
