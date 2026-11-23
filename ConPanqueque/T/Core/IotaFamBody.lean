@@ -1773,6 +1773,95 @@ theorem fm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
   simp only [↓reduceIte]
   refine specR_ifI _ 0 (by simp [sev, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
     (fun _ => ?_)
+  refine specR_callNIH (C := ctxH C H3) fmE LLeq.fLsGo LLeq.lsParams [vv ioUj, vv fmL, .const 0] LLeq.lsGoBody
+    [Enc.idxW usj, Enc.idxW L, BitVec.ofNat 64 0] (by decide) rfl (by decide) hc.ls
+    ⟨by simp +decide [Env.get, fmParams, ctxEnv], by simp +decide [Env.get], rfl, trivial⟩
+    (fun a w s' st => lvlsEq? usj L s3 = .ok (a, s') ∧ PostOBX (ctxH C H3) a w s' st)
+    (fun a w s' _ => lvlsEq? usj L s3 = .ok (a, s') ∧ w = LLeq.obW a)
+    (fun a w s' st ⟨hrun, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hrun, hw⟩, hsr⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu LLeq.lsParams _ rfl hlk)
+      (hLs H3 s3 L (hp.trans hp13) hq3)))
+    (fun o w s4 H4 hp4 ⟨hr4, hw⟩ => ?_)
+  subst hw
+  have hq4 := hQls s3 L o s4 hq3 hr4
+  have hp14 : H <+: H4 := hp13.trans hp4
+  rcases o with _ | ⟨_ | _⟩
+  · exact specR_ifI _ 1 (by simp [sev, LLeq.obW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => specR_hangI)
+      (fun h => absurd h (by decide))
+  · refine specR_ifI _ 0 (by simp [sev, LLeq.obW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
+      (fun _ => ?_)
+    refine specR_ifI _ 1 (by simp [sev, LLeq.obW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    simp only [liftFueled, pure_bind, Bool.false_eq_true, ↓reduceIte]
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨H4, hp14, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  refine specR_ifI _ 0 (by simp [sev, LLeq.obW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
+    (fun _ => ?_)
+  refine specR_ifI _ 0 (by simp [sev, LLeq.obW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
+    (fun _ => ?_)
+  simp only [liftFueled, pure_bind, ↓reduceIte]
+  refine specR_callNIH (C := ctxH C H4) fmA fFa faParams [vv ioRq, vv fmKs, vv iU, vv fmAg, vv fmRp, vv fmCn] (faBody C)
+    [ecell C qr, ecell C ok, Enc.idxW us, cellA C oA, BitVec.ofNat 64 rP, BitVec.ofNat 64 cnP] (by decide) rfl
+    (by decide) hc.fa
+    ⟨by simp +decide [Env.get, fmParams, ctxEnv] <;> rfl, by simp +decide [Env.get] <;> rfl,
+      by simp +decide [Env.get, fmParams, ctxEnv], by simp +decide [Env.get] <;> rfl, by simp +decide [Env.get],
+      by simp +decide [Env.get], trivial⟩
+    (fun a w s' st => recFireArgs rl cnP cv.levelParams us (sargs.take (mI + 1)) rP s4 = .ok (a, s') ∧
+      PostA (ctxH C H4) a w s' st)
+    (fun a w s' H' => recFireArgs rl cnP cv.levelParams us (sargs.take (mI + 1)) rP s4 = .ok (a, s') ∧
+      ∃ o, w = cellA C o ∧ BlkAt H' o (a.map Enc.idxW))
+    (fun a w s' st ⟨hrun, H', o, hp', hw, hb, hsr⟩ => ⟨H', hp', ⟨hrun, o, hw, hb⟩, hsr⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu faParams _ rfl hlk)
+      (hFa H4 s4 ok oA (hp.trans hp14) hq4 hks (blkAt_mono hb1 (hp2.trans (hp3.trans hp4))))))
+    (fun cmpA w s5 H5 hp5 ⟨hr5, oF, hw, hbF⟩ => ?_)
+  subst hw
+  have hq5 := hQfa s4 cmpA s5 hq4 hr5
+  have hp15 : H <+: H5 := hp14.trans hp5
+  have hbm5 := blkAt_mono hbm hp15
+  obtain ⟨hlo, hlv0⟩ := blkAt_get0 hbm5
+  refine UD.specR_heapLoadI' (C := ctxH C H5) fmML (vv ioMa) om (BitVec.ofNat 64 margs.length)
+    (by show H5[om]? = _; rw [List.getElem?_eq_getElem hlo, hlv0]; simp) (by decide)
+    (by simp +decide [Env.get, fmParams, ctxEnv]; rfl) ?_
+  refine specR_assignI fmT2 _ (if BitVec.ofNat 64 cnP < BitVec.ofNat 64 margs.length then 1#64 else 0#64) (by decide)
+    (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) ?_
+  have htk : (margs.take cnP).length = (if cnP < margs.length then cnP else margs.length) := by
+    simp only [List.length_take, Nat.min_def]; split <;> split <;> omega
+  refine specR_assignI fmMq _ (BitVec.ofNat 64 (margs.take cnP).length) (by decide)
+    (by simp +decide [sev, Env.get]; rw [show min cnP margs.length = (if cnP < margs.length then cnP else margs.length) by simp only [Nat.min_def]; split <;> split <;> omega]; simpa using min_word cnP margs.length (by omega) (by omega)) ?_
+  obtain ⟨hlo2, hlv2⟩ := blkAt_get0 hbF
+  refine UD.specR_heapLoadI' (C := ctxH C H5) fmAl (vv fmA) oF (BitVec.ofNat 64 cmpA.length)
+    (by show H5[oF]? = _; rw [List.getElem?_eq_getElem hlo2, hlv2]; simp) (by decide)
+    (by simp +decide [Env.get]; rfl) ?_
+  refine specR_atEntry fun t ht => ?_
+  have hcz := blk_small0 (ctxOK_H hok H5) ht.sr hbF
+  simp only [List.length_map] at hcz
+  refine specR_callNIH (C := ctxH C H5) fmD fDl dlParams
+    [vv kFu, vv kD, .op .add [vv ioMa, .const 8], vv fmMq, .op .add [vv fmA, .const 8], vv fmAl] dlBody
+    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, cellA C (om + 1), BitVec.ofNat 64 (margs.take cnP).length, cellA C (oF + 1),
+      BitVec.ofNat 64 cmpA.length] (by decide) rfl (by decide) hc.dl.self
+    ⟨by simp +decide [Env.get, fmParams, ctxEnv], by simp +decide [Env.get, fmParams, ctxEnv],
+      by simp +decide [sev, Env.get, fmParams, ctxEnv]; exact cellA_add8 C om, by simp +decide [Env.get],
+      by simp +decide [sev, Env.get]; exact cellA_add8 C oF, by simp +decide [Env.get], trivial⟩
+    (fun a w s' st => defEqList (knot mode C n) C.fe d (margs.take cnP) cmpA s5 = .ok (a, s') ∧
+      PostB (ctxH C H5) a w s' st)
+    (fun a w s' _ => defEqList (knot mode C n) C.fe d (margs.take cnP) cmpA s5 = .ok (a, s') ∧ w = boolW a)
+    (fun a w s' st ⟨hrun, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hrun, hw⟩, hsr⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu dlParams _ rfl hlk)
+      (dl_spec mode n C hc.dl d hD (margs.take cnP) cmpA (om + 1) (oF + 1) H5 s5 (hp.trans hp15)
+        (fun j hj => by have h := hbm5.2 j (by simp at hj ⊢; omega); rw [List.getElem_map] at h; rw [List.getElem_take]; exact h)
+        (fun j hj => by have h := hbF.2 j (by simpa using hj); rw [List.getElem_map] at h; exact h)
+        (by simp; omega) (by omega))))
+    (fun b5 w s6 H6 hp6 ⟨hr6, hw⟩ => ?_)
+  subst hw
+  have hq6 := hQdl s5 _ _ b5 s6 hq5 hr6
+  have hp16 : H <+: H6 := hp15.trans hp6
+  cases b5
+  · simp only [Bool.false_eq_true, ↓reduceIte]
+    refine specR_ifI _ 1 (by simp [sev, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨H6, hp16, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  simp only [↓reduceIte]
+  refine specR_ifI _ 0 (by simp [sev, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
+    (fun _ => ?_)
   sorry
 
 end
