@@ -53,6 +53,33 @@ theorem sr_lpDen {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) :
 
 theorem sr_tyDen {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) :
     ∀ c ci, C.fe.find? c = some ci → (denoteE s.store ci.toConstantVal.type).isSome = true :=
-  fun c ci hc => (h.envd c ci hc).2
+  fun c ci hc => (h.envd c ci hc).2.1
+
+theorem sr_lpLen {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) :
+    ∀ c ci, C.fe.find? c = some ci → ci.toConstantVal.levelParams.length + 1 < 2 ^ 60 :=
+  fun c ci hc => (h.envd c ci hc).2.2.1
+
+theorem sr_lpLen' {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) :
+    ∀ c ci, C.fe.find? c = some ci → ci.toConstantVal.levelParams.length < 2 ^ 60 :=
+  fun c ci hc => by have := sr_lpLen h c ci hc; omega
+
+theorem sr_defnDen {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) :
+    ∀ c cv v hint, C.fe.find? c = some (.defnInfo cv v hint) → (denoteE s.store v).isSome = true :=
+  fun c cv v hint hc => (h.envd c _ hc).2.2.2 cv v hint rfl
+
+/-- `unfoldDefinition`'s environment precondition, from the state relation. -/
+theorem sr_ufPre {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) :
+    ∀ hh n us cv value hint, s.store.view hh = some (.const n us) →
+      C.fe.find? n = some (.defnInfo cv value hint) → ∃ ks vsL,
+        Frontend.denoteNList s.store.ns cv.levelParams = some ks ∧ denoteLs s.store.lss us = some vsL ∧
+        (denoteE s.store value).isSome = true ∧ cv.levelParams.length + 1 < 2 ^ 60 := by
+  intro hh n us cv value hint hv hf
+  obtain ⟨ks, hks⟩ := sr_lpDen h n _ hf
+  have hl := sr_lpLen h n _ hf
+  simp only [IConstantInfo.toConstantVal] at hks hl
+  obtain ⟨rk, w⟩ := h.twf
+  have hc := w.lschildOK hh _ hv us (by simp [ENodeView.lschildren])
+  obtain ⟨vs, hvs⟩ := Option.isSome_iff_exists.mp (denoteLs_total' (sr_lswf h) hc.1)
+  exact ⟨ks, vs, hks, hvs, sr_defnDen h n cv value hint hf, hl⟩
 
 end ConPanqueque.T

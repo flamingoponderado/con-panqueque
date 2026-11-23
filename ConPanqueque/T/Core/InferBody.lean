@@ -782,7 +782,7 @@ structure IbCodes (C : Ctx) (Bs Bc Bl Bfa Bla Bap Bpr Blt : ProgHOL 64) : Prop w
 theorem ib_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (Bs Bc Bl Bfa Bla Bap Bpr Blt : ProgHOL 64)
     (hc : IbCodes C Bs Bc Bl Bfa Bla Bap Bpr Blt) (s : AState) (d : Nat) (e : EIdx) (hd : d < 2 ^ 64)
     (hSort : ∀ u, SpecR (σ := σ) (Pre C s (ibsParams.zip [Enc.idxW u])) Bs s (ibSortT u) (PostK C))
-    (hConst : ∀ c us, SpecR (σ := σ) (Pre C s (ibcParams.zip [Enc.idxW c, Enc.idxW us])) Bc s (ibConstT C.fe c us)
+    (hConst : ∀ c us, s.store.view e = some (.const c us) → SpecR (σ := σ) (Pre C s (ibcParams.zip [Enc.idxW c, Enc.idxW us])) Bc s (ibConstT C.fe c us)
       (PostK C))
     (hLit : ∀ l, s.store.view e = some (.lit l) →
       SpecR (σ := σ) (Pre C s (iblParams.zip [Enc.idxW e])) Bl s (ibLitT C.fe l) (PostK C))
@@ -876,7 +876,7 @@ theorem ib_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (Bs Bc Bl Bfa Bl
     refine specR_loadI' ibB _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW us) (by decide) (by simp +decide [sev]) rfl
       (by simpa [encEView, Enc.encConst] using wordsAt_mem1 P _ _ [] []) ?_
     exact specR_callKR ibX fIbc ibcParams [vv ibA, vv ibB] Bc [Enc.idxW c, Enc.idxW us] (by decide) rfl (by decide) hc.c
-      ⟨by simp, by simp, trivial⟩ (hConst c us)
+      ⟨by simp, by simp, trivial⟩ (hConst c us hv)
   · -- app
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp [sev, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)

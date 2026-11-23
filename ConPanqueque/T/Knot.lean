@@ -542,6 +542,8 @@ structure KBodies where
   io : Ctx → ProgHOL 64
   inv_saved : ∀ C sv, wc { C with saved := sv } = wc C ∧ w { C with saved := sv } = w C ∧
     i { C with saved := sv } = i C ∧ d { C with saved := sv } = d C ∧ io { C with saved := sv } = io C
+  inv_H : ∀ C H, wc (ctxH C H) = wc C ∧ w (ctxH C H) = w C ∧ i (ctxH C H) = i C ∧ d (ctxH C H) = d C ∧
+    io (ctxH C H) = io C
 
 def wcE : ProgHOL 64 := prologue kLocals (fuelCheck (whnfCoreCore fWCB))
 def dE (C : Ctx) : ProgHOL 64 := prologue kLocals (fuelCheck (defeqCore C fDB))
@@ -569,6 +571,12 @@ structure KCodes (C : Ctx) (Bs : KBodies) : Prop where
 theorem kcodes_saved {C : Ctx} {Bs : KBodies} (hc : KCodes C Bs) (sv : Option ModeMemos) :
     KCodes { C with saved := sv } Bs := by
   obtain ⟨e1, e2, e3, e4, e5⟩ := Bs.inv_saved C sv
+  exact ⟨hc.g, hc.p, hc.s, hc.i, hc.ewc, hc.ew, hc.ei, hc.ed, hc.ede, hc.eio,
+    by rw [e1]; exact hc.bwc, by rw [e2]; exact hc.bw, by rw [e3]; exact hc.bi, by rw [e4]; exact hc.bd,
+    by rw [e5]; exact hc.bio⟩
+
+theorem kcodes_H {C : Ctx} {Bs : KBodies} (hc : KCodes C Bs) (H : List (BitVec 64)) : KCodes (ctxH C H) Bs := by
+  obtain ⟨e1, e2, e3, e4, e5⟩ := Bs.inv_H C H
   exact ⟨hc.g, hc.p, hc.s, hc.i, hc.ewc, hc.ew, hc.ei, hc.ed, hc.ede, hc.eio,
     by rw [e1]; exact hc.bwc, by rw [e2]; exact hc.bw, by rw [e3]; exact hc.bi, by rw [e4]; exact hc.bd,
     by rw [e5]; exact hc.bio⟩
@@ -706,6 +714,19 @@ theorem knot_all (mode : ConLeche.CheckMode) (TI : Ctx → AState → Prop) (Bs 
           · exact h1
           · exact h2
           · exact h3))
+
+
+/-- A spec that assumes facts about the twin state holds wherever the facts follow from the state relation. -/
+theorem specR_pre_facts {C : Ctx} {s : AState} {Γ : Env} {B : ProgHOL 64} {α : Type} {m : AM α}
+    {R : α → BitVec 64 → AState → PState σ → Prop} {F : Prop} (hF : ∀ t : PState σ, SR C s t → F)
+    (h : F → SpecR (Pre C s Γ) B s m R) : SpecR (Pre C s Γ) B s m R :=
+  fun t ht => h (hF t ht.1) t ht
+
+/-- The same for a callee-form spec. -/
+theorem callee_facts {C : Ctx} {ps : List MlS} {vs : List (BitVec 64)} {B : ProgHOL 64} {s : AState} {α : Type}
+    {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop} {F : Prop} (hF : ∀ t : PState σ, SR C s t → F)
+    (h : F → Callee C ps vs B s m R) : Callee C ps vs B s m R :=
+  fun u hu hlk => h (hF u hu) u hu hlk
 
 end
 
