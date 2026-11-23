@@ -300,3 +300,4 @@ import ConPanqueque.T.Core.StructEtaArms
 import ConPanqueque.T.Core.StuckIrrel
 import ConPanqueque.T.Core.DefeqStuck
 import ConPanqueque.T.Core.DefeqLazy
+import ConPanqueque.T.Core.DefeqBody
