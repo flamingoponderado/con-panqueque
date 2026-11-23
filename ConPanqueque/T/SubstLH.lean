@@ -314,7 +314,7 @@ theorem substLH_core (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
       (internLevel (ConLeche.Level.subst ks vs l))
       (fun h w' s'' st => ∃ H', H <+: H' ∧ w' = Enc.idxW h ∧ SR (ctxH C H') s'' st ∧ StoreWF s''.store ∧
         (∃ ls', s'' = { s with store := withL s.store ls' } ∧ LGrow s.store.ls ls') ∧
-        ∃ f, denoteLAux s''.store.ls f h = some (ConLeche.Level.subst ks vs l)) := by
+        (∃ f, denoteLAux s''.store.ls f h = some (ConLeche.Level.subst ks vs l)) ∧ Ext s.store s''.store) := by
   refine specR_congr (m' := pure (ConLeche.Level.subst ks vs l) >>= fun t => internLevel t >>= fun h => pure h)
     (by simp only [pure_bind, bind_pure]) ?_
   refine specR_prologue (fun _ _ _ _ _ ⟨H', a, b, c, d⟩ => ⟨H', a, b, sr_of_eq c rfl rfl rfl rfl, d⟩)
@@ -327,8 +327,9 @@ theorem substLH_core (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
     (fun H1 c1 hp1 hc1 => ?_)
   refine callIL (C := ctxH C H1) lW (vv lA1) internLvBody c1 _ (by decide) hcV (by simp)
     (internLv_spec ra C hok hcZ hcSu hcMx hcIm hcP hcV _ H1 c1 s hwf hc1) (fun h s'' hr wf g d => ?_)
+  obtain ⟨-, x2, -, -, -, -, -, -, -⟩ := AM.of_run (P := fun t => t = s) rfl hr (internLevel_spec s _ hwf)
   exact specR_returnI (vv lW) (Enc.idxW h) (by simp) (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl,
-    wf, g, d⟩)
+    wf, g, d, x2⟩)
 
 /-- A twin step that changes only caches the state relation does not see, with no port effect. -/
 theorem specR_quiet {α β : Type} {C : Ctx} {s s' : AState} {Γ : Env} {M : Mem} {D : List MlS} {c : ProgHOL 64}
