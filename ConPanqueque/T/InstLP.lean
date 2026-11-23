@@ -1,6 +1,7 @@
 import ConPanqueque.T.SubstLsTop
 import ConPanqueque.T.EIntern2
 import ConPanqueque.T.Ex.Abstract1
+import ConRon.Bridge.ExprOps.Owed
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena ConRon.Bridge
@@ -148,6 +149,53 @@ theorem WInv.step {s s' : AState} {khs : List NIdx} {ks : List ConLeche.Name} {u
     exact ⟨l, denoteLs_ext h1 hx, denoteLs_ext h2 hx⟩
   names := denoteNList_ext hx.lss.ls.ns khs ks h.names
   levels := denoteLs_ext h.levels hx
+
+end
+
+section
+variable {σ : Type}
+open ConRon.Bridge.ExprOps
+
+/-- The twin-side precondition of the walk: con-ron's invariants for `instLPGo_spec`, and the readbacks of
+the substitution. -/
+structure PInv (s : AState) (khs : List NIdx) (ks : List ConLeche.Name) (usH : LsIdx) (vsL : List ConLeche.Level) :
+    Prop where
+  ok : StateOK s
+  mf : InstLPMemoF ks vsL s
+  ml : InstLPLMemoA ks vsL s
+  mls : InstLPLsMemoA ks vsL s
+  cl : ReadLCacheOK s.caches.readLC s.store
+  cls : ReadLsCacheOK s.caches.readLsC s.store
+  names : Frontend.denoteNList s.store.ns khs = some ks
+  levels : denoteLs s.store.lss usH = some vsL
+
+/-- After a run of the walk the precondition holds again, and the answer reads back. -/
+theorem PInv.after {s s' : AState} {khs : List NIdx} {ks : List ConLeche.Name} {usH : LsIdx}
+    {vsL : List ConLeche.Level} (hp : PInv s khs ks usH vsL) (n : Nat) (h r : EIdx)
+    (hden : (denoteE s.store h).isSome = true) (hrun : instLPGo ks vsL n h s = .ok (r, s')) :
+    PInv s' khs ks usH vsL ∧ (denoteE s'.store r).isSome = true ∧ Ext s.store s'.store ∧
+      (∀ i v, s.store.view i = some v → s'.store.view i = some v) := by
+  obtain ⟨q1, q2, q3, q4, q5, -, q7, q8, -, -, q11, q12⟩ :=
+    AM.of_run (P := fun t => t = s) rfl hrun
+      (instLPGo_spec n ks vsL s h hp.ok hp.mf hp.ml hp.mls hp.cl hp.cls hden)
+  obtain ⟨e, he⟩ := Option.isSome_iff_exists.mp hden
+  refine ⟨⟨q1, q2, q3, q4, q7, q8, denoteNList_ext q5.lss.ls.ns khs ks hp.names, denoteLs_ext hp.levels q5⟩,
+    by rw [q12 e he]; rfl, q5, q11⟩
+
+/-- The walk's post: the answer handle, at some bigger image. -/
+def PostILP (C : Ctx) (r : EIdx) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
+  ∃ H', C.H <+: H' ∧ w = Enc.idxW r ∧ SR (ctxH C H') s' st
+
+theorem postILP_locals (C : Ctx) : ∀ (a : EIdx) w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
+    PostILP C a w s' st → PostILP C a w s' { st with locals := L } :=
+  fun _ _ _ _ _ ⟨H', hp, hw, hs⟩ => ⟨H', hp, hw, sr_of_eq hs rfl rfl rfl rfl⟩
+
+def RecILP (C : Ctx) (B : ProgHOL 64) (ko : Nat) (khs : List NIdx) (ks : List ConLeche.Name) (usH : LsIdx)
+    (vsL : List ConLeche.Level) (n : Nat) : Prop :=
+  ∀ (H : List (BitVec 64)) (s : AState) (h : EIdx), PInv s khs ks usH vsL → (denoteE s.store h).isSome = true →
+    BlkAt H ko (khs.map Enc.idxW) →
+    SpecR (Pre (σ := σ) (ctxH C H) s (ilpParams.zip [BitVec.ofNat 64 n, Enc.idxW h, cellA C ko, Enc.idxW usH])) B s
+      (instLPGo ks vsL n h) (PostILP (ctxH C H))
 
 end
 
