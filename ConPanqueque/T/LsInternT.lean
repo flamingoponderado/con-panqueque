@@ -184,7 +184,7 @@ theorem internLs_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx)
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj e => hok.mdescHeap (envR b) (o + j) k (by omega) hk
           (by rw [cellA_off] at e; unfold cellA at e; exact e.symm)))
         (fun i hi => hm _ (hok.envOut i hi) (fun j hj e => hok.heapEnv (o + j) i (by omega) hi
-          (by rw [cellA_off] at e; unfold cellA at e; exact e.symm))) hd ⟨by rw [hg]; rfl, by rw [hg]; rfl⟩,
+          (by rw [cellA_off] at e; unfold cellA at e; exact e.symm))) hd ⟨by rw [hg]; rfl, by rw [hg]; rfl⟩, ht.sr.pins,
       heapEx_reframe (heapEx_prefix ht.sr.heap hp0)
         (fun i hi => by
           have hi' : i < H0.length := hi

@@ -114,7 +114,7 @@ theorem specR_memoSetNI {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoNK) (set
       (fun b ck kk hkk => hfr _ (hok.mdescMemo (.n mk) (.m b ck) kk hkk)) hd' (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all),
     envAt_frame hsr.env (fun b c hc => hfr c (hok.memoDis (envR b) (.n mk) c (by simp) hc))
       (fun b kk hkk => hfr _ (hok.mdescMemo (.n mk) (envR b) kk hkk))
-      (fun i hi => hfr _ (hok.envMemo (.n mk) i hi)) hd' ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩,
+      (fun i hi => hfr _ (hok.envMemo (.n mk) i hi)) hd' ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, hsr.pins,
     heapEx_frame hsr.heap (fun i hi => hfr _ (hok.heapMemo (.n mk) i hi)) hd' (by rw [hg])⟩⟩
   · show MemoAt _ _ _ (memoSel mk' (memoUpdN mk s.memos _)); rw [memoSel_updN]
     exact memoAt_frame (hsr.memo mk') (fun c hc => hfr c (hok.memoDis (.e mk') (.n mk) c (by simp) hc))

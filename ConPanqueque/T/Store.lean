@@ -2,6 +2,7 @@ import ConPanqueque.T.Call
 import ConPanqueque.V.View
 import ConPanqueque.T.MemoRep
 import ConRon.Arena.Env
+import ConRon.Arena.Pins
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena
@@ -131,6 +132,9 @@ structure Ctx where
   /-- The contents of the constant table and of the projection-table table. -/
   envM : Std.HashMap NIdx (BitVec 64)
   tblM : Std.HashMap NIdx (BitVec 64)
+  /-- The pin table (filled once by the driver) and its block's index in the environment heap. -/
+  pins : Pins
+  PO : Nat
 
 def gDir := ofString "Gdir"
 def gFln := ofString "Gfln"
@@ -349,6 +353,17 @@ def EnvRel (C : Ctx) : Prop :=
     | none => C.tblM[n]? = none
     | some tb => ∃ o, C.tblM[n]? = some (ecell C o) ∧ TblE C.EB C.EH o tb)
 
+/-- The pin table's block at `PO`: the `pinCount` names, then `emptyLevels`, `zeroLevel`, `sortOne`,
+`maxNatSize` and the reserved-name list. (Static: a `CtxOK` fact.) -/
+def PinsE (C : Ctx) : Prop :=
+  C.pins.names.size = pinCount ∧
+  (∀ i (hi : i < C.pins.names.size), C.EH[C.PO + i]? = some (Enc.idxW C.pins.names[i])) ∧
+  C.EH[C.PO + pinCount]? = some (Enc.idxW C.pins.emptyLevels) ∧
+  C.EH[C.PO + pinCount + 1]? = some (Enc.idxW C.pins.zeroLevel) ∧
+  C.EH[C.PO + pinCount + 2]? = some (Enc.idxW C.pins.sortOne) ∧
+  NatE C.EH (C.PO + pinCount + 3) C.pins.maxNatSize ∧
+  ∃ w, C.EH[C.PO + pinCount + 4]? = some w ∧ ENList C.EB C.EH w C.pins.reserved
+
 /-- The environment `C.fe` in memory: its heap, the constant table (name ↦ the constant's block) and the
 projection-table table (structure name ↦ its table's block, exactly where `findTable?` answers), and the
 literal flags. -/
@@ -395,6 +410,8 @@ structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   mode : ModeAt t C s.caches
   /-- The environment. -/
   env : EnvAt t C
+  /-- The pin table is the context's. -/
+  pins : s.pins = C.pins
   /-- The value heap. -/
   heap : HeapEx t C.HB C.HN C.H
 
@@ -409,7 +426,7 @@ theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u
     fun k => cacheAt_frame (h.cache k) (fun _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd,
     modeAt_frame h.mode (fun _ _ _ _ => by rw [hm]) (fun _ _ _ _ => by rw [hm]) hd (by rw [hg]),
     envAt_frame h.env (fun _ _ _ => by rw [hm]) (fun _ _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd
-      ⟨by rw [hg], by rw [hg]⟩,
+      ⟨by rw [hg], by rw [hg]⟩, h.pins,
     heapEx_frame h.heap (fun _ _ => by rw [hm]) hd (by rw [hg])⟩
 
 theorem eval_gv (t : PState σ) (g : MlS) (w : BitVec 64) (h : t.globals.lookup g = some (.val (.word w))) :

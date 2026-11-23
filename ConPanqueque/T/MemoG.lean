@@ -112,7 +112,7 @@ theorem modeAt_setG {C : Ctx} (hok : CtxOK C) {cs cs' : Caches} {t u : PState σ
 /-- Rebuilding `SR` after a write confined to the active side's mode memo `k`. -/
 theorem sr_upd_mode {C : Ctx} (hok : CtxOK C) (k : CacheK) {s s' : AState} {t u : PState σ} (hsr : SR C s t)
     (hfr : ∀ c, ¬ inR (C.mg (.m C.side k)) c → u.memory c = t.memory c) (hd : u.memaddrs = t.memaddrs)
-    (hg : u.globals = t.globals) (hc : u.code = t.code) (hst : s'.store = s.store) (hme : s'.memos = s.memos)
+    (hg : u.globals = t.globals) (hc : u.code = t.code) (hst : s'.store = s.store) (hme : s'.memos = s.memos) (hpn : s'.pins = s.pins)
     (hfix : s'.caches.constTyC = s.caches.constTyC ∧ s'.caches.constValC = s.caches.constValC ∧
       s'.caches.ruleBodyC = s.caches.ruleBodyC)
     (hM : ModeAt u C s'.caches) : SR C s' u := by
@@ -137,7 +137,7 @@ theorem sr_upd_mode {C : Ctx} (hok : CtxOK C) (k : CacheK) {s s' : AState} {t u 
     fun ck => ?_, hM,
     envAt_frame hsr.env (fun b c hc => hfr c (hok.memoDis (envR b) _ c (by simp) hc))
       (fun b kk hkk => hfr _ (hok.mdescMemo _ (envR b) kk hkk)) (fun i hi => hfr _ (hok.envMemo _ i hi)) hd
-      ⟨by rw [hg], by rw [hg]⟩, heapEx_frame hsr.heap (fun i hi => hfr _ (hok.heapMemo _ i hi)) hd (by rw [hg])⟩
+      ⟨by rw [hg], by rw [hg]⟩, (hpn.trans hsr.pins), heapEx_frame hsr.heap (fun i hi => hfr _ (hok.heapMemo _ i hi)) hd (by rw [hg])⟩
   have := cacheAt_frame (hsr.cache ck) (u := u) (fun c hc => hfr c (hok.memoDis (.c ck) _ c (by simp) hc))
     (fun kk hkk => hfr _ (hok.mdescMemo _ (.c ck) kk hkk)) hd
   cases ck <;> simp only [CacheAt] at this ⊢ <;> first | trivial | (rw [e7]; exact this) | (rw [e8]; exact this) |
@@ -146,7 +146,7 @@ theorem sr_upd_mode {C : Ctx} (hok : CtxOK C) (k : CacheK) {s s' : AState} {t u 
 /-- Rebuilding `SR` after a write confined to fixed cache `k`'s region. -/
 theorem sr_upd_fix {C : Ctx} (hok : CtxOK C) (k : CacheK) {s s' : AState} {t u : PState σ} (hsr : SR C s t)
     (hfr : ∀ c, ¬ inR (C.mg (.c k)) c → u.memory c = t.memory c) (hd : u.memaddrs = t.memaddrs)
-    (hg : u.globals = t.globals) (hc : u.code = t.code) (hst : s'.store = s.store) (hme : s'.memos = s.memos)
+    (hg : u.globals = t.globals) (hc : u.code = t.code) (hst : s'.store = s.store) (hme : s'.memos = s.memos) (hpn : s'.pins = s.pins)
     (hk : CacheAt u C s'.caches k)
     (hoth : ∀ k', k' ≠ k → CacheAt t C s'.caches k' = CacheAt t C s.caches k')
     (hmo : s'.caches.modeMemos = s.caches.modeMemos ∧ s'.caches.eagerMemos = s.caches.eagerMemos) :
@@ -175,7 +175,7 @@ theorem sr_upd_fix {C : Ctx} (hok : CtxOK C) (k : CacheK) {s s' : AState} {t u :
       (fun b ck kk hkk => hfr _ (hok.mdescMemo _ (.m b ck) kk hkk)) hd (by rw [hg]),
     envAt_frame hsr.env (fun b c hc => hfr c (hok.memoDis (envR b) _ c (by simp) hc))
       (fun b kk hkk => hfr _ (hok.mdescMemo _ (envR b) kk hkk)) (fun i hi => hfr _ (hok.envMemo _ i hi)) hd
-      ⟨by rw [hg], by rw [hg]⟩,
+      ⟨by rw [hg], by rw [hg]⟩, (hpn.trans hsr.pins),
     heapEx_frame hsr.heap (fun i hi => hfr _ (hok.heapMemo _ i hi)) hd (by rw [hg])⟩
   by_cases e : ck = k
   · subst e; exact hk

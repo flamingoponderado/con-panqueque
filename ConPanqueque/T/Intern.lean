@@ -570,6 +570,7 @@ structure CtxOK (C : Ctx) : Prop where
   heapEnv : ∀ i j, i < C.HN → j < C.EN → C.HB + BitVec.ofNat 64 (8 * i) ≠ ecell C j
   /-- The ghost environment tables represent `C.fe`. -/
   envRel : EnvRel C
+  pinsRel : PinsE C
   /-- Environment-heap pointers plus one are nonzero (`find?` answers `0` for a miss). -/
   envLay : C.EB.toNat + 8 * C.EN + 8 < 2 ^ 64
 
@@ -631,7 +632,7 @@ theorem internApp_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx
       envAt_frame ht.sr.env
         (fun b c hc => hm c (hok.memoOut (envR b) c hc) (fun j hj e => hok.kbMemo (envR b) j (by omega) (e ▸ hc)))
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
-        (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩,
+        (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
         (by rw [hg])⟩
 
@@ -680,7 +681,7 @@ theorem sr_storeKB {C : Ctx} (hok : CtxOK C) {s : AState} {t : PState σ} (h : S
       (fun b mk k hk => hne _ (hok.kbMdesc (.m b mk) k j hk (by omega))) rfl (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all),
       envAt_frame h.env (fun b c hc => hne c (fun e => hok.kbMemo (envR b) j (by omega) (e ▸ hc)))
       (fun b k hk => hne _ (hok.kbMdesc (envR b) k j hk (by omega)))
-        (fun i hi => hne _ (hok.kbEnv i j hi hj)) rfl ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩,
+        (fun i hi => hne _ (hok.kbEnv i j hi hj)) rfl ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, h.pins,
     heapEx_frame h.heap (fun i hi => hne _ (hok.kbHeap i j hi hj)) rfl rfl⟩
   · exact hne _ ((S.fls _ (Or.inr (Or.inl rfl))).2.2 j hj)
   · exact hne _ ((S.fls _ (Or.inr (Or.inr (Or.inl rfl)))).2.2 j hj)
@@ -915,7 +916,7 @@ theorem bin2_body_spec (C : Ctx) (hok : CtxOK C) (E : ExpHOL 64) (k : Nat) (op :
       envAt_frame ht.sr.env
         (fun b c hc => hm c (hok.memoOut (envR b) c hc) (fun j hj e => hok.kbMemo (envR b) j (by omega) (e ▸ hc)))
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
-        (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩,
+        (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
         (by rw [hg])⟩
 
@@ -1038,7 +1039,7 @@ theorem let_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok
       envAt_frame ht.sr.env
         (fun b c hc => hm c (hok.memoOut (envR b) c hc) (fun j hj e => hok.kbMemo (envR b) j (by omega) (e ▸ hc)))
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
-        (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩,
+        (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
         (by rw [hg])⟩
 
@@ -1142,7 +1143,7 @@ theorem bvar_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (ho
       envAt_frame ht.sr.env
         (fun b c hc => hm c (hok.memoOut (envR b) c hc) (fun j hj e => hok.kbMemo (envR b) j (by omega) (e ▸ hc)))
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
-        (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩,
+        (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
         (by rw [hg])⟩
 
@@ -1288,7 +1289,7 @@ theorem proj_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (ho
       envAt_frame ht.sr.env
         (fun b c hc => hm c (hok.memoOut (envR b) c hc) (fun j hj e => hok.kbMemo (envR b) j (by omega) (e ▸ hc)))
         (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
-        (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩,
+        (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩, ht.sr.pins,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
         (by rw [hg])⟩
 

@@ -96,7 +96,7 @@ theorem inst1Clear_run (s : AState) :
 memo is framed; the caller supplies region `r`'s new table. -/
 theorem sr_upd_region {C : Ctx} (hok : CtxOK C) (r : Region) {s s' : AState} {t u : PState σ} (hsr : SR C s t)
     (hfr : ∀ c, ¬ inR (C.mg r) c → u.memory c = t.memory c) (hd : u.memaddrs = t.memaddrs)
-    (hg : u.globals = t.globals) (hc : u.code = t.code) (hst : s'.store = s.store)
+    (hg : u.globals = t.globals) (hc : u.code = t.code) (hst : s'.store = s.store) (hpn : s'.pins = s.pins)
     (hoE : ∀ k, Region.e k ≠ r → memoSel k s'.memos = memoSel k s.memos)
     (hoN : ∀ k, Region.n k ≠ r → memoSelN k s'.memos = memoSelN k s.memos)
     (hsE : ∀ k, Region.e k = r → MemoAt u (C.mG (.e k)) (C.mg (.e k)) (memoSel k s'.memos))
@@ -115,7 +115,7 @@ theorem sr_upd_region {C : Ctx} (hok : CtxOK C) (r : Region) {s s' : AState} {t 
       (fun b k kk hkk => hfr _ (hok.mdescMemo r (.m b k) kk hkk)) hd (by rw [hg]),
     envAt_frame hsr.env (fun b c hc => hfr c (hok.memoDis (envR b) r c (hrE b) hc))
       (fun b kk hkk => hfr _ (hok.mdescMemo r (envR b) kk hkk)) (fun i hi => hfr _ (hok.envMemo r i hi)) hd
-      ⟨by rw [hg], by rw [hg]⟩,
+      ⟨by rw [hg], by rw [hg]⟩, (hpn.trans hsr.pins),
     heapEx_frame hsr.heap (fun i hi => hfr _ (hok.heapMemo r i hi)) hd (by rw [hg])⟩
   · by_cases e : Region.e k = r
     · exact hsE k e
@@ -235,7 +235,7 @@ theorem specR_memoClearI {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoK) (cle
     hs | ⟨t4, he, hmem, hout, hd4, hg4, hc4, hl4, hj4⟩
   · exact Or.inl hs
   have hsr' : SR C { s with memos := memoUpd mk s.memos ∅ } t4 :=
-    sr_upd_region hok (.e mk) ht.sr hout hd4 hg4 hc4 rfl
+    sr_upd_region hok (.e mk) ht.sr hout hd4 hg4 hc4 rfl rfl
       (fun k' e => memoSel_upd_ne mk k' (fun x => e (by rw [x])) _ _)
       (fun k' _ => memoSelN_upd k' mk _ _)
       (fun k' e => by injection e with e; subst e; show MemoAt _ _ _ (memoSel k' (memoUpd k' s.memos ∅)); rw [memoSel_upd_same]; exact hmem)
@@ -262,7 +262,7 @@ theorem specR_memoClearNI {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoNK) (c
     hs | ⟨t4, he, hmem, hout, hd4, hg4, hc4, hl4, hj4⟩
   · exact Or.inl hs
   have hsr' : SR C { s with memos := memoUpdN mk s.memos ∅ } t4 :=
-    sr_upd_region hok (.n mk) ht.sr hout hd4 hg4 hc4 rfl
+    sr_upd_region hok (.n mk) ht.sr hout hd4 hg4 hc4 rfl rfl
       (fun k' _ => memoSel_updN k' mk _ _)
       (fun k' e => memoSelN_upd_ne mk k' (fun x => e (by rw [x])) _ _)
       (fun k' e => by simp at e)

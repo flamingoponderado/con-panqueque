@@ -26,12 +26,12 @@ theorem ctxOK_H {C : Ctx} (hok : CtxOK C) (H : List (BitVec 64)) : CtxOK (ctxH C
 
 theorem sr_weakenH {C : Ctx} {s : AState} {t : PState σ} {H : List (BitVec 64)} (h : SR (ctxH C H) s t)
     (hp : C.H <+: H) : SR C s t :=
-  ⟨h.rep, h.gdir, h.gfln, h.gfll, h.gfls, h.gfle, h.gkb, h.code, h.kbuf, h.memo, h.memoN, h.cache, h.mode, h.env,
+  ⟨h.rep, h.gdir, h.gfln, h.gfll, h.gfls, h.gfle, h.gkb, h.code, h.kbuf, h.memo, h.memoN, h.cache, h.mode, h.env, h.pins,
     let ⟨H', hp', ha⟩ := h.heap; ⟨H', hp.trans hp', ha⟩⟩
 
 theorem sr_exactH {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) (H : List (BitVec 64))
     (ha : HeapAt t C.HB C.HN H) : SR (ctxH C H) s t :=
-  ⟨h.rep, h.gdir, h.gfln, h.gfll, h.gfls, h.gfle, h.gkb, h.code, h.kbuf, h.memo, h.memoN, h.cache, h.mode, h.env, ⟨H, List.prefix_refl _, ha⟩⟩
+  ⟨h.rep, h.gdir, h.gfln, h.gfll, h.gfls, h.gfle, h.gkb, h.code, h.kbuf, h.memo, h.memoN, h.cache, h.mode, h.env, h.pins, ⟨H, List.prefix_refl _, ha⟩⟩
 
 theorem inv_weakenH {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {t : PState σ}
     {H : List (BitVec 64)} (h : Inv (ctxH C H) s Γ M D t) (hp : C.H <+: H) : Inv C s Γ M D t :=
@@ -104,7 +104,7 @@ theorem sr_heapStore {C : Ctx} (hok : CtxOK C) {s : AState} {t : PState σ} (h :
       (fun b ck k hk => hne _ (fun e => hok.mdescHeap (.m b ck) j k hjN hk e.symm)) rfl rfl,
     envAt_frame h.env (fun b c hc => hne c (fun e => hok.heapMemo (envR b) j hjN (e ▸ hc : inR _ (cellA C j))))
       (fun b k hk => hne _ (fun e => hok.mdescHeap (envR b) j k hjN hk e.symm))
-      (fun i hi => hne _ (fun e => hok.heapEnv j i hjN hi e.symm)) rfl ⟨rfl, rfl⟩,
+      (fun i hi => hne _ (fun e => hok.heapEnv j i hjN hi e.symm)) rfl ⟨rfl, rfl⟩, h.pins,
     ⟨H'.set j w, prefix_set hp j hj w, ?_⟩⟩
   refine ⟨by rw [List.length_set]; exact ha.top, by rw [List.length_set]; exact ha.len, ha.lay, ha.dom,
     fun i hi => ?_, fun i hi => ?_⟩
@@ -229,7 +229,7 @@ theorem specR_allocI {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D 
       hsr1.kbuf, fun k => memoAt_of_eq (hsr1.memo k) rfl rfl, fun k => memoAtN_frame (hsr1.memoN k) (fun _ _ => rfl)
         (fun _ _ => rfl) rfl, fun k => cacheAt_frame (hsr1.cache k) (fun _ _ => rfl) (fun _ _ => rfl) rfl,
         modeAt_frame ht.sr.mode (fun _ _ _ _ => rfl) (fun _ _ _ _ => rfl) rfl (hgl _ (by decide)),
-        envAt_frame ht.sr.env (fun _ _ _ => rfl) (fun _ _ _ => rfl) (fun _ _ => rfl) rfl ⟨hgl _ (by decide), hgl _ (by decide)⟩, ⟨H' ++ ws, List.prefix_refl _, hHA⟩⟩, ht1.env, ht1.mem, ht1.decl⟩
+        envAt_frame ht.sr.env (fun _ _ _ => rfl) (fun _ _ _ => rfl) (fun _ _ => rfl) rfl ⟨hgl _ (by decide), hgl _ (by decide)⟩, ht.sr.pins, ⟨H' ++ ws, List.prefix_refl _, hHA⟩⟩, ht1.env, ht1.mem, ht1.decl⟩
   exact hk H' ws hp hws (by omega) t2 hInv
 
 end ConPanqueque.T
