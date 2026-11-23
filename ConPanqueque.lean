@@ -188,3 +188,4 @@ import ConPanqueque.T.Big.NatBin
 import ConPanqueque.T.Big.CmpH
 import ConPanqueque.T.Big.RawNat
 import ConPanqueque.T.Big.ReduceNat
+import ConPanqueque.T.LoopT
