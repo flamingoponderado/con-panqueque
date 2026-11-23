@@ -205,4 +205,203 @@ theorem internLv_arena (X : ProgHOL 64) (C : Ctx) (H : List (BitVec 64)) (s : AS
     (fun w st hp => hp)
   exact ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl, hwf, ⟨s.store.ls, rfl, LGrow.refl _⟩, ⟨f, hd⟩⟩
 
+theorem denoteN_of_aux (ns : NStore) (rk : NIdx → Nat) (h : NWFAt ns rk) (i : NIdx) (f : Nat) (n : ConLeche.Name)
+    (hd : denoteNAux ns f i = some n) : denoteN ns i = some n := by
+  unfold denoteN
+  by_cases hf : f ≤ ns.nodeCount + 1
+  · exact denoteNAux_mono ns f _ i n hf hd
+  · obtain ⟨v, hv⟩ := nview_of_denote ns f i n hd
+    have hr : rk i < ns.nodeCount := by
+      cases hp : i.isPersistent with
+      | true => have := h.rankP i hp (by simp [hv]); simp only [NStore.nodeCount] at *; omega
+      | false => exact h.rankS i hp (by simp [hv])
+    rw [denoteNAux_congr h (rk i + 1) i (ns.nodeCount + 1) f (by omega) (by omega) (by omega)]; exact hd
+
+/-- The heap case up to the view of the block. -/
+theorem internLv_heap {α : Type} (C : Ctx) (hok : CtxOK C) (H : List (BitVec 64)) (s : AState) (l : ConLeche.Level)
+    (o : Nat) {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop} (REST : ProgHOL 64)
+    (hl : LRep C.HB H s.store.ls (C.HB + BitVec.ofNat 64 (8 * o)) l) (hg : H[o]? = some (BitVec.ofNat 64 (ltag l)))
+    (hk : ∀ (Γ1 : Env) (M1 : Mem) (Pc : BitVec 64),
+      (∀ z, z ∉ lvScratch → Γ1.get z = Env.get ((lQ, C.HB + BitVec.ofNat 64 (8 * o)) ::
+        (ctxEnv (ctxH C H) ++ [(pLa, C.HB + BitVec.ofNat 64 (8 * o))])) z) →
+      Γ1.get lX = some (BitVec.ofNat 64 (ltag l)) → Γ1.get lY = some Pc → LKids C.HB H s.store.ls Pc M1 l →
+      SpecR (Inv (ctxH C H) s Γ1 M1 (ctxLocals ++ lvlLocals)) REST s m R) :
+    SpecR (Inv (σ := σ) (ctxH C H) s (ctxEnv (ctxH C H) ++ [(pLa, C.HB + BitVec.ofNat 64 (8 * o))]) []
+      (ctxLocals ++ lvlLocals))
+      (.ite (.cmp .lower (vv pLa) (.const (BitVec.ofNat 64 (2 ^ 32)))) (.return (vv pLa))
+        (.seq (.assign .local lQ (vv pLa)) (lvViewP REST))) s m R := by
+  refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN => ?_)
+  have hlay := hok.heapLay
+  have hhi := hok.heapHigh
+  have hol : o < H.length := by
+    rcases Nat.lt_or_ge o H.length with hh | hh
+    · exact hh
+    · rw [List.getElem?_eq_none hh] at hg; simp at hg
+  have hHN' : H.length ≤ C.HN := hHN
+  have hnlt : ¬ C.HB + BitVec.ofNat 64 (8 * o) < BitVec.ofNat 64 (2 ^ 32) := by
+    rw [BitVec.lt_def]; simp [BitVec.toNat_add]; omega
+  refine specR_ifI _ 0 (by simp +decide [sev, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hnlt]) (fun h => absurd rfl h) (fun _ => ?_)
+  refine specR_assignI lQ (vv pLa) (C.HB + BitVec.ofNat 64 (8 * o)) (by decide) (by simp +decide [ctxEnv]) ?_
+  exact specR_lvViewI (C := ctxH C H) (ctxOK_H hok H) _ l (by simp) hl (by simp +decide [ctxEnv] <;> rfl)
+    (by simp +decide [ctxEnv] <;> rfl) lvScratch_DL (fun Γ1 M1 Pc hp1 hx1 hy1 _ hk1 => hk Γ1 M1 Pc hp1 hx1 hy1 hk1)
+
+theorem internLv_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
+    (hcZ : C.code.lookup fInternLZero = some ([], internLZeroBody, .one))
+    (hcS : C.code.lookup fInternLSucc = some ([(lEu, .one)], internLSuccBody, .one))
+    (hcM : C.code.lookup fInternLMax = some ([(lEu, .one), (lEv, .one)], internLMaxBody, .one))
+    (hcI : C.code.lookup fInternLImax = some ([(lEu, .one), (lEv, .one)], internLImaxBody, .one))
+    (hcP : C.code.lookup fInternLParam = some ([(lEn, .one)], internLParamBody, .one))
+    (hcV : C.code.lookup fInternLv = some ([(pLa, .one)], internLvBody, .one)) :
+    ∀ (l : ConLeche.Level) (H : List (BitVec 64)) (w : BitVec 64) (s : AState), StoreWF s.store →
+      LRep C.HB H s.store.ls w l →
+      SpecR (Pre (σ := σ) (ctxH C H) s [(pLa, w)]) internLvBody s (internLevel l) (PostIL (ctxH C H) s l) := by
+  have hok' := fun H => ctxOK_H hok H
+  intro l
+  induction l with
+  | zero =>
+    intro H w s hwf hl
+    refine specR_prologue (postIL_locals _ _ _) (params_noneIL _ _) ?_
+    rcases lrep_split hl with ⟨h0, f, rfl, hd⟩ | ⟨o, rfl, hg, -⟩
+    · exact internLv_arena _ C H s hwf _ h0 f hd
+    refine internLv_heap C hok H s _ o _ hl hg (fun Γ1 M1 Pc hp1 hx1 hy1 hk1 => ?_)
+    refine specR_ifEqT lX 0 0 (by decide) (by decide) hx1 (fun _ => ?_) (fun h => absurd rfl h)
+    refine specR_congr (m' := internLNode .zero >>= pure) (by simp [internLevel]) ?_
+    unfold callRetW
+    refine callLN (C := ctxH C H) lW fInternLZero [] [] internLZeroBody [] (by decide) rfl (by decide) hcZ trivial
+      .zero (internLZero_body_spec ra (ctxH C H) (hok' H) s) (fun h s2 hr => ?_)
+    obtain ⟨wf2, hv2, e2, -⟩ := finishIL hr hwf ⟨fun c hc => by simp [LNodeView.lchildren] at hc,
+      fun c hc => by simp [LNodeView.nchildren] at hc⟩
+    exact specR_returnI (vv lW) (Enc.idxW h) (by simp) (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl, wf2,
+      ⟨_, e2, LGrow.intern _ _⟩, ⟨1, by simp [denoteLAux, hv2]⟩⟩)
+  | succ u ih =>
+    intro H w s hwf hl
+    refine specR_prologue (postIL_locals _ _ _) (params_noneIL _ _) ?_
+    rcases lrep_split hl with ⟨h0, f, rfl, hd⟩ | ⟨o, rfl, hg, -⟩
+    · exact internLv_arena _ C H s hwf _ h0 f hd
+    refine internLv_heap C hok H s _ o _ hl hg (fun Γ1 M1 Pc hp1 hx1 hy1 hk1 => ?_)
+    refine specR_ifEqT lX 1 0 (by decide) (by decide) hx1 (fun h => absurd h (by decide)) (fun _ => ?_)
+    refine specR_ifEqT lX 1 1 (by decide) (by decide) hx1 (fun _ => ?_) (fun h => absurd rfl h)
+    obtain ⟨wu, mu, ru⟩ := hk1
+    refine specR_loadI' lA1 (vv lY) Pc (Pc + BitVec.ofNat 64 (8 * 0)) wu (by decide) (by simp +decide [hy1])
+      (by simp) mu ?_
+    refine specR_congr (m' := internLevel u >>= fun hu => internLNode (.succ hu) >>= pure) (by simp [internLevel]) ?_
+    refine callIL lA1 (vv lA1) internLvBody wu u (by decide) hcV (by simp) (ih H wu s hwf ru)
+      (fun hu s1 hr1 wf1 ⟨ls1, e1, g1⟩ ⟨f1, d1⟩ => ?_)
+    subst e1
+    unfold callRetW
+    refine callLN (C := ctxH C H) lW fInternLSucc [lEu] [vv lA1] internLSuccBody [Enc.idxW hu] (by decide) rfl
+      (by decide) hcS ⟨by simp, trivial⟩ (.succ hu) (internLSucc_body_spec ra (ctxH C H) (hok' H) _ hu)
+      (fun h s2 hr => ?_)
+    obtain ⟨wf2, hv2, e2, g2⟩ := finishIL hr wf1 ⟨fun c hc => by
+      simp [LNodeView.lchildren] at hc; subst hc; obtain ⟨v, hv⟩ := lview_of_denote _ _ _ _ d1; simp [hv],
+      fun c hc => by simp [LNodeView.nchildren] at hc⟩
+    have d2 := denoteLAux_store_mono g2.1 g2.2 f1 hu u d1
+    exact specR_returnI (vv lW) (Enc.idxW h) (by simp) (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl, wf2,
+      ⟨_, e2, g1.trans (LGrow.intern _ _)⟩, ⟨f1 + 1, by simp [denoteLAux, hv2, d2]⟩⟩)
+  | max u v ihu ihv =>
+    intro H w s hwf hl
+    refine specR_prologue (postIL_locals _ _ _) (params_noneIL _ _) ?_
+    rcases lrep_split hl with ⟨h0, f, rfl, hd⟩ | ⟨o, rfl, hg, -⟩
+    · exact internLv_arena _ C H s hwf _ h0 f hd
+    refine internLv_heap C hok H s _ o _ hl hg (fun Γ1 M1 Pc hp1 hx1 hy1 hk1 => ?_)
+    refine specR_ifEqT lX 2 0 (by decide) (by decide) hx1 (fun h => absurd h (by decide)) (fun _ => ?_)
+    refine specR_ifEqT lX 2 1 (by decide) (by decide) hx1 (fun h => absurd h (by decide)) (fun _ => ?_)
+    refine specR_ifEqT lX 2 4 (by decide) (by decide) hx1 (fun h => absurd h (by decide)) (fun _ => ?_)
+    obtain ⟨wu, wv, mu, mv, ru, rv⟩ := hk1
+    refine specR_loadI' lA1 (vv lY) Pc (Pc + BitVec.ofNat 64 (8 * 0)) wu (by decide) (by simp +decide [hy1])
+      (by simp) mu ?_
+    refine specR_loadI' lB (.op .add [vv lY, .const 8]) (Pc + 8) (Pc + BitVec.ofNat 64 (8 * 1)) wv (by decide)
+      (by simp +decide [sev, hy1]) (by simp) mv ?_
+    refine specR_congr (m' := internLevel u >>= fun hu => internLevel v >>= fun hv => internLNode (.max hu hv) >>= pure)
+      (by simp [internLevel]) ?_
+    refine callIL lA1 (vv lA1) internLvBody wu u (by decide) hcV (by simp +decide) (ihu H wu s hwf ru)
+      (fun hu s1 hr1 wf1 ⟨ls1, e1, g1⟩ ⟨f1, d1⟩ => ?_)
+    subst e1
+    refine callIL lB (vv lB) internLvBody wv v (by decide) hcV (by simp +decide) (ihv H wv _ wf1 (lrep_grow g1 v wv rv))
+      (fun hv s2 hr2 wf2 ⟨ls2, e2, g2⟩ ⟨f2, d2⟩ => ?_)
+    subst e2
+    refine specR_ifEqT lX 2 2 (by decide) (by decide) (by simp +decide [hx1, ltag]) (fun _ => ?_) (fun h => absurd rfl h)
+    unfold callRetW
+    refine callLN (C := ctxH C H) lW fInternLMax [lEu, lEv] [vv lA1, vv lB] internLMaxBody [Enc.idxW hu, Enc.idxW hv]
+      (by decide) rfl (by decide) hcM ⟨by simp +decide, by simp +decide, trivial⟩ (.max hu hv)
+      (internLMax_body_spec ra (ctxH C H) (hok' H) _ hu hv) (fun h s3 hr => ?_)
+    have d1' := denoteLAux_store_mono g2.1 g2.2 f1 hu u d1
+    obtain ⟨wf3, hv3, e3, g3⟩ := finishIL hr wf2 ⟨fun c hc => by
+      simp [LNodeView.lchildren] at hc
+      rcases hc with rfl | rfl
+      · obtain ⟨x, hx⟩ := lview_of_denote _ _ _ _ d1'; simp [withL, EStore.ls] at hx ⊢; simp [hx]
+      · obtain ⟨x, hx⟩ := lview_of_denote _ _ _ _ d2; simp [withL, EStore.ls] at hx ⊢; simp [hx],
+      fun c hc => by simp [LNodeView.nchildren] at hc⟩
+    have a1 := denoteLAux_mono _ f1 (max f1 f2) hu u (by omega) (denoteLAux_store_mono g3.1 g3.2 f1 hu u d1')
+    have a2 := denoteLAux_mono _ f2 (max f1 f2) hv v (by omega) (denoteLAux_store_mono g3.1 g3.2 f2 hv v d2)
+    exact specR_returnI (vv lW) (Enc.idxW h) (by simp) (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl, wf3,
+      ⟨_, e3, (g1.trans g2).trans (LGrow.intern _ _)⟩, ⟨max f1 f2 + 1, by simp [denoteLAux, hv3, a1, a2, opt2]⟩⟩)
+  | imax u v ihu ihv =>
+    intro H w s hwf hl
+    refine specR_prologue (postIL_locals _ _ _) (params_noneIL _ _) ?_
+    rcases lrep_split hl with ⟨h0, f, rfl, hd⟩ | ⟨o, rfl, hg, -⟩
+    · exact internLv_arena _ C H s hwf _ h0 f hd
+    refine internLv_heap C hok H s _ o _ hl hg (fun Γ1 M1 Pc hp1 hx1 hy1 hk1 => ?_)
+    refine specR_ifEqT lX 3 0 (by decide) (by decide) hx1 (fun h => absurd h (by decide)) (fun _ => ?_)
+    refine specR_ifEqT lX 3 1 (by decide) (by decide) hx1 (fun h => absurd h (by decide)) (fun _ => ?_)
+    refine specR_ifEqT lX 3 4 (by decide) (by decide) hx1 (fun h => absurd h (by decide)) (fun _ => ?_)
+    obtain ⟨wu, wv, mu, mv, ru, rv⟩ := hk1
+    refine specR_loadI' lA1 (vv lY) Pc (Pc + BitVec.ofNat 64 (8 * 0)) wu (by decide) (by simp +decide [hy1])
+      (by simp) mu ?_
+    refine specR_loadI' lB (.op .add [vv lY, .const 8]) (Pc + 8) (Pc + BitVec.ofNat 64 (8 * 1)) wv (by decide)
+      (by simp +decide [sev, hy1]) (by simp) mv ?_
+    refine specR_congr (m' := internLevel u >>= fun hu => internLevel v >>= fun hv => internLNode (.imax hu hv) >>= pure)
+      (by simp [internLevel]) ?_
+    refine callIL lA1 (vv lA1) internLvBody wu u (by decide) hcV (by simp +decide) (ihu H wu s hwf ru)
+      (fun hu s1 hr1 wf1 ⟨ls1, e1, g1⟩ ⟨f1, d1⟩ => ?_)
+    subst e1
+    refine callIL lB (vv lB) internLvBody wv v (by decide) hcV (by simp +decide) (ihv H wv _ wf1 (lrep_grow g1 v wv rv))
+      (fun hv s2 hr2 wf2 ⟨ls2, e2, g2⟩ ⟨f2, d2⟩ => ?_)
+    subst e2
+    refine specR_ifEqT lX 3 2 (by decide) (by decide) (by simp +decide [hx1, ltag]) (fun h => absurd h (by decide))
+      (fun _ => ?_)
+    unfold callRetW
+    refine callLN (C := ctxH C H) lW fInternLImax [lEu, lEv] [vv lA1, vv lB] internLImaxBody [Enc.idxW hu, Enc.idxW hv]
+      (by decide) rfl (by decide) hcI ⟨by simp +decide, by simp +decide, trivial⟩ (.imax hu hv)
+      (internLImax_body_spec ra (ctxH C H) (hok' H) _ hu hv) (fun h s3 hr => ?_)
+    have d1' := denoteLAux_store_mono g2.1 g2.2 f1 hu u d1
+    obtain ⟨wf3, hv3, e3, g3⟩ := finishIL hr wf2 ⟨fun c hc => by
+      simp [LNodeView.lchildren] at hc
+      rcases hc with rfl | rfl
+      · obtain ⟨x, hx⟩ := lview_of_denote _ _ _ _ d1'; simp [withL, EStore.ls] at hx ⊢; simp [hx]
+      · obtain ⟨x, hx⟩ := lview_of_denote _ _ _ _ d2; simp [withL, EStore.ls] at hx ⊢; simp [hx],
+      fun c hc => by simp [LNodeView.nchildren] at hc⟩
+    have a1 := denoteLAux_mono _ f1 (max f1 f2) hu u (by omega) (denoteLAux_store_mono g3.1 g3.2 f1 hu u d1')
+    have a2 := denoteLAux_mono _ f2 (max f1 f2) hv v (by omega) (denoteLAux_store_mono g3.1 g3.2 f2 hv v d2)
+    exact specR_returnI (vv lW) (Enc.idxW h) (by simp) (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl, wf3,
+      ⟨_, e3, (g1.trans g2).trans (LGrow.intern _ _)⟩, ⟨max f1 f2 + 1, by simp [denoteLAux, hv3, a1, a2, opt2]⟩⟩)
+  | param n =>
+    intro H w s hwf hl
+    refine specR_prologue (postIL_locals _ _ _) (params_noneIL _ _) ?_
+    rcases lrep_split hl with ⟨h0, f, rfl, hd⟩ | ⟨o, rfl, hg, -⟩
+    · exact internLv_arena _ C H s hwf _ h0 f hd
+    refine internLv_heap C hok H s _ o _ hl hg (fun Γ1 M1 Pc hp1 hx1 hy1 hk1 => ?_)
+    refine specR_ifEqT lX 4 0 (by decide) (by decide) hx1 (fun h => absurd h (by decide)) (fun _ => ?_)
+    refine specR_ifEqT lX 4 1 (by decide) (by decide) hx1 (fun h => absurd h (by decide)) (fun _ => ?_)
+    refine specR_ifEqT lX 4 4 (by decide) (by decide) hx1 (fun _ => ?_) (fun h => absurd rfl h)
+    obtain ⟨nh, f, mn, dn⟩ := hk1
+    refine specR_loadI' lA1 (vv lY) Pc (Pc + BitVec.ofNat 64 (8 * 0)) _ (by decide) (by simp +decide [hy1])
+      (by simp) mn ?_
+    obtain ⟨⟨rkL, hL⟩, ⟨rkN, hN⟩⟩ := wf_parts hwf
+    have hrn := internName_denote s rkN hN n f nh dn
+    refine specR_congr (m' := internLNode (.param nh) >>= pure) (by
+      simp only [internLevel, bind, StateT.bind, Except.bind]; rw [hrn]; simp only
+      cases internLNode (LNodeView.param nh) s <;> rfl) ?_
+    unfold callRetW
+    refine callLN (C := ctxH C H) lW fInternLParam [lEn] [vv lA1] internLParamBody [Enc.idxW nh] (by decide) rfl
+      (by decide) hcP ⟨by simp, trivial⟩ (.param nh) (internLParam_body_spec ra (ctxH C H) (hok' H) s nh)
+      (fun h s2 hr => ?_)
+    obtain ⟨wf2, hv2, e2, g2⟩ := finishIL hr hwf ⟨fun c hc => by simp [LNodeView.lchildren] at hc,
+      fun c hc => by
+        simp [LNodeView.nchildren] at hc; subst hc; obtain ⟨v, hv⟩ := nview_of_denote _ _ _ _ dn; simp [hv]⟩
+    have dN : denoteN s2.store.ls.ns nh = some n := by
+      rw [g2.2]; exact denoteN_of_aux _ rkN hN nh f n dn
+    exact specR_returnI (vv lW) (Enc.idxW h) (by simp) (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl, wf2,
+      ⟨_, e2, LGrow.intern _ _⟩, ⟨1, by simp [denoteLAux, hv2, dN]⟩⟩)
+
 end ConPanqueque.T
