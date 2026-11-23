@@ -57,12 +57,12 @@ def RecEq (C : Ctx) (s : AState) (la : ConLeche.Level) : Prop :=
 
 theorem callEq_spec {β : Type} (C : Ctx)
     (hcL : C.code.lookup fLvlEq = some ([(pLa, .one), (pLb, .one)], lvlEqBody, .one))
-    {s : AState} {Γ : Env} {M : Mem} {rest : ProgHOL 64} {k : Bool → AM β}
+    {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64} {k : Bool → AM β}
     {R : β → BitVec 64 → AState → PState σ → Prop} (x e1 e2 : MlS) (u u' : ConLeche.Level) (wu wu' : BitVec 64)
-    (hx : x ∈ DL) (h1 : Γ.get e1 = some wu) (h2 : Γ.get e2 = some wu')
+    (hx : x ∈ D) (h1 : Γ.get e1 = some wu) (h2 : Γ.get e2 = some wu')
     (hspec : SpecR (Pre (σ := σ) C s [(pLa, wu), (pLb, wu')]) lvlEqBody s (pure (decide (u = u'))) (PostB C))
-    (hk : SpecR (Inv C s ((x, if decide (u = u') then 1 else 0) :: Γ) [] DL) rest s (k (decide (u = u'))) R) :
-    SpecR (Inv C s Γ M DL) (.seq (.call (some (some (.local, x), none)) fLvlEq [vv e1, vv e2]) rest) s
+    (hk : SpecR (Inv C s ((x, if decide (u = u') then 1 else 0) :: Γ) [] D) rest s (k (decide (u = u'))) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, x), none)) fLvlEq [vv e1, vv e2]) rest) s
       (pure (decide (u = u')) >>= k) R := by
   refine specR_call2IM x fLvlEq pLa pLb (by decide) _ _ lvlEqBody wu wu' hx hcL (by simp [h1]) (by simp [h2])
     (fun a w s' st => s' = s ∧ a = decide (u = u') ∧ PostB C a w s' st) (fun _ _ _ _ hp => hp.2.2.2)
@@ -82,12 +82,12 @@ variable {σ : Type}
 
 theorem callNeq_spec {β : Type} (C : Ctx)
     (hcN : C.code.lookup fNeq = some ([(pNa, .one), (pNb, .one)], neqBody, .one))
-    {s : AState} {Γ : Env} {M : Mem} {rest : ProgHOL 64} {k : Bool → AM β}
+    {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64} {k : Bool → AM β}
     {R : β → BitVec 64 → AState → PState σ → Prop} (x e1 e2 : MlS) (na nb : NIdx) (xa xb : ConLeche.Name)
     (fa fb : Nat) (hda : denoteNAux s.store.ns fa na = some xa) (hdb : denoteNAux s.store.ns fb nb = some xb)
-    (hx : x ∈ DL) (h1 : Γ.get e1 = some (Enc.idxW na)) (h2 : Γ.get e2 = some (Enc.idxW nb))
-    (hk : SpecR (Inv C s ((x, if decide (xa = xb) then 1 else 0) :: Γ) [] DL) rest s (k (decide (xa = xb))) R) :
-    SpecR (Inv C s Γ M DL) (.seq (.call (some (some (.local, x), none)) fNeq [vv e1, vv e2]) rest) s
+    (hx : x ∈ D) (h1 : Γ.get e1 = some (Enc.idxW na)) (h2 : Γ.get e2 = some (Enc.idxW nb))
+    (hk : SpecR (Inv C s ((x, if decide (xa = xb) then 1 else 0) :: Γ) [] D) rest s (k (decide (xa = xb))) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, x), none)) fNeq [vv e1, vv e2]) rest) s
       (pure (decide (xa = xb)) >>= k) R := by
   refine specR_call2IM x fNeq pNa pNb (by decide) _ _ neqBody (Enc.idxW na) (Enc.idxW nb) hx hcN (by simp [h1])
     (by simp [h2]) (fun a w s' st => s' = s ∧ a = decide (xa = xb) ∧ PostB C a w s' st) (fun _ _ _ _ hp => hp.2.2.2)
