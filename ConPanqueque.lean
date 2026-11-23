@@ -264,3 +264,4 @@ import ConPanqueque.T.Core.EagerRed
 import ConPanqueque.T.Core.InferSpine
 import ConPanqueque.T.Core.InferApp
 import ConPanqueque.T.Core.InferLit
+import ConPanqueque.T.Core.HasLoose
