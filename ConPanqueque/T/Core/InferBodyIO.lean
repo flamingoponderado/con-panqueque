@@ -110,17 +110,17 @@ theorem ibio_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (Bs Bc Bl Bfa 
     (hLit : ∀ l, s.store.view e = some (.lit l) →
       SpecR (σ := σ) (Pre C s (iblParams.zip [Enc.idxW e])) Bl s (ibLitT C.fe l) (PostK C))
     (hFa : ∀ ty b, SpecR (σ := σ) (Pre C s (ifaParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ty,
-      Enc.idxW b])) Bfa s (ibForallIOT (knot mode C n) C.fe d ty b) (PostK C))
+      Enc.idxW b])) Bfa s (ibForallIOT (CoreFnsA.ioView (knot mode C n)) C.fe d ty b) (PostK C))
     (hLa : ∀ ty b, SpecR (σ := σ) (Pre C s (ifaParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ty,
-      Enc.idxW b])) Bla s (ibLamIOT (knot mode C n) d ty b) (PostK C))
+      Enc.idxW b])) Bla s (ibLamIOT (CoreFnsA.ioView (knot mode C n)) d ty b) (PostK C))
     (hAp : SpecR (σ := σ) (Pre C s (kParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e])) Bap s
-      (inferAppIOAt (knot mode C n) C.fe d e) (PostK C))
+      (inferAppIOAt (CoreFnsA.ioView (knot mode C n)) C.fe d e) (PostK C))
     (hPr : ∀ sn i pe, i < 2 ^ 64 → SpecR (σ := σ) (Pre C s (iprParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d,
-      Enc.idxW sn, BitVec.ofNat 64 i, Enc.idxW pe])) Bpr s (inferProj (knot mode C n) C.fe d sn i pe) (PostK C))
+      Enc.idxW sn, BitVec.ofNat 64 i, Enc.idxW pe])) Bpr s (inferProj (CoreFnsA.ioView (knot mode C n)) C.fe d sn i pe) (PostK C))
     (hLet : ∀ (ty : EIdx) v b, SpecR (σ := σ) (Pre C s (iltParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ty,
-      Enc.idxW v, Enc.idxW b])) Blt s (ibLetIOT (knot mode C n) d v b) (PostK C)) :
+      Enc.idxW v, Enc.idxW b])) Blt s (ibLetIOT (CoreFnsA.ioView (knot mode C n)) d v b) (PostK C)) :
     SpecR (σ := σ) (Pre C s (kParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e])) ibioBody s
-      (ConRon.Arena.inferBodyIO (knot mode C n) C.fe d e) (PostK C) := by
+      (ConRon.Arena.inferBodyIO (CoreFnsA.ioView (knot mode C n)) C.fe d e) (PostK C) := by
   refine specR_prologue (postK_locals C) (ib_none C _) ?_
   rw [inferBodyIO_eq]
   unfold ibioCore

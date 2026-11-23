@@ -1,5 +1,6 @@
 import ConPanqueque.T.Core.InferSpineIO
 import ConPanqueque.T.Core.StepApp
+import ConPanqueque.T.Core.IoViewBase
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena ConRon.Bridge
@@ -213,7 +214,7 @@ def qaoLocals : List MlS := [qaoHd, qaoVa, qaoN, qaoTf, qaoE0, qaoR]
 
 def qaoRest (C : Ctx) : ProgHOL 64 :=
   .seq (.assign .local qaoN (.load .one (vv qaoVa)))
-  (.seq (.call (some (some (.local, qaoTf), none)) fI [vv kFu, vv kD, vv qaoHd])
+  (.seq (.call (some (some (.local, qaoTf), none)) fIO [vv kFu, vv kD, vv qaoHd])
   (allocP C qaoE0 (.const 8) (.seq (.store (vv qaoE0) (.const 0))
   (.seq (.call (some (some (.local, qaoR), none)) fSo [vv kFu, vv kD, vv qaoTf, vv qaoE0, vv qaoVa, .const 0, vv qaoN])
     (.return (vv qaoR))))))
@@ -236,27 +237,42 @@ theorem qao_none (C : Ctx) (vals : List (BitVec 64)) :
 
 structure QaoCodes (C : Ctx) : Prop where
   so : SoCodes C
-  i : C.code.lookup fI = some (pmap kParams, inferE C fIB, .one)
+  i : C.code.lookup fIO = some (pmap kParams, inferIOE C fIOB, .one)
   af : C.code.lookup fGetAppFn = some ([(pFu, .one), (pH, .one)], getAppFnBody, .one)
   gaa : C.code.lookup ExG.fGaa = some ([(pFu, .one), (pH, .one)], ExG.gaaBody C, .one)
+
+theorem inferSpineIO_ioView (r : CoreFnsA) (fe : IFEnv) (d : Nat) : ∀ k ty acc (args : Array EIdx) i,
+    args.size - i = k → inferSpineIO (CoreFnsA.ioView r) fe d ty acc args i = inferSpineIO r fe d ty acc args i := by
+  intro k
+  induction k with
+  | zero =>
+    intro ty acc args i h; rw [inferSpineIO]; conv => rhs; rw [inferSpineIO]
+    rw [dif_neg (by omega), dif_neg (by omega)]
+  | succ k ih =>
+    intro ty acc args i h; rw [inferSpineIO]; conv => rhs; rw [inferSpineIO]
+    simp only [ioView_whnf, ih _ _ args (i + 1) (by omega)]
+
+theorem inferSpineIO_ioView' (r : CoreFnsA) (fe : IFEnv) (d : Nat) ty acc (args : Array EIdx) i :
+    inferSpineIO (CoreFnsA.ioView r) fe d ty acc args i = inferSpineIO r fe d ty acc args i :=
+  inferSpineIO_ioView r fe d _ ty acc args i rfl
 
 theorem qao_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C) (hc : QaoCodes C)
     (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
-      [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferE C fIB) s1 ((knot mode C n).infer d' e')
+      [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferIOE C fIOB) s1 ((knot mode C n).inferIO d' e')
       (PostK (ctxH C H)))
     (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d' e')
       (PostK (ctxH C H)))
     (s : AState) (d : Nat) (e : EIdx) :
     SpecR (σ := σ) (Pre C s (kParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e])) (qaoBody C) s
-      (inferAppIOAt (knot mode C n) C.fe d e) (PostK C) := by
+      (inferAppIOAt (CoreFnsA.ioView (knot mode C n)) C.fe d e) (PostK C) := by
   refine specR_prologue (postK_locals C) (qao_none C _) ?_
   have rest : ∀ (hd : EIdx) (va : List EIdx) (ov : Nat) (H : List (BitVec 64)) (s1 : AState) (Γ : Env),
       C.H <+: H → BlkAt H ov (va.map Enc.idxW) → Γ.get qaoHd = some (Enc.idxW hd) →
       Γ.get qaoVa = some (cellA C ov) → Γ.get kFu = some (BitVec.ofNat 64 n) → Γ.get kD = some (BitVec.ofNat 64 d) →
       SpecR (σ := σ) (Inv (ctxH C H) s1 Γ [] (ctxLocals ++ qaoLocals)) (qaoRest C) s1
-        ((knot mode C n).infer d hd >>= fun tf => inferSpineIO (knot mode C n) C.fe d tf #[] va.toArray 0) (PostK C) := by
+        ((knot mode C n).inferIO d hd >>= fun tf => inferSpineIO (knot mode C n) C.fe d tf #[] va.toArray 0) (PostK C) := by
     intro hd va ov H s1 Γ hp hb h1 h2 h3 h4
     unfold qaoRest
     refine specR_atEntry fun t0 ht0 => ?_
@@ -265,7 +281,7 @@ theorem qao_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     obtain ⟨hlo, hlv⟩ := blkAt_get0 hb
     refine UD.specR_heapLoadI' (C := ctxH C H) qaoN (vv qaoVa) ov (BitVec.ofNat 64 va.length)
       (by show H[ov]? = _; rw [List.getElem?_eq_getElem hlo, hlv]; simp) (by decide) (by simp [h2]; rfl) ?_
-    refine Big.specR_callKC (C := ctxH C H) qaoTf fI kParams [vv kFu, vv kD, vv qaoHd] (inferE C fIB)
+    refine Big.specR_callKC (C := ctxH C H) qaoTf fIO kParams [vv kFu, vv kD, vv qaoHd] (inferIOE C fIOB)
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW hd] (by decide) rfl (by decide) hc.i
       ⟨by simp [h3], by simp [h4], by simp [h1], trivial⟩ (hI H s1 d hd hp) (fun tf s2 H2 hp2 _ => ?_)
     refine specR_emptyBlk (C0 := C) hok (H := H2) qaoE0 (by decide) (fun H3 oe hp3 hbe => ?_)
@@ -285,6 +301,7 @@ theorem qao_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     exact specR_returnI _ (Enc.idxW r) (by simp)
       (fun t ht => ⟨H4, hp.trans (hp2.trans (hp3.trans hp4)), rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   unfold qaoCore inferAppIOAt headAndArgs
+  simp only [ioView_infer, inferSpineIO_ioView']
   have hT := sev_tagIs4B (ctxEnv C ++ kParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e]) kE e
     (by simp +decide [Env.get, kParams, ctxEnv])
   by_cases ht : (e.tag == 4) = true

@@ -93,6 +93,8 @@ import ConPanqueque.T.Intern
 import ConPanqueque.T.InternWF
 import ConPanqueque.T.Denote
 import ConPanqueque.T.SRFacts
+import ConPanqueque.T.Core.IoViewBase
+import ConPanqueque.T.Core.IoView
 import ConPanqueque.T.LIntern
 import ConPanqueque.T.LsInternT
 import ConPanqueque.T.EIntern2

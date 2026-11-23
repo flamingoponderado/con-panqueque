@@ -757,10 +757,10 @@ def ibLamIOT (r : CoreFnsA) (depth : Nat) (ty body : EIdx) : AM EIdx := do
   inferLamResult ty bt depth
 
 def ltoLocals : List MlS := [ltoO, ltoR]
-def ltoBody : ProgHOL 64 := prologue ltoLocals (.seq (.call (some (some (.local, ltoO), none)) ExI.fInst1F [(.const (BitVec.ofNat 64 coreWalkFuel)), (vv ibB1), (vv ibV1), (.const 0)]) (.seq (.call (some (some (.local, ltoR), none)) fI [(vv kFu), (vv kD), (vv ltoO)]) (.return (vv ltoR))))
+def ltoBody : ProgHOL 64 := prologue ltoLocals (.seq (.call (some (some (.local, ltoO), none)) ExI.fInst1F [(.const (BitVec.ofNat 64 coreWalkFuel)), (vv ibB1), (vv ibV1), (.const 0)]) (.seq (.call (some (some (.local, ltoR), none)) fIO [(vv kFu), (vv kD), (vv ltoO)]) (.return (vv ltoR))))
 
 def qmoLocals : List MlS := [qmoV, qmoO, qmoD1, qmoB, qmoA, qmoR]
-def qmoBody : ProgHOL 64 := prologue qmoLocals (.ite (.cmp .lower (vv kD) (.const (BitVec.ofNat 64 (2 ^ 62)))) (.seq (.call (some (some (.local, qmoV), none)) fInternFVar [(vv ibT1), (vv kD)]) (.seq (.call (some (some (.local, qmoO), none)) ExI.fInst1F [(.const (BitVec.ofNat 64 coreWalkFuel)), (vv ibT2), (vv qmoV), (.const 0)]) (.seq (.assign .local qmoD1 (.op .add [(vv kD), (.const 1)])) (.seq (.call (some (some (.local, qmoB), none)) fI [(vv kFu), (vv qmoD1), (vv qmoO)]) (.seq (.call (some (some (.local, qmoA), none)) ExA.fAbs1F [(.const (BitVec.ofNat 64 coreWalkFuel)), (vv kD), (.const 0), (vv qmoB)]) (.seq (.call (some (some (.local, qmoR), none)) fInternForallE [(vv ibT1), (vv qmoA)]) (.return (vv qmoR)))))))) hang)
+def qmoBody : ProgHOL 64 := prologue qmoLocals (.ite (.cmp .lower (vv kD) (.const (BitVec.ofNat 64 (2 ^ 62)))) (.seq (.call (some (some (.local, qmoV), none)) fInternFVar [(vv ibT1), (vv kD)]) (.seq (.call (some (some (.local, qmoO), none)) ExI.fInst1F [(.const (BitVec.ofNat 64 coreWalkFuel)), (vv ibT2), (vv qmoV), (.const 0)]) (.seq (.assign .local qmoD1 (.op .add [(vv kD), (.const 1)])) (.seq (.call (some (some (.local, qmoB), none)) fIO [(vv kFu), (vv qmoD1), (vv qmoO)]) (.seq (.call (some (some (.local, qmoA), none)) ExA.fAbs1F [(.const (BitVec.ofNat 64 coreWalkFuel)), (vv kD), (.const 0), (vv qmoB)]) (.seq (.call (some (some (.local, qmoR), none)) fInternForallE [(vv ibT1), (vv qmoA)]) (.return (vv qmoR)))))))) hang)
 
 def ibForallIOT (r : CoreFnsA) (fe : IFEnv) (depth : Nat) (ty body : EIdx) : AM EIdx := do
   let hh ← r.whnf depth (← r.infer depth ty)
@@ -776,7 +776,7 @@ def ibForallIOT (r : CoreFnsA) (fe : IFEnv) (depth : Nat) (ty body : EIdx) : AM 
   else fail (.invalid "expected a sort")
 
 def qfoLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, qfoA, qfoH, qfoU, qfoV, qfoO, qfoD1, qfoT, qfoW, qfoX, qfoI, qfoR]
-def qfoBody : ProgHOL 64 := prologue qfoLocals (.ite (.cmp .lower (vv kD) (.const (BitVec.ofNat 64 (2 ^ 62)))) (.seq (.call (some (some (.local, qfoA), none)) fI [(vv kFu), (vv kD), (vv ibT1)]) (.seq (.call (some (some (.local, qfoH), none)) fW [(vv kFu), (vv kD), (vv qfoA)]) (.ite (tagIsE qfoH 2) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv qfoH)) (.seq eViewP (.seq (.assign .local qfoU (.load .one (vv lRp))) (.seq (.call (some (some (.local, qfoV), none)) fInternFVar [(vv ibT1), (vv kD)]) (.seq (.call (some (some (.local, qfoO), none)) ExI.fInst1F [(.const (BitVec.ofNat 64 coreWalkFuel)), (vv ibT2), (vv qfoV), (.const 0)]) (.seq (.assign .local qfoD1 (.op .add [(vv kD), (.const 1)])) (.seq (.call (some (some (.local, qfoT), none)) fI [(vv kFu), (vv qfoD1), (vv qfoO)]) (.seq (.call (some (some (.local, qfoW), none)) fW [(vv kFu), (vv qfoD1), (vv qfoT)]) (.ite (tagIsE qfoW 2) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv qfoW)) (.seq eViewP (.seq (.assign .local qfoX (.load .one (vv lRp))) (.seq (.call (some (some (.local, qfoI), none)) fInternLImax [(vv qfoU), (vv qfoX)]) (.seq (.call (some (some (.local, qfoR), none)) fInternSort [(vv qfoI)]) (.return (vv qfoR)))))))) hang)))))))))) hang))) hang)
+def qfoBody : ProgHOL 64 := prologue qfoLocals (.ite (.cmp .lower (vv kD) (.const (BitVec.ofNat 64 (2 ^ 62)))) (.seq (.call (some (some (.local, qfoA), none)) fIO [(vv kFu), (vv kD), (vv ibT1)]) (.seq (.call (some (some (.local, qfoH), none)) fW [(vv kFu), (vv kD), (vv qfoA)]) (.ite (tagIsE qfoH 2) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv qfoH)) (.seq eViewP (.seq (.assign .local qfoU (.load .one (vv lRp))) (.seq (.call (some (some (.local, qfoV), none)) fInternFVar [(vv ibT1), (vv kD)]) (.seq (.call (some (some (.local, qfoO), none)) ExI.fInst1F [(.const (BitVec.ofNat 64 coreWalkFuel)), (vv ibT2), (vv qfoV), (.const 0)]) (.seq (.assign .local qfoD1 (.op .add [(vv kD), (.const 1)])) (.seq (.call (some (some (.local, qfoT), none)) fIO [(vv kFu), (vv qfoD1), (vv qfoO)]) (.seq (.call (some (some (.local, qfoW), none)) fW [(vv kFu), (vv qfoD1), (vv qfoT)]) (.ite (tagIsE qfoW 2) (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv qfoW)) (.seq eViewP (.seq (.assign .local qfoX (.load .one (vv lRp))) (.seq (.call (some (some (.local, qfoI), none)) fInternLImax [(vv qfoU), (vv qfoX)]) (.seq (.call (some (some (.local, qfoR), none)) fInternSort [(vv qfoI)]) (.return (vv qfoR)))))))) hang)))))))))) hang))) hang)
 
 section
 variable {σ : Type}
@@ -790,15 +790,15 @@ theorem qmo_none (C : Ctx) (vals : List (BitVec 64)) :
 
 theorem lto_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C)
-    (hci : C.code.lookup fI = some (pmap kParams, inferE C fIB, .one))
+    (hci : C.code.lookup fIO = some (pmap kParams, inferIOE C fIOB, .one))
     (hcI : C.code.lookup ExI.fInst1F = some ([pFu, pH, ExI.pV, ExI.pD].map (fun p => (p, ShapeHOL.one)),
       ExI.fastBody C, .one)) (hcI' : ExI.Codes C (ExI.body C))
     (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
-      [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferE C fIB) s1 ((knot mode C n).infer d' e')
+      [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferIOE C fIOB) s1 ((knot mode C n).inferIO d' e')
       (PostK (ctxH C H)))
     (s : AState) (d : Nat) (ty v b : EIdx) :
     SpecR (σ := σ) (Pre C s (iltParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ty, Enc.idxW v,
-      Enc.idxW b])) ltoBody s (ibLetIOT (knot mode C n) d v b) (PostK C) := by
+      Enc.idxW b])) ltoBody s (ibLetIOT (CoreFnsA.ioView (knot mode C n)) d v b) (PostK C) := by
   refine specR_prologue (postK_locals C) (lto_none C _) ?_
   unfold ibLetIOT
   refine ILP.callE_spec ltoO ExI.fInst1F [pFu, pH, ExI.pV, ExI.pD]
@@ -806,8 +806,8 @@ theorem lto_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     [BitVec.ofNat 64 coreWalkFuel, Enc.idxW b, Enc.idxW v, BitVec.ofNat 64 0] (by decide) rfl (by decide) hcI
     ⟨rfl, by simp +decide [Env.get, iltParams, ctxEnv], by simp +decide [Env.get, iltParams, ctxEnv], rfl, trivial⟩
     (ExI.fast_spec ra C hok hcI' s coreWalkFuel b v 0 CV.coreWalkFuel_lt (by decide)) (fun ob s1 => ?_)
-  refine specR_congr (m' := (knot mode C n).infer d ob >>= fun r => pure r) (by simp) ?_
-  refine Big.specR_callKC ltoR fI kParams [vv kFu, vv kD, vv ltoO] (inferE C fIB)
+  refine specR_congr (m' := (knot mode C n).inferIO d ob >>= fun r => pure r) (by simp; rfl) ?_
+  refine Big.specR_callKC ltoR fIO kParams [vv kFu, vv kD, vv ltoO] (inferIOE C fIOB)
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ob] (by decide) rfl (by decide) hci
     ⟨by simp +decide [Env.get, iltParams, ctxEnv], by simp +decide [Env.get, iltParams, ctxEnv], by simp, trivial⟩ (hI C.H s1 d ob (List.prefix_refl _)) (fun r s2 H2 hp2 _ => ?_)
   exact specR_returnI _ (Enc.idxW r) (by simp) (fun t ht => ⟨H2, hp2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
@@ -819,18 +819,18 @@ theorem codesA_H {C : Ctx} (hc : ExA.CodesA C (ExA.bodyA C)) (H : List (BitVec 6
 
 theorem qmo_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C)
-    (hci : C.code.lookup fI = some (pmap kParams, inferE C fIB, .one))
+    (hci : C.code.lookup fIO = some (pmap kParams, inferIOE C fIOB, .one))
     (hcI : C.code.lookup ExI.fInst1F = some ([pFu, pH, ExI.pV, ExI.pD].map (fun p => (p, ShapeHOL.one)),
       ExI.fastBody C, .one)) (hcI' : ExI.Codes C (ExI.body C))
     (hcfv : C.code.lookup fInternFVar = some ([(lEty, .one), (lIw, .one)], fvarBody, .one))
     (hcA : C.code.lookup ExA.fAbs1F = some ([pFu, ExA.pAd, ExI.pD, pH].map (fun p => (p, ShapeHOL.one)),
       ExA.fastBodyA C, .one)) (hcA' : ExA.CodesA C (ExA.bodyA C))
     (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
-      [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferE C fIB) s1 ((knot mode C n).infer d' e')
+      [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferIOE C fIOB) s1 ((knot mode C n).inferIO d' e')
       (PostK (ctxH C H)))
     (s : AState) (d : Nat) (hd : d < 2 ^ 64) (ty b : EIdx) :
     SpecR (σ := σ) (Pre C s (ifaParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ty, Enc.idxW b]))
-      qmoBody s (ibLamIOT (knot mode C n) d ty b) (PostK C) := by
+      qmoBody s (ibLamIOT (CoreFnsA.ioView (knot mode C n)) d ty b) (PostK C) := by
   refine specR_prologue (postK_locals C) (qmo_none C _) ?_
   by_cases hd2 : d < 2 ^ 62
   swap
@@ -852,7 +852,7 @@ theorem qmo_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     (ExI.fast_spec ra C hok hcI' s1 coreWalkFuel b fv 0 CV.coreWalkFuel_lt (by decide)) (fun ob s2 => ?_)
   refine specR_assignI qmoD1 _ (BitVec.ofNat 64 (d + 1)) (by decide)
     (by simp +decide [sev, Env.get, ifaParams, ctxEnv]; exact word_add1_eq d) ?_
-  refine Big.specR_callKC qmoB fI kParams [vv kFu, vv qmoD1, vv qmoO] (inferE C fIB)
+  refine Big.specR_callKC qmoB fIO kParams [vv kFu, vv qmoD1, vv qmoO] (inferIOE C fIOB)
     [BitVec.ofNat 64 n, BitVec.ofNat 64 (d + 1), Enc.idxW ob] (by decide) rfl (by decide) hci
     ⟨by simp +decide [Env.get, ifaParams, ctxEnv], by simp, by simp, trivial⟩ (hI C.H s2 (d + 1) ob (List.prefix_refl _)) (fun bt s3 H3 hp3 _ => ?_)
   refine ILP.callE_spec (C := ctxH C H3) qmoA ExA.fAbs1F [pFu, ExA.pAd, ExI.pD, pH]
@@ -872,7 +872,7 @@ theorem qfo_none (C : Ctx) (vals : List (BitVec 64)) :
 
 theorem qfo_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hok : CtxOK C)
-    (hci : C.code.lookup fI = some (pmap kParams, inferE C fIB, .one))
+    (hci : C.code.lookup fIO = some (pmap kParams, inferIOE C fIOB, .one))
     (hcw : C.code.lookup fW = some (pmap kParams, whnfE C fWB, .one))
     (hcI : C.code.lookup ExI.fInst1F = some ([pFu, pH, ExI.pV, ExI.pD].map (fun p => (p, ShapeHOL.one)),
       ExI.fastBody C, .one)) (hcI' : ExI.Codes C (ExI.body C))
@@ -880,14 +880,14 @@ theorem qfo_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     (hcim : C.code.lookup fInternLImax = some ([(lEu, .one), (lEv, .one)], internLImaxBody, .one))
     (hcs : C.code.lookup fInternSort = some ([(lEu, .one)], sortBody, .one))
     (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
-      [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferE C fIB) s1 ((knot mode C n).infer d' e')
+      [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferIOE C fIOB) s1 ((knot mode C n).inferIO d' e')
       (PostK (ctxH C H)))
     (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d' e')
       (PostK (ctxH C H)))
     (s : AState) (d : Nat) (hd : d < 2 ^ 64) (ty b : EIdx) :
     SpecR (σ := σ) (Pre C s (ifaParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ty, Enc.idxW b]))
-      qfoBody s (ibForallIOT (knot mode C n) C.fe d ty b) (PostK C) := by
+      qfoBody s (ibForallIOT (CoreFnsA.ioView (knot mode C n)) C.fe d ty b) (PostK C) := by
   refine specR_prologue (postK_locals C) (qfo_none C _) ?_
   by_cases hd2 : d < 2 ^ 62
   swap
@@ -901,7 +901,7 @@ theorem qfo_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     (fun _ => ?_) (fun h => absurd h (by decide))
   unfold ibForallIOT ensureSort
   simp only [bind_assoc]
-  refine Big.specR_callKC qfoA fI kParams [vv kFu, vv kD, vv ibT1] (inferE C fIB)
+  refine Big.specR_callKC qfoA fIO kParams [vv kFu, vv kD, vv ibT1] (inferIOE C fIOB)
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW ty] (by decide) rfl (by decide) hci
     ⟨by simp +decide [Env.get, ifaParams, ctxEnv], by simp +decide [Env.get, ifaParams, ctxEnv], by simp +decide [Env.get, ifaParams, ctxEnv], trivial⟩ (hI C.H s d ty (List.prefix_refl _)) (fun tty s1 H1 hp1 _ => ?_)
   refine Big.specR_callKC (C := ctxH C H1) qfoH fW kParams [vv kFu, vv kD, vv qfoA] (whnfE C fWB)
@@ -934,7 +934,7 @@ theorem qfo_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
       CV.coreWalkFuel_lt (by decide)) (fun ob s4 => ?_)
   refine specR_assignI qfoD1 _ (BitVec.ofNat 64 (d + 1)) (by decide)
     (by simp +decide [sev, Env.get, ifaParams, ctxEnv]; exact word_add1_eq d) ?_
-  refine Big.specR_callKC (C := ctxH C H2) qfoT fI kParams [vv kFu, vv qfoD1, vv qfoO] (inferE C fIB)
+  refine Big.specR_callKC (C := ctxH C H2) qfoT fIO kParams [vv kFu, vv qfoD1, vv qfoO] (inferIOE C fIOB)
     [BitVec.ofNat 64 n, BitVec.ofNat 64 (d + 1), Enc.idxW ob] (by decide) rfl (by decide) hci
     ⟨by simp +decide [Env.get, ifaParams, ctxEnv], by simp, by simp, trivial⟩ (hI H2 s4 (d + 1) ob hp12) (fun t s5 H3 hp3 _ => ?_)
   refine Big.specR_callKC (C := ctxH C H3) qfoW fW kParams [vv kFu, vv qfoD1, vv qfoT] (whnfE C fWB)
