@@ -104,6 +104,7 @@ import ConPanqueque.T.Mode
 import ConPanqueque.T.Eager
 import ConPanqueque.T.MemoG
 import ConPanqueque.T.DefeqMemo
+import ConPanqueque.T.FixMemo
 import ConPanqueque.T.Env
 import ConPanqueque.T.PinRead
 import ConPanqueque.T.EnvCopy
