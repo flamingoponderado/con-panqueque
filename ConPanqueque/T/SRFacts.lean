@@ -92,7 +92,11 @@ theorem sr_tblBodies {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) {T : 
 
 theorem sr_tblLen {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) {T : NIdx} {tbl : IProjTable}
     (hT : C.fe.findTable? T = some tbl) : tbl.levelParams.length + 1 < 2 ^ 60 :=
-  (h.envd.2.1 T tbl hT).2.2
+  (h.envd.2.1 T tbl hT).2.2.1
+
+theorem sr_tblSize {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) {T : NIdx} {tbl : IProjTable}
+    (hT : C.fe.findTable? T = some tbl) : tbl.bodies.size = tbl.numFields :=
+  (h.envd.2.1 T tbl hT).2.2.2
 
 theorem sr_zeroLevel {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) :
     denoteL s.store.ls C.pins.zeroLevel = some .zero := h.envd.2.2.1

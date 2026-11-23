@@ -454,7 +454,8 @@ def ConstDen (fe : IFEnv) (st : EStore) : Prop :=
 /-- Every projection table's level parameters and bodies denote, and its level-parameter count is small. -/
 def TblDen (fe : IFEnv) (st : EStore) : Prop :=
   ∀ T tbl, fe.findTable? T = some tbl → (∀ n ∈ tbl.levelParams, (denoteN st.ns n).isSome = true) ∧
-    (∀ b ∈ tbl.bodies.toList, (denoteE st b).isSome = true) ∧ tbl.levelParams.length + 1 < 2 ^ 60
+    (∀ b ∈ tbl.bodies.toList, (denoteE st b).isSome = true) ∧ tbl.levelParams.length + 1 < 2 ^ 60 ∧
+    tbl.bodies.size = tbl.numFields
 
 /-- The pinned levels denote what they stand for. -/
 def PinDen (p : Pins) (st : EStore) : Prop :=
@@ -487,8 +488,8 @@ theorem envDen_ext {fe : IFEnv} {p : Pins} {st st' : EStore} (h : EnvDen fe p st
   · obtain ⟨h1, h2, h3, h4, h5⟩ := h.1 c ci hc
     exact ⟨fun n hn => denoteN_isSome_ext hx (h1 n hn), denoteE_isSome_ext hx h2, h3,
       fun cv v hint hci => denoteE_isSome_ext hx (h4 cv v hint hci), h5⟩
-  · obtain ⟨h1, h2, h3⟩ := h.2.1 T tbl hT
-    exact ⟨fun n hn => denoteN_isSome_ext hx (h1 n hn), fun b hb => denoteE_isSome_ext hx (h2 b hb), h3⟩
+  · obtain ⟨h1, h2, h3, h4⟩ := h.2.1 T tbl hT
+    exact ⟨fun n hn => denoteN_isSome_ext hx (h1 n hn), fun b hb => denoteE_isSome_ext hx (h2 b hb), h3, h4⟩
   · obtain ⟨h1, h2⟩ := h.2.2.2 c cv mI rP isK rules hc rl hrl
     refine ⟨fun lv hlv => ⟨fun u hu => ?_, (h1 lv hlv).2⟩, fun lv pins hf p hp => denoteE_isSome_ext hx (h2 lv pins hf p hp)⟩
     obtain ⟨l, hl⟩ := Option.isSome_iff_exists.mp ((h1 lv hlv).1 u hu)
