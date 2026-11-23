@@ -1,5 +1,7 @@
 import ConPanqueque.T.Core.LvlZero
 import ConPanqueque.T.Core.FormerNZ
+import ConPanqueque.T.SRFacts
+import ConPanqueque.T.PinRead
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena ConRon.Bridge
@@ -460,29 +462,23 @@ structure CgCodes (C : Ctx) : Prop where
   self : C.code.lookup fCg = some (cgParams.map (fun p => (p, ShapeHOL.one)), cgBody, .one)
 
 theorem cg_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) (hc : CgCodes C)
-    (Q : AState → Prop) (hQw : ∀ s, Q s → LStoreWF s.store.ls)
-    (hQr : ∀ s, Q s → ReadLCacheOK s.caches.readLC s.store)
-    (hQrd : ∀ s X, Q s → ReadLCacheOK X s.store → Q { s with caches := { s.caches with readLC := X } })
-    (hQd : ∀ s w u, Q s → s.store.viewSort w = some u → (denoteL s.store.ls u).isSome)
-    (gs : Level) (gh : LIdx) (hQg : ∀ s, Q s → denoteL s.store.ls gh = some gs)
+    (gs : Level) (gh : LIdx) (hfl : denoteL C.St.ls gh = some gs)
     (hIO : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferIOE C fIOB) s1 ((knot mode C n).inferIO d' e')
       (PostK (ctxH C H)))
     (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d' e')
       (PostK (ctxH C H)))
-    (hQio : ∀ s1 d' e' a s2, Q s1 → (knot mode C n).inferIO d' e' s1 = .ok (a, s2) → Q s2)
-    (hQwh : ∀ s1 d' e' a s2, Q s1 → (knot mode C n).whnf d' e' s1 = .ok (a, s2) → Q s2)
     (rows : List (Nat × EIdx)) (o : Nat) (H0 : List (BitVec 64)) (hp0 : C.H <+: H0)
     (hb : BlkAt H0 o (rowsW rows)) (hrl : rows.length < 2 ^ 58) (hrd : ∀ p ∈ rows, p.1 < 2 ^ 63) :
-    ∀ m i (H : List (BitVec 64)) (s : AState), H0 <+: H → Q s → rows.length - i = m → i ≤ rows.length →
+    ∀ m i (H : List (BitVec 64)) (s : AState), H0 <+: H → rows.length - i = m → i ≤ rows.length →
       SpecR (σ := σ) (Pre (ctxH C H) s (cgParams.zip [BitVec.ofNat 64 n, Enc.idxW gh, cellA C o,
         BitVec.ofNat 64 rows.length, BitVec.ofNat 64 i])) cgBody s
         (checkGuardRows (knot mode C n) gs rows.toArray i) (PostU (ctxH C H)) := by
   intro m
   induction m with
   | zero =>
-    intro i H s hp hq hk hi
+    intro i H s hp hk hi
     refine specR_prologue (postU_locals _) (cg_none _ _) ?_
     rw [checkGuardRows, dif_neg (by simp; omega)]
     have hlw := word_lt_iff i rows.length (by unfold B; omega) (by unfold B; omega)
@@ -490,7 +486,7 @@ theorem cg_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
       (not_congr hlw).mpr (by omega)]) (fun h => absurd rfl h) (fun _ => ?_)
     exact specR_returnI _ 0 rfl (fun t ht => ⟨H, List.prefix_refl _, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   | succ m ih =>
-    intro i H s hp hq hk hi
+    intro i H s hp hk hi
     have hlt : i < rows.length := by omega
     refine specR_prologue (postU_locals _) (cg_none _ _) ?_
     rw [checkGuardRows, dif_pos (by simpa using hlt)]
@@ -517,11 +513,9 @@ theorem cg_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
     refine Big.specR_callKC (C := ctxH C H) cgT fIO kParams [vv kFu, vv cgD, vv cgE] (inferIOE C fIOB)
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW dom] (by decide) rfl (by decide) hc.io
       ⟨by simp +decide [Env.get, cgParams, ctxEnv], by simp, by simp, trivial⟩ (hIO H s d dom (hp0.trans hp)) (fun t s2 H2 hp2 hrun2 => ?_)
-    have hq2 := hQio s d dom t s2 hq hrun2
     refine Big.specR_callKC (C := ctxH C H2) cgW fW kParams [vv kFu, vv cgD, vv cgT] (whnfE C fWB)
       [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW t] (by decide) rfl (by decide) hc.w
       ⟨by simp +decide [Env.get, cgParams, ctxEnv], by simp, by simp, trivial⟩ (hW H2 s2 d t (hp0.trans (hp.trans hp2))) (fun w s3 H3 hp3 hrun3 => ?_)
-    have hq3 := hQwh s2 d t w s3 hq2 hrun3
     refine Knot.specR_tagIteV cgW w 2 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
     swap
     · rw [if_neg (show ¬ (w.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
@@ -540,16 +534,16 @@ theorem cg_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
     refine specR_loadI' cgU (vv lRp) P (P + BitVec.ofNat 64 0) (Enc.idxW u) (by decide) (by simp) (by simp)
       (by simpa [encEView, Enc.encSort] using wordsAt_mem0 P (Enc.idxW u) [] []) ?_
     refine specR_dropM ?_
-    obtain ⟨ul, hul⟩ := Option.isSome_iff_exists.mp (hQd s3 w u hq3 hvs)
-    obtain ⟨X, hx, hX⟩ := readLevelM_runC u s3 ul (hQr s3 hq3) hul
+    refine specR_atEntry fun t3 ht3 => ?_
+    obtain ⟨ul, hul⟩ := sr_sortDen ht3.sr w u hv
+    obtain ⟨X, hx, hX⟩ := readLevelM_runC u s3 ul ht3.sr.cok.rl hul
     refine specR_quiet hx rfl rfl ⟨rfl, rfl, rfl, rfl, rfl⟩ rfl (fun hc => cachesOK_readLC hc X hX) ?_
-    have hq4 := hQrd s3 X hq3 hX
     refine specR_callPure (C := ctxH C H3) cgZ fZw zwParams [vv cgG, vv cgU] zwBody [Enc.idxW gh, Enc.idxW u]
       (ConLeche.Level.zeroWhereZero gs ul) (by decide) rfl (by decide) hc.zw.zw
       ⟨by simp +decide [Env.get, cgParams, ctxEnv], by simp, trivial⟩ (PostBS (ctxH C H3) _) (fun b w _ H' => H' = H3 ∧ w = boolW b)
       (fun b w s' st ⟨hs, hw, hsr⟩ => ⟨H3, List.prefix_refl _, ⟨rfl, hw⟩, by rw [hs]; exact hsr⟩)
       (fun u' hu _ hlk => Knot.specR_of_pre u' (pre_of_lookups hu zwParams _ rfl hlk)
-        (zw_spec (ctxH C H3) (zwCodes_H hc.zw H3) _ (hQw _ hq4) gs ul gh u (hQg _ hq4) hul))
+        (zw_spec (ctxH C H3) (zwCodes_H hc.zw H3) { s3 with caches := { s3.caches with readLC := X } } (sr_lwf ht3.sr : LStoreWF s3.store.ls) gs ul gh u (denoteL_ext hfl ht3.sr.floor : denoteL s3.store.ls gh = some gs) hul))
       (fun wz H4 _ ⟨eH, hwz⟩ => ?_)
     subst H4; subst hwz
     cases hz : ConLeche.Level.zeroWhereZero gs ul
@@ -566,7 +560,7 @@ theorem cg_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
         trivial⟩
       (PostU (ctxH C H3)) (fun a w _ _ => True) (fun a w s' st ⟨H', hp', hsr⟩ => ⟨H', hp', trivial, hsr⟩)
       (fun u' hu _ hlk => Knot.specR_of_pre u' (pre_of_lookups hu cgParams _ rfl hlk)
-        (ih (i + 1) H3 _ (hp.trans (hp2.trans hp3)) hq4 (by omega) (by omega)))
+        (ih (i + 1) H3 _ (hp.trans (hp2.trans hp3)) (by omega) (by omega)))
       (fun r w s5 H5 hp5 _ => ?_)
     exact specR_returnI _ w (by simp) (fun t ht => ⟨H5, hp2.trans (hp3.trans hp5), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 

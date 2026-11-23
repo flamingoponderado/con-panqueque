@@ -1,5 +1,6 @@
 import ConPanqueque.T.Core.ProjGuardSort
 import ConPanqueque.T.Core.ProjGuardRowsF
+import ConPanqueque.T.Floor
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena ConRon.Bridge
@@ -410,25 +411,21 @@ structure GdCodes (C : Ctx) : Prop where
   cg : C.code.lookup fCg = some (cgParams.map (fun p => (p, ShapeHOL.one)), cgBody, .one)
 
 theorem gd_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) (hc : GdCodes C)
-    (tbl : IProjTable) (ot : Nat) (htb : TblE C.EB C.EH ot tbl) (i : Nat) (us : LsIdx) (Q : AState → Prop)
-    (hGs : ∀ s1 cvT caps o, Q s1 → C.fe.find? tbl.structName = some (.indInfo cvT caps) →
+    (tbl : IProjTable) (ot : Nat) (htb : TblE C.EB C.EH ot tbl) (i : Nat) (us : LsIdx)
+    (hGs : ∀ s1 cvT caps o, C.fe.find? tbl.structName = some (.indInfo cvT caps) →
       CIE C.EB C.EH o (.indInfo cvT caps) →
       SpecR (σ := σ) (Pre C s1 (fzParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 0, ecell C o, Enc.idxW us]))
         (gsBody C) s1 (projGuardSort (knot mode C n) cvT caps us) (PostGS C))
-    (hQgs : ∀ s1 cvT caps a s2, Q s1 → projGuardSort (knot mode C n) cvT caps us s1 = .ok (a, s2) → Q s2)
-    (hGw : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 →
-      SpecR (σ := σ) (Pre (ctxH C H) s1 (gwParams.zip [ecell C ot, BitVec.ofNat 64 i, Enc.idxW us])) (gwBody C) s1
-        (projGuardRows C.fe (tbl.entry i) us) (PostRows (ctxH C H)))
-    (hQgw : ∀ s1 a s2, Q s1 → projGuardRows C.fe (tbl.entry i) us s1 = .ok (a, s2) → Q s2)
-    (hDgw : ∀ s1 a s2 (h : LIdx) l, Q s1 → projGuardRows C.fe (tbl.entry i) us s1 = .ok (a, s2) →
-      denoteL s1.store.ls h = some l → denoteL s2.store.ls h = some l)
-    (hCg : ∀ (H : List (BitVec 64)) s1 gl (gh : LIdx) (rows : Array (Nat × EIdx)) o, C.H <+: H → Q s1 →
-      denoteL s1.store.ls gh = some gl → BlkAt H o (rowsW rows.toList) → rows.size < 2 ^ 58 →
+    (hGw : ∀ (H : List (BitVec 64)) (St : EStore) s1, C.H <+: H →
+      SpecR (σ := σ) (Pre (ctxSt (ctxH C H) St) s1 (gwParams.zip [ecell C ot, BitVec.ofNat 64 i, Enc.idxW us]))
+        (gwBody C) s1 (projGuardRows C.fe (tbl.entry i) us) (PostRows (ctxSt (ctxH C H) St)))
+    (hCg : ∀ (H : List (BitVec 64)) (St : EStore) s1 gl (gh : LIdx) (rows : Array (Nat × EIdx)) o, C.H <+: H →
+      denoteL St.ls gh = some gl → BlkAt H o (rowsW rows.toList) → rows.size < 2 ^ 58 →
       (∀ p ∈ rows.toList, p.1 < 2 ^ 63) →
-      SpecR (σ := σ) (Pre (ctxH C H) s1 (cgParams.zip [BitVec.ofNat 64 n, Enc.idxW gh, cellA C o,
+      SpecR (σ := σ) (Pre (ctxSt (ctxH C H) St) s1 (cgParams.zip [BitVec.ofNat 64 n, Enc.idxW gh, cellA C o,
         BitVec.ofNat 64 rows.size, BitVec.ofNat 64 0])) cgBody s1
-        (checkGuardRows (knot mode C n) gl rows 0) (PostU (ctxH C H)))
-    (s : AState) (hq : Q s) :
+        (checkGuardRows (knot mode C n) gl rows 0) (PostU (ctxSt (ctxH C H) St)))
+    (s : AState) :
     SpecR (σ := σ) (Pre C s (gdParams.zip [BitVec.ofNat 64 n, ecell C ot, BitVec.ofNat 64 i, Enc.idxW us]))
       (gdBody C) s (checkProjGuard (knot mode C n) C.fe (tbl.entry i) us) (PostU C) := by
   refine specR_prologue (postU_locals C) (gd_none C _) ?_
@@ -480,9 +477,8 @@ theorem gd_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
       ∀ l, a = some l → ∃ h : LIdx, w = Enc.idxW h + 1 ∧ denoteL s'.store.ls h = some l)
     (fun a w s' st ⟨hrun, H', hp, hsr, h1, h2⟩ => ⟨H', hp, ⟨hrun, h1, h2⟩, hsr⟩)
     (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu fzParams _ rfl hlk)
-      (hGs s cvT caps o hq hfind hci)))
+      (hGs s cvT caps o hfind hci)))
     (fun g w s1 H1 hp1 ⟨hrun1, h1, h2⟩ => ?_)
-  have hq1 := hQgs s cvT caps g s1 hq hrun1
   rcases g with _ | gl
   · have hw0 := h1 rfl; subst hw0
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
@@ -494,19 +490,19 @@ theorem gd_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
   refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact lidxW_add_one_ne gh)
     (fun h => absurd rfl h) (fun _ => ?_)
   dsimp only
-  refine specR_callNIH (C := ctxH C H1) gdR fGw gwParams [vv gdT, vv gdI, vv gdU] (gwBody C)
+  refine specR_invRaise (R' := PostU (ctxSt C s1.store)) ?_
+    (fun a w s' t hx ⟨H', hp', hsr⟩ => ⟨H', hp', sr_lower hsr hx⟩)
+  refine specR_callNIH (C := ctxSt (ctxH C H1) s1.store) gdR fGw gwParams [vv gdT, vv gdI, vv gdU] (gwBody C)
     [ecell C ot, BitVec.ofNat 64 i, Enc.idxW us] (by decide) rfl (by decide) hc.gw
     ⟨by simp +decide [Env.get, gdParams, ctxEnv] <;> rfl, by simp +decide [Env.get, gdParams, ctxEnv], by simp +decide [Env.get, gdParams, ctxEnv], trivial⟩
-    (fun a w s' st => projGuardRows C.fe (tbl.entry i) us s1 = .ok (a, s') ∧ PostRows (ctxH C H1) a w s' st)
+    (fun a w s' st => projGuardRows C.fe (tbl.entry i) us s1 = .ok (a, s') ∧ PostRows (ctxSt (ctxH C H1) s1.store) a w s' st)
     (fun a w s' H' => projGuardRows C.fe (tbl.entry i) us s1 = .ok (a, s') ∧ (a = none → w = 0) ∧
       ∀ rows, a = some rows → ∃ ob, w = cellA C ob ∧ BlkAt H' ob (rowsW rows.toList) ∧
         (∀ p ∈ rows.toList, p.1 < 2 ^ 63) ∧ rows.size < 2 ^ 58)
     (fun a w s' st ⟨hrun, H', hp, hsr, h1, h2⟩ => ⟨H', hp, ⟨hrun, h1, h2⟩, hsr⟩)
     (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu gwParams _ rfl hlk)
-      (by simpa [IProjTable.entry] using hGw H1 s1 hp1 hq1)))
+      (by simpa [IProjTable.entry] using hGw H1 s1.store s1 hp1)))
     (fun rr w s2 H2 hp2 ⟨hrun2, h1', h2'⟩ => ?_)
-  have hq2 := hQgw s1 rr s2 hq1 (by simpa [IProjTable.entry] using hrun2)
-  have hgd2 := hDgw s1 rr s2 gh gl hq1 (by simpa [IProjTable.entry] using hrun2) hgd
   rcases rr with _ | rows
   · have hw0 := h1' rfl; subst hw0
     exact specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => specR_hangI)
@@ -518,23 +514,23 @@ theorem gd_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
     obtain ⟨H0, hp0, ha0⟩ := ht2.sr.heap
     have hl := blkAt_lt hb
     have := ha0.len; have := hp0.length_le
-    simp only [ctxH] at *; omega
+    simp only [ctxH, ctxSt] at *; omega
   refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact ExSP.cellA_ne0 C hok ob hobN)
     (fun h => absurd rfl h) (fun _ => ?_)
   dsimp only
   have hrl := rowsW_length rows.toList
-  refine UD.specR_heapLoadI' (C := ctxH C H2) gdL (vv gdR) ob (BitVec.ofNat 64 (2 * rows.size)) (by
+  refine UD.specR_heapLoadI' (C := ctxSt (ctxH C H2) s1.store) gdL (vv gdR) ob (BitVec.ofNat 64 (2 * rows.size)) (by
     show H2[ob]? = _; rw [hb.1, hrl]; simp) (by decide) (by simp; rfl) ?_
   refine specR_congr (m' := checkGuardRows (knot mode C n) gl rows 0 >>= fun r => pure r) (by simp) ?_
-  refine specR_callNIH (C := ctxH C H2) gdX fCg cgParams
+  refine specR_callNIH (C := ctxSt (ctxH C H2) s1.store) gdX fCg cgParams
     [vv kFu, .op .sub [vv gdG, .const 1], vv gdR, .shift .lsr (vv gdL) (.const 1), .const 0] cgBody
     [BitVec.ofNat 64 n, Enc.idxW gh, cellA C ob, BitVec.ofNat 64 rows.size, BitVec.ofNat 64 0] (by decide) rfl
     (by decide) hc.cg
     ⟨by simp +decide [Env.get, gdParams, ctxEnv], by simp +decide [sev, Env.get]; exact BitVec.add_sub_cancel _ _, by simp <;> rfl,
       by simp +decide [sev, Env.get]; exact shr1_two rows.size (by omega), rfl, trivial⟩
-    (PostU (ctxH C H2)) (fun _ _ _ _ => True) (fun a w s' st ⟨H', hp', hsr⟩ => ⟨H', hp', trivial, hsr⟩)
+    (PostU (ctxSt (ctxH C H2) s1.store)) (fun _ _ _ _ => True) (fun a w s' st ⟨H', hp', hsr⟩ => ⟨H', hp', trivial, hsr⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cgParams _ rfl hlk)
-      (hCg H2 s2 gl gh rows ob (hp1.trans hp2) hq2 hgd2 hb hsz hall))
+      (hCg H2 s1.store s2 gl gh rows ob (hp1.trans hp2) hgd hb hsz hall))
     (fun r w s3 H3 hp3 _ => ?_)
   exact specR_returnI _ w (by simp) (fun t ht => ⟨H3, hp1.trans (hp2.trans hp3), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
