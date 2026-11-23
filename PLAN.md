@@ -475,3 +475,12 @@ Next: Core bodies bottom-up (constant instantiation `constTyAt`/`constValAt` wit
   - Arithmetic: `div`/`mod`, `gcd`, `pow`, `log2`.
   - Literal interning from a heap block, with the large key region.
   - Then `natBinOpResult` and `reduceNat`.
+
+### Decision (2026-11-24): `div`/`mod`/`gcd` on large literals decline
+
+Pancake has no division instruction, and resource-limit declines are allowed (soundness only needs "the port accepts ⇒ the twin accepts").
+
+- `div`, `mod` and `gcd` are computed exactly when both operands fit in one limb, by a verified 64-step word division loop.
+- With a larger operand the port declines: it halts without an answer, which is `Stop` in the specs. An explicit decline message through the FFI can replace the halt later.
+- `pow` is square-and-multiply on the verified `mul`, after the twin's `powGuard`.
+- `natSizeBytes n` is `8 · max(|limbs n|, 1)`, so no bit logarithm is needed.
