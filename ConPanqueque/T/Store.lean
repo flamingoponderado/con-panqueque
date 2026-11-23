@@ -442,22 +442,38 @@ theorem cachesOK_cachesLs {s : AState} (h : CachesOK s) (c : Caches)
   refine ⟨?_, ?_, hX, ?_, ?_⟩ <;> rw [hc] <;> assumption
 
 /-- The environment's stored constants denote in the twin store: their level-parameter names and their types. -/
-def EnvDen (fe : IFEnv) (st : EStore) : Prop :=
+/-- Every constant's level parameters and type denote, its level-parameter count is small, and a definition's
+value denotes. -/
+def ConstDen (fe : IFEnv) (st : EStore) : Prop :=
   ∀ c ci, fe.find? c = some ci → (∀ n ∈ ci.toConstantVal.levelParams, (denoteN st.ns n).isSome = true) ∧
     (denoteE st ci.toConstantVal.type).isSome = true ∧ ci.toConstantVal.levelParams.length + 1 < 2 ^ 60 ∧
     (∀ cv v hint, ci = .defnInfo cv v hint → (denoteE st v).isSome = true)
 
+/-- Every projection table's level parameters and bodies denote, and its level-parameter count is small. -/
+def TblDen (fe : IFEnv) (st : EStore) : Prop :=
+  ∀ T tbl, fe.findTable? T = some tbl → (∀ n ∈ tbl.levelParams, (denoteN st.ns n).isSome = true) ∧
+    (∀ b ∈ tbl.bodies.toList, (denoteE st b).isSome = true) ∧ tbl.levelParams.length + 1 < 2 ^ 60
+
+def EnvDen (fe : IFEnv) (st : EStore) : Prop := ConstDen fe st ∧ TblDen fe st
+
+theorem denoteN_isSome_ext {st st' : EStore} (hx : Ext st st') {n : NIdx} (h : (denoteN st.ns n).isSome = true) :
+    (denoteN st'.ns n).isSome = true := by
+  obtain ⟨m, hm⟩ := Option.isSome_iff_exists.mp h
+  show (denoteN st'.lss.ls.ns n).isSome = true
+  rw [hx.lss.ls.ns n m hm]; rfl
+
+theorem denoteE_isSome_ext {st st' : EStore} (hx : Ext st st') {e : EIdx} (h : (denoteE st e).isSome = true) :
+    (denoteE st' e).isSome = true := by
+  obtain ⟨x, hx'⟩ := Option.isSome_iff_exists.mp h
+  rw [hx.expr _ x hx']; rfl
+
 theorem envDen_ext {fe : IFEnv} {st st' : EStore} (h : EnvDen fe st) (hx : Ext st st') : EnvDen fe st' := by
-  intro c ci hc
-  obtain ⟨h1, h2, h3, h4⟩ := h c ci hc
-  refine ⟨fun n hn => ?_, ?_, h3, fun cv v hint hci => ?_⟩
-  · obtain ⟨m, hm⟩ := Option.isSome_iff_exists.mp (h1 n hn)
-    show (denoteN st'.lss.ls.ns n).isSome = true
-    rw [hx.lss.ls.ns n m hm]; rfl
-  · obtain ⟨e, he⟩ := Option.isSome_iff_exists.mp h2
-    rw [hx.expr _ e he]; rfl
-  · obtain ⟨e, he⟩ := Option.isSome_iff_exists.mp (h4 cv v hint hci)
-    rw [hx.expr _ e he]; rfl
+  refine ⟨fun c ci hc => ?_, fun T tbl hT => ?_⟩
+  · obtain ⟨h1, h2, h3, h4⟩ := h.1 c ci hc
+    exact ⟨fun n hn => denoteN_isSome_ext hx (h1 n hn), denoteE_isSome_ext hx h2, h3,
+      fun cv v hint hci => denoteE_isSome_ext hx (h4 cv v hint hci)⟩
+  · obtain ⟨h1, h2, h3⟩ := h.2 T tbl hT
+    exact ⟨fun n hn => denoteN_isSome_ext hx (h1 n hn), fun b hb => denoteE_isSome_ext hx (h2 b hb), h3⟩
 
 structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   rep : SRep t C.L C.FLn C.FLl C.FLs C.FLe s.store

@@ -1,4 +1,6 @@
 import ConPanqueque.T.Core.CheckProjGuard
+import ConPanqueque.T.LsView
+import ConPanqueque.T.SRFacts
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena ConRon.Bridge
@@ -701,10 +703,12 @@ theorem ecell_idx (C : Ctx) (o i : Nat) : ecell C o + (BitVec.ofNat 64 i * 8#64 
   unfold ecell; rw [BitVec.add_assoc, BitVec.ofNat_add_ofNat]; congr 2; omega
 
 def taParams : List MlS := [taT, taI, taUs, taVa, taPe]
-def taLocals : List MlS := [taLp, taLl, taB, taBd, taBn, taE, taY, taA, taL, taR, lCn, lSrc, lDst, lCi, lCz]
+def taLocals : List MlS := [taLp, taLl, taB, taBd, taBn, taE, taY, taA, taL, taR, lCn, lSrc, lDst, lCi, lCz,
+  lDh, lFl, lDt, lDg, lDi, lRp, lRn]
 
 def taBody (C : Ctx) : ProgHOL 64 := prologue taLocals
-  (.seq (.assign .local taLp (.load .one (.op .add [(vv taT), (.const 8)]))) (.seq (.assign .local taLl (.load .one (vv taLp))) (.seq (.assign .local lCn (.op .add [(vv taLl), (.const 1)])) (allocP C taB (.panop .mul [vv lCn, .const 8]) (.seq (.assign .local lSrc (vv taLp)) (.seq (.assign .local lDst (vv taB)) (.seq (.assign .local lCi (.const 0)) (.seq copyLoop (.seq (.assign .local taBd (.load .one (.op .add [(vv taT), (.const 40)]))) (.seq (.assign .local taBn (.load .one (vv taBd))) (.ite (.cmp .lower (vv taI) (vv taBn)) (.seq (.assign .local taE (.load .one (.op .add [(vv taBd), (.op .add [.panop .mul [vv taI, .const 8], .const 8])]))) (.seq (.call (some (some (.local, taY), none)) fInstLPF [(.const (BitVec.ofNat 64 coreWalkFuel)), (vv taE), (vv taB), (vv taUs)]) (.seq (.call (some (some (.local, taA), none)) ExPre.fAppend [(vv taVa), (vv taPe)]) (.seq (.assign .local taL (.load .one (vv taA))) (.seq (.call (some (some (.local, taR), none)) ExQ.fIrr [(vv taA), (.const 0), (vv taL), (.const (BitVec.ofNat 64 coreWalkFuel)), (vv taY), (.const 0)]) (.return (vv taR))))))) hang)))))))))))
+  (.seq (.assign .local lDh (vv taUs)) (.seq (.assign .local lFl (vv lFls)) (.seq lsViewP
+  (.seq (.assign .local taLp (.load .one (.op .add [(vv taT), (.const 8)]))) (.seq (.assign .local taLl (.load .one (vv taLp))) (.seq (.assign .local lCn (.op .add [(vv taLl), (.const 1)])) (allocP C taB (.panop .mul [vv lCn, .const 8]) (.seq (.assign .local lSrc (vv taLp)) (.seq (.assign .local lDst (vv taB)) (.seq (.assign .local lCi (.const 0)) (.seq copyLoop (.seq (.assign .local taBd (.load .one (.op .add [(vv taT), (.const 40)]))) (.seq (.assign .local taBn (.load .one (vv taBd))) (.ite (.cmp .lower (vv taI) (vv taBn)) (.seq (.assign .local taE (.load .one (.op .add [(vv taBd), (.op .add [.panop .mul [vv taI, .const 8], .const 8])]))) (.seq (.call (some (some (.local, taY), none)) fInstLPF [(.const (BitVec.ofNat 64 coreWalkFuel)), (vv taE), (vv taB), (vv taUs)]) (.seq (.call (some (some (.local, taA), none)) ExPre.fAppend [(vv taVa), (vv taPe)]) (.seq (.assign .local taL (.load .one (vv taA))) (.seq (.call (some (some (.local, taR), none)) ExQ.fIrr [(vv taA), (.const 0), (vv taL), (.const (BitVec.ofNat 64 coreWalkFuel)), (vv taY), (.const 0)]) (.return (vv taR))))))) hang))))))))))))))
 
 section
 variable {σ : Type}
@@ -726,13 +730,20 @@ theorem ta_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (targs : List EIdx) (pe : EIdx) (H : List (BitVec 64)) (oa : Nat) (hp : C.H <+: H)
     (hba : BlkAt H oa (targs.map Enc.idxW)) (s : AState)
     (ks : List ConLeche.Name) (hks : Frontend.denoteNList s.store.ns tbl.levelParams = some ks)
-    (vs : List ConLeche.Level) (hus : denoteLs s.store.lss us = some vs)
     (hst : StateOK s) (hrn : ReadNCacheOK s.caches.readNC s.store) (hrl : ReadLCacheOK s.caches.readLC s.store)
     (hrls : ReadLsCacheOK s.caches.readLsC s.store) (hden : ∀ b ∈ tbl.bodies.toList, (denoteE s.store b).isSome = true)
     (hlen : tbl.levelParams.length + 1 < 2 ^ 60) :
     SpecR (σ := σ) (Pre (ctxH C H) s (taParams.zip [ecell C ot, BitVec.ofNat 64 i, Enc.idxW us, cellA C oa,
       Enc.idxW pe])) (taBody C) s ((tbl.entry i).typeAt us targs pe) (PostK (ctxH C H)) := by
   refine specR_prologue (postK_locals _) (ta_none _ _) ?_
+  refine specR_assignI lDh (vv taUs) (Enc.idxW us) (by decide) (by simp +decide [ctxEnv, taParams]) ?_
+  refine specR_assignI lFl (vv lFls) C.FLs (by decide) (by simp +decide [ctxEnv, taParams] <;> rfl) ?_
+  refine specR_lsviewPI (C := ctxH C H) us (by simp +decide) (by simp +decide <;> rfl)
+    (by simp +decide [ctxEnv, taParams] <;> rfl) ⟨by decide, by decide, by decide, by decide, by decide⟩
+    (fun v1 P1 hv1 _ _ => ?_)
+  refine specR_atEntry fun t0 ht0 => ?_
+  obtain ⟨vs, hus⟩ := Option.isSome_iff_exists.mp (denoteLs_total' (sr_lswf ht0.sr) (by rw [hv1]; rfl))
+  refine specR_dropM ?_
   obtain ⟨-, ⟨wl, hwl, oL, hwL, hblk⟩, -, -, -, ⟨wb, hwb, oB, hwB, hbb⟩⟩ := htb
   subst hwL hwB
   refine specR_envLoadI (C := ctxH C H) taLp (.op .add [vv taT, .const 8]) (ot + 1) _ (by decide)

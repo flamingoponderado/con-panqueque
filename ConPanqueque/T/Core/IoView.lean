@@ -79,11 +79,12 @@ theorem pjio_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C
     (hQw : ∀ s1 d' e' a s2, Q s1 → (knot mode C n).whnf d' e' s1 = .ok (a, s2) → Q s2)
     (hQgaa : ∀ s1 e' a s2, Q s1 → getAppArgs coreWalkFuel e' s1 = .ok (a, s2) → Q s2)
     (hGd : ∀ (H : List (BitVec 64)) s1 (tbl : IProjTable) ot i us, C.H <+: H → Q s1 → TblE C.EB C.EH ot tbl →
+      (∃ T, C.fe.findTable? T = some tbl) →
       SpecR (σ := σ) (Pre (ctxH C H) s1 (gdParams.zip [BitVec.ofNat 64 n, ecell C ot, BitVec.ofNat 64 i,
         Enc.idxW us])) (gdBody C) s1 (checkProjGuard (knot mode C n) C.fe (tbl.entry i) us) (PostU (ctxH C H)))
     (hQgd : ∀ s1 (tbl : IProjTable) i us a s2, Q s1 → checkProjGuard (knot mode C n) C.fe (tbl.entry i) us s1 = .ok (a, s2) → Q s2)
     (hTa : ∀ (H : List (BitVec 64)) s1 (tbl : IProjTable) ot i us (targs : List EIdx) oa pe, C.H <+: H → Q s1 →
-      TblE C.EB C.EH ot tbl → BlkAt H oa (targs.map Enc.idxW) → i < 2 ^ 63 →
+      TblE C.EB C.EH ot tbl → (∃ T, C.fe.findTable? T = some tbl) → BlkAt H oa (targs.map Enc.idxW) → i < 2 ^ 63 →
       SpecR (σ := σ) (Pre (ctxH C H) s1 (taParams.zip [ecell C ot, BitVec.ofNat 64 i, Enc.idxW us, cellA C oa,
         Enc.idxW pe])) (taBody C) s1 ((tbl.entry i).typeAt us targs pe) (PostK (ctxH C H)))
     (s : AState) (hq : Q s) (d : Nat) (sn : NIdx) (i : Nat) (pe : EIdx) (hi : i < 2 ^ 64) :
@@ -243,7 +244,7 @@ theorem pjio_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C
     (fun a w s' _ => checkProjGuard (knot mode C n) C.fe (tbl.entry i) us s3 = .ok (a, s'))
     (fun a w s' st ⟨hrun, H', hp, hsr⟩ => ⟨H', hp, hrun, hsr⟩)
     (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu gdParams _ rfl hlk)
-      (hGd H3 s3 tbl ot i us hp13 hq3 htb)))
+      (hGd H3 s3 tbl ot i us hp13 hq3 htb ⟨_, hft⟩)))
     (fun g w s4 H4 hp4 hrun4 => ?_)
   have hq4 := hQgd s3 tbl i us g s4 hq3 hrun4
   refine specR_congr (m' := (tbl.entry i).typeAt us targs pe >>= fun r => pure r) (by simp [IProjTable.entry]) ?_
@@ -252,7 +253,7 @@ theorem pjio_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C
     ⟨by simp <;> rfl, by simp +decide [Env.get, iprParams, ctxEnv], by simp, by simp <;> rfl, by simp +decide [Env.get, iprParams, ctxEnv], trivial⟩
     (PostK (ctxH C H4)) (fun a w _ _ => w = Enc.idxW a) (fun a w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu taParams _ rfl hlk)
-      (hTa H4 s4 tbl ot i us targs o3 pe (hp13.trans hp4) hq4 htb (blkAt_mono hb3 hp4) (by omega)))
+      (hTa H4 s4 tbl ot i us targs o3 pe (hp13.trans hp4) hq4 htb ⟨_, hft⟩ (blkAt_mono hb3 hp4) (by omega)))
     (fun r w s5 H5 hp5 hw => ?_)
   subst hw
   exact specR_returnI _ (Enc.idxW r) (by simp)
