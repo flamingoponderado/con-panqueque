@@ -262,3 +262,4 @@ import ConPanqueque.T.Core.InferLams
 import ConPanqueque.T.Core.InferLamsLoop
 import ConPanqueque.T.Core.EagerRed
 import ConPanqueque.T.Core.InferSpine
+import ConPanqueque.T.Core.InferApp
