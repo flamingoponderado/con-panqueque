@@ -267,3 +267,4 @@ import ConPanqueque.T.Core.InferLit
 import ConPanqueque.T.Core.HasLoose
 import ConPanqueque.T.Core.LvlZero
 import ConPanqueque.T.Core.CheckGuard
+import ConPanqueque.T.Core.ProjGuardFast
