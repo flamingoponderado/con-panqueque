@@ -364,3 +364,23 @@ Cache policy from here: caches whose values are readbacks or verdicts are
 not mirrored. Their con-ron invariants are taken as hypotheses at the entry
 state. The top-level composition gets them from con-ron's `CheckOK`
 preservation.
+
+### Progress (2026-11-24, instantiateLevelParams pieces)
+
+Verified (each a Pancake function with its `SpecR`):
+
+- Level lists: `lvlsEq?` (`T/LvlEqList.lean`, view `V/LsView.lean`).
+- Interning:
+  - Level nodes (`T/LIntern.lean`) and level trees from heap or arena representations (`internLv`, `T/LInternLv.lean`).
+  - Level lists with the key block in the heap (`T/LsInternT.lean`).
+  - `sort`/`const`/`fvar` expression nodes (`T/EIntern2.lean`).
+- Re-intern identity (`T/ReIntern.lean`, `T/SubstLsH.lean`): on a well-formed store (con-ron's `StoreWF`), interning the readback of a handle returns that handle and leaves the state unchanged. This is why the port keeps arena handles where the twin rebuilds trees.
+- Substitution at a parameter list:
+  - `goM` and `substM` (`T/LvlSubstM.lean`).
+  - Handle level: `substLMemoAt` (`T/SubstLH.lean`).
+  - List level: `substLsMemoAt` (`T/SubstLsLoop.lean`, `T/SubstLsTop.lean`).
+  - The twin's per-call memos `instLPLC`/`instLPLsC` are not mirrored. Instead, invariants (`MemoLOK`/`MemoLsOK`: a row is the re-intern of its substituted readback) plus re-intern identity make recomputation agree with a memo hit (`specR_transfer`).
+
+Next: the `instLPGo` walk (ten arms; the `instLPC` memo is mirrored through
+`specR_memoGetI`/`SetI`), then `instLPFast` (name/level readbacks, memo
+clears).
