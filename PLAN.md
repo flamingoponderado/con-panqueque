@@ -466,6 +466,11 @@ Next: Core bodies bottom-up (constant instantiation `constTyAt`/`constValAt` wit
 - **Addition.** Heap-block addition (`T/Big/Add.lean`, `add_spec`): two carry loops, the final carry, and a canonical length. The proof goes through `T/Big/AddMath.lean` (carry-chain arithmetic, the 64-bit add-with-carry) and `limbs_eq_digits` (written digits are the canonical limbs).
 - **Subtraction.** Truncated subtraction for `y ≤ x` (`T/Big/Sub.lean`, `sub_spec`): two borrow loops, then a counted scan for the canonical length.
 - **Multiplication.** Schoolbook (`T/Big/Mul.lean`, `mul_spec`). The 64×64→128 multiply-accumulate is built from 32-bit halves (`T/Big/MulMath.lean`). The rows are proved through a closed form of the partially written cells (`T/Big/MulRow.lean`), with a Step-level loop rule for the nested loop (`step_forI`).
+- **Bitwise operations and shifts.**
+  - `land`/`lor`/`xor` (`T/Big/Bit.lean`) are generated from the subtraction proofs, with the borrow held at 0.
+  - `shiftRight` (`T/Big/Shr.lean`) works limb by limb with two-step word shifts.
+  - `shiftLeft` (`T/Big/Shl.lean`) is the verified product with the one-limb block `[2^r]`, then `q` zero limbs and a copy.
+  - `sev` now evaluates variable shift amounts.
 - **Remaining for `reduceNat`.**
   - Arithmetic:, `div`/`mod`, `gcd`, `pow`, bitwise operations, shifts, `log2`.
   - Literal interning from a heap block, with the large key region.
