@@ -54,8 +54,9 @@ def constI : ProgHOL 64 :=
     (.seq (.call (some (some (.local, lW), none)) fInternConst [vv lA1, vv lA3]) (.return (vv lW)))))))
 
 def fvarRestI (G : BitVec 64) : ProgHOL 64 :=
-  .seq (callI lY lA1)
-    (rebuild (eqE lY lA1) (.call (some (some (.local, lW), none)) fInternFVar [vv lY, vv lB]) (setRetL G))
+  .ite (.shift .lsr (vv lB) (.const 63)) hang
+  (.seq (callI lY lA1)
+    (rebuild (eqE lY lA1) (.call (some (some (.local, lW), none)) fInternFVar [vv lY, vv lB]) (setRetL G)))
 
 def fvarI (G : BitVec 64) : ProgHOL 64 :=
   probedL G (viewH (.seq (.assign .local lA1 (.load .one (vv lRp)))
@@ -79,8 +80,9 @@ def letLP (G : BitVec 64) : ProgHOL 64 :=
       (.call (some (some (.local, lW), none)) fInternLet [vv lY, vv lZ, vv lB]) (setRetL G)))))))))
 
 def projRestI (G : BitVec 64) : ProgHOL 64 :=
-  .seq (callI lY lA2)
-    (rebuild (eqE lY lA2) (.call (some (some (.local, lW), none)) fInternProj [vv lA1, vv lY, vv lB]) (setRetL G))
+  .ite (.shift .lsr (vv lB) (.const 63)) hang
+  (.seq (callI lY lA2)
+    (rebuild (eqE lY lA2) (.call (some (some (.local, lW), none)) fInternProj [vv lA1, vv lY, vv lB]) (setRetL G)))
 
 def projI (G : BitVec 64) : ProgHOL 64 :=
   probedL G (viewH (.seq (.assign .local lA1 (.load .one (.op .add [vv lRp, .const 0])))
@@ -646,6 +648,112 @@ theorem letLP_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
       (by simp +decide) (by simp +decide) (by simp +decide) (fun r s4 => ?_)
     exact setRetL_spec hok (hp1.trans (hp2.trans hp3)) hc.memoSet hc.memoIns h r (by simp +decide [hh])
       (by simp +decide [hkb]) (by simp +decide)
+
+end
+
+/-- The `proj` arm after a memo miss. -/
+def projMiss (ks : List ConLeche.Name) (vsL : List ConLeche.Level) (n : Nat) (h : EIdx) (nm : NIdx) (i : Nat)
+    (e : EIdx) : AM EIdx := do
+  let u ← instLPGo ks vsL n e
+  let r ← internRebuiltProj h (u == e) nm i u
+  instLPSet (h, 0) r
+  pure r
+
+section
+variable {σ : Type}
+open ConRon.Bridge.ExprOps
+
+theorem projRestI_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (B : ProgHOL 64)
+    (hc : CodesILP C B) (ko : Nat) (khs : List NIdx) (ks : List ConLeche.Name) (usH : LsIdx)
+    (vsL : List ConLeche.Level) (n : Nat) (ih : RecILP (σ := σ) C B ko khs ks usH vsL n)
+    {H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} (h : EIdx) (nm : NIdx) (i : Nat) (e : EIdx)
+    (hi : i < 2 ^ 64) (hp : PInv s khs ks usH vsL) (hde : (denoteE s.store e).isSome = true)
+    (hb : BlkAt H ko (khs.map Enc.idxW))
+    (hfu : Γ.get pFu = some (BitVec.ofNat 64 (n + 1))) (hh : Γ.get pH = some (Enc.idxW h))
+    (hkp : Γ.get pKp = some (cellA C ko)) (hus : Γ.get pUs = some (Enc.idxW usH))
+    (hkb : Γ.get lKb = some C.KB) (ha1 : Γ.get lA1 = some (Enc.idxW nm)) (ha2 : Γ.get lA2 = some (Enc.idxW e))
+    (hlb : Γ.get lB = some (BitVec.ofNat 64 i)) :
+    SpecR (Inv (σ := σ) (ctxH C H) s Γ M DI) (projRestI (C.mG (.e .instLP))) s (projMiss ks vsL n h nm i e)
+      (PostILP (ctxH C H)) := by
+  unfold projRestI projMiss
+  refine specR_ifI (.shift .lsr (vv lB) (.const 63)) (BitVec.ofNat 64 i >>> (63 : BitVec 64).toNat)
+    (by simp [sev, hlb]) (fun _ => specR_hangI) (fun hw => ?_)
+  have hi63 := (shr63_eq_zero i hi).mp hw
+  refine callI_spec C B hc.ilp ko khs ks usH vsL n ih lY lA2 e (by decide) hfu ha2 hkp hus hp hde hb
+    (fun u s1 H1 hp1 _ _ _ _ _ => ?_)
+  unfold internRebuiltProj
+  refine rebuild_spec (C := ctxH C H1) _ (eqW u e) (u == e) h _ _ (internProjE nm i u)
+    (sev_eqE _ _ _ _ _ (by simp +decide) (by simp +decide [ha2])) (eqW_iff _ _) (by simp +decide [hh]) ?_ ?_
+  · exact setRetL_spec hok hp1 hc.memoSet hc.memoIns h h (by simp +decide [hh]) (by simp +decide [hkb])
+      (by simp +decide)
+  · refine specR_internProjI ra (ctxOK_H hok H1) hc.internProj lW (vv lA1) (vv lY) (vv lB) nm i u hi63 (by decide)
+      (by simp +decide [ha1]) (by simp +decide) (by simp +decide [hlb]) (fun r s2 => ?_)
+    exact setRetL_spec hok hp1 hc.memoSet hc.memoIns h r (by simp +decide [hh]) (by simp +decide [hkb])
+      (by simp +decide)
+
+theorem projI_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (B : ProgHOL 64)
+    (hc : CodesILP C B) (ko : Nat) (khs : List NIdx) (ks : List ConLeche.Name) (usH : LsIdx)
+    (vsL : List ConLeche.Level) (n : Nat) (ih : RecILP (σ := σ) C B ko khs ks usH vsL n)
+    {H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} (h : EIdx) (nm : NIdx) (i : Nat) (e : EIdx)
+    (hv : s.store.view h = some (.proj nm i e))
+    (hp : PInv s khs ks usH vsL) (hden : (denoteE s.store h).isSome = true) (hb : BlkAt H ko (khs.map Enc.idxW))
+    (hfu : Γ.get pFu = some (BitVec.ofNat 64 (n + 1))) (hh : Γ.get pH = some (Enc.idxW h))
+    (hkp : Γ.get pKp = some (cellA C ko)) (hus : Γ.get pUs = some (Enc.idxW usH))
+    (hkb : Γ.get lKb = some C.KB) (hfle : Γ.get lFle = some C.FLe) (hdir : Γ.get lDir = some C.L.DIR) :
+    SpecR (Inv (σ := σ) (ctxH C H) s Γ M DI) (projI (C.mG (.e .instLP))) s
+      (instLPArmProj ks vsL n h nm i e) (PostILP (ctxH C H)) := by
+  have hde : (denoteE s.store e).isSome = true := by
+    have hd := hden
+    rw [denoteE_view_eq hp.ok.wf hv] at hd
+    simp only [denoteEView, opt2] at hd
+    split at hd <;> simp_all
+  refine specR_congr (m' := do match ← instLPGet (h, 0) with | some r => pure r | none => projMiss ks vsL n h nm i e)
+    (by rw [instLPArmProj]; rfl) ?_
+  unfold projI
+  refine probedL_spec hok hc.memoGet hc.memoProbe h _ _ hh hkb ?_
+  unfold viewH
+  refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [hfle]) ?_
+  refine specR_assignI lDh (vv pH) (Enc.idxW h) (by decide) (by simp +decide [hh]) ?_
+  refine specR_congr (m' := ConRon.Arena.view h >>= fun w => match w with
+    | .proj nm' i' e' => projMiss ks vsL n h nm' i' e'
+    | _ => projMiss ks vsL n h nm i e)
+    (by simp only [bind, StateT.bind]; rw [view_run, hv]; rfl) ?_
+  refine specR_viewIv h (by simp) (by simp +decide [hfle] <;> rfl) (by simp +decide [hdir] <;> rfl) (by decide)
+    (fun w P hv' _ hsh => ?_)
+  rw [hv] at hv'; cases hv'
+  simp only
+  refine specR_loadI' lA1 _ (P + 0) (P + BitVec.ofNat 64 0) (Enc.idxW nm) (by decide) (by simp [sev]) rfl
+    (wordsAt_mem0 _ _ _ _) ?_
+  refine specR_loadI' lA2 _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW e) (by decide) (by simp +decide [sev]) rfl
+    (wordsAt_mem1 _ _ _ _ _) ?_
+  have hlen : (encEView (.proj nm i e)).length = 2 + (Enc.limbs i).length := by
+    simp [encEView, Enc.encProj]; omega
+  by_cases i0 : i = 0
+  · subst i0
+    refine specR_ifI _ 1 (by simp +decide [sev, hlen, Enc.limbs, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun hw => absurd hw (by decide))
+    refine specR_assignI lB (.const 0) 0 (by decide) rfl ?_
+    exact projRestI_spec ra C hok B hc ko khs ks usH vsL n ih h nm 0 e (by decide) hp hde hb (by simp +decide [hfu])
+      (by simp +decide [hh]) (by simp +decide [hkp]) (by simp +decide [hus]) (by simp +decide [hkb])
+      (by simp +decide) (by simp +decide) (by simp)
+  · by_cases ib : i < 2 ^ 64
+    · have hl : Enc.limbs i = [BitVec.ofNat 64 i] := by rw [limbs_small i ib]; simp [i0]
+      refine specR_ifI _ 0 (by simp +decide [sev, hlen, hl, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun hw => absurd rfl hw) (fun _ => ?_)
+      refine specR_ifI _ 1 (by simp +decide [sev, hlen, hl, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun hw => absurd hw (by decide))
+      refine specR_loadI' lB _ (P + 16) (P + BitVec.ofNat 64 16) (BitVec.ofNat 64 i) (by decide)
+        (by simp +decide [sev]) rfl
+        (by have := wordsAt_mem2 P (Enc.idxW nm) (Enc.idxW e) (BitVec.ofNat 64 i) [] (M := [])
+            simpa [encEView, Enc.encProj, hl] using this) ?_
+      exact projRestI_spec ra C hok B hc ko khs ks usH vsL n ih h nm i e ib hp hde hb (by simp +decide [hfu])
+        (by simp +decide [hh]) (by simp +decide [hkp]) (by simp +decide [hus]) (by simp +decide [hkb])
+        (by simp +decide) (by simp +decide) (by simp)
+    · have hl := limbs_len_ge2 i (by omega)
+      have hlt : 2 + (Enc.limbs i).length < 2 ^ 61 := by rw [← hlen]; exact hsh
+      have hn2 : BitVec.ofNat 64 (2 + (Enc.limbs i).length) ≠ 2#64 := by
+        intro e; have := congrArg BitVec.toNat e; simp at this; omega
+      have hn3 : BitVec.ofNat 64 (2 + (Enc.limbs i).length) ≠ 3#64 := by
+        intro e; have := congrArg BitVec.toNat e; simp at this; omega
+      refine specR_ifI _ 0 (by simp +decide [sev, hlen, hn2, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun hw => absurd rfl hw) (fun _ => ?_)
+      exact specR_ifI _ 0 (by simp +decide [sev, hlen, hn3, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun hw => absurd rfl hw) (fun _ => specR_hangI)
 
 end
 
