@@ -543,3 +543,13 @@ Pancake has no division instruction, and resource-limit declines are allowed (so
 - **Next.**
   - The callee bodies: `prepareMajor` (`majorToCtor`, its rescues with `inferIO`/`defeq`/`proofIrrel`; `litMajorToCtor`), `iotaFam` (level substitution, `iotaCase3At`, `defEqList`, `iotaCertsFull`, `iotaIndexOk`), and `ruleBodyAt` (per-declaration memo).
   - Then discharge the knot's callee hypotheses, then `inferBody`/`defeqBody`.
+
+### Progress (2026-11-23, later): the ι callees
+
+- Proved:
+  - `prepareMajor`: `pm_spec`, with `majorToCtor` (`mc_spec`) and `prepareMajorWhnf` (`pw_spec`), against a `majorToCtorRescue` callee spec.
+  - `litMajorToCtor` (`lm_spec`) and `natLitToConstructor` (`nl_spec`).
+  - `ctorView` (`cw_spec`), `isStrLit` (`isl_spec`) and `isNatSuccApp` (`ns_spec`).
+  - `ruleBodyAt`: `rb_spec`, with a new memo access for the three-word rule-body cache.
+  - `lamBody` (`lb_spec`) and `proofIrrel` (`pi_spec`).
+- **Open design point.** The rescue's scope guard `fabScopeOk` (`wscopedBFast`, `leafGuard`) and the leaf walks use a per-call `seen` hash set. A faithful port needs a scratch memo region, cleared per call: a new `Region`, `SR` and `CtxOK` facts, and the clear/insert/get specs. Until then these walks are callee specs.
