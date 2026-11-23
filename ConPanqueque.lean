@@ -176,3 +176,4 @@ import ConPanqueque.T.Big.ShiftMath
 import ConPanqueque.T.Big.Shr
 import ConPanqueque.T.Big.Shl
 import ConPanqueque.T.Big.WDivMath
+import ConPanqueque.T.Big.WDiv
