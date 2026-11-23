@@ -1,4 +1,5 @@
 import ConPanqueque.T.Big.NatBinBase
+import ConPanqueque.T.Big.Bit
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena
@@ -19,6 +20,11 @@ def fLitH := ofString "bigLit"
 def fAdd := ofString "bigAdd"
 def fSub := ofString "bigSub"
 def fCmp := ofString "bigCmp"
+def fShr := ofString "bigShr"
+def fGcd := ofString "bigGcd"
+def fBit : BitOp → MlS
+  | .and => ofString "bigAnd" | .or => ofString "bigOr" | .xor => ofString "bigXor"
+def fDm (isMod : Bool) : MlS := if isMod then ofString "bigMod" else ofString "bigDiv"
 
 /-- The code the literal operations call. -/
 structure BigCodes (C : Ctx) : Prop where
@@ -28,6 +34,10 @@ structure BigCodes (C : Ctx) : Prop where
   mul : C.code.lookup fMul = some (mulParams.map (fun p => (p, ShapeHOL.one)), mulBody C, .one)
   cmp : C.code.lookup fCmp = some (bcParams.map (fun p => (p, ShapeHOL.one)), bcBody, .one)
   litb : C.code.lookup fLitB = some ([(iLx, .one)], litBlkBody C, .one)
+  bit : ∀ o, C.code.lookup (fBit o) = some (bitParams.map (fun p => (p, ShapeHOL.one)), bitBody o C, .one)
+  shr : C.code.lookup fShr = some (shrParams.map (fun p => (p, ShapeHOL.one)), shrBody C, .one)
+  dm : ∀ isMod, C.code.lookup (fDm isMod) = some (dmParams.map (fun p => (p, ShapeHOL.one)), dmBody C isMod, .one)
+  gcd : C.code.lookup fGcd = some (dmParams.map (fun p => (p, ShapeHOL.one)), gcdBody C, .one)
 
 def nbLocals : List MlS := [nX, nY, nR, nL, nM, nH, nC, nE, nS, nT]
 def nbParams : List MlS := [nA, nB]
@@ -109,6 +119,147 @@ theorem nbAdd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
       [cellA C ox, cellA C oy] (a + b) (by decide) rfl (by decide) hc.add ⟨by simp, by simp, trivial⟩
       (add_spec (ctxH C H) (ctxOK_H hok _) s a b ox oy hbx hby (by omega) (by omega)) (fun H' o hp' hbr => ?_)
     exact tail_sized ra hok (a + b) o (hp.trans hp') hbr hc.litb (by simp; rfl) (by decide)
+
+/-! ## `mul` -/
+
+def nbMulBody (C : Ctx) : ProgHOL 64 :=
+  prologue nbLocals (nbLits (.seq (.call (some (some (.local, nR), none)) fMul [vv nX, vv nY]) (nbTail C)))
+
+theorem nbMul_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : BigCodes C)
+    (s : AState) (ha hb : EIdx) (a b : Nat)
+    (hva : s.store.view ha = some (.lit (.natVal a))) (hvb : s.store.view hb = some (.lit (.natVal b))) :
+    SpecR (σ := σ) (Pre C s (nbParams.zip [Enc.idxW ha, Enc.idxW hb])) (nbMulBody C) s (natBinOpResult .mul a b)
+      (UD.PostO C) := by
+  refine specR_prologue (UD.postO_locals C) (nb_none C _) ?_
+  refine nb_lits hok hc ha hb a b hva hvb (nbEnv_a C ha hb) (nbEnv_b C ha hb) (by decide)
+    (fun H ox oy hp hbx hby => ?_)
+  refine specR_atEntry fun t0 ht0 => ?_
+  have hsa := blk_small (C := ctxH C H) (ctxOK_H hok _) ht0.sr hbx
+  have hsb := blk_small (C := ctxH C H) (ctxOK_H hok _) ht0.sr hby
+  show SpecR _ _ s (litNatSized (a * b)) _
+  refine specR_callPH (C := ctxH C H) (k := fun r => litNatSized r) nR fMul mulParams _ (mulBody C)
+    [cellA C ox, cellA C oy] (a * b) (by decide) rfl (by decide) hc.mul ⟨by simp, by simp, trivial⟩
+    (mul_spec (ctxH C H) (ctxOK_H hok _) s a b ox oy hbx hby (by omega)) (fun H' o hp' hbr => ?_)
+  exact tail_sized ra hok (a * b) o (hp.trans hp') hbr hc.litb (by simp; rfl) (by decide)
+
+/-! ## `land`, `lor`, `xor` -/
+
+def BitOp.nb : BitOp → NatBinOp
+  | .and => .land | .or => .lor | .xor => .xor
+
+theorem BitOp.f_comm (o : BitOp) (a b : Nat) : o.f a b = o.f b a := by
+  cases o
+  · exact Nat.and_comm a b
+  · exact Nat.or_comm a b
+  · exact Nat.xor_comm a b
+
+theorem natBinOpResult_bit (o : BitOp) (a b : Nat) :
+    natBinOpResult o.nb a b = (internE (.lit (.natVal (o.f a b))) >>= fun x => pure (some x)) := by
+  cases o <;> rfl
+
+def nbBitMid (o : BitOp) (C : Ctx) : ProgHOL 64 :=
+  .seq (.assign .local nS (.load .one (vv nX)))
+  (.seq (.assign .local nT (.load .one (vv nY)))
+  (.ite (.cmp .lower (vv nS) (vv nT))
+    (.seq (.call (some (some (.local, nR), none)) (fBit o) [vv nY, vv nX]) (nbTail C))
+    (.seq (.call (some (some (.local, nR), none)) (fBit o) [vv nX, vv nY]) (nbTail C))))
+
+def nbBitBody (o : BitOp) (C : Ctx) : ProgHOL 64 := prologue nbLocals (nbLits (nbBitMid o C))
+
+theorem nbBit_spec (o : BitOp) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
+    (hc : BigCodes C) (s : AState) (ha hb : EIdx) (a b : Nat)
+    (hva : s.store.view ha = some (.lit (.natVal a))) (hvb : s.store.view hb = some (.lit (.natVal b))) :
+    SpecR (σ := σ) (Pre C s (nbParams.zip [Enc.idxW ha, Enc.idxW hb])) (nbBitBody o C) s (natBinOpResult o.nb a b)
+      (UD.PostO C) := by
+  refine specR_prologue (UD.postO_locals C) (nb_none C _) ?_
+  rw [natBinOpResult_bit]
+  refine nb_lits hok hc ha hb a b hva hvb (nbEnv_a C ha hb) (nbEnv_b C ha hb) (by decide)
+    (fun H ox oy hp hbx hby => ?_)
+  unfold nbBitMid
+  have hl0 : (ctxH C H).H[ox]? = some (BitVec.ofNat 64 (limbs a).length) := hbx.1
+  have hl1 : (ctxH C H).H[oy]? = some (BitVec.ofNat 64 (limbs b).length) := hby.1
+  refine UD.specR_heapLoadI' (C := ctxH C H) nS (vv nX) ox _ hl0 (by decide) (by simp; rfl) ?_
+  refine UD.specR_heapLoadI' (C := ctxH C H) nT (vv nY) oy _ hl1 (by decide) (by simp; rfl) ?_
+  refine specR_atEntry fun t0 ht0 => ?_
+  have hsa := blk_small (C := ctxH C H) (ctxOK_H hok _) ht0.sr hbx
+  have hsb := blk_small (C := ctxH C H) (ctxOK_H hok _) ht0.sr hby
+  have hlt := word_lt_iff (limbs a).length (limbs b).length (by unfold B; omega) (by unfold B; omega)
+  by_cases hab : (limbs a).length < (limbs b).length
+  · refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlt.mpr hab])
+      (fun _ => ?_) (fun h => absurd h (by decide))
+    rw [BitOp.f_comm]
+    refine specR_callPH (C := ctxH C H) (k := fun r => internE (.lit (.natVal r)) >>= fun x => pure (some x))
+      nR (fBit o) bitParams _ (bitBody o C) [cellA C oy, cellA C ox] (o.f b a) (by decide) rfl (by decide) (hc.bit o)
+      ⟨by simp, by simp, trivial⟩
+      (bit_spec o (ctxH C H) (ctxOK_H hok _) s b a oy ox hby hbx (by omega) (by omega)) (fun H' r hp' hbr => ?_)
+    exact tail_plain ra hok (o.f b a) r (hp.trans hp') hbr hc.litb (by simp; rfl) (by decide)
+  · refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, (not_congr hlt).mpr hab])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_callPH (C := ctxH C H) (k := fun r => internE (.lit (.natVal r)) >>= fun x => pure (some x))
+      nR (fBit o) bitParams _ (bitBody o C) [cellA C ox, cellA C oy] (o.f a b) (by decide) rfl (by decide) (hc.bit o)
+      ⟨by simp, by simp, trivial⟩
+      (bit_spec o (ctxH C H) (ctxOK_H hok _) s a b ox oy hbx hby (by omega) (by omega)) (fun H' r hp' hbr => ?_)
+    exact tail_plain ra hok (o.f a b) r (hp.trans hp') hbr hc.litb (by simp; rfl) (by decide)
+
+/-! ## `shiftRight`, `div`, `mod`, `gcd`: one call, any operands -/
+
+/-- A literal operation that is one call of a block function answering `f a b`, then the plain tail. -/
+theorem nb_one (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxOK C) (hc : BigCodes C)
+    {s : AState} (fn : MlS) (ps : List MlS) (Bd : ProgHOL 64) (f : Nat → Nat → Nat) (ha hb : EIdx) (a b : Nat)
+    (hnd : ps.Nodup) (hl2 : ps.length = 2)
+    (hcode : ∀ H : List (BitVec 64), (ctxH C H).code.lookup fn = some (ps.map (fun p => (p, ShapeHOL.one)), Bd, .one))
+    (hspec : ∀ H ox oy, C.H <+: H → BlkAt H ox (limbs a) → BlkAt H oy (limbs b) →
+      SpecR (σ := σ) (Pre (ctxH C H) s (ps.zip [cellA C ox, cellA C oy])) Bd s (pure (f a b) : AM Nat)
+        (PostH (ctxH C H) s))
+    (hva : s.store.view ha = some (.lit (.natVal a))) (hvb : s.store.view hb = some (.lit (.natVal b))) :
+    SpecR (σ := σ) (Pre C s (nbParams.zip [Enc.idxW ha, Enc.idxW hb]))
+      (prologue nbLocals (nbLits (.seq (.call (some (some (.local, nR), none)) fn [vv nX, vv nY]) (nbTail C)))) s
+      (internE (.lit (.natVal (f a b))) >>= fun x => pure (some x)) (UD.PostO C) := by
+  refine specR_prologue (UD.postO_locals C) (nb_none C _) ?_
+  refine nb_lits hok hc ha hb a b hva hvb (nbEnv_a C ha hb) (nbEnv_b C ha hb) (by decide)
+    (fun H ox oy hp hbx hby => ?_)
+  refine specR_callPH (C := ctxH C H) (k := fun r => internE (.lit (.natVal r)) >>= fun x => pure (some x))
+    nR fn ps _ Bd [cellA C ox, cellA C oy] (f a b) hnd (by simp [hl2]) (by decide) (hcode H)
+    ⟨by simp, by simp, trivial⟩ (hspec H ox oy hp hbx hby) (fun H' r hp' hbr => ?_)
+  exact tail_plain ra hok (f a b) r (hp.trans hp') hbr hc.litb (by simp; rfl) (by decide)
+
+def nbShrBody (C : Ctx) : ProgHOL 64 :=
+  prologue nbLocals (nbLits (.seq (.call (some (some (.local, nR), none)) fShr [vv nX, vv nY]) (nbTail C)))
+
+theorem nbShr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : BigCodes C)
+    (s : AState) (ha hb : EIdx) (a b : Nat)
+    (hva : s.store.view ha = some (.lit (.natVal a))) (hvb : s.store.view hb = some (.lit (.natVal b))) :
+    SpecR (σ := σ) (Pre C s (nbParams.zip [Enc.idxW ha, Enc.idxW hb])) (nbShrBody C) s
+      (natBinOpResult .shiftRight a b) (UD.PostO C) :=
+  nb_one ra hok hc fShr shrParams (shrBody C) (fun a b => a >>> b) ha hb a b (by decide) rfl (fun _ => hc.shr)
+    (fun H ox oy _ hbx hby => shr_spec (ctxH C H) (ctxOK_H hok _) s a b ox oy hbx hby) hva hvb
+
+def nbDmBody (C : Ctx) (isMod : Bool) : ProgHOL 64 :=
+  prologue nbLocals (nbLits (.seq (.call (some (some (.local, nR), none)) (fDm isMod) [vv nX, vv nY]) (nbTail C)))
+
+theorem nbDm_spec (isMod : Bool) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
+    (hc : BigCodes C) (s : AState) (ha hb : EIdx) (a b : Nat)
+    (hva : s.store.view ha = some (.lit (.natVal a))) (hvb : s.store.view hb = some (.lit (.natVal b))) :
+    SpecR (σ := σ) (Pre C s (nbParams.zip [Enc.idxW ha, Enc.idxW hb])) (nbDmBody C isMod) s
+      (natBinOpResult (if isMod then .mod else .div) a b) (UD.PostO C) := by
+  have e : natBinOpResult (if isMod then .mod else .div) a b =
+      (internE (.lit (.natVal (dmRes isMod a b))) >>= fun x => pure (some x)) := by
+    cases isMod <;> rfl
+  rw [e]
+  exact nb_one ra hok hc (fDm isMod) dmParams (dmBody C isMod) (dmRes isMod) ha hb a b (by decide) rfl
+    (fun _ => hc.dm isMod) (fun H ox oy _ hbx hby => dm_spec (ctxH C H) (ctxOK_H hok _) s isMod a b ox oy hbx hby)
+    hva hvb
+
+def nbGcdBody (C : Ctx) : ProgHOL 64 :=
+  prologue nbLocals (nbLits (.seq (.call (some (some (.local, nR), none)) fGcd [vv nX, vv nY]) (nbTail C)))
+
+theorem nbGcd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : BigCodes C)
+    (s : AState) (ha hb : EIdx) (a b : Nat)
+    (hva : s.store.view ha = some (.lit (.natVal a))) (hvb : s.store.view hb = some (.lit (.natVal b))) :
+    SpecR (σ := σ) (Pre C s (nbParams.zip [Enc.idxW ha, Enc.idxW hb])) (nbGcdBody C) s
+      (natBinOpResult .gcd a b) (UD.PostO C) :=
+  nb_one ra hok hc fGcd dmParams (gcdBody C) Nat.gcd ha hb a b (by decide) rfl (fun _ => hc.gcd)
+    (fun H ox oy _ hbx hby => gcd_spec (ctxH C H) (ctxOK_H hok _) s a b ox oy hbx hby) hva hvb
 
 end
 
