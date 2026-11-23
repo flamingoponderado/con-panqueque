@@ -417,3 +417,14 @@ ExprOps still to port: `wscopedBFast`, `fvarLeaves`/`leafGuard` (walks with a `s
   - `SR.env` is `EnvAt`. `find?` is `specR_envFindI`; field loads are `specR_envLoadI` (`T/Env.lean`).
 
 Next: Core bodies bottom-up (constant instantiation `constTyAt`/`constValAt` with the fixed caches, `whnfCore` pieces, `inferBody`, `defeqBody`), then the knot as Pancake functions with a fuel induction.
+
+### Progress (2026-11-24, the knot)
+
+`T/Knot.lean` proves the knot shape with the bodies left abstract.
+
+- **Entry points.** Six Pancake entry points (`whnfCore`, `whnf`, `infer`, `defeq`, `defeqE`, `inferIO`), each taking the fuel first. Each checks the fuel (zero hangs where the twin fails) and runs `whnf`'s stuck-tag shortcut. It then probes its mode memo. On a miss it calls its body at fuel − 1 and stores the answer. `defeqE` enters and leaves the eager tower around this.
+- **Twin equations.** The twin's `coreKnot` at fuel `n+1` unfolds by `rfl` to the shapes these entry points implement.
+- **`knot_all`.** The entry points refine `coreKnot mode C.side C.fe id n` at every fuel `n ≤ 2^62` and every context. The hypotheses are:
+  - each body refines its twin (`whnfCoreBody`, `whnfBody`, `inferBody`, `defeqBody`, `inferBodyIO`) when the entry points refine the knot one level down;
+  - an abstract twin invariant `TI` survives entering the eager tower.
+- **Remaining.** The five bodies and everything they call. The check mode (`verified`/`trusted`) still needs a runtime representation.
