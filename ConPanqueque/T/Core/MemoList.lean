@@ -367,6 +367,40 @@ theorem leafMem_lookup (acc : List (Nat × EIdx)) (hs : ∀ it, it ∈ acc → i
       rw [h2, Bool.false_or]
       exact ih (fun it hm => hs it (by simp [hm]))
 
+/-! ## A seen set -/
+
+def SeenRep (C : Ctx) (H : List (BitVec 64)) (p : BitVec 64) (seen : Std.HashMap EIdx Unit) : Prop :=
+  ∃ xs, MNodes C H p xs ∧ ∀ h : EIdx, seen[h]? = (xs.lookup (Enc.idxW h, 0)).map (fun _ => ())
+
+theorem seenRep_empty (C : Ctx) (H : List (BitVec 64)) : SeenRep C H 0 ∅ :=
+  ⟨[], rfl, fun h => by simp [List.lookup]⟩
+
+theorem seenRep_mono {C : Ctx} {H H' : List (BitVec 64)} (hp : H <+: H') {p : BitVec 64}
+    {seen : Std.HashMap EIdx Unit} (h : SeenRep C H p seen) : SeenRep C H' p seen :=
+  let ⟨xs, hm, he⟩ := h; ⟨xs, mnodes_mono hp p xs hm, he⟩
+
+theorem seenRep_insert {C : Ctx} {H : List (BitVec 64)} {p' : BitVec 64} {seen : Std.HashMap EIdx Unit}
+    {xs : List ((BitVec 64 × BitVec 64) × Bool)} (he : ∀ h : EIdx, seen[h]? = (xs.lookup (Enc.idxW h, 0)).map (fun _ => ()))
+    (h : EIdx) (hm : MNodes C H p' (((Enc.idxW h, 0), true) :: xs)) :
+    SeenRep C H p' (seen.insert h ()) := by
+  refine ⟨_, hm, fun h' => ?_⟩
+  rw [Std.HashMap.getElem?_insert]
+  simp only [List.lookup]
+  by_cases e : h = h'
+  · subst e; simp
+  · rw [if_neg (by simpa using e)]
+    have : ¬ ((Enc.idxW h', (0 : BitVec 64)) == (Enc.idxW h, 0)) = true := by
+      simp only [beq_iff_eq, Prod.mk.injEq, and_true]
+      intro e1; exact e (idxW_inj e1).symm
+    simp only [this]
+    exact he h'
+
+theorem accRep_cons {C : Ctx} {H : List (BitVec 64)} {p' : BitVec 64} {acc : List (Nat × EIdx)} (idx : Nat)
+    (ty : EIdx) (hi : idx < 2 ^ 64) (hs : ∀ it, it ∈ acc → it.1 < 2 ^ 64)
+    (hm : MNodes C H p' (((BitVec.ofNat 64 idx, Enc.idxW ty), false) :: acc.map accEnc)) :
+    AccRep C H p' ((idx, ty) :: acc) :=
+  ⟨hm, fun it h => by simp at h; rcases h with rfl | h; exact hi; exact hs it h⟩
+
 end
 
 end ConPanqueque.T.WC
