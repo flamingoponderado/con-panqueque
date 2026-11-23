@@ -338,3 +338,5 @@ import ConPanqueque.T.Comp.InferBodyC
 import ConPanqueque.T.Comp.InferBodyIOC
 import ConPanqueque.T.Comp.IotaFamC
 import ConPanqueque.T.Comp.RescueC
+import ConPanqueque.T.Comp.IotaC
+import ConPanqueque.T.Comp.WhnfCoreC

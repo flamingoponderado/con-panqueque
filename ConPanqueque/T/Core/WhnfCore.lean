@@ -575,16 +575,16 @@ theorem wcl_rest (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx} (hok : CtxOK C)
     (hcl : C.code.lookup fWCL = some (wclParams.map (fun p => (p, ShapeHOL.one)), wclBody C, .one))
     (Q : AState → Prop)
     (hQs : ∀ s1 cheap d h e a s2, Q s1 → whnfCoreStep mode (knot mode C n) C.fe cheap d h e s1 = .ok (a, s2) → Q s2)
-    (hStep : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ cheap d h e,
+    (hStep : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ cheap d h e, d < 2 ^ 63 →
       SpecR (σ := σ) (Pre (ctxH C H) s1 (wcsParams.zip [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d,
         Enc.idxW h, Enc.idxW e])) Bs s1 (whnfCoreStep mode (knot mode C n) C.fe cheap d h e) (PostWS (ctxH C H)))
     (f' : Nat)
-    (hrec : ∀ (H : List (BitVec 64)) s1 cheap d e (xs ys : List EIdx) p q, C.H <+: H → Q s1 → LstAt C H p xs →
+    (hrec : ∀ (H : List (BitVec 64)) s1 cheap d e (xs ys : List EIdx) p q, C.H <+: H → Q s1 → d < 2 ^ 63 → LstAt C H p xs →
       LstAt C H q ys → SpecR (σ := σ) (Pre (ctxH C H) s1 (wclParams.zip [BitVec.ofNat 64 n, boolW cheap,
         BitVec.ofNat 64 d, Enc.idxW e, p, q, BitVec.ofNat 64 f'])) (wclBody C) s1
         (whnfCoreLoop mode (knot mode C n) C.fe cheap d f' e xs.reverse.toArray ys.reverse.toArray) (PostK (ctxH C H)))
     {H : List (BitVec 64)} {s : AState} {Γ : Env} (hpre : C.H <+: H) (hq : Q s)
-    (cheap : Bool) (d : Nat) (e h : EIdx) (xs ys : List EIdx) (p q : BitVec 64) (o : Option EIdx)
+    (cheap : Bool) (d : Nat) (hd : d < 2 ^ 63) (e h : EIdx) (xs ys : List EIdx) (p q : BitVec 64) (o : Option EIdx)
     (hp : LstAt C H p xs) (hqL : LstAt C H q ys)
     (hFu : Γ.get kFu = some (BitVec.ofNat 64 n)) (hC : Γ.get kC = some (boolW cheap))
     (hD0 : Γ.get kD = some (BitVec.ofNat 64 d)) (hE : Γ.get kE = some (Enc.idxW e))
@@ -617,7 +617,7 @@ theorem wcl_rest (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx} (hok : CtxOK C)
       (fun st w s' _ => w = encWS st ∧ whnfCoreStep mode (knot mode C n) C.fe cheap d h e s = .ok (st, s'))
       (fun st w s' t' ⟨hrun, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hw, hrun⟩, hsr⟩)
       (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu wcsParams _ rfl hlk)
-        (hStep H s hpre hq cheap d h e)))
+        (hStep H s hpre hq cheap d h e hd)))
       (fun st w s1 H1 hp1 ⟨hw, hrun⟩ => ?_)
     subst hw
     have hq1 := hQs s cheap d h e st s1 hq hrun
@@ -682,7 +682,7 @@ theorem wcl_rest (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx} (hok : CtxOK C)
         (wclBody C) [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d, Enc.idxW e', p2,
           (if whnfCoreCheapSafe h e then q3 else 0), BitVec.ofNat 64 f'] (by decide) rfl (by decide) hcl
         ⟨by simp [hFu], by simp [hC], by simp [hD0], by simp, by simp, by simp, by simp [hB], trivial⟩
-        (hrec H3 s1 cheap d e' _ _ p2 _ hpc hq1 (lstAt_mono hpd p2 _ hl2) hl3') (fun r s2 H4 hp4 => ?_)
+        (hrec H3 s1 cheap d e' _ _ p2 _ hpc hq1 hd (lstAt_mono hpd p2 _ hl2) hl3') (fun r s2 H4 hp4 => ?_)
       refine specR_returnI _ (Enc.idxW r) (by simp) (fun t ht => ?_)
       exact ⟨H4, hpc.trans hp4, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
   · -- a memo hit
@@ -718,10 +718,10 @@ theorem wcl_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
     (hcl : C.code.lookup fWCL = some (wclParams.map (fun p => (p, ShapeHOL.one)), wclBody C, .one))
     (Q : AState → Prop)
     (hQs : ∀ s1 cheap d h e a s2, Q s1 → whnfCoreStep mode (knot mode C n) C.fe cheap d h e s1 = .ok (a, s2) → Q s2)
-    (hStep : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ cheap d h e,
+    (hStep : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ cheap d h e, d < 2 ^ 63 →
       SpecR (σ := σ) (Pre (ctxH C H) s1 (wcsParams.zip [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d,
         Enc.idxW h, Enc.idxW e])) Bs s1 (whnfCoreStep mode (knot mode C n) C.fe cheap d h e) (PostWS (ctxH C H))) :
-    ∀ f, f < 2 ^ 63 → ∀ (H : List (BitVec 64)) s cheap d e (xs ys : List EIdx) p q, C.H <+: H → Q s →
+    ∀ f, f < 2 ^ 63 → ∀ (H : List (BitVec 64)) s cheap d e (xs ys : List EIdx) p q, C.H <+: H → Q s → d < 2 ^ 63 →
       LstAt C H p xs → LstAt C H q ys →
       SpecR (σ := σ) (Pre (ctxH C H) s (wclParams.zip [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d, Enc.idxW e,
         p, q, BitVec.ofNat 64 f])) (wclBody C) s
@@ -729,13 +729,13 @@ theorem wcl_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
   intro f
   induction f with
   | zero =>
-    intro _ H s cheap d e xs ys p q _ _ _ _
+    intro _ H s cheap d e xs ys p q _ _ _ _ _
     refine specR_prologue (postK_locals _) (wcl_none _ _) ?_
     unfold wclCore
     exact specR_ifI _ 1 (by simp +decide [sev, Env.get, wclParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
       (fun _ => specR_hangI) (fun h => absurd h (by decide))
   | succ f' ih =>
-    intro hf H s cheap d e xs ys p q hpre hq hp hqL
+    intro hf H s cheap d e xs ys p q hpre hq hd hp hqL
     have hok' := ctxOK_H hok H
     refine specR_prologue (postK_locals _) (wcl_none _ _) ?_
     unfold wclCore
@@ -757,15 +757,15 @@ theorem wcl_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
     have hE0 : Env.get ((cB, BitVec.ofNat 64 f') :: (ctxEnv (ctxH C H) ++ wclParams.zip [BitVec.ofNat 64 n, boolW cheap,
         BitVec.ofNat 64 d, Enc.idxW e, p, q, BitVec.ofNat 64 (f' + 1)])) kE = some (Enc.idxW e) := by
       simp +decide [Env.get, wclParams, ctxEnv]
-    have hrec : ∀ (H' : List (BitVec 64)) s1 cheap d e (xs ys : List EIdx) p q, (ctxH C H).H <+: H' → Q s1 →
+    have hrec : ∀ (H' : List (BitVec 64)) s1 cheap d e (xs ys : List EIdx) p q, (ctxH C H).H <+: H' → Q s1 → d < 2 ^ 63 →
         LstAt (ctxH C H) H' p xs → LstAt (ctxH C H) H' q ys →
         SpecR (σ := σ) (Pre (ctxH (ctxH C H) H') s1 (wclParams.zip [BitVec.ofNat 64 n, boolW cheap,
           BitVec.ofNat 64 d, Enc.idxW e, p, q, BitVec.ofNat 64 f'])) (wclBody (ctxH C H)) s1
           (whnfCoreLoop mode (knot mode (ctxH C H) n) (ctxH C H).fe cheap d f' e xs.reverse.toArray ys.reverse.toArray)
           (PostK (ctxH (ctxH C H) H')) :=
-      fun H' s1 cheap d e xs ys p q hp' hq' hpL hqL =>
-        ih (by omega) H' s1 cheap d e xs ys p q (hpre.trans hp') hq' (lstAt_H.mp hpL) (lstAt_H.mp hqL)
-    have hStep' : ∀ (H' : List (BitVec 64)) s1, (ctxH C H).H <+: H' → Q s1 → ∀ cheap d h e,
+      fun H' s1 cheap d e xs ys p q hp' hq' hd' hpL hqL =>
+        ih (by omega) H' s1 cheap d e xs ys p q (hpre.trans hp') hq' hd' (lstAt_H.mp hpL) (lstAt_H.mp hqL)
+    have hStep' : ∀ (H' : List (BitVec 64)) s1, (ctxH C H).H <+: H' → Q s1 → ∀ cheap d h e, d < 2 ^ 63 →
         SpecR (σ := σ) (Pre (ctxH (ctxH C H) H') s1 (wcsParams.zip [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d,
           Enc.idxW h, Enc.idxW e])) Bs s1 (whnfCoreStep mode (knot mode (ctxH C H) n) (ctxH C H).fe cheap d h e)
           (PostWS (ctxH (ctxH C H) H')) :=
@@ -805,7 +805,7 @@ theorem wcl_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
           (by decide) (by decide) (by simp +decide [sev, Env.get, wclParams, ctxEnv])
           (by simp +decide [Env.get, wclParams, ctxEnv]) (fun r => ?_)
         exact wcl_rest (σ := σ) (C := ctxH C H) mode n hok' Bs hcf hcc hcodeS hcodeI hcs hcl Q hQs hStep' f' hrec
-          (List.prefix_refl _) hq false d e hh xs ys p q r (lstAt_H.mpr hp) (lstAt_H.mpr hqL)
+          (List.prefix_refl _) hq false d hd e hh xs ys p q r (lstAt_H.mpr hp) (lstAt_H.mpr hqL)
           (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp +decide [Env.get, wclParams, ctxEnv])
           (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp +decide [Env.get, wclParams, ctxEnv])
           (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp +decide [Env.get, wclParams, ctxEnv])
@@ -817,7 +817,7 @@ theorem wcl_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
           (by decide) (by decide) (by simp +decide [sev, Env.get, wclParams, ctxEnv])
           (by simp +decide [Env.get, wclParams, ctxEnv]) (fun r => ?_)
         exact wcl_rest (σ := σ) (C := ctxH C H) mode n hok' Bs hcf hcc hcodeS hcodeI hcs hcl Q hQs hStep' f' hrec
-          (List.prefix_refl _) hq true d e hh xs ys p q r (lstAt_H.mpr hp) (lstAt_H.mpr hqL)
+          (List.prefix_refl _) hq true d hd e hh xs ys p q r (lstAt_H.mpr hp) (lstAt_H.mpr hqL)
           (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp +decide [Env.get, wclParams, ctxEnv])
           (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp +decide [Env.get, wclParams, ctxEnv])
           (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp +decide [Env.get, wclParams, ctxEnv])
@@ -826,7 +826,7 @@ theorem wcl_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
       refine specR_assignI cX (.const 0) (optW none) (by decide) rfl ?_
       rw [show whnfCoreLookupAt (whnfCoreKey hh e) cheap e = pure none by simp [whnfCoreLookupAt, hk], pure_bind]
       exact wcl_rest (σ := σ) (C := ctxH C H) mode n hok' Bs hcf hcc hcodeS hcodeI hcs hcl Q hQs hStep' f' hrec
-          (List.prefix_refl _) hq cheap d e hh xs ys p q none (lstAt_H.mpr hp) (lstAt_H.mpr hqL)
+          (List.prefix_refl _) hq cheap d hd e hh xs ys p q none (lstAt_H.mpr hp) (lstAt_H.mpr hqL)
           (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp +decide [Env.get, wclParams, ctxEnv])
           (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp +decide [Env.get, wclParams, ctxEnv])
           (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp +decide [Env.get, wclParams, ctxEnv])
@@ -860,10 +860,10 @@ theorem wcb_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
     (hcl : C.code.lookup fWCL = some (wclParams.map (fun p => (p, ShapeHOL.one)), wclBody C, .one))
     (Q : AState → Prop)
     (hQs : ∀ s1 cheap d h e a s2, Q s1 → whnfCoreStep mode (knot mode C n) C.fe cheap d h e s1 = .ok (a, s2) → Q s2)
-    (hStep : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ cheap d h e,
+    (hStep : ∀ (H : List (BitVec 64)) s1, C.H <+: H → Q s1 → ∀ cheap d h e, d < 2 ^ 63 →
       SpecR (σ := σ) (Pre (ctxH C H) s1 (wcsParams.zip [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d,
         Enc.idxW h, Enc.idxW e])) Bs s1 (whnfCoreStep mode (knot mode C n) C.fe cheap d h e) (PostWS (ctxH C H)))
-    (s : AState) (hs : Q s) (cheap : Bool) (d : Nat) (e : EIdx) :
+    (s : AState) (hs : Q s) (cheap : Bool) (d : Nat) (hd : d < 2 ^ 63) (e : EIdx) :
     SpecR (σ := σ) (Pre C s (wcParams.zip [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d, Enc.idxW e])) wcbBody s
       (whnfCoreBody mode (knot mode C n) C.fe cheap d e) (PostK C) := by
   refine specR_prologue (postK_locals C) (wcb_none C _) ?_
@@ -877,7 +877,7 @@ theorem wcb_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
       by simp +decide [sev, Env.get, wcParams, ctxEnv], by simp +decide [sev, Env.get, wcParams, ctxEnv], rfl, rfl, rfl,
       trivial⟩
     (wcl_spec mode n C hok Bs hcf hcc hcodeS hcodeI hcodeG hcodeP hcaf hcs hcl Q hQs hStep whnfCoreLoopFuel hF C.H s
-      cheap d e [] [] 0 0 (List.prefix_refl _) hs rfl rfl) (fun r s' H' hp => ?_)
+      cheap d e [] [] 0 0 (List.prefix_refl _) hs hd rfl rfl) (fun r s' H' hp => ?_)
   refine specR_returnI _ (Enc.idxW r) (by simp) (fun t ht => ?_)
   exact ⟨H', hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
 
