@@ -51,13 +51,13 @@ variable {σ : Type}
 
 /-- The loop's post: the handles as a block of a bigger image; the store grown (levels only). -/
 def PostLsG (C : Ctx) (s : AState) (hs : List LIdx) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
-  ∃ H' o, C.H <+: H' ∧ w = cellA C o ∧ BlkAt H' o (hs.map Enc.idxW) ∧ SR (ctxH C H') s' st ∧
+  ∃ H' o, C.H <+: H' ∧ C.H.length ≤ o ∧ w = cellA C o ∧ BlkAt H' o (hs.map Enc.idxW) ∧ SR (ctxH C H') s' st ∧
     StoreWF s'.store ∧ Ext s.store s'.store ∧
     (∃ ls', s' = { s with store := withL s.store ls' } ∧ LGrow s.store.ls ls')
 
 theorem postLsG_locals (C : Ctx) (s : AState) : ∀ (a : List LIdx) w s' (st : PState σ)
     (L : HolFiniteMapExact MlS (ValueHOL 64)), PostLsG C s a w s' st → PostLsG C s a w s' { st with locals := L } :=
-  fun _ _ _ _ _ ⟨H', o, a, b, c, d, e⟩ => ⟨H', o, a, b, c, sr_of_eq d rfl rfl rfl rfl, e⟩
+  fun _ _ _ _ _ ⟨H', o, a, a', b, c, d, e⟩ => ⟨H', o, a, a', b, c, sr_of_eq d rfl rfl rfl rfl, e⟩
 
 theorem params_noneLsg (vals : List (BitVec 64)) (C : Ctx) :
     ∀ x, x ∈ gaaLocals → (ctxEnv C ++ lsgParams.zip vals).get x = none := by
@@ -126,7 +126,7 @@ theorem lsg_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
     have hj : H2.length < (ctxH (ctxH C H) (H2 ++ ws)).H.length := by show H2.length < (H2 ++ ws).length; simp; omega
     refine specR_heapStoreI (ctxOK_H hok _) (vv lW) (.const 0) H2.length hj 0 (by simp [cellA, ctxH]) rfl ?_
     refine specR_returnI (vv lW) (cellA C H2.length) (by simp <;> rfl) (fun t ht => ?_)
-    refine ⟨(H2 ++ ws).set H2.length 0, H2.length, ?_, rfl, ?_, sr_of_eq ht.sr rfl rfl rfl rfl, hwf, Ext.refl _,
+    refine ⟨(H2 ++ ws).set H2.length 0, H2.length, ?_, hp.length_le, rfl, ?_, sr_of_eq ht.sr rfl rfl rfl rfl, hwf, Ext.refl _,
       ⟨s.store.ls, rfl, LGrow.refl _⟩⟩
     · refine hp.trans (prefix_of_get? (by simp) (fun k hk => ?_))
       rw [List.getElem?_set_ne (by omega), List.getElem?_append_left hk]
@@ -150,12 +150,12 @@ theorem lsg_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       (fun a w s' st => internLevelList ((ls.take k).map (ConLeche.Level.subst ks vsL)) s = .ok (a, s') ∧
         PostLsG (ctxH C H) s a w s' st)
       (fun a w s' H' => internLevelList ((ls.take k).map (ConLeche.Level.subst ks vsL)) s = .ok (a, s') ∧
-        ∃ o, w = cellA C o ∧ BlkAt H' o (a.map Enc.idxW) ∧ StoreWF s'.store ∧ Ext s.store s'.store ∧
+        ∃ o, H.length ≤ o ∧ w = cellA C o ∧ BlkAt H' o (a.map Enc.idxW) ∧ StoreWF s'.store ∧ Ext s.store s'.store ∧
           (∃ ls', s' = { s with store := withL s.store ls' } ∧ LGrow s.store.ls ls'))
-      (fun a w s' st ⟨hr, H', o, hp, hw, hbk, hsr, hwf', hx, hg⟩ => ⟨H', hp, ⟨hr, o, hw, hbk, hwf', hx, hg⟩, hsr⟩)
+      (fun a w s' st ⟨hr, H', o, hp, ho, hw, hbk, hsr, hwf', hx, hg⟩ => ⟨H', hp, ⟨hr, o, ho, hw, hbk, hwf', hx, hg⟩, hsr⟩)
       (fun u hu _ hlk => specR_run (fun w' hw' => by
         subst hw'; exact ih H s ls (by omega) hks hv hls hv2 hvs hwf hb _ (pre_of_lookups hu lsgParams _ rfl hlk)))
-      (fun hs1 w s1 H1 hp1 ⟨hr1, oy, hw, hblk, wf1, ext1, ls1, es1, g1⟩ => ?_)
+      (fun hs1 w s1 H1 hp1 ⟨hr1, oy, hoy, hw, hblk, wf1, ext1, ls1, es1, g1⟩ => ?_)
     subst hw
     subst es1
     have hls1 : denoteLList ls1 uh = some ls := denoteLList_ext ext1.lss.ls uh ls hls
@@ -234,7 +234,8 @@ theorem lsg_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
     have hFg : ∀ k, F[k]? = if H3.length + 1 ≤ k ∧ k < H3.length + 1 + hs1.length ∧ k < B.length
         then some ((hs1.map Enc.idxW).getD (k - (H3.length + 1)) 0) else B[k]? := by
       intro k; rw [← hF, fillI_get?]; simp
-    refine ⟨F.set (H3.length + 1 + (hs1.map Enc.idxW).length) (Enc.idxW h), H3.length, ?_, rfl, ?_,
+    refine ⟨F.set (H3.length + 1 + (hs1.map Enc.idxW).length) (Enc.idxW h), H3.length, ?_,
+      by have := hp1.length_le; have := hp2.length_le; show H.length ≤ H3.length; omega, rfl, ?_,
       sr_of_eq ht.sr rfl rfl rfl rfl, wf2, ext1.trans x2, ⟨_, rfl, g1.trans g2⟩⟩
     · refine hp1.trans (hp2.trans (hp3'.trans (prefix_of_get? (by simp; omega) (fun k hk => ?_))))
       rw [List.getElem?_set_ne (by simp; omega), hFg k, if_neg (by omega), ← hB]
