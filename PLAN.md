@@ -523,4 +523,8 @@ Pancake has no division instruction, and resource-limit declines are allowed (so
   - `tagIs4E`: the app tag (4) is "tag bits 4, or a wide handle".
 - `T/Core/WcTags.lean` has the tag predicates (`whnfCoreStuckTag`, `isStuckHead`, `whnfCoreKey`, `whnfCoreCheapSafe`, `whnfCoreStoresDone`) as expressions of exactly the twin's value.
 - `T/Core/WhnfCore.lean`, `wcl_spec`: the recursive `whnfCoreLoop` function refines the twin at every budget, by induction. It is proved against the step function's spec (`whnfCoreStep` as a callee returning an encoded `WhnfStep`).
-- **Next.** `whnfCoreStep`: β (`whnfCoreStepApp`: `getAppSpine`, `headAndArgs`, `whnfApp`), ι (`whnfStuck`), projection (`whnfCoreStepProj`/`reduceProjCore`), ζ (`instantiate1Fast`). Then `whnfCoreBody` as a call of the loop with empty lists.
+- `wcb_spec`: `whnfCoreBody` is one call of the loop with empty lists and the `2^62` budget.
+- `T/Core/WcStep.lean`, `wcs_spec`: the `whnfCoreStep` dispatch is proved.
+  - Values are done; ζ goes through `instantiate1` (`fast_spec`); a loose `bvar` declines.
+  - An application goes to the ι step (`whnfStuck`) or the β step (`whnfCoreStepApp`), a projection to `whnfCoreStepProj`. These three are callees given by their specs.
+- **Next.** The three arms: ι (`whnfStuck`, `iotaRecAt`), β (`whnfCoreStepApp`: `getAppSpine`, `headAndArgs`, `whnfApp`, `betaPeel`), projection (`whnfCoreStepProj`, `reduceProjCore`, `projLitToCtor`).
