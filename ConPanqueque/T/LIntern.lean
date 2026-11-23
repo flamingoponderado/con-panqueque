@@ -113,6 +113,9 @@ theorem internLParam_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : 
       fun mk => memoAtN_frame (ht.sr.memoN mk)
         (fun c hc => hm c (hok.memoOut (.n mk) c hc) (fun j hj e => hok.kbMemo (.n mk) j (by omega) (e ▸ hc)))
         (fun k hk => hm _ (hok.mdescOut (.n mk) k hk) (fun j hj => hok.kbMdesc (.n mk) k j hk (by omega))) hd,
+      fun mk => cacheAt_frame (ht.sr.cache mk)
+        (fun c hc => hm c (hok.memoOut (.c mk) c hc) (fun j hj e => hok.kbMemo (.c mk) j (by omega) (e ▸ hc)))
+        (fun k hk => hm _ (hok.mdescOut (.c mk) k hk) (fun j hj => hok.kbMdesc (.c mk) k j hk (by omega))) hd,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
         (by rw [hg])⟩
 
@@ -147,6 +150,9 @@ theorem internLZero_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : C
       fun mk => memoAtN_frame (ht.sr.memoN mk)
         (fun c hc => hm c (hok.memoOut (.n mk) c hc) (fun j hj e => hok.kbMemo (.n mk) j (by omega) (e ▸ hc)))
         (fun k hk => hm _ (hok.mdescOut (.n mk) k hk) (fun j hj => hok.kbMdesc (.n mk) k j hk (by omega))) hd,
+      fun mk => cacheAt_frame (ht.sr.cache mk)
+        (fun c hc => hm c (hok.memoOut (.c mk) c hc) (fun j hj e => hok.kbMemo (.c mk) j (by omega) (e ▸ hc)))
+        (fun k hk => hm _ (hok.mdescOut (.c mk) k hk) (fun j hj => hok.kbMdesc (.c mk) k j hk (by omega))) hd,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
         (by rw [hg])⟩
 
@@ -181,6 +187,9 @@ theorem internLSucc_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : C
       fun mk => memoAtN_frame (ht.sr.memoN mk)
         (fun c hc => hm c (hok.memoOut (.n mk) c hc) (fun j hj e => hok.kbMemo (.n mk) j (by omega) (e ▸ hc)))
         (fun k hk => hm _ (hok.mdescOut (.n mk) k hk) (fun j hj => hok.kbMdesc (.n mk) k j hk (by omega))) hd,
+      fun mk => cacheAt_frame (ht.sr.cache mk)
+        (fun c hc => hm c (hok.memoOut (.c mk) c hc) (fun j hj e => hok.kbMemo (.c mk) j (by omega) (e ▸ hc)))
+        (fun k hk => hm _ (hok.mdescOut (.c mk) k hk) (fun j hj => hok.kbMdesc (.c mk) k j hk (by omega))) hd,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
         (by rw [hg])⟩
 
@@ -216,6 +225,9 @@ theorem internLMax_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ct
       fun mk => memoAtN_frame (ht.sr.memoN mk)
         (fun c hc => hm c (hok.memoOut (.n mk) c hc) (fun j hj e => hok.kbMemo (.n mk) j (by omega) (e ▸ hc)))
         (fun k hk => hm _ (hok.mdescOut (.n mk) k hk) (fun j hj => hok.kbMdesc (.n mk) k j hk (by omega))) hd,
+      fun mk => cacheAt_frame (ht.sr.cache mk)
+        (fun c hc => hm c (hok.memoOut (.c mk) c hc) (fun j hj e => hok.kbMemo (.c mk) j (by omega) (e ▸ hc)))
+        (fun k hk => hm _ (hok.mdescOut (.c mk) k hk) (fun j hj => hok.kbMdesc (.c mk) k j hk (by omega))) hd,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
         (by rw [hg])⟩
 
@@ -251,6 +263,9 @@ theorem internLImax_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : C
       fun mk => memoAtN_frame (ht.sr.memoN mk)
         (fun c hc => hm c (hok.memoOut (.n mk) c hc) (fun j hj e => hok.kbMemo (.n mk) j (by omega) (e ▸ hc)))
         (fun k hk => hm _ (hok.mdescOut (.n mk) k hk) (fun j hj => hok.kbMdesc (.n mk) k j hk (by omega))) hd,
+      fun mk => cacheAt_frame (ht.sr.cache mk)
+        (fun c hc => hm c (hok.memoOut (.c mk) c hc) (fun j hj e => hok.kbMemo (.c mk) j (by omega) (e ▸ hc)))
+        (fun k hk => hm _ (hok.mdescOut (.c mk) k hk) (fun j hj => hok.kbMdesc (.c mk) k j hk (by omega))) hd,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
         (by rw [hg])⟩
 

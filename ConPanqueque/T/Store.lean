@@ -57,8 +57,14 @@ theorem memoSel_updN (k : MemoK) (k' : MemoNK) (m : Memos) (x : Std.HashMap EIdx
 theorem memoSelN_upd (k : MemoNK) (k' : MemoK) (m : Memos) (x : Std.HashMap (EIdx × Nat) EIdx) :
     memoSelN k (memoUpd k' m x) = memoSelN k m := by cases k <;> cases k' <;> rfl
 
-/-- A memo's region: one of the `(EIdx × Nat) → EIdx` memos, or one of the `EIdx → Nat` ones. -/
-inductive Region | e (k : MemoK) | n (k : MemoNK)
+/-- The mirrored per-declaration caches of `Caches` (the entry-point tables and the instantiated-constant
+tables); the readback and verdict caches are not mirrored. -/
+inductive CacheK | whnfCore | whnfCoreCheap | whnf | infer | inferIO | defeq | constTy | constVal | ruleBody
+  deriving DecidableEq
+
+/-- A memo's region: one of the `(EIdx × Nat) → EIdx` memos, one of the `EIdx → Nat` ones, or a mirrored
+cache. -/
+inductive Region | e (k : MemoK) | n (k : MemoNK) | c (k : CacheK)
   deriving DecidableEq
 
 /-- An `EIdx → Nat` memo: key `[idxW h]`, value `ofNat n`, every value below `2^63`. -/
@@ -72,6 +78,12 @@ theorem memoAtN_frame {σ : Type} {t u : PanSemStateFiniteExact 64 σ} {G : BitV
     (h : MemoAtN t G g m) (hm : ∀ c, inR g c → u.memory c = t.memory c)
     (hdsc : ∀ k, k < 8 → u.memory (G + BitVec.ofNat 64 (8 * k)) = t.memory (G + BitVec.ofNat 64 (8 * k)))
     (hd : u.memaddrs = t.memaddrs) : MemoAtN u G g m := ⟨memoAtG_frame h.1 hm hdsc hd, h.2⟩
+
+/-- Keys of the pair-keyed caches. -/
+def encEE (k : EIdx × EIdx) : List (BitVec 64) := [Enc.idxW k.1, Enc.idxW k.2]
+def encNL (k : NIdx × LsIdx) : List (BitVec 64) := [Enc.idxW k.1, Enc.idxW k.2]
+def encRB (k : NIdx × NIdx × LsIdx) : List (BitVec 64) := [Enc.idxW k.1, Enc.idxW k.2.1, Enc.idxW k.2.2]
+def boolW (b : Bool) : BitVec 64 := if b then 1 else 0
 
 structure Ctx where
   L : Layout
@@ -131,6 +143,53 @@ theorem heapEx_frame {σ : Type} {t u : PanSemStateFiniteExact 64 σ} {HB : BitV
 
 variable {σ : Type}
 
+/-- The mirrored cache `k` in memory. -/
+def CacheAt (t : PState σ) (C : Ctx) (cs : Caches) : CacheK → Prop
+  | .whnfCore => MemoAtG encN Enc.idxW t (C.mG (.c .whnfCore)) (C.mg (.c .whnfCore)) cs.whnfCoreC
+  | .whnfCoreCheap => MemoAtG encN Enc.idxW t (C.mG (.c .whnfCoreCheap)) (C.mg (.c .whnfCoreCheap)) cs.whnfCoreCheapC
+  | .whnf => MemoAtG encN Enc.idxW t (C.mG (.c .whnf)) (C.mg (.c .whnf)) cs.whnfC
+  | .infer => MemoAtG encN Enc.idxW t (C.mG (.c .infer)) (C.mg (.c .infer)) cs.inferC
+  | .inferIO => MemoAtG encN Enc.idxW t (C.mG (.c .inferIO)) (C.mg (.c .inferIO)) cs.inferIOC
+  | .defeq => MemoAtG encEE boolW t (C.mG (.c .defeq)) (C.mg (.c .defeq)) cs.defeqC
+  | .constTy => MemoAtG encNL Enc.idxW t (C.mG (.c .constTy)) (C.mg (.c .constTy)) cs.constTyC
+  | .constVal => MemoAtG encNL Enc.idxW t (C.mG (.c .constVal)) (C.mg (.c .constVal)) cs.constValC
+  | .ruleBody => MemoAtG encRB Enc.idxW t (C.mG (.c .ruleBody)) (C.mg (.c .ruleBody)) cs.ruleBodyC
+
+theorem cacheAt_frame {C : Ctx} {cs : Caches} {t u : PState σ} {k : CacheK} (h : CacheAt t C cs k)
+    (hm : ∀ c, inR (C.mg (.c k)) c → u.memory c = t.memory c)
+    (hdsc : ∀ j, j < 8 → u.memory (C.mG (.c k) + BitVec.ofNat 64 (8 * j)) =
+      t.memory (C.mG (.c k) + BitVec.ofNat 64 (8 * j)))
+    (hd : u.memaddrs = t.memaddrs) : CacheAt u C cs k := by
+  cases k <;> exact memoAtG_frame h hm hdsc hd
+
+/-- Two cache records agree on the mirrored tables. -/
+def MirrorEq (a b : Caches) : Prop :=
+  a.whnfCoreC = b.whnfCoreC ∧ a.whnfCoreCheapC = b.whnfCoreCheapC ∧ a.whnfC = b.whnfC ∧ a.inferC = b.inferC ∧
+    a.inferIOC = b.inferIOC ∧ a.defeqC = b.defeqC ∧ a.constTyC = b.constTyC ∧ a.constValC = b.constValC ∧
+    a.ruleBodyC = b.ruleBodyC
+
+theorem mirrorEq_refl (a : Caches) : MirrorEq a a := ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
+
+theorem mirrorEq_trans {a b c : Caches} (h1 : MirrorEq a b) (h2 : MirrorEq b c) : MirrorEq a c := by
+  obtain ⟨a1, a2, a3, a4, a5, a6, a7, a8, a9⟩ := h1
+  obtain ⟨b1, b2, b3, b4, b5, b6, b7, b8, b9⟩ := h2
+  exact ⟨a1.trans b1, a2.trans b2, a3.trans b3, a4.trans b4, a5.trans b5, a6.trans b6, a7.trans b7, a8.trans b8,
+    a9.trans b9⟩
+
+theorem cacheAt_mirror {C : Ctx} {a b : Caches} {t : PState σ} {k : CacheK} (h : CacheAt t C b k)
+    (he : MirrorEq a b) : CacheAt t C a k := by
+  obtain ⟨e1, e2, e3, e4, e5, e6, e7, e8, e9⟩ := he
+  cases k
+  · simp only [CacheAt] at h ⊢; rw [e1]; exact h
+  · simp only [CacheAt] at h ⊢; rw [e2]; exact h
+  · simp only [CacheAt] at h ⊢; rw [e3]; exact h
+  · simp only [CacheAt] at h ⊢; rw [e4]; exact h
+  · simp only [CacheAt] at h ⊢; rw [e5]; exact h
+  · simp only [CacheAt] at h ⊢; rw [e6]; exact h
+  · simp only [CacheAt] at h ⊢; rw [e7]; exact h
+  · simp only [CacheAt] at h ⊢; rw [e8]; exact h
+  · simp only [CacheAt] at h ⊢; rw [e9]; exact h
+
 structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   rep : SRep t C.L C.FLn C.FLl C.FLs C.FLe s.store
   gdir : t.globals.lookup gDir = some (.val (.word C.L.DIR))
@@ -146,6 +205,8 @@ structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   memo : ∀ k, MemoAt t (C.mG (.e k)) (C.mg (.e k)) (memoSel k s.memos)
   /-- The `EIdx → Nat` memos. -/
   memoN : ∀ k, MemoAtN t (C.mG (.n k)) (C.mg (.n k)) (memoSelN k s.memos)
+  /-- The mirrored caches. -/
+  cache : ∀ k, CacheAt t C s.caches k
   /-- The value heap. -/
   heap : HeapEx t C.HB C.HN C.H
 
@@ -157,6 +218,7 @@ theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u
     by rw [hg]; exact h.gfle, by rw [hg]; exact h.gkb, by rw [hc]; exact h.code,
     fun j hj => by rw [hd]; exact h.kbuf j hj, fun k => memoAt_of_eq (h.memo k) hm hd,
     fun k => memoAtN_frame (h.memoN k) (fun _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd,
+    fun k => cacheAt_frame (h.cache k) (fun _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd,
     heapEx_frame h.heap (fun _ _ => by rw [hm]) hd (by rw [hg])⟩
 
 theorem eval_gv (t : PState σ) (g : MlS) (w : BitVec 64) (h : t.globals.lookup g = some (.val (.word w))) :

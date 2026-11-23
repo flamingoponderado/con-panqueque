@@ -100,14 +100,16 @@ theorem sr_upd_region {C : Ctx} (hok : CtxOK C) (r : Region) {s s' : AState} {t 
     (hoE : ∀ k, Region.e k ≠ r → memoSel k s'.memos = memoSel k s.memos)
     (hoN : ∀ k, Region.n k ≠ r → memoSelN k s'.memos = memoSelN k s.memos)
     (hsE : ∀ k, Region.e k = r → MemoAt u (C.mG (.e k)) (C.mg (.e k)) (memoSel k s'.memos))
-    (hsN : ∀ k, Region.n k = r → MemoAtN u (C.mG (.n k)) (C.mg (.n k)) (memoSelN k s'.memos)) : SR C s' u := by
+    (hsN : ∀ k, Region.n k = r → MemoAtN u (C.mG (.n k)) (C.mg (.n k)) (memoSelN k s'.memos))
+    (hoC : ∀ k, Region.c k ≠ r → MirrorEq s'.caches s.caches)
+    (hsC : ∀ k, Region.c k = r → CacheAt u C s'.caches k) : SR C s' u := by
   refine ⟨hst ▸ srep_frame hsr.rep ⟨hfr _ (hok.flMemo r _ (Or.inl rfl)), hfr _ (hok.flMemo r _ (Or.inr (Or.inl rfl))),
       hfr _ (hok.flMemo r _ (Or.inr (Or.inr (Or.inl rfl)))), hfr _ (hok.flMemo r _ (Or.inr (Or.inr (Or.inr rfl))))⟩ hd
       (fun kk tier hk1 hk2 => ⟨fun mm hm => hfr _ (hok.dirMemo r kk tier mm hk1 hk2 hm),
         fun c hc => hfr c (fun hin => hok.memoOut r c hin ⟨kk, tier, hk1, hk2, hc⟩)⟩),
     by rw [hg]; exact hsr.gdir, by rw [hg]; exact hsr.gfln, by rw [hg]; exact hsr.gfll, by rw [hg]; exact hsr.gfls,
     by rw [hg]; exact hsr.gfle, by rw [hg]; exact hsr.gkb, by rw [hc]; exact hsr.code,
-    fun j hj => by rw [hd]; exact hsr.kbuf j hj, fun k => ?_, fun k => ?_,
+    fun j hj => by rw [hd]; exact hsr.kbuf j hj, fun k => ?_, fun k => ?_, fun k => ?_,
     heapEx_frame hsr.heap (fun i hi => hfr _ (hok.heapMemo r i hi)) hd (by rw [hg])⟩
   · by_cases e : Region.e k = r
     · exact hsE k e
@@ -119,6 +121,11 @@ theorem sr_upd_region {C : Ctx} (hok : CtxOK C) (r : Region) {s s' : AState} {t 
     · rw [hoN k e]
       exact memoAtN_frame (hsr.memoN k) (fun c hc => hfr c (hok.memoDis (.n k) r c e hc))
         (fun kk hkk => hfr _ (hok.mdescMemo r (.n k) kk hkk)) hd
+  · by_cases e : Region.c k = r
+    · exact hsC k e
+    · have h0 : CacheAt t C s'.caches k := cacheAt_mirror (hsr.cache k) (hoC k e)
+      exact cacheAt_frame h0 (fun c hc => hfr c (hok.memoDis (.c k) r c e hc))
+        (fun kk hkk => hfr _ (hok.mdescMemo r (.c k) kk hkk)) hd
 
 /-- The clearing code on any one-tier table: afterwards it holds `∅`, memory outside its region and its
 descriptor is untouched, and only `cj0` among the locals changed. -/
@@ -227,6 +234,7 @@ theorem specR_memoClearI {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoK) (cle
       (fun k' _ => memoSelN_upd k' mk _ _)
       (fun k' e => by injection e with e; subst e; show MemoAt _ _ _ (memoSel k' (memoUpd k' s.memos ∅)); rw [memoSel_upd_same]; exact hmem)
       (fun k' e => by simp at e)
+      (fun _ _ => mirrorEq_refl _) (fun _ e => by simp at e)
   rw [he]
   rcases hk t4 (inv_after_clear ht hsr' hl4 hj4) with hs | ⟨w, hr', a, s', hk', hR⟩
   · exact Or.inl hs
@@ -254,6 +262,7 @@ theorem specR_memoClearNI {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoNK) (c
       (fun k' e => by
         injection e with e; subst e; show MemoAtN _ _ _ (memoSelN k' (memoUpdN k' s.memos ∅)); rw [memoSelN_upd_same]
         exact ⟨hmem, fun _ _ h => by simp at h⟩)
+      (fun _ _ => mirrorEq_refl _) (fun _ e => by simp at e)
   rw [he]
   rcases hk t4 (inv_after_clear ht hsr' hl4 hj4) with hs | ⟨w, hr', a, s', hk', hR⟩
   · exact Or.inl hs

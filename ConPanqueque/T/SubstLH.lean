@@ -199,12 +199,13 @@ open ConPanqueque.T.LSub
 
 /-- `SR` ignores the level substitution memos and the caches. -/
 theorem sr_lpl {C : Ctx} {s s' : AState} {t : PState σ} (h : SR C s t) (h1 : s'.store = s.store)
-    (h2 : s'.memos = { s.memos with instLPLC := s'.memos.instLPLC, instLPLsC := s'.memos.instLPLsC }) :
-    SR C s' t := by
+    (h2 : s'.memos = { s.memos with instLPLC := s'.memos.instLPLC, instLPLsC := s'.memos.instLPLsC })
+    (h3 : MirrorEq s'.caches s.caches) : SR C s' t := by
   have e1 : ∀ k, memoSel k s'.memos = memoSel k s.memos := fun k => by rw [h2]; cases k <;> rfl
   have e2 : ∀ k, memoSelN k s'.memos = memoSelN k s.memos := fun k => by rw [h2]; cases k <;> rfl
   exact ⟨by rw [h1]; exact h.rep, h.gdir, h.gfln, h.gfll, h.gfls, h.gfle, h.gkb, h.code, h.kbuf,
-    fun k => by rw [e1]; exact h.memo k, fun k => by rw [e2]; exact h.memoN k, h.heap⟩
+    fun k => by rw [e1]; exact h.memo k, fun k => by rw [e2]; exact h.memoN k,
+    fun k => cacheAt_mirror (h.cache k) h3, h.heap⟩
 
 /-- Moving a spec from the computation the port performs to the twin's, run by run. -/
 theorem specR_transfer {α : Type} {P : PState σ → Prop} {c : ProgHOL 64} {s : AState} {m m' : AM α}
@@ -286,9 +287,10 @@ theorem substLH_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
     obtain ⟨s3, h3, e3, p3, m3, c3, r3, ml3⟩ := substLMemoAt_run ks vs s u l hd hrl hm hwf h s'' hrun'
     refine ⟨s3, h3, fun w st ⟨H', hp, hw, hsr, _, ⟨ls', es, g⟩, _⟩ => ?_⟩
     have es3 : s3.store = withL s.store ls' := by rw [e3, es]
-    refine ⟨H', hp, hw, sr_lpl hsr e3 ?_, by rw [e3]; exact q1, by rw [e3]; exact q2, by rw [es3]; exact g,
+    refine ⟨H', hp, hw, sr_lpl hsr e3 ?_ ?_, by rw [e3]; exact q1, by rw [e3]; exact q2, by rw [es3]; exact g,
       by rw [es3]; rfl, p3, m3, c3, r3, ml3, by rw [e3]; exact q9⟩
-    rw [m3, q6]
+    · rw [m3, q6]
+    · rw [c3, q7]; exact mirrorEq_refl _
 
 end
 

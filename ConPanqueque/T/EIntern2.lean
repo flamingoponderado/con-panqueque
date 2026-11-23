@@ -45,6 +45,9 @@ theorem sort_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (ho
       fun mk => memoAtN_frame (ht.sr.memoN mk)
         (fun c hc => hm c (hok.memoOut (.n mk) c hc) (fun e => hok.kbMemo (.n mk) 0 (by decide) (by rw [KB0, ← e]; exact hc)))
         (fun k hk => hm _ (hok.mdescOut (.n mk) k hk) (by rw [← KB0]; exact hok.kbMdesc (.n mk) k 0 hk (by decide))) hd,
+      fun mk => cacheAt_frame (ht.sr.cache mk)
+        (fun c hc => hm c (hok.memoOut (.c mk) c hc) (fun e => hok.kbMemo (.c mk) 0 (by decide) (by rw [KB0, ← e]; exact hc)))
+        (fun k hk => hm _ (hok.mdescOut (.c mk) k hk) (by rw [← KB0]; exact hok.kbMdesc (.c mk) k 0 hk (by decide))) hd,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (by rw [← KB0]; exact hok.kbHeap i 0 hi (by decide))) hd
         (by rw [hg])⟩
 
@@ -81,6 +84,9 @@ theorem const_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (h
       fun mk => memoAtN_frame (ht.sr.memoN mk)
         (fun c hc => hm c (hok.memoOut (.n mk) c hc) (fun j hj e => hok.kbMemo (.n mk) j (by omega) (e ▸ hc)))
         (fun k hk => hm _ (hok.mdescOut (.n mk) k hk) (fun j hj => hok.kbMdesc (.n mk) k j hk (by omega))) hd,
+      fun mk => cacheAt_frame (ht.sr.cache mk)
+        (fun c hc => hm c (hok.memoOut (.c mk) c hc) (fun j hj e => hok.kbMemo (.c mk) j (by omega) (e ▸ hc)))
+        (fun k hk => hm _ (hok.mdescOut (.c mk) k hk) (fun j hj => hok.kbMdesc (.c mk) k j hk (by omega))) hd,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
         (by rw [hg])⟩
 
@@ -148,6 +154,9 @@ theorem fvar_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (ho
       fun mk => memoAtN_frame (ht.sr.memoN mk)
         (fun c hc => hm c (hok.memoOut (.n mk) c hc) (fun j hj e => hok.kbMemo (.n mk) j (by omega) (e ▸ hc)))
         (fun k hk => hm _ (hok.mdescOut (.n mk) k hk) (fun j hj => hok.kbMdesc (.n mk) k j hk (by omega))) hd,
+      fun mk => cacheAt_frame (ht.sr.cache mk)
+        (fun c hc => hm c (hok.memoOut (.c mk) c hc) (fun j hj e => hok.kbMemo (.c mk) j (by omega) (e ▸ hc)))
+        (fun k hk => hm _ (hok.mdescOut (.c mk) k hk) (fun j hj => hok.kbMdesc (.c mk) k j hk (by omega))) hd,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
         (by rw [hg])⟩
 

@@ -63,6 +63,7 @@ theorem specR_memoClearIG {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoK) (cl
     {s s' : AState} (hclear : clearOp s = .ok ((), s')) (hst : s'.store = s.store)
     (hoE : ∀ k, k ≠ mk → memoSel k s'.memos = memoSel k s.memos)
     (hoN : ∀ k, memoSelN k s'.memos = memoSelN k s.memos) (hsame : memoSel mk s'.memos = ∅)
+    (hoC : MirrorEq s'.caches s.caches)
     {Γ : Env} {M : Mem} {D : List MlS}
     {rest : ProgHOL 64} {k : Unit → AM β} {R : β → BitVec 64 → AState → PState σ → Prop} (hj : lJ0 ∈ D)
     (hk : SpecR (Inv C s' (Γ.kill [lJ0]) [] D) rest s' (k ()) R) :
@@ -78,6 +79,7 @@ theorem specR_memoClearIG {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoK) (cl
       (fun k' _ => hoN k')
       (fun k' e => by injection e with e; subst e; rw [hsame]; exact hmem)
       (fun k' e => by simp at e)
+      (fun _ _ => hoC) (fun _ e => by simp at e)
   rw [he]
   rcases hk t4 (inv_after_clear ht hsr' hl4 hj4) with hs | ⟨w, hr', a, s', hk', hR⟩
   · exact Or.inl hs
@@ -176,7 +178,9 @@ theorem ilpf_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : C
   have hst3 : s3.store = s.store := by rw [← hs3]; rfl
   refine specR_memoClearIG (C := ctxH C H) (ctxOK_H hok H) .instLP _ hrun hst3
     (fun k hk => by rw [← hs3]; cases k <;> first | rfl | exact absurd rfl hk) (fun k => by rw [← hs3]; cases k <;> rfl)
-    (by rw [← hs3]; rfl) (by decide) ?_
+    (by rw [← hs3]; rfl)
+    (by rw [← hs3]; show MirrorEq c2 s.caches; rw [ec2]; simp only [withC]; rw [ec1]; exact mirrorEq_refl _)
+    (by decide) ?_
   have hp3 : PInv s3 khs ks usH vsL := by
     rw [← hs3]
     exact ⟨⟨hst.wf⟩, fun k r hk => by simp [clr3] at hk, fun k r hk => by simp [clr3] at hk, fun k r hk => by simp [clr3] at hk,
@@ -195,7 +199,7 @@ theorem ilpf_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : C
     (fun r w s4 H4 hp4 hw => ?_)
   subst hw
   refine specR_memoClearIG (C := ctxH C H4) (ctxOK_H hok H4) .instLP instLPClear (instLPClear_run s4) rfl
-    (fun k hk => by cases k <;> first | rfl | exact absurd rfl hk) (fun k => by cases k <;> rfl) rfl (by decide) ?_
+    (fun k hk => by cases k <;> first | rfl | exact absurd rfl hk) (fun k => by cases k <;> rfl) rfl (mirrorEq_refl _) (by decide) ?_
   exact specR_returnI (vv lW) (Enc.idxW r) (by simp +decide [Env.kill])
     (fun t ht => ⟨H4, hp4, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 

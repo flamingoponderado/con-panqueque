@@ -206,9 +206,10 @@ theorem substLsH_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok
     obtain ⟨q1, q2, q3, q4, q5, q6, q7, q8, q9⟩ :=
       AM.of_run (P := fun t => t = s) rfl hrun' (internLevels_spec s _ hwf)
     obtain ⟨s3, h3, e3, p3, m3, c3, r3, ml3⟩ := substLsMemoAt_run ks vsL s vsH ls hdl hrl hm hwf h s'' hrun'
-    refine ⟨s3, h3, fun w st ⟨hw, hsr⟩ => ⟨hw, sr_lpl hsr e3 ?_, by rw [e3]; exact q1, by rw [e3]; exact q2, p3,
+    refine ⟨s3, h3, fun w st ⟨hw, hsr⟩ => ⟨hw, sr_lpl hsr e3 ?_ ?_, by rw [e3]; exact q1, by rw [e3]; exact q2, p3,
       by rw [e3]; exact q3, by rw [e3]; exact q4, by rw [e3]; exact q5, m3, c3, r3, ml3, by rw [e3]; exact q9⟩⟩
-    rw [m3, q6]
+    · rw [m3, q6]
+    · rw [c3, q7]; exact mirrorEq_refl _
 
 end
 
