@@ -481,7 +481,12 @@ Next: Core bodies bottom-up (constant instantiation `constTyAt`/`constValAt` wit
   - It finishes with `nbTail`: the `maxNatSize` test, then the intern, answering `some h`.
   - The twin's refusals become halts: `litNatSized` (add/sub/mul), `shiftLeftGuard`, and `powGuard`. `pow` also declines when `|a| ≥ 2^28` limbs, so the size product cannot overflow.
   - `beq`/`ble` compare the handles (`bigCmp`), then intern `Bool.true`/`Bool.false` as a constant.
-- **Remaining for `reduceNat`.** The `Nat.succ` case (`litNatSized (n + 1)`), and the dispatch itself (`natBinOpOfName?`, `rawNatLit?` after `whnf`).
+- **Operands as heap blocks.** The literal operations take heap blocks. `rawNatLit?` maps the constant `Nat.zero` to 0, which has no literal handle. `beq`/`ble`/`sub` compare blocks with `bcH` (`T/Big/CmpH.lean`), which reuses the compare loop through heap memory facts.
+- **`rawNatLit?`** (`T/Big/RawNat.lean`, `rn_spec`) answers `0`, a literal's copied block, or a zero block for `Nat.zero`. It views first, as the twin does.
+- **`reduceNat`** (`T/Big/ReduceNat.lean`, `rd_spec`) is proved.
+  - The `Nat.succ` branch: `whnf`, `rawNat`, then `nbAdd` with a `[1]` block.
+  - The binary branch: a 14-way pin dispatch in `natBinOpOfName?` order, then the leaf (`whnf a`, `rawNat`, `whnf b`, `rawNat`, the operation's function).
+  - `whnf` is a hypothesis: the knot entry as a callee for every heap extension and every state of a family `Q` closed under `whnf` runs. `whnfBody`'s proof will supply it from `EntrySpecs` and the twin invariant.
 
 ### Decision (2026-11-24): `div`/`mod`/`gcd` on large literals decline
 
