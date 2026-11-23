@@ -835,6 +835,73 @@ theorem add_loop1 {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ0 : Env}
   have f4 : z ≠ aS := by intro e; subst e; rw [n4] at hz; simp at hz
   simp [e1, e2, e3, e4, e5, f1, f2, f3, f4, hz]
 
+def addG2 (Γ1 : Env) (C : Ctx) (od oa x y ly i : Nat) : Env :=
+  (aI, BitVec.ofNat 64 (ly + i)) :: (aC, BitVec.ofNat 64 (S x y (ly + i) / B ^ (ly + i))) ::
+    (aQo, cellA C (od + 1 + (ly + i))) :: (aQa, cellA C (oa + 1 + (ly + i))) :: Γ1
+
+theorem digit_zero (y k : Nat) (hy : y < B ^ (limbs y).length) (hk : (limbs y).length ≤ k) :
+    BitVec.ofNat 64 0 = BitVec.ofNat 64 (y / B ^ k % B) := by
+  have : y / B ^ k = 0 := Nat.div_eq_of_lt (Nat.lt_of_lt_of_le hy (Nat.pow_le_pow_right Bpos hk))
+  rw [this]; rfl
+
+theorem add_loop2 {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ1 : Env} {D : List MlS} {rest : ProgHOL 64}
+    {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop} (x y : Nat) (B0 : List (BitVec 64)) (od oa : Nat)
+    (hxy : (limbs y).length ≤ (limbs x).length) (hba : BlkAt B0 oa (limbs x))
+    (hla : oa + 1 + (limbs x).length ≤ od + 1)
+    (hdst : od + 1 + ((limbs x).length + 1) ≤ B0.length) (h61 : (limbs x).length < 2 ^ 61)
+    (hD : aU ∈ D ∧ aV ∈ D ∧ aS1 ∈ D ∧ aS ∈ D ∧ aC ∈ D ∧ aQa ∈ D ∧ aQo ∈ D ∧ aI ∈ D)
+    (hLa : Γ1.get aLa = some (BitVec.ofNat 64 (limbs x).length))
+    (hn : Γ1.get aU = none ∧ Γ1.get aV = none ∧ Γ1.get aS1 = none ∧ Γ1.get aS = none)
+    (hr : SpecR (Inv (ctxH C (fillI B0 (sumW x y (limbs x).length) (od + 1) (limbs x).length)) s
+      (addG2 Γ1 C od oa x y (limbs y).length ((limbs x).length - (limbs y).length)) [] D) rest s m R) :
+    SpecR (Inv (ctxH C (fillI B0 (sumW x y (limbs x).length) (od + 1) (limbs y).length)) s
+      (addG2 Γ1 C od oa x y (limbs y).length 0) [] D) (.seq addLoop2 rest) s m R := by
+  obtain ⟨du, dv, d1, d2, dc, dqa, dqo, di⟩ := hD
+  obtain ⟨n1, n2, n3, n4⟩ := hn
+  have hyB : y < B ^ (limbs y).length := (limbs_length_lt_iff y _).mp (Nat.le_refl _)
+  have hk := Nat.add_sub_cancel' hxy
+  refine specR_forI (σ := σ) (D := D) (M := []) _ _ rest ((limbs x).length - (limbs y).length)
+    (fun i => ctxH C (fillI B0 (sumW x y (limbs x).length) (od + 1) ((limbs y).length + i)))
+    (addG2 Γ1 C od oa x y (limbs y).length)
+    (fun i hi => ⟨if Flapjack.Compiler.Encoders.Asm.wordCmpHOL .lower (BitVec.ofNat 64 ((limbs y).length + i))
+      (BitVec.ofNat 64 (limbs x).length) then 1 else 0, by simp [sev, addG2, Env.get, hLa], ?_⟩) (fun i hi => ?_)
+    (by rw [hk]; exact hr)
+  · have e := word_lt_iff ((limbs y).length + i) (limbs x).length (by unfold B; omega) (by unfold B; omega)
+    by_cases h' : (limbs y).length + i < (limbs x).length
+    · simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, e.mpr h', show i < (limbs x).length - (limbs y).length by omega]
+    · have : ¬ BitVec.ofNat 64 ((limbs y).length + i) < BitVec.ofNat 64 (limbs x).length := fun x => h' (e.mp x)
+      simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, this, show ¬ i < (limbs x).length - (limbs y).length by omega]
+  · refine step_seq (step_heapLoadI' (C := ctxH C _) aU (vv aQa) (oa + 1 + ((limbs y).length + i)) _
+      (fill_limb B0 _ od _ oa x hba hla (by omega)) du (by simp [addG2]; rfl)) ?_
+    refine step_seq (step_assignI aV (.const 0) (BitVec.ofNat 64 0) dv rfl) ?_
+    rw [digit_zero y ((limbs y).length + i) hyB (by omega)]
+    refine step_seq (step_digit hok B0 (sumW x y (limbs x).length) od _ x y (sumW_get x y _ _ (by omega))
+      (by omega) (by simp) (by simp) (by simp [addG2]) (by simp [addG2]) ⟨d1, d2, dc⟩) ?_
+    refine step_seq (step_assignI aQa _ (cellA C (oa + 1 + ((limbs y).length + i) + 1)) dqa
+      (by simp [sev, addG2]; exact cellA_add8 C _)) ?_
+    refine step_seq (step_assignI aQo _ (cellA C (od + 1 + ((limbs y).length + i) + 1)) dqo
+      (by simp [sev, addG2]; exact cellA_add8 C _)) ?_
+    refine step_mono (step_assignI aI _ (BitVec.ofNat 64 ((limbs y).length + i + 1)) di
+      (by simp [sev, addG2]; exact word_add1_eq _)) (fun _ h => h) (fun t ht => ?_)
+    rw [show (limbs y).length + (i + 1) = (limbs y).length + i + 1 by omega]
+    refine inv_envMono ht (fun z v hz => ?_)
+    simp only [addG2, Env.get_cons] at hz ⊢
+    rw [show (limbs y).length + (i + 1) = (limbs y).length + i + 1 by omega] at hz
+    by_cases e1 : z = aI
+    · subst e1; simp_all
+    by_cases e2 : z = aC
+    · subst e2; simp_all
+    by_cases e3 : z = aQo
+    · subst e3; simp_all [Nat.add_assoc]
+    by_cases e5 : z = aQa
+    · subst e5; simp_all [Nat.add_assoc]
+    simp only [e1, e2, e3, e5, ite_false] at hz
+    have f1 : z ≠ aU := by intro e; subst e; rw [n1] at hz; simp at hz
+    have f2 : z ≠ aV := by intro e; subst e; rw [n2] at hz; simp at hz
+    have f3 : z ≠ aS1 := by intro e; subst e; rw [n3] at hz; simp at hz
+    have f4 : z ≠ aS := by intro e; subst e; rw [n4] at hz; simp at hz
+    simp [e1, e2, e3, e5, f1, f2, f3, f4, hz]
+
 end
 
 end ConPanqueque.T.Big
