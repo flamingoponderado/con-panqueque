@@ -103,4 +103,41 @@ theorem sev_stuckHead (Γ : Env) (x : MlS) (h : EIdx) (hx : Γ.get x = some (Enc
     by_cases c : h.tag == UInt32.ofNat 6 <;> by_cases d : h.tag == UInt32.ofNat 3 <;>
     by_cases f : h.tag == UInt32.ofNat 8 <;> simp_all <;> first | rfl | (subst_vars; decide) | decide
 
+
+theorem sev_key (Γ : Env) (xh xe : MlS) (h e : EIdx) (hh : Γ.get xh = some (Enc.idxW h))
+    (he : Γ.get xe = some (Enc.idxW e)) : sev Γ (keyE xh xe) = some (boolW (whnfCoreKey h e)) := by
+  rw [keyE, sev_orE (sev_andE (sev_tagIs4B Γ xe e he) (sev_notE (sev_stuckHead Γ xh h hh)))
+    (sev_orE (sev_tagIsB Γ xe e he 9 (by decide) (by decide)) (sev_tagIsB Γ xe e he 7 (by decide) (by decide)))]
+  congr 2
+  unfold whnfCoreKey
+  simp only [ETag.app, ETag.proj, ETag.letE]
+  by_cases a : e.tag == 4 <;> by_cases b : e.tag == UInt32.ofNat 9 <;> by_cases c : e.tag == UInt32.ofNat 7 <;>
+    simp_all <;> first | rfl | (subst_vars; decide) | decide
+
+theorem sev_safe (Γ : Env) (xh xe : MlS) (h e : EIdx) (hh : Γ.get xh = some (Enc.idxW h))
+    (he : Γ.get xe = some (Enc.idxW e)) : sev Γ (safeE xh xe) = some (boolW (whnfCoreCheapSafe h e)) := by
+  rw [safeE, sev_orE (sev_andE (sev_tagIs4B Γ xe e he) (sev_orE (sev_tagIsB Γ xh h hh 5 (by decide) (by decide))
+    (sev_stuckHead Γ xh h hh))) (sev_tagIsB Γ xe e he 7 (by decide) (by decide))]
+  congr 2
+  unfold whnfCoreCheapSafe
+  simp only [ETag.app, ETag.lam, ETag.letE]
+  by_cases a : e.tag == 4 <;> by_cases c : e.tag == UInt32.ofNat 7 <;> simp_all <;>
+    first | rfl | (subst_vars; decide) | decide
+
+theorem sev_storesDone (Γ : Env) (xk xe xv : MlS) (key : Bool) (e v : EIdx)
+    (hk : Γ.get xk = some (boolW key)) (he : Γ.get xe = some (Enc.idxW e)) (hv : Γ.get xv = some (Enc.idxW v)) :
+    sev Γ (storesDoneE xk xe xv) = some (boolW (whnfCoreStoresDone key e v)) := by
+  have hcmp : sev Γ (.cmp .equal (vv xv) (vv xe)) = some (boolW (v == e)) := by
+    simp only [sev, sev_vv, hv, he]
+    by_cases h : v = e
+    · subst h; simp [boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+    · have : Enc.idxW v ≠ Enc.idxW e := fun x => h (Enc.idxW_inj x)
+      simp [boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, this, h]
+  rw [storesDoneE, sev_orE (sev_andE (sev_tagIs4B Γ xe e he) (sev_andE (by simpa [vv, sev] using hk) (sev_notE hcmp)))
+    (sev_andE (sev_notE (sev_tagIs4B Γ xe e he)) (by simpa [vv, sev] using hk))]
+  congr 2
+  unfold whnfCoreStoresDone
+  simp only [ETag.app]
+  by_cases a : e.tag == 4 <;> cases key <;> simp_all
+
 end ConPanqueque.T.WC
