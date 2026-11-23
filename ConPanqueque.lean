@@ -280,3 +280,4 @@ import ConPanqueque.T.Core.InferSpineIO
 import ConPanqueque.T.Core.InferAppIO
 import ConPanqueque.T.Core.InferBodyIO
 import ConPanqueque.T.Core.DefeqA
+import ConPanqueque.T.Core.NatPred
