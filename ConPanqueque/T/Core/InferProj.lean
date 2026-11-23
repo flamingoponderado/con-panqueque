@@ -748,6 +748,104 @@ structure PjCodes (C : Ctx) : Prop where
   gd : C.code.lookup fGd = some (gdParams.map (fun p => (p, ShapeHOL.one)), gdBody C, .one)
   ta : C.code.lookup fTa = some (taParams.map (fun p => (p, ShapeHOL.one)), taBody C, .one)
 
+theorem pj_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) (hc : PjCodes C)
+    (Q : AState → Prop)
+    (hI : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+      [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (inferE C fIB) s1 ((knot mode C n).infer d' e')
+      (PostK (ctxH C H)))
+    (hW : ∀ (H : List (BitVec 64)) s1 d' e', C.H <+: H → Callee (σ := σ) (ctxH C H) kParams
+      [BitVec.ofNat 64 n, BitVec.ofNat 64 d', Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d' e')
+      (PostK (ctxH C H)))
+    (hQi : ∀ s1 d' e' a s2, Q s1 → (knot mode C n).infer d' e' s1 = .ok (a, s2) → Q s2)
+    (hQw : ∀ s1 d' e' a s2, Q s1 → (knot mode C n).whnf d' e' s1 = .ok (a, s2) → Q s2)
+    (hQgaa : ∀ s1 e' a s2, Q s1 → getAppArgs coreWalkFuel e' s1 = .ok (a, s2) → Q s2)
+    (hGd : ∀ (H : List (BitVec 64)) s1 (tbl : IProjTable) ot i us, C.H <+: H → Q s1 → TblE C.EB C.EH ot tbl →
+      SpecR (σ := σ) (Pre (ctxH C H) s1 (gdParams.zip [BitVec.ofNat 64 n, ecell C ot, BitVec.ofNat 64 i,
+        Enc.idxW us])) (gdBody C) s1 (checkProjGuard (knot mode C n) C.fe (tbl.entry i) us) (PostU (ctxH C H)))
+    (hQgd : ∀ s1 (tbl : IProjTable) i us a s2, Q s1 → checkProjGuard (knot mode C n) C.fe (tbl.entry i) us s1 = .ok (a, s2) → Q s2)
+    (hTa : ∀ (H : List (BitVec 64)) s1 (tbl : IProjTable) ot i us (targs : List EIdx) oa pe, C.H <+: H → Q s1 →
+      TblE C.EB C.EH ot tbl → BlkAt H oa (targs.map Enc.idxW) → i < 2 ^ 63 →
+      SpecR (σ := σ) (Pre (ctxH C H) s1 (taParams.zip [ecell C ot, BitVec.ofNat 64 i, Enc.idxW us, cellA C oa,
+        Enc.idxW pe])) (taBody C) s1 ((tbl.entry i).typeAt us targs pe) (PostK (ctxH C H)))
+    (s : AState) (hq : Q s) (d : Nat) (sn : NIdx) (i : Nat) (pe : EIdx) (hi : i < 2 ^ 64) :
+    SpecR (σ := σ) (Pre C s (iprParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW sn, BitVec.ofNat 64 i,
+      Enc.idxW pe])) (pjBody C) s (inferProj (knot mode C n) C.fe d sn i pe) (PostK C) := by
+  refine specR_prologue (postK_locals C) (pj_none C _) ?_
+  unfold inferProj
+  simp only [bind_assoc]
+  refine Big.specR_callKC (C := C) pjA fI kParams [vv kFu, vv kD, vv ibPe] (inferE C fIB)
+    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW pe] (by decide) rfl (by decide) hc.i
+    ⟨by simp +decide [Env.get, iprParams, ctxEnv], by simp +decide [Env.get, iprParams, ctxEnv], by simp +decide [Env.get, iprParams, ctxEnv], trivial⟩ (hI C.H s d pe (List.prefix_refl _)) (fun a s1 H1 hp1 hrun1 => ?_)
+  have hq1 := hQi s d pe a s1 hq hrun1
+  refine Big.specR_callKC (C := ctxH C H1) pjTe fW kParams [vv kFu, vv kD, vv pjA] (whnfE C fWB)
+    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a] (by decide) rfl (by decide) hc.w
+    ⟨by simp +decide [Env.get, iprParams, ctxEnv], by simp +decide [Env.get, iprParams, ctxEnv], by simp, trivial⟩ (hW H1 s1 d a hp1) (fun te s2 H2 hp2 hrun2 => ?_)
+  have hq2 := hQw s1 d a te s2 hq1 hrun2
+  have hp12 : C.H <+: H2 := hp1.trans hp2
+  refine specR_callNIM (C := ctxH C H2) pjHh fGetAppFn [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv pjTe]
+    getAppFnBody [BitVec.ofNat 64 coreWalkFuel, Enc.idxW te] (by decide) rfl (by decide) hc.af
+    ⟨rfl, by simp, trivial⟩
+    (fun a w s' st => getAppFn coreWalkFuel te s2 = .ok (a, s') ∧ Post (ctxH C H2) s2 a w s' st)
+    (fun a w s' st ⟨_, _, hs, hsr⟩ => hs ▸ hsr)
+    (fun u hu _ hlk => specR_run (fun t ht => by
+      subst ht
+      exact getAppFn_spec (ctxH C H2) hc.af coreWalkFuel te s2 CV.coreWalkFuel_lt t ⟨hu, hlk 0 (by decide),
+        hlk 1 (by decide)⟩))
+    (fun hh w s' st ⟨hrun3, hw, hs, _⟩ => ?_)
+  subst hw
+  have hs' : s2 = s' := hs.symm
+  subst hs'
+  refine Knot.specR_tagIteV pjHh hh 3 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
+  swap
+  · rw [if_neg (show ¬ (hh.tag == ETag.const) = true by simpa [ETag.const] using htg)]
+    exact specR_hangI
+  rw [if_pos (show (hh.tag == ETag.const) = true by simp [htg, ETag.const])]
+  refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
+  refine specR_assignI lDh (vv pjHh) (Enc.idxW hh) (by decide) (by simp) ?_
+  refine specR_viewP (C := ctxH C H2) hh (by simp) (by simp +decide [Env.get] <;> rfl)
+    (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide) (fun v P hv htn _ => ?_)
+  refine specR_congr (view_bind_eq hh v _ s2 hv) ?_
+  have h3 : v.tagN = 3 := by rw [htn, htg]; rfl
+  obtain ⟨T, us, rfl⟩ := UD.tagN_const h3
+  dsimp only
+  refine specR_loadI' pjT (vv lRp) P (P + BitVec.ofNat 64 0) (Enc.idxW T) (by decide) (by simp) (by simp)
+    (by simpa [encEView, Enc.encConst] using wordsAt_mem0 P (Enc.idxW T) [Enc.idxW us] []) ?_
+  refine specR_loadI' pjUs _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW us) (by decide) (by simp +decide [sev]) rfl
+    (by simpa [encEView, Enc.encConst] using wordsAt_mem1 P (Enc.idxW T) (Enc.idxW us) [] []) ?_
+  refine specR_dropM ?_
+  refine specR_tblFindI (C := ctxH C H2) (ctxOK_H hok H2) hc.mg hc.mp pjTb (vv pjT) T (by decide) (by simp)
+    (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
+  have hrel := tbl_rel hok T
+  revert hrel
+  unfold IFEnv.findProj?
+  rcases hft : C.fe.findTable? T with _ | tbl
+  · intro hrel; simp only at hrel
+    rw [show (ctxH C H2).tblM[T]? = none from hrel]
+    exact specR_ifI _ 1 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => specR_hangI)
+      (fun h => absurd h (by decide))
+  intro ⟨ot, hm, htb⟩
+  rw [show (ctxH C H2).tblM[T]? = some (ecell C ot) from hm]
+  refine specR_atEntry fun t ht => ?_
+  have hoE : ot < C.EN := Nat.lt_of_lt_of_le (tblE_lt htb) ht.sr.env.1.len
+  refine specR_ifI _ 0 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact ecell_succ_ne hok hoE)
+    (fun h => absurd rfl h) (fun _ => ?_)
+  refine specR_assignI pjTq _ (ecell C ot) (by decide) (by simp [sev, optWG]; exact BitVec.add_sub_cancel _ _) ?_
+  obtain ⟨hsn, ⟨wl, hwl, oL, hwL, hblk⟩, ⟨hnp, hnp63⟩, hcto, ⟨hnf, hnf63⟩, _⟩ := id htb
+  refine specR_envLoadI (C := ctxH C H2) pjNf (.op .add [vv pjTq, .const 32]) (ot + 4) _ (by decide)
+    (by simp +decide [sev, Env.get]; exact UD.ecell_add32 C ot) hnf ?_
+  have hlw := word_lt_iff i tbl.numFields (by unfold B; omega) (by unfold B; omega)
+  dsimp only
+  by_cases hi2 : i < tbl.numFields
+  swap
+  · simp only [hi2, ↓reduceIte]
+    exact specR_ifI _ 0 (by simp +decide [sev, Env.get, iprParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL,
+      (not_congr hlw).mpr hi2]) (fun h => absurd rfl h) (fun _ => specR_hangI)
+  simp only [hi2, ↓reduceIte]
+  refine specR_ifI _ 1 (by simp +decide [sev, Env.get, iprParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL,
+    hlw.mpr hi2]) (fun _ => ?_) (fun h => absurd h (by decide))
+  try dsimp only
+  sorry
+
 end
 
 end ConPanqueque.T.WC
