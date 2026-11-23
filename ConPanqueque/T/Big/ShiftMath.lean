@@ -45,4 +45,17 @@ theorem shr_digit (a q r k : Nat) (hr : r < 64) :
   rw [hB]
   omega
 
+/-- The word code of one right-shift limb. -/
+theorem shr_word (d0 d1 r : Nat) (h0 : d0 < B) (h1 : d1 < B) (hr : r < 64) :
+    BitVec.ofNat 64 d0 >>> r + (BitVec.ofNat 64 d1 <<< 1) <<< (63 - r) =
+      BitVec.ofNat 64 ((d0 / 2 ^ r + d1 * 2 ^ (64 - r)) % B) := by
+  have hB : B = 2 ^ 64 := rfl
+  rw [hB] at h0 h1 ⊢
+  apply BitVec.eq_of_toNat_eq
+  simp only [BitVec.toNat_add, BitVec.toNat_ushiftRight, BitVec.toNat_shiftLeft, BitVec.toNat_ofNat,
+    Nat.mod_eq_of_lt h0, Nat.mod_eq_of_lt h1, Nat.shiftRight_eq_div_pow, Nat.shiftLeft_eq]
+  rw [Nat.mod_mul_mod, show d1 * 2 ^ 1 * 2 ^ (63 - r) = d1 * 2 ^ (64 - r) by
+    rw [Nat.mul_assoc, ← Nat.pow_add]; congr 2; omega]
+  rw [Nat.mod_mod, Nat.add_mod (d0 / 2 ^ r), Nat.mod_mod, ← Nat.add_mod]
+
 end ConPanqueque.T.Big
