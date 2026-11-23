@@ -394,3 +394,12 @@ clears).
 - Fuel: induction on fuel; at fuel 0 the port hangs where the twin fails.
 - Precondition: con-ron's own instLP invariants (`StateOK`, `InstLPMemoF`, `InstLPLMemoA`, `InstLPLsMemoA`, the readback-cache invariants). After each recursive call they are re-established from con-ron's `instLPGo_spec`, applied to the twin's run.
 - Memo clears: the twin's clear also empties two memos the port does not mirror. A general clear lemma (`specR_memoClearIG`) only asks the twin's post-state to agree on the mirrored memos.
+
+### Core: cache policy (2026-11-24)
+
+Core's caches split into two kinds.
+
+- **Not mirrored.** Readback and verdict caches (`readLC`, `readLsC`, `readNC`, `lvlEqC`, `lvlsEqC`). Recomputing these interns nothing new, and con-ron's cache invariants make a hit equal the recomputation.
+- **Mirrored.** The entry caches (`whnfCoreC`, `whnfCoreCheapC`, `whnfC`, `inferC`, `inferIOC`, `defeqC`, `constTyC`, `constValC`, `ruleBodyC`). Recomputing these would intern intermediate nodes the twin's store lacks, so `SR` (which pins the store exactly) would fail. They become Pancake tables like the memos: `MemoAtG` with key encoders `[h]`, `[a, b]`, `[n, us]`, …, and new `Region` kinds plus their `CtxOK` separation facts.
+
+ExprOps still to port: `wscopedBFast`, `fvarLeaves`/`leafGuard` (walks with a `seen` set), `instantiateLiftFast` (`inst1L` memo, mirrored). `takeEidx`/`eidxCopyUpto` are inlined as block copies where Core uses them.
