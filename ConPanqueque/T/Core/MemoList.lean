@@ -196,6 +196,96 @@ theorem ml_spec (C : Ctx) (hok : CtxOK C)
       · exact specR_ifI _ 0 (by simp +decide [sev, Env.get, mlParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, ha])
           (fun h => absurd rfl h) (fun _ => hmiss)
 
+/-! ## Inserting: one fresh node -/
+
+def mlInsP (C : Ctx) (x : MlS) (ea eb ev ep : ExpHOL 64) (rest : ProgHOL 64) : ProgHOL 64 :=
+  allocP C x (.const 32)
+  (.seq (.store (vv x) ea) (.seq (.store (.op .add [vv x, .const 8]) eb)
+  (.seq (.store (.op .add [vv x, .const 16]) ev) (.seq (.store (.op .add [vv x, .const 24]) ep) rest))))
+
+theorem specR_mlInsI {α : Type} {C : Ctx} (hok : CtxOK C) {H : List (BitVec 64)} {s : AState} {Γ : Env}
+    {M : Mem} {D : List MlS} {rest : ProgHOL 64} {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop}
+    (x : MlS) (ea eb ev ep : ExpHOL 64) (a b pw : BitVec 64) (v : Bool) (xs : List ((BitVec 64 × BitVec 64) × Bool))
+    (hx : x ∈ D) (hea : ∀ w, sev ((x, w) :: Γ) ea = some a) (heb : ∀ w, sev ((x, w) :: Γ) eb = some b)
+    (hev : ∀ w, sev ((x, w) :: Γ) ev = some (boolW v)) (hep : ∀ w, sev ((x, w) :: Γ) ep = some pw)
+    (hm : MNodes C H pw xs)
+    (hk : ∀ (H' : List (BitVec 64)) o, H <+: H' → MNodes C H' (cellA C o) (((a, b), v) :: xs) →
+      SpecR (Inv (ctxH C H') s ((x, cellA C o) :: Γ) [] D) rest s m R) :
+    SpecR (Inv (ctxH C H) s Γ M D) (mlInsP C x ea eb ev ep rest) s m R := by
+  refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN => ?_)
+  have hlay := hok.heapLay
+  refine specR_allocI (C := ctxH C H) x (.const 32) 4 (by omega) hx (fun _ => rfl) (fun H1 ws hp1 hws hroom => ?_)
+  have hp1' : H <+: H1 := hp1
+  have hroom' : H1.length + 4 ≤ C.HN := hroom
+  have hL := hp1'.length_le
+  change SpecR (Inv (ctxH C (H1 ++ ws)) s ((x, cellA C H1.length) :: Γ) _ _) _ _ _ _
+  refine specR_heapStoreI (ctxOK_H hok _) (vv x) ea H1.length (by show _ < (H1 ++ ws).length; simp; omega) a
+    (by simp <;> rfl) (hea _) ?_
+  change SpecR (Inv (ctxH C ((H1 ++ ws).set H1.length a)) _ _ _ _) _ _ _ _
+  refine specR_heapStoreI (ctxOK_H hok _) (.op .add [vv x, .const 8]) eb (H1.length + 1)
+    (by show _ < ((H1 ++ ws).set _ _).length; simp; omega) b (by simp +decide [sev]; exact cellA_add8 C _) (heb _) ?_
+  change SpecR (Inv (ctxH C (((H1 ++ ws).set H1.length a).set (H1.length + 1) b)) _ _ _ _) _ _ _ _
+  refine specR_heapStoreI (ctxOK_H hok _) (.op .add [vv x, .const 16]) ev (H1.length + 2)
+    (by show _ < (((H1 ++ ws).set _ _).set _ _).length; simp; omega) (boolW v)
+    (by simp +decide [sev]; show cellA C H1.length + _ = cellA C (H1.length + 2); simpa using ExPre.cellA_off C H1.length 2)
+    (hev _) ?_
+  change SpecR (Inv (ctxH C ((((H1 ++ ws).set H1.length a).set (H1.length + 1) b).set (H1.length + 2) (boolW v)))
+    _ _ _ _) _ _ _ _
+  refine specR_heapStoreI (ctxOK_H hok _) (.op .add [vv x, .const 24]) ep (H1.length + 3)
+    (by show _ < ((((H1 ++ ws).set _ _).set _ _).set _ _).length; simp; omega) pw
+    (by simp +decide [sev]; show cellA C H1.length + _ = cellA C (H1.length + 3); simpa using ExPre.cellA_off C H1.length 3)
+    (hep _) ?_
+  change SpecR (Inv (ctxH C (((((H1 ++ ws).set H1.length a).set (H1.length + 1) b).set (H1.length + 2) (boolW v)).set
+    (H1.length + 3) pw)) s ((x, cellA C H1.length) :: Γ) _ _) _ _ _ _
+  have g0 : (((((H1 ++ ws).set H1.length a).set (H1.length + 1) b).set (H1.length + 2) (boolW v)).set
+      (H1.length + 3) pw)[H1.length]? = some a := by simp [List.getElem?_set, hws]
+  have g1 : (((((H1 ++ ws).set H1.length a).set (H1.length + 1) b).set (H1.length + 2) (boolW v)).set
+      (H1.length + 3) pw)[H1.length + 1]? = some b := by simp [List.getElem?_set, hws]
+  have g2 : (((((H1 ++ ws).set H1.length a).set (H1.length + 1) b).set (H1.length + 2) (boolW v)).set
+      (H1.length + 3) pw)[H1.length + 2]? = some (boolW v) := by simp [List.getElem?_set, hws]
+  have g3 : (((((H1 ++ ws).set H1.length a).set (H1.length + 1) b).set (H1.length + 2) (boolW v)).set
+      (H1.length + 3) pw)[H1.length + 3]? = some pw := by simp [List.getElem?_set, hws]
+  generalize hB4 : ((((H1 ++ ws).set H1.length a).set (H1.length + 1) b).set (H1.length + 2) (boolW v)).set
+    (H1.length + 3) pw = B4 at g0 g1 g2 g3
+  have hlen4 : B4.length = H1.length + 4 := by rw [← hB4]; simp [hws]
+  have hpre : H <+: B4 := by
+    rw [← hB4]
+    exact prefix_set_ge (prefix_set_ge (prefix_set_ge (prefix_set_ge (hp1'.trans (List.prefix_append _ _)) _
+      (by omega) _) _ (by omega) _) _ (by omega) _) _ (by omega) _
+  exact hk B4 H1.length hpre ⟨H1.length, pw, rfl, by omega, g0, g1, g2, g3, mnodes_mono hpre pw xs hm⟩
+
+/-! ## A `(handle, depth)`-keyed boolean memo -/
+
+def WsRep (C : Ctx) (H : List (BitVec 64)) (p : BitVec 64) (memo : Std.HashMap (EIdx × Nat) Bool) : Prop :=
+  ∃ xs, MNodes C H p xs ∧ ∀ (h : EIdx) (d : Nat), d < 2 ^ 63 → memo[(h, d)]? = xs.lookup (Enc.idxW h, BitVec.ofNat 64 d)
+
+theorem wsRep_empty (C : Ctx) (H : List (BitVec 64)) : WsRep C H 0 ∅ :=
+  ⟨[], rfl, fun h d _ => by simp [List.lookup]⟩
+
+theorem wsRep_mono {C : Ctx} {H H' : List (BitVec 64)} (hp : H <+: H') {p : BitVec 64}
+    {memo : Std.HashMap (EIdx × Nat) Bool} (h : WsRep C H p memo) : WsRep C H' p memo :=
+  let ⟨xs, hm, he⟩ := h; ⟨xs, mnodes_mono hp p xs hm, he⟩
+
+theorem wsRep_insert {C : Ctx} {H : List (BitVec 64)} {p p' : BitVec 64} {memo : Std.HashMap (EIdx × Nat) Bool}
+    {xs : List ((BitVec 64 × BitVec 64) × Bool)} (he : ∀ (h : EIdx) (d : Nat), d < 2 ^ 63 → memo[(h, d)]? =
+      xs.lookup (Enc.idxW h, BitVec.ofNat 64 d)) (h : EIdx) (d : Nat) (hd : d < 2 ^ 63) (r : Bool)
+    (hm : MNodes C H p' (((Enc.idxW h, BitVec.ofNat 64 d), r) :: xs)) :
+    WsRep C H p' (memo.insert (h, d) r) := by
+  refine ⟨_, hm, fun h' d' hd' => ?_⟩
+  rw [Std.HashMap.getElem?_insert]
+  simp only [List.lookup]
+  by_cases e : (h, d) = (h', d')
+  · obtain ⟨rfl, rfl⟩ := Prod.mk.inj e
+    simp
+  · rw [if_neg (by simpa using e)]
+    have : ¬ ((Enc.idxW h', BitVec.ofNat 64 d') == (Enc.idxW h, BitVec.ofNat 64 d)) = true := by
+      simp only [beq_iff_eq, Prod.mk.injEq, not_and]
+      intro e1 e2
+      apply e
+      rw [idxW_inj e1, (UD.ofNat_eq_iff_small _ _ (by omega) (by omega)).mp e2]
+    simp only [this]
+    exact he h' d' hd'
+
 end
 
 end ConPanqueque.T.WC
