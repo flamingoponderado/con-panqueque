@@ -29,6 +29,10 @@ def lY := ofString "ky"
 def lZ := ofString "kz"
 
 def kParams : List MlS := [kFu, kD, kE]
+def kA := ofString "ka"
+def kB := ofString "kb"
+def lSv := ofString "ksv"
+def dParams : List MlS := [kFu, kD, kA, kB]
 
 section
 variable {σ : Type}
@@ -141,7 +145,7 @@ theorem specR_tagIteV {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D
 
 /-! ## The `whnf`, `infer` and `inferIO` entry points -/
 
-def kLocals : List MlS := [lEo, lX, lY, lZ]
+def kLocals : List MlS := [lEo, lX, lY, lZ, lSv]
 
 /-- `whnf`'s shortcut: `sort`, `fvar`, `lam`, `forallE` and `lit` are their own head normal forms. -/
 def stuckChain (rest : ProgHOL 64) : ProgHOL 64 :=
@@ -261,6 +265,206 @@ theorem whnf_succ {C : Ctx} (hok : CtxOK C)
   exact memoEntry_spec hok .whnf hcodeG hcodeP hcodeS hcodeI fB B hcB whnfSet (fun _ _ _ => rfl) n d e body hbody
     (by simp +decide [Env.get, kParams, ctxEnv]) (by simp +decide [Env.get, kParams, ctxEnv]) hE
     (by simp +decide [Env.get, kParams, ctxEnv]) (by decide)
+
+/-! ## The `defeq` and `defeqE` entry points -/
+
+/-- The post of a Core entry returning a verdict. -/
+def PostB (C : Ctx) (a : Bool) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
+  ∃ H', C.H <+: H' ∧ w = boolW a ∧ SR (ctxH C H') s' st
+
+theorem postB_locals (C : Ctx) : ∀ (a : Bool) w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
+    PostB C a w s' st → PostB C a w s' { st with locals := L } :=
+  fun _ _ _ _ _ ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, sr_of_eq hsr rfl rfl rfl rfl⟩
+
+/-- The twin's memoized `defeq` entry. -/
+def defeqTwin (a b : EIdx) (body : AM Bool) : AM Bool :=
+  (fun st => .ok (st.caches.defeqC[(a, b)]?, st) : AM (Option Bool)) >>= fun r =>
+    match r with
+    | some x => pure x
+    | none => body >>= fun x => defeqSet a b x >>= fun _ => pure x
+
+/-- The twin's eager slot. -/
+def defeqETwin (eager : Bool) (a b : EIdx) (body : AM Bool) : AM Bool :=
+  enterEager eager >>= fun saved =>
+  (fun st => .ok (st.caches.defeqC[(a, b)]?, st) : AM (Option Bool)) >>= fun r =>
+    match r with
+    | some x => leaveEager saved >>= fun _ => pure x
+    | none => body >>= fun x => defeqSet a b x >>= fun _ => leaveEager saved >>= fun _ => pure x
+
+def callDB (fB : MlS) : ProgHOL 64 →  ProgHOL 64 :=
+  .seq (.call (some (some (.local, lY), none)) fB [.op .sub [vv kFu, .const 1], vv kD, vv kA, vv kB])
+
+def defeqCore (C : Ctx) (fB : MlS) : ProgHOL 64 :=
+  defeqGetP C lX (vv kA) (vv kB)
+    (.ite (.cmp .notEqual (vv lX) (.const 0)) (.return (.op .sub [vv lX, .const 1]))
+      (callDB fB (defeqSetP C lZ (vv kA) (vv kB) (vv lY) (.return (vv lY)))))
+
+def defeqECore (C : Ctx) (fB : MlS) : ProgHOL 64 :=
+  .seq (enterBlk C lSv) (defeqGetP C lX (vv kA) (vv kB)
+    (.ite (.cmp .notEqual (vv lX) (.const 0)) (.seq (leaveBlk (vv lSv)) (.return (.op .sub [vv lX, .const 1])))
+      (callDB fB (defeqSetP C lZ (vv kA) (vv kB) (vv lY) (.seq (leaveBlk (vv lSv)) (.return (vv lY)))))))
+
+theorem boolW_add_one_ne (b : Bool) : boolW b + 1 ≠ 0 := by cases b <;> decide
+
+theorem optWB_some_sub (b : Bool) : optWG boolW (some b) - 1 = boolW b := by
+  simp only [optWG]; exact BitVec.add_sub_cancel _ _
+
+/-- The body's spec for `defeq`, as a callee. -/
+def DBodySpec (C : Ctx) (B : ProgHOL 64) (s : AState) (n d : Nat) (a b : EIdx) (body : AM Bool) : Prop :=
+  ∀ u : PState σ, SR C s u → u.locals.lookup kFu = some (.val (.word (BitVec.ofNat 64 n))) →
+    u.locals.lookup kD = some (.val (.word (BitVec.ofNat 64 d))) →
+    u.locals.lookup kA = some (.val (.word (Enc.idxW a))) →
+    u.locals.lookup kB = some (.val (.word (Enc.idxW b))) → SpecR (· = u) B s body (PostB C)
+
+structure DCodes (C : Ctx) (fB : MlS) (B : ProgHOL 64) : Prop where
+  g : C.code.lookup fMemoGet = some ([(pG, .one), (pLen, .one)], memoGetBody, .one)
+  p : C.code.lookup fMemoProbe = some ([(pG, .one), (pLen, .one)], memoProbeBody, .one)
+  s : C.code.lookup fMemoSet = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoSetBody, .one)
+  i : C.code.lookup fMemoIns = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoInsBody, .one)
+  b : C.code.lookup fB = some (dParams.map (fun p => (p, ShapeHOL.one)), B, .one)
+
+/-- The memoized `defeq` after the probe's key is known: at any context. -/
+theorem defeqMiss {C : Ctx} (hok : CtxOK C) {fB : MlS} {B : ProgHOL 64} (hc : DCodes C fB B)
+    {s : AState} {Γ : Env} {D : List MlS} (n d : Nat) (a b : EIdx) (body : AM Bool) {β : Type}
+    {k : Bool → AM β} {R : β → BitVec 64 → AState → PState σ → Prop} {rest : ProgHOL 64}
+    (hbody : DBodySpec (σ := σ) C B s n d a b body)
+    (hfu : Γ.get kFu = some (BitVec.ofNat 64 (n + 1))) (hd : Γ.get kD = some (BitVec.ofNat 64 d))
+    (ha : Γ.get kA = some (Enc.idxW a)) (hb : Γ.get kB = some (Enc.idxW b)) (hkb : Γ.get lKb = some C.KB)
+    (hD : lEo ∈ D ∧ lY ∈ D ∧ lZ ∈ D)
+    (hk : ∀ x s' H' w, C.H <+: H' → SpecR (Inv (ctxH C H') (defeqSetS s' a b x)
+      ((lZ, w) :: (lEo, C.eo) :: (lY, boolW x) :: Γ) [] D) rest (defeqSetS s' a b x) (k x) R) :
+    SpecR (Inv C s Γ [] D) (callDB fB (defeqSetP C lZ (vv kA) (vv kB) (vv lY) rest)) s
+      (body >>= fun x => defeqSet a b x >>= fun _ => k x) R := by
+  obtain ⟨heo, hy, hz⟩ := hD
+  refine specR_callNIH lY fB dParams [.op .sub [vv kFu, .const 1], vv kD, vv kA, vv kB] B
+    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b] (by decide) rfl hy hc.b
+    ⟨by simp +decide [sev, Env.get, hfu]; exact Ex.ofNat_succ_sub_one n, by simp +decide [sev, Env.get, hd],
+      by simp +decide [sev, Env.get, ha], by simp +decide [sev, Env.get, hb], trivial⟩
+    (PostB C) (fun a w _ _ => w = boolW a) (fun a w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+    (fun u hu _ hlk => hbody u hu (hlk 0 (by decide)) (hlk 1 (by decide)) (hlk 2 (by decide)) (hlk 3 (by decide)))
+    (fun x w s' H' hp hw => ?_)
+  subst hw
+  refine specR_defeqSetI (C := ctxH C H') (ctxOK_H hok H') hc.s hc.i lZ (vv kA) (vv kB) (vv lY) a b x hz heo
+    (by simp +decide [sev, Env.get, ha]) (by simp +decide [sev, Env.get, hb]) (by simp +decide [sev, Env.get])
+    (by simp +decide [Env.get, hkb]; rfl) (fun w => ?_)
+  exact hk x s' H' w hp
+
+theorem dParams_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ kLocals → (ctxEnv C ++ dParams.zip vals).get x = none :=
+  params_none C kLocals dParams vals (by decide) (by decide)
+
+theorem dcodes_saved {C : Ctx} {fB : MlS} {B : ProgHOL 64} (hc : DCodes C fB B) (sv : Option ModeMemos) :
+    DCodes { C with saved := sv } fB B := ⟨hc.g, hc.p, hc.s, hc.i, hc.b⟩
+
+theorem dcodes_H {C : Ctx} {fB : MlS} {B : ProgHOL 64} (hc : DCodes C fB B) (H : List (BitVec 64)) :
+    DCodes (ctxH C H) fB B := ⟨hc.g, hc.p, hc.s, hc.i, hc.b⟩
+
+theorem ctxOK_saved {C : Ctx} (hok : CtxOK C) (sv : Option ModeMemos) : CtxOK { C with saved := sv } := by
+  cases hok; constructor <;> assumption
+
+theorem ctx_back {C : Ctx} (hsv : C.saved = none) (mm : ModeMemos) (H : List (BitVec 64)) :
+    { ctxH { C with saved := some mm } H with saved := none } = ctxH C H := by
+  cases C; cases hsv; rfl
+
+theorem defeq_succ {C : Ctx} (hok : CtxOK C) {fB : MlS} {B : ProgHOL 64} (hc : DCodes C fB B)
+    {s : AState} (n d : Nat) (hn : n + 1 < 2 ^ 64) (a b : EIdx) (body : AM Bool)
+    (hbody : DBodySpec (σ := σ) C B s n d a b body) :
+    SpecR (σ := σ) (Pre C s (dParams.zip [BitVec.ofNat 64 (n + 1), BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b]))
+      (prologue kLocals (fuelCheck (defeqCore C fB))) s (defeqTwin a b body) (PostB C) := by
+  refine specR_prologue (postB_locals C) (dParams_none C _) ?_
+  have hne : BitVec.ofNat 64 (n + 1) ≠ 0 := Ex.ofNat_ne_zero (n + 1) (by omega) hn
+  refine specR_ifI _ 0 (by simp +decide [sev, Env.get, dParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
+    (fun h => absurd rfl h) (fun _ => ?_)
+  refine specR_defeqGetI hok hc.g hc.p lX (vv kA) (vv kB) a b (by decide) (by decide)
+    (by simp +decide [sev, Env.get, dParams, ctxEnv]) (by simp +decide [sev, Env.get, dParams, ctxEnv])
+    (by simp +decide [Env.get, dParams, ctxEnv]) (fun r => ?_)
+  cases r with
+  | some v =>
+    refine specR_ifI _ 1
+      (by simp [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, optWG]; exact boolW_add_one_ne v)
+      (fun _ => ?_) (fun h => absurd h (by decide))
+    refine specR_returnI _ (boolW v) (by simp [sev, Env.get]; exact optWB_some_sub v) (fun t ht => ?_)
+    exact ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
+  | none =>
+    refine specR_ifI _ 0 (by simp [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, optWG])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine defeqMiss hok hc n d a b body (k := fun x => pure x) hbody
+      (by simp +decide [Env.get, dParams, ctxEnv]) (by simp +decide [Env.get, dParams, ctxEnv])
+      (by simp +decide [Env.get, dParams, ctxEnv]) (by simp +decide [Env.get, dParams, ctxEnv])
+      (by simp +decide [Env.get, dParams, ctxEnv]) (by decide) (fun x s' H' w hp => ?_)
+    refine specR_returnI _ (boolW x) (by simp +decide [sev, Env.get]) (fun t ht => ?_)
+    exact ⟨H', hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
+
+theorem defeqE_succ {C : Ctx} (hok : CtxOK C) {fB : MlS} {B : ProgHOL 64} (hc : DCodes C fB B)
+    {s : AState} (n d : Nat) (hn : n + 1 < 2 ^ 64) (a b : EIdx) (body : AM Bool)
+    (hbN : C.saved = none → DBodySpec (σ := σ) { C with saved := some s.caches.modeMemos } B (eagerIn s) n d a b body)
+    (hbS : C.saved.isSome = true → DBodySpec (σ := σ) C B s n d a b body) :
+    SpecR (σ := σ) (Pre C s (dParams.zip [BitVec.ofNat 64 (n + 1), BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b]))
+      (prologue kLocals (fuelCheck (defeqECore C fB))) s (defeqETwin C.side a b body) (PostB C) := by
+  refine specR_prologue (postB_locals C) (dParams_none C _) ?_
+  have hne : BitVec.ofNat 64 (n + 1) ≠ 0 := Ex.ofNat_ne_zero (n + 1) (by omega) hn
+  refine specR_ifI _ 0 (by simp +decide [sev, Env.get, dParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
+    (fun h => absurd rfl h) (fun _ => ?_)
+  unfold defeqECore defeqETwin
+  rcases hsv : C.saved with _ | mm0
+  · -- plain: enter the eager tower
+    have hside : C.side = false := by simp [Ctx.side, hsv]
+    rw [hside]
+    refine specR_enterPlainI hok hsv lSv (by decide) (by decide) ?_
+    have hok' := ctxOK_saved hok (some s.caches.modeMemos)
+    have hc' := dcodes_saved hc (some s.caches.modeMemos)
+    refine specR_defeqGetI hok' hc'.g hc'.p lX (vv kA) (vv kB) a b (by decide) (by decide)
+      (by simp +decide [sev, Env.get, dParams, ctxEnv]) (by simp +decide [sev, Env.get, dParams, ctxEnv])
+      (by simp +decide [Env.get, dParams, ctxEnv]) (fun r => ?_)
+    cases r with
+    | some v =>
+      refine specR_ifI _ 1
+        (by simp [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, optWG]; exact boolW_add_one_ne v)
+        (fun _ => ?_) (fun h => absurd h (by decide))
+      refine specR_leaveSomeI hok' rfl (vv lSv) 1 (by simp +decide [sev, Env.get]) (by decide) ?_
+      refine specR_returnI _ (boolW v) (by simp [sev, Env.get]; exact optWB_some_sub v) (fun t ht => ?_)
+      refine ⟨C.H, List.prefix_refl _, rfl, ?_⟩
+      have e := ctx_back hsv s.caches.modeMemos C.H
+      have h1 := sr_of_eq ht.sr rfl rfl rfl rfl (u := emptyLocalsHOLFinite t)
+      exact e ▸ h1
+    | none =>
+      refine specR_ifI _ 0 (by simp [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, optWG])
+        (fun h => absurd rfl h) (fun _ => ?_)
+      refine defeqMiss hok' hc' n d a b body (hbN hsv)
+        (by simp +decide [Env.get, dParams, ctxEnv]) (by simp +decide [Env.get, dParams, ctxEnv])
+        (by simp +decide [Env.get, dParams, ctxEnv]) (by simp +decide [Env.get, dParams, ctxEnv])
+        (by simp +decide [Env.get, dParams, ctxEnv]) (by decide) (fun x s' H' w hp => ?_)
+      refine specR_leaveSomeI (ctxOK_H hok' H') rfl (vv lSv) 1 (by simp +decide [sev, Env.get]) (by decide) ?_
+      refine specR_returnI _ (boolW x) (by simp +decide [sev, Env.get]) (fun t ht => ?_)
+      refine ⟨H', hp, rfl, ?_⟩
+      have e := ctx_back hsv s.caches.modeMemos H'
+      have h1 := sr_of_eq ht.sr rfl rfl rfl rfl (u := emptyLocalsHOLFinite t)
+      exact e ▸ h1
+  · -- eager already: nothing moves
+    have hside : C.side = true := by simp [Ctx.side, hsv]
+    rw [hside]
+    refine specR_enterEagerI hok hsv lSv (by decide) (by decide) ?_
+    refine specR_defeqGetI hok hc.g hc.p lX (vv kA) (vv kB) a b (by decide) (by decide)
+      (by simp +decide [sev, Env.get, dParams, ctxEnv]) (by simp +decide [sev, Env.get, dParams, ctxEnv])
+      (by simp +decide [Env.get, dParams, ctxEnv]) (fun r => ?_)
+    cases r with
+    | some v =>
+      refine specR_ifI _ 1
+        (by simp [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, optWG]; exact boolW_add_one_ne v)
+        (fun _ => ?_) (fun h => absurd h (by decide))
+      refine specR_leaveNoneI (vv lSv) (by simp +decide [sev, Env.get]) ?_
+      refine specR_returnI _ (boolW v) (by simp [sev, Env.get]; exact optWB_some_sub v) (fun t ht => ?_)
+      exact ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
+    | none =>
+      refine specR_ifI _ 0 (by simp [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, optWG])
+        (fun h => absurd rfl h) (fun _ => ?_)
+      refine defeqMiss hok hc n d a b body (hbS (by simp [hsv]))
+        (by simp +decide [Env.get, dParams, ctxEnv]) (by simp +decide [Env.get, dParams, ctxEnv])
+        (by simp +decide [Env.get, dParams, ctxEnv]) (by simp +decide [Env.get, dParams, ctxEnv])
+        (by simp +decide [Env.get, dParams, ctxEnv]) (by decide) (fun x s' H' w hp => ?_)
+      refine specR_leaveNoneI (vv lSv) (by simp +decide [sev, Env.get]) ?_
+      refine specR_returnI _ (boolW x) (by simp +decide [sev, Env.get]) (fun t ht => ?_)
+      exact ⟨H', hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
 
 end
 
