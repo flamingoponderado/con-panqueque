@@ -704,4 +704,170 @@ def gspCore (C : Ctx) : ProgHOL 64 :=
 
 def gspBody (C : Ctx) : ProgHOL 64 := prologue gspLocals (gspCore C)
 
+
+section
+variable {σ : Type}
+
+def PostSp (C : Ctx) (s : AState) (r : EIdx × Array EIdx × Array EIdx) (w : BitVec 64) (s' : AState)
+    (st : PState σ) : Prop :=
+  s' = s ∧ ∃ H' o pa pn, C.H <+: H' ∧ w = cellA C o ∧ H'[o]? = some (Enc.idxW r.1) ∧
+    H'[o + 1]? = some (cellA C pa) ∧ H'[o + 2]? = some (cellA C pn) ∧
+    BlkAt H' pa (r.2.1.toList.map Enc.idxW) ∧ BlkAt H' pn (r.2.2.toList.map Enc.idxW) ∧ SR (ctxH C H') s' st
+
+theorem postSp_locals (C : Ctx) (s : AState) : ∀ (a : EIdx × Array EIdx × Array EIdx) w s' (st : PState σ)
+    (L : HolFiniteMapExact MlS (ValueHOL 64)), PostSp C s a w s' st → PostSp C s a w s' { st with locals := L } :=
+  fun _ _ _ _ _ ⟨h1, H', o, pa, pn, h2, h3, h4, h5, h6, h7, h8, h9⟩ =>
+    ⟨h1, H', o, pa, pn, h2, h3, h4, h5, h6, h7, h8, sr_of_eq h9 rfl rfl rfl rfl⟩
+
+theorem gsp_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ gspLocals → (ctxEnv C ++ gspParams.zip vals).get x = none :=
+  Knot.params_none C gspLocals gspParams vals (by decide) (by decide)
+
+/-- An empty block in `x`. -/
+theorem specR_emptyBlk {α : Type} {C0 : Ctx} (hok : CtxOK C0) {H : List (BitVec 64)} {s : AState} {Γ : Env}
+    {D : List MlS} {rest : ProgHOL 64} {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop} (x : MlS)
+    (hx : x ∈ D)
+    (hk : ∀ (H' : List (BitVec 64)) o, H <+: H' → BlkAt H' o [] →
+      SpecR (Inv (ctxH C0 H') s ((x, cellA C0 o) :: Γ) [] D) rest s m R) :
+    SpecR (Inv (ctxH C0 H) s Γ [] D) (allocP C0 x (.const 8) (.seq (.store (vv x) (.const 0)) rest)) s m R := by
+  refine specR_allocI (C := ctxH C0 H) x (.const 8) 1 (by norm_num) hx (fun v => by simp [sev])
+    (fun H1 ws hp1 hwl _ => ?_)
+  have hj : H1.length < (ctxH (ctxH C0 H) (H1 ++ ws)).H.length := by show _ < (H1 ++ ws).length; simp; omega
+  refine specR_heapStoreI (ctxOK_H hok _) (vv x) (.const 0) _ hj 0 (by simp; rfl) rfl ?_
+  refine hk _ H1.length (hp1.trans (prefix_set_ge (List.prefix_append _ ws) _ (Nat.le_refl _) 0)) ⟨?_, fun i hi => ?_⟩
+  · show ((H1 ++ ws).set H1.length 0)[H1.length]? = _
+    rw [List.getElem?_set_self (by simp; omega)]; rfl
+  · simp at hi
+
+/-- Allocate `[a, b, c]` and return it. -/
+theorem specR_tripRet {C0 : Ctx} (hok : CtxOK C0) {H : List (BitVec 64)} {s : AState} {Γ : Env}
+    {D : List MlS} {r : EIdx × Array EIdx × Array EIdx} (x xa xb xc : MlS) (pa pn : Nat)
+    (hx : x ∈ D) (hne : xa ≠ x ∧ xb ≠ x ∧ xc ≠ x)
+    (ha : Γ.get xa = some (Enc.idxW r.1)) (hb : Γ.get xb = some (cellA C0 pa)) (hc : Γ.get xc = some (cellA C0 pn))
+    (hpre : C0.H <+: H) (hba : BlkAt H pa (r.2.1.toList.map Enc.idxW)) (hbn : BlkAt H pn (r.2.2.toList.map Enc.idxW)) :
+    SpecR (σ := σ) (Inv (ctxH C0 H) s Γ [] D)
+      (allocP C0 x (.const 24) (.seq (.store (vv x) (vv xa))
+        (.seq (.store (.op .add [vv x, .const 8]) (vv xb))
+        (.seq (.store (.op .add [vv x, .const 16]) (vv xc)) (.return (vv x)))))) s (pure r) (PostSp C0 s) := by
+  obtain ⟨h1, h2, h3⟩ := hne
+  refine specR_allocI (C := ctxH C0 H) x (.const 24) 3 (by norm_num) hx (fun v => by simp [sev])
+    (fun H1 ws hp1 hwl _ => ?_)
+  have hj : H1.length < (ctxH (ctxH C0 H) (H1 ++ ws)).H.length := by show _ < (H1 ++ ws).length; simp; omega
+  refine specR_heapStoreI (ctxOK_H hok _) (vv x) (vv xa) _ hj (Enc.idxW r.1) (by simp; rfl) (by simp [h1, ha]) ?_
+  have hj2 : H1.length + 1 < (ctxH (ctxH C0 H) ((H1 ++ ws).set H1.length (Enc.idxW r.1))).H.length := by
+    show _ < ((H1 ++ ws).set _ _).length; simp; omega
+  refine specR_heapStoreI (ctxOK_H hok _) _ (vv xb) _ hj2 (cellA C0 pa) (by simp [sev]; exact cellA_add8 C0 _)
+    (by simp [h2, hb]) ?_
+  have hj3 : H1.length + 2 < (ctxH (ctxH C0 H) (((H1 ++ ws).set H1.length (Enc.idxW r.1)).set (H1.length + 1)
+      (cellA C0 pa))).H.length := by
+    show _ < (((H1 ++ ws).set _ _).set _ _).length; simp; omega
+  refine specR_heapStoreI (ctxOK_H hok _) _ (vv xc) _ hj3 (cellA C0 pn)
+    (by simp [sev]; rw [show (16#64 : BitVec 64) = BitVec.ofNat 64 (8 * 2) from rfl]; exact ExPre.cellA_off C0 _ 2)
+    (by simp [h3, hc]) ?_
+  refine specR_returnI _ (cellA C0 H1.length) (by simp; rfl) (fun t ht => ?_)
+  let G := (((H1 ++ ws).set H1.length (Enc.idxW r.1)).set (H1.length + 1) (cellA C0 pa)).set (H1.length + 2)
+    (cellA C0 pn)
+  have hpl := hp1.length_le
+  have hpG : H1 <+: G := prefix_set_ge (prefix_set_ge (prefix_set_ge (List.prefix_append _ ws) _ (Nat.le_refl _) _)
+    _ (by simp) _) _ (by simp) _
+  refine ⟨rfl, G, H1.length, pa, pn, hpre.trans (hp1.trans hpG), rfl, ?_, ?_, ?_, blkAt_mono hba (hp1.trans hpG),
+    blkAt_mono hbn (hp1.trans hpG), sr_of_eq ht.sr rfl rfl rfl rfl⟩
+  · show ((((H1 ++ ws).set _ _).set _ _).set _ _)[H1.length]? = _
+    rw [List.getElem?_set_ne (by omega), List.getElem?_set_ne (by omega), List.getElem?_set_self (by simp; omega)]
+  · show ((((H1 ++ ws).set _ _).set _ _).set _ _)[H1.length + 1]? = _
+    rw [List.getElem?_set_ne (by omega), List.getElem?_set_self (by simp; omega)]
+  · show ((((H1 ++ ws).set _ _).set _ _).set _ _)[H1.length + 2]? = _
+    rw [List.getElem?_set_self (by simp; omega)]
+
+end
+
+
+section
+variable {σ : Type}
+
+theorem viewApp_run (h : EIdx) (s : AState) : viewApp h s = .ok (s.store.viewApp h, s) := rfl
+
+theorem gsp_spec (C : Ctx) (hok : CtxOK C)
+    (hcs : C.code.lookup fGsp = some (gspParams.map (fun p => (p, ShapeHOL.one)), gspBody C, .one))
+    (hca : C.code.lookup fAppend = some (appParams.map (fun p => (p, ShapeHOL.one)), appBody C, .one)) :
+    ∀ fuel, fuel < 2 ^ 64 → ∀ (H : List (BitVec 64)) s h, C.H <+: H →
+      SpecR (σ := σ) (Pre (ctxH C H) s (gspParams.zip [BitVec.ofNat 64 fuel, Enc.idxW h])) (gspBody C) s
+        (getAppSpineGo fuel h) (PostSp (ctxH C H) s) := by
+  intro fuel
+  induction fuel with
+  | zero =>
+    intro _ H s h _
+    refine specR_prologue (postSp_locals _ s) (gsp_none _ _) ?_
+    unfold gspCore
+    exact specR_ifI _ 1 (by simp +decide [sev, Env.get, gspParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun _ => specR_hangI) (fun h => absurd h (by decide))
+  | succ f ih =>
+    intro hf H s h hpre
+    have hok' := ctxOK_H hok H
+    refine specR_prologue (postSp_locals _ s) (gsp_none _ _) ?_
+    unfold gspCore
+    have hfw : BitVec.ofNat 64 (f + 1) ≠ 0#64 := by
+      intro h0; have := congrArg BitVec.toNat h0; simp at this; omega
+    have hc0 : sev (ctxEnv (ctxH C H) ++ gspParams.zip [BitVec.ofNat 64 (f + 1), Enc.idxW h])
+        (.cmp .equal (vv gF) (.const 0)) = some 0 := by
+      simp +decide [sev, Env.get, gspParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hfw
+    refine specR_ifI _ 0 hc0 (fun h => absurd rfl h) (fun _ => ?_)
+    rw [getAppSpineGo_succ]
+    have hT := sev_tagIs4B (ctxEnv (ctxH C H) ++ gspParams.zip [BitVec.ofNat 64 (f + 1), Enc.idxW h]) gH h
+      (by simp +decide [Env.get, gspParams, ctxEnv])
+    by_cases ht : (h.tag == 4) = true
+    · rw [if_pos (show (h.tag == ETag.app) = true from ht)]
+      refine specR_ifI _ 1 (by rw [hT, ht]; rfl) (fun _ => ?_) (fun h => absurd h (by decide))
+      refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]; rfl) ?_
+      refine specR_assignI lDh (vv gH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, gspParams, ctxEnv]) ?_
+      refine specR_viewP h (by simp) (by simp +decide [Env.get]; rfl) (by simp +decide [Env.get, ctxEnv]) (by decide)
+        (fun v P hv htn _ => ?_)
+      have htg : h.tag = 4 := by simpa using ht
+      have h4 : v.tagN = 4 := by rw [htn, htg]; rfl
+      obtain ⟨fn, a, rfl⟩ := tagN_app h4
+      have hva : s.store.viewApp h = some (fn, a) := viewApp_of_view (by rw [htg]; rfl) hv
+      refine specR_runBind (by rw [viewApp_run, hva]) ?_
+      refine specR_loadI' gA (vv lRp) P (P + BitVec.ofNat 64 0) (Enc.idxW fn) (by decide) (by simp) (by simp)
+        (by simpa [encEView, Enc.encApp] using wordsAt_mem0 P (Enc.idxW fn) [Enc.idxW a] []) ?_
+      refine specR_loadI' gB _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW a) (by decide) (by simp +decide [sev]) rfl
+        (by simpa [encEView, Enc.encApp] using wordsAt_mem1 P (Enc.idxW fn) (Enc.idxW a) [] []) ?_
+      refine specR_dropM ?_
+      refine specR_callNIH (C := ctxH C H) gT fGsp gspParams [.op .sub [vv gF, .const 1], vv gA] (gspBody C)
+        [BitVec.ofNat 64 f, Enc.idxW fn] (by decide) rfl (by decide) hcs
+        ⟨by simp +decide [sev, Env.get, gspParams, ctxEnv]
+            rw [show (1#64 : BitVec 64) = BitVec.ofNat 64 1 from rfl,
+              BitVec.ofNat_sub_ofNat_of_le _ _ (by omega) (by omega)]; rfl,
+          by simp, trivial⟩
+        (fun r w s' st => getAppSpineGo f fn s = .ok (r, s') ∧ PostSp (ctxH C H) s r w s' st)
+        (fun r w s' H' => s' = s ∧ ∃ o pa pn, w = cellA C o ∧ H'[o]? = some (Enc.idxW r.1) ∧
+          H'[o + 1]? = some (cellA C pa) ∧ H'[o + 2]? = some (cellA C pn) ∧
+          BlkAt H' pa (r.2.1.toList.map Enc.idxW) ∧ BlkAt H' pn (r.2.2.toList.map Enc.idxW))
+        (fun r w s' st ⟨_, hs, H', o, pa, pn, hp, hw, h0, h1, h2, hba, hbn, hsr⟩ =>
+          ⟨H', hp, ⟨hs, o, pa, pn, hw, h0, h1, h2, hba, hbn⟩, hsr⟩)
+        (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu gspParams _ rfl hlk)
+          (ih (by omega) H s fn hpre)))
+        (fun r w s1 H1 hp1 ⟨hs, o, pa, pn, hw, h0, h1, h2, hba, hbn⟩ => ?_)
+      subst hs hw
+      refine UD.specR_heapLoadI' (C := ctxH C H1) gHd (vv gT) o _ h0 (by decide) (by simp; rfl) ?_
+      refine UD.specR_heapLoadI' (C := ctxH C H1) gPa _ (o + 1) _ h1 (by decide)
+        (by simp [sev]; exact cellA_add8 C o) ?_
+      refine UD.specR_heapLoadI' (C := ctxH C H1) gPn _ (o + 2) _ h2 (by decide)
+        (by simp [sev]; rw [show (16#64 : BitVec 64) = BitVec.ofNat 64 (8 * 2) from rfl]; exact ExPre.cellA_off C _ 2) ?_
+      refine specR_callApp (C := ctxH C H1) (ctxOK_H hok _) hca gPa2 (vv gPa) (vv gB) pa _ (Enc.idxW a) (by decide)
+        hba (by simp; rfl) (by simp) (fun H2 o2 hp2 hb2 => ?_)
+      refine specR_callApp (C := ctxH C H2) (ctxOK_H hok _) hca gPn2 (vv gPn) (vv gH) pn _ (Enc.idxW h) (by decide)
+        (blkAt_mono hbn hp2) (by simp; rfl) (by simp +decide [Env.get, gspParams, ctxEnv]) (fun H3 o3 hp3 hb3 => ?_)
+      refine specR_tripRet (C0 := ctxH C H) (H := H3) (r := (r.1, r.2.1.push a, r.2.2.push h)) hok' gR gHd gPa2
+        gPn2 o2 o3 (by decide) (by decide) (by simp) (by simp; rfl) (by simp; rfl)
+        (hp1.trans (hp2.trans hp3)) (by simpa using blkAt_mono hb2 hp3) (by simpa using hb3)
+    · rw [if_neg (show ¬ (h.tag == ETag.app) = true from ht)]
+      refine specR_ifI _ 0 (by rw [hT]; simp [ht, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
+      refine specR_emptyBlk (C0 := C) (H := H) hok gE1 (by decide) (fun H1 o1 hp1 hb1 => ?_)
+      refine specR_emptyBlk (C0 := C) (H := H1) hok gE2 (by decide) (fun H2 o2 hp2 hb2 => ?_)
+      exact specR_tripRet (C0 := ctxH C H) (H := H2) (r := (h, #[], #[])) hok' gR gH gE1 gE2 o1 o2 (by decide)
+        (by decide) (by simp +decide [Env.get, gspParams, ctxEnv]) (by simp; rfl) (by simp; rfl) (hp1.trans hp2)
+        (by simpa using blkAt_mono hb1 hp2) (by simpa using hb2)
+
+end
+
 end ConPanqueque.T.WC
