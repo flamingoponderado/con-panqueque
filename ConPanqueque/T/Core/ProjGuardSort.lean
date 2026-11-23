@@ -3,6 +3,7 @@ import ConPanqueque.T.Core.CheckGuard
 import ConPanqueque.T.LsView
 import ConPanqueque.T.SRFacts
 import ConPanqueque.T.PinRead
+import ConPanqueque.T.Comp.TwinFacts
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena ConRon.Bridge
@@ -87,10 +88,6 @@ theorem gs_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     (ks : List ConLeche.Name) (hks : Frontend.denoteNList s.store.ns cvT.levelParams = some ks)
     (hrn : ReadNCacheOK s.caches.readNC s.store) (hrl : ReadLCacheOK s.caches.readLC s.store)
     (hrls : ReadLsCacheOK s.caches.readLsC s.store) (hden : (denoteE s.store cvT.type).isSome = true)
-    (hsd : ∀ u, formerResSort cvT.type s = .ok (some u, s) → (denoteL s.store.ls u).isSome = true)
-    (hsl : ∀ ty s2 u s3, instLPFast coreWalkFuel cvT.levelParams us cvT.type s = .ok (ty, s2) →
-      formerSortLoop (knot mode C n) 0 (caps.nparams + caps.nIdx) ty s2 = .ok (some u, s3) →
-      (denoteL s3.store.ls u).isSome = true ∧ LStoreWF s3.store.ls ∧ ReadLCacheOK s3.caches.readLC s3.store)
     (hlen : cvT.levelParams.length + 1 < 2 ^ 60) (hK : caps.nparams + caps.nIdx < 2 ^ 63)
     (hz0 : denoteL s.store.ls C.pins.zeroLevel = some .zero) :
     SpecR (σ := σ) (Pre C s (fzParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, ecell C o, Enc.idxW us]))
@@ -197,8 +194,11 @@ theorem gs_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     rcases r with _ | u
     · exact specR_ifI _ 1 (by simp +decide [sev, Env.get, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
         (fun _ => specR_hangI) (fun h => absurd h (by decide))
-    · obtain ⟨hdu, hwf3, hrl3⟩ := hsl ty s2 u s3 hrun2 hrun3
-      obtain ⟨l, hl⟩ := Option.isSome_iff_exists.mp hdu
+    · refine specR_atEntry fun t3 ht3 => ?_
+      obtain ⟨w3, hw3⟩ := Comp.formerSortLoop_sort _ _ _ _ _ _ _ hrun3
+      have hwf3 := sr_lwf ht3.sr
+      have hrl3 := ht3.sr.cok.rl
+      obtain ⟨l, hl⟩ := sr_sortDen ht3.sr w3 u hw3
       obtain ⟨X, hx, hX⟩ := readLevelM_runC u s3 l hrl3 hl
       refine specR_quiet hx rfl rfl ⟨rfl, rfl, rfl, rfl, rfl⟩ rfl (fun hc => cachesOK_readLC hc X hX) ?_
       have hne : ¬ Enc.idxW u + 1 = 0 := lidxW_add_one_ne u
@@ -228,7 +228,9 @@ theorem gs_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
       (fun _ => ?_) (fun h => absurd h (by decide))
     dsimp only
-    obtain ⟨l, hl⟩ := Option.isSome_iff_exists.mp (hsd u hrun)
+    refine specR_atEntry fun t1 ht1 => ?_
+    obtain ⟨w0, hw0⟩ := Comp.formerResSort_sort _ _ _ _ hrun
+    obtain ⟨l, hl⟩ := sr_sortDen ht1.sr w0 u hw0
     obtain ⟨X, hx, hX⟩ := readLevelM_runC u s l hrl hl
     refine specR_quiet hx rfl rfl ⟨rfl, rfl, rfl, rfl, rfl⟩ rfl (fun hc => cachesOK_readLC hc X hX) ?_
     refine specR_envLoadI (C := ctxH C H1) fzX (.const (ecell C (C.PO + pinCount + 1))) (C.PO + pinCount + 1)

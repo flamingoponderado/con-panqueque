@@ -65,7 +65,7 @@ theorem sr_lpLen' {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) :
 
 theorem sr_defnDen {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) :
     ∀ c cv v hint, C.fe.find? c = some (.defnInfo cv v hint) → (denoteE s.store v).isSome = true :=
-  fun c cv v hint hc => (h.envd.1 c _ hc).2.2.2 cv v hint rfl
+  fun c cv v hint hc => (h.envd.1 c _ hc).2.2.2.1 cv v hint rfl
 
 /-- `unfoldDefinition`'s environment precondition, from the state relation. -/
 theorem sr_ufPre {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) :
@@ -84,14 +84,21 @@ theorem sr_ufPre {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) :
 
 theorem sr_tblLp {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) {T : NIdx} {tbl : IProjTable}
     (hT : C.fe.findTable? T = some tbl) : ∃ ks, Frontend.denoteNList s.store.ns tbl.levelParams = some ks :=
-  denoteNList_total' _ (h.envd.2 T tbl hT).1
+  denoteNList_total' _ (h.envd.2.1 T tbl hT).1
 
 theorem sr_tblBodies {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) {T : NIdx} {tbl : IProjTable}
     (hT : C.fe.findTable? T = some tbl) : ∀ b ∈ tbl.bodies.toList, (denoteE s.store b).isSome = true :=
-  (h.envd.2 T tbl hT).2.1
+  (h.envd.2.1 T tbl hT).2.1
 
 theorem sr_tblLen {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) {T : NIdx} {tbl : IProjTable}
     (hT : C.fe.findTable? T = some tbl) : tbl.levelParams.length + 1 < 2 ^ 60 :=
-  (h.envd.2 T tbl hT).2.2
+  (h.envd.2.1 T tbl hT).2.2
+
+theorem sr_zeroLevel {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) :
+    denoteL s.store.ls C.pins.zeroLevel = some .zero := h.envd.2.2
+
+theorem sr_capsLen {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) {c : NIdx} {cv : IConstantVal}
+    {caps : IIndCaps} (hc : C.fe.find? c = some (.indInfo cv caps)) : caps.nparams + caps.nIdx < 2 ^ 63 :=
+  (h.envd.1 c _ hc).2.2.2.2 cv caps rfl
 
 end ConPanqueque.T

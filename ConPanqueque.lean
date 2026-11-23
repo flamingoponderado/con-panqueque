@@ -330,3 +330,4 @@ import ConPanqueque.T.Core.StructUnitCert
 import ConPanqueque.T.Comp.WhnfBody
 import ConPanqueque.T.Comp.InferLeaves
 import ConPanqueque.T.Floor
+import ConPanqueque.T.Comp.TwinFacts

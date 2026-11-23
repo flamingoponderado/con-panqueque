@@ -448,14 +448,19 @@ value denotes. -/
 def ConstDen (fe : IFEnv) (st : EStore) : Prop :=
   ∀ c ci, fe.find? c = some ci → (∀ n ∈ ci.toConstantVal.levelParams, (denoteN st.ns n).isSome = true) ∧
     (denoteE st ci.toConstantVal.type).isSome = true ∧ ci.toConstantVal.levelParams.length + 1 < 2 ^ 60 ∧
-    (∀ cv v hint, ci = .defnInfo cv v hint → (denoteE st v).isSome = true)
+    (∀ cv v hint, ci = .defnInfo cv v hint → (denoteE st v).isSome = true) ∧
+    (∀ cv caps, ci = .indInfo cv caps → caps.nparams + caps.nIdx < 2 ^ 63)
 
 /-- Every projection table's level parameters and bodies denote, and its level-parameter count is small. -/
 def TblDen (fe : IFEnv) (st : EStore) : Prop :=
   ∀ T tbl, fe.findTable? T = some tbl → (∀ n ∈ tbl.levelParams, (denoteN st.ns n).isSome = true) ∧
     (∀ b ∈ tbl.bodies.toList, (denoteE st b).isSome = true) ∧ tbl.levelParams.length + 1 < 2 ^ 60
 
-def EnvDen (fe : IFEnv) (st : EStore) : Prop := ConstDen fe st ∧ TblDen fe st
+/-- The pinned levels denote what they stand for. -/
+def PinDen (p : Pins) (st : EStore) : Prop :=
+  denoteL st.ls p.zeroLevel = some .zero
+
+def EnvDen (fe : IFEnv) (p : Pins) (st : EStore) : Prop := ConstDen fe st ∧ TblDen fe st ∧ PinDen p st
 
 theorem denoteN_isSome_ext {st st' : EStore} (hx : Ext st st') {n : NIdx} (h : (denoteN st.ns n).isSome = true) :
     (denoteN st'.ns n).isSome = true := by
@@ -468,12 +473,13 @@ theorem denoteE_isSome_ext {st st' : EStore} (hx : Ext st st') {e : EIdx} (h : (
   obtain ⟨x, hx'⟩ := Option.isSome_iff_exists.mp h
   rw [hx.expr _ x hx']; rfl
 
-theorem envDen_ext {fe : IFEnv} {st st' : EStore} (h : EnvDen fe st) (hx : Ext st st') : EnvDen fe st' := by
-  refine ⟨fun c ci hc => ?_, fun T tbl hT => ?_⟩
-  · obtain ⟨h1, h2, h3, h4⟩ := h.1 c ci hc
+theorem envDen_ext {fe : IFEnv} {p : Pins} {st st' : EStore} (h : EnvDen fe p st) (hx : Ext st st') :
+    EnvDen fe p st' := by
+  refine ⟨fun c ci hc => ?_, fun T tbl hT => ?_, hx.lss.ls.lvl _ _ h.2.2⟩
+  · obtain ⟨h1, h2, h3, h4, h5⟩ := h.1 c ci hc
     exact ⟨fun n hn => denoteN_isSome_ext hx (h1 n hn), denoteE_isSome_ext hx h2, h3,
-      fun cv v hint hci => denoteE_isSome_ext hx (h4 cv v hint hci)⟩
-  · obtain ⟨h1, h2, h3⟩ := h.2 T tbl hT
+      fun cv v hint hci => denoteE_isSome_ext hx (h4 cv v hint hci), h5⟩
+  · obtain ⟨h1, h2, h3⟩ := h.2.1 T tbl hT
     exact ⟨fun n hn => denoteN_isSome_ext hx (h1 n hn), fun b hb => denoteE_isSome_ext hx (h2 b hb), h3⟩
 
 structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
@@ -504,7 +510,7 @@ structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   /-- The twin store is well formed (con-ron's `StoreWF`). -/
   twf : StoreWF s.store
   /-- The environment's constants denote in the twin store. -/
-  envd : EnvDen C.fe s.store
+  envd : EnvDen C.fe C.pins s.store
   /-- The store only grew since the context's floor. -/
   floor : Ext C.St s.store
   /-- The twin-only caches are correct. -/
