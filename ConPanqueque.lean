@@ -92,6 +92,7 @@ import ConPanqueque.V.EApp2
 import ConPanqueque.T.Intern
 import ConPanqueque.T.InternWF
 import ConPanqueque.T.Denote
+import ConPanqueque.T.SRFacts
 import ConPanqueque.T.LIntern
 import ConPanqueque.T.LsInternT
 import ConPanqueque.T.EIntern2
