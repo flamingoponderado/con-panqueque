@@ -103,4 +103,52 @@ def coreI (G : BitVec 64) : ProgHOL 64 :=
 
 def ilpBody (C : Ctx) : ProgHOL 64 := prologue inst1Locals (coreI (C.mG (.e .instLP)))
 
+section
+variable {σ : Type}
+
+theorem denoteNList_ext {st st' : NStore} (hx : NExt st st') :
+    ∀ (hs : List NIdx) (xs : List ConLeche.Name), Frontend.denoteNList st hs = some xs →
+      Frontend.denoteNList st' hs = some xs
+  | [], xs, h => h
+  | x :: xs, ys, h => by
+    simp only [Frontend.denoteNList] at h ⊢
+    split at h
+    · rename_i a b ha hb
+      simp at h; subst h
+      rw [hx x a ha, denoteNList_ext hx xs b hb]
+    · simp at h
+
+/-- The twin-side invariants the walk carries (besides `SR`). -/
+structure WInv (s : AState) (khs : List NIdx) (ks : List ConLeche.Name) (usH : LsIdx) (vsL : List ConLeche.Level) :
+    Prop where
+  wf : StoreWF s.store
+  readL : ReadLCacheOK s.caches.readLC s.store
+  readLs : ReadLsCacheOK s.caches.readLsC s.store
+  memoL : MemoLOK s ks vsL
+  memoLs : MemoLsOK s ks vsL
+  names : Frontend.denoteNList s.store.ns khs = some ks
+  levels : denoteLs s.store.lss usH = some vsL
+
+/-- The invariants survive a step that extends the store and keeps the four memo/cache tables. -/
+theorem WInv.step {s s' : AState} {khs : List NIdx} {ks : List ConLeche.Name} {usH : LsIdx}
+    {vsL : List ConLeche.Level} (h : WInv s khs ks usH vsL) (hwf : StoreWF s'.store) (hx : Ext s.store s'.store)
+    (hc1 : s'.caches.readLC = s.caches.readLC) (hc2 : s'.caches.readLsC = s.caches.readLsC)
+    (hm1 : s'.memos.instLPLC = s.memos.instLPLC) (hm2 : s'.memos.instLPLsC = s.memos.instLPLsC) :
+    WInv s' khs ks usH vsL where
+  wf := hwf
+  readL := by rw [hc1]; exact readL_ext h.readL hx
+  readLs := by rw [hc2]; exact readLs_ext h.readLs hx
+  memoL := fun u r hr => by
+    rw [hm1] at hr
+    obtain ⟨l, h1, h2⟩ := h.memoL u r hr
+    exact ⟨l, denoteL_ext h1 hx, denoteL_ext h2 hx⟩
+  memoLs := fun u r hr => by
+    rw [hm2] at hr
+    obtain ⟨l, h1, h2⟩ := h.memoLs u r hr
+    exact ⟨l, denoteLs_ext h1 hx, denoteLs_ext h2 hx⟩
+  names := denoteNList_ext hx.lss.ls.ns khs ks h.names
+  levels := denoteLs_ext h.levels hx
+
+end
+
 end ConPanqueque.T.ILP
