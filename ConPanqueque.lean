@@ -258,3 +258,4 @@ import ConPanqueque.T.Core.InferBody
 import ConPanqueque.T.Core.InferArms
 import ConPanqueque.T.Core.InferPis
 import ConPanqueque.T.Core.InferForall
+import ConPanqueque.T.Core.InferLams
