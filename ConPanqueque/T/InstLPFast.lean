@@ -55,4 +55,36 @@ theorem readNamesM_eq : ∀ (us : List NIdx) (s : AState) (xs : List ConLeche.Na
       · rw [ec2]; simp only [withC]; rw [ec1]
     · simp at hd
 
+section
+variable {σ : Type}
+
+/-- `specR_memoClearI` for a twin clear that may also touch tables the port does not mirror. -/
+theorem specR_memoClearIG {β : Type} {C : Ctx} (hok : CtxOK C) (mk : MemoK) (clearOp : AM Unit)
+    {s s' : AState} (hclear : clearOp s = .ok ((), s')) (hst : s'.store = s.store)
+    (hoE : ∀ k, k ≠ mk → memoSel k s'.memos = memoSel k s.memos)
+    (hoN : ∀ k, memoSelN k s'.memos = memoSelN k s.memos) (hsame : memoSel mk s'.memos = ∅)
+    {Γ : Env} {M : Mem} {D : List MlS}
+    {rest : ProgHOL 64} {k : Unit → AM β} {R : β → BitVec 64 → AState → PState σ → Prop} (hj : lJ0 ∈ D)
+    (hk : SpecR (Inv C s' (Γ.kill [lJ0]) [] D) rest s' (k ()) R) :
+    SpecR (Inv C s Γ M D) (clearCode (C.mg (.e mk)) rest) s (clearOp >>= k) R := by
+  intro t ht
+  obtain ⟨w0, hw0⟩ := ht.decl lJ0 hj
+  rcases clearCode_core t _ _ _ (ht.sr.memo mk) rest w0 hw0 (fun j hj' => hok.mdescMemo (.e mk) (.e mk) j hj') with
+    hs | ⟨t4, he, hmem, hout, hd4, hg4, hc4, hl4, hj4⟩
+  · exact Or.inl hs
+  have hsr' : SR C s' t4 :=
+    sr_upd_region hok (.e mk) ht.sr hout hd4 hg4 hc4 hst
+      (fun k' e => hoE k' (fun x => e (by rw [x])))
+      (fun k' _ => hoN k')
+      (fun k' e => by injection e with e; subst e; rw [hsame]; exact hmem)
+      (fun k' e => by simp at e)
+  rw [he]
+  rcases hk t4 (inv_after_clear ht hsr' hl4 hj4) with hs | ⟨w, hr', a, s', hk', hR⟩
+  · exact Or.inl hs
+  refine Or.inr ⟨w, hr', a, s', ?_, hR⟩
+  show (do let r ← clearOp s; match r with | (a, s) => k a s) = _
+  rw [hclear]; exact hk'
+
+end
+
 end ConPanqueque.T.ILP
