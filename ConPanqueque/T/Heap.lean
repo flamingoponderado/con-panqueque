@@ -224,3 +224,34 @@ theorem specR_allocI {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D 
   exact hk H' ws hp hws (by omega) t2 hInv
 
 end ConPanqueque.T
+
+namespace ConPanqueque.T
+
+/-- Memory changes beyond the context's image keep the heap: the new image is read off memory. -/
+theorem heapEx_reframe {σ : Type} {t u : PanSemStateFiniteExact 64 σ} {HB : BitVec 64} {HN : Nat}
+    {H : List (BitVec 64)} (h : HeapEx t HB HN H)
+    (hm : ∀ i, i < H.length → u.memory (HB + BitVec.ofNat 64 (8 * i)) = t.memory (HB + BitVec.ofNat 64 (8 * i)))
+    (hd : u.memaddrs = t.memaddrs) (hg : u.globals.lookup gHt = t.globals.lookup gHt) : HeapEx u HB HN H := by
+  obtain ⟨H', hp, ha⟩ := h
+  refine ⟨(List.range H'.length).map (fun i => labW (u.memory (HB + BitVec.ofNat 64 (8 * i)))), ?_, ?_⟩
+  · obtain ⟨r, rfl⟩ := hp
+    refine ⟨((List.range r.length).map (fun i => labW (u.memory (HB + BitVec.ofNat 64 (8 * (H.length + i)))))), ?_⟩
+    apply List.ext_getElem
+    · simp
+    · intro i h1 h2
+      simp only [List.length_append, List.length_map, List.length_range] at h1 h2
+      rw [List.getElem_map, List.getElem_range]
+      by_cases hi : i < H.length
+      · rw [List.getElem_append_left (by simpa using hi)]
+        have := ha.val i (by simp; omega)
+        rw [List.getElem_append_left hi] at this
+        rw [hm i hi, this]; rfl
+      · rw [List.getElem_append_right (by omega)]
+        simp only [List.length_map, List.length_range, List.getElem_map, List.getElem_range]
+        rw [show H.length + (i - H.length) = i by omega]
+  · refine ⟨by rw [hg]; simpa using ha.top, by simpa using ha.len, ha.lay, fun i hi => by rw [hd]; exact ha.dom i hi,
+      fun i hi => ?_, fun i hi => ⟨labW (u.memory _), by cases e : u.memory (HB + BitVec.ofNat 64 (8 * i)); rfl⟩⟩
+    simp only [List.getElem_map, List.getElem_range]
+    cases u.memory (HB + BitVec.ofNat 64 (8 * i)); rfl
+
+end ConPanqueque.T

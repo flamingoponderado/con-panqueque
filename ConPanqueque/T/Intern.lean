@@ -544,6 +544,9 @@ structure CtxOK (C : Ctx) : Prop where
   sepLP : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 1 7
   b0LP : C.L.base 7 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + LTag.param.toUInt64.toBitVec * 67108864
   b1LP : C.L.base 7 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + LTag.param.toUInt64.toBitVec * 67108864
+  sepLs : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 0 8
+  b0Ls : C.L.base 8 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + LsTag.list.toUInt64.toBitVec * 67108864
+  b1Ls : C.L.base 8 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + LsTag.list.toUInt64.toBitVec * 67108864
 
 def fInternApp := ofString "internApp"
 
