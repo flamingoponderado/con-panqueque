@@ -488,6 +488,16 @@ Next: Core bodies bottom-up (constant instantiation `constTyAt`/`constValAt` wit
   - The binary branch: a 14-way pin dispatch in `natBinOpOfName?` order, then the leaf (`whnf a`, `rawNat`, `whnf b`, `rawNat`, the operation's function).
   - `whnf` is a hypothesis: the knot entry as a callee for every heap extension and every state of a family `Q` closed under `whnf` runs. `whnfBody`'s proof will supply it from `EntrySpecs` and the twin invariant.
 
+### Progress (2026-11-23): `whnfBody`
+
+- **Twin-threaded loops** (`T/LoopT.lean`).
+  - `specR_whileT` is a `while` loop whose iterations advance the twin. Loop points carry the context, the twin state, the locals and the remaining twin computation, and every reachable point's computation answers what the original does. The clock gives termination, so no variant is needed.
+  - `step_callNIH` is a call as a `Step`, keeping the twin's run in the post.
+- **`whnfBody`** (`T/Core/Whnf.lean`, `wb_spec`): the port's loop does `whnfCore` (entry), `reduceNat` (`rdBody`), then `unfoldDefinition` (`ufBody`), on the twin's `2^62` budget.
+  - One iteration (`wb_iter`) is a `Step` to a stepping point or to a done point.
+  - The three steps are hypotheses: callees for every heap extension and every state of a family `Q`. Closure of `Q` under their runs is also a hypothesis, to be discharged from con-ron's invariants.
+- **Next.** `whnfCoreBody` (`whnfCoreLoop`: beta, let/proj, iota), then `inferBody`, `defeqBody`, `inferBodyIO`. Then the instantiation of `Q` with con-ron `CheckOK` and its preservation lemmas.
+
 ### Decision (2026-11-24): `div`/`mod`/`gcd` on large literals decline
 
 Pancake has no division instruction, and resource-limit declines are allowed (soundness only needs "the port accepts ⇒ the twin accepts").
