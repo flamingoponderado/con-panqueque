@@ -241,3 +241,4 @@ import ConPanqueque.T.Core.FormerLoop
 import ConPanqueque.T.Core.FamilyNZ
 import ConPanqueque.T.Core.DefEqList
 import ConPanqueque.T.Core.IotaIndex
+import ConPanqueque.T.Core.ConstTy
