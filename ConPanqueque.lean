@@ -183,3 +183,4 @@ import ConPanqueque.T.Big.Pow
 import ConPanqueque.V.LitStrong
 import ConPanqueque.T.Big.LitIntern
 import ConPanqueque.T.Big.SizeMath
+import ConPanqueque.T.Big.NatBinBase
