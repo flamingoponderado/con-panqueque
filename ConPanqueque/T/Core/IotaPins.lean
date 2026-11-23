@@ -260,7 +260,7 @@ theorem ip_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     ∀ (pins : List EIdx) (qs : Nat) (H : List (BitVec 64)) (acc : List EIdx) (oa : Nat) (s : AState), C.H <+: H →
       (∀ p, p ∈ pins → p ∈ P0) → (∀ j (hj : j < pins.length), C.EH[qs + j]? = some (Enc.idxW pins[j])) →
       BlkAt H oa (acc.map Enc.idxW) → BlkAt H ok (lps.map Enc.idxW) → BlkAt H ot ((args.take rP).map Enc.idxW) →
-      Q s → pins.length < 2 ^ 60 →
+      Q s → pins.length < 2 ^ 61 →
       SpecR (σ := σ) (Pre (ctxH C H) s (ipParams.zip [ecell C qs, BitVec.ofNat 64 pins.length, cellA C ok, Enc.idxW us,
         cellA C ot, BitVec.ofNat 64 rP, cellA C oa])) ipBody s
         (instSpinePins lps us args rP pins >>= fun xs => pure (acc ++ xs)) (PostA (ctxH C H)) := by
