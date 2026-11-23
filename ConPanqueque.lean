@@ -196,3 +196,4 @@ import ConPanqueque.T.Core.WhnfCore
 import ConPanqueque.T.Core.WcStep
 import ConPanqueque.T.Core.WcStuck
 import ConPanqueque.T.Ex.Append
+import ConPanqueque.T.Ex.AppendFn
