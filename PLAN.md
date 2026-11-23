@@ -474,10 +474,14 @@ Next: Core bodies bottom-up (constant instantiation `constTyAt`/`constValAt` wit
   - `div`/`mod` (`T/Big/Div.lean`, `dm_spec`) use a proved 64-step restoring word division (`T/Big/WDiv.lean`, `T/Big/WDivMath.lean`). `b = 0` follows `Nat` (`a / 0 = 0`, `a % 0 = a`). A one-limb `a` with a longer `b` answers `0` or `a`. Other multi-limb operands decline.
   - `gcd` (`T/Big/Gcd.lean`, `gcd_spec`) is Euclid on one-limb operands. Its outer loop is counted by the ghost `eSteps`, and each remainder comes from the word division loop.
   - `pow` (`T/Big/Pow.lean`, `pow_spec`) is a recursive Pancake function: `pow(a, e)` squares `pow(a, e / 2)` and multiplies by `a` when `e` is odd, through `bigMul`. It is proved by strong induction on the word `e`. `specR_callPH` is the generic rule for calling a helper whose spec answers a fresh block.
-- **Remaining for `reduceNat`.**
-  - `natSizeBytes` and the `pow`/`shiftLeft` guards.
-  - Literal interning from a heap block, with the large key region.
-  - Then `natBinOpResult` and `reduceNat`.
+- **Literal interning from a heap block** (`T/Big/LitIntern.lean`, `litBlk_spec`). The three-word key buffer is too small for a big literal, so the limbs are copied into a fresh block `[0, limbs…]` and that block is used as the key. This needed a strong-frame variant of the V-level literal intern (`V/LitStrong.lean`, `ERes2`) and the literal table's separation facts in `CtxOK` (`sepLit`, `b0Lit`, `b1Lit`).
+- **`natSizeBytes`** is `8 · max(|limbs n|, 1)` (`T/Big/SizeMath.lean`).
+- **`natBinOpResult`** (`T/Big/NatBinBase.lean`, `T/Big/NatBin.lean`): all fourteen operations are proved, one Pancake function each.
+  - Each function takes the two literal handles, copies both literals to heap blocks, and runs the verified block operation.
+  - It finishes with `nbTail`: the `maxNatSize` test, then the intern, answering `some h`.
+  - The twin's refusals become halts: `litNatSized` (add/sub/mul), `shiftLeftGuard`, and `powGuard`. `pow` also declines when `|a| ≥ 2^28` limbs, so the size product cannot overflow.
+  - `beq`/`ble` compare the handles (`bigCmp`), then intern `Bool.true`/`Bool.false` as a constant.
+- **Remaining for `reduceNat`.** The `Nat.succ` case (`litNatSized (n + 1)`), and the dispatch itself (`natBinOpOfName?`, `rawNatLit?` after `whnf`).
 
 ### Decision (2026-11-24): `div`/`mod`/`gcd` on large literals decline
 
