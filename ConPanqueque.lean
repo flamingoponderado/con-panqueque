@@ -299,3 +299,4 @@ import ConPanqueque.T.Core.EtaShape
 import ConPanqueque.T.Core.StructEtaArms
 import ConPanqueque.T.Core.StuckIrrel
 import ConPanqueque.T.Core.DefeqStuck
+import ConPanqueque.T.Core.DefeqLazy
