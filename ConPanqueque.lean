@@ -269,3 +269,4 @@ import ConPanqueque.T.Core.LvlZero
 import ConPanqueque.T.Core.CheckGuard
 import ConPanqueque.T.Core.ProjGuardFast
 import ConPanqueque.T.Core.ProjGuardRows
+import ConPanqueque.T.Core.OpenPisRaw
