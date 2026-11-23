@@ -283,3 +283,4 @@ import ConPanqueque.T.Core.DefeqA
 import ConPanqueque.T.Core.NatPred
 import ConPanqueque.T.Core.DefeqOffset
 import ConPanqueque.T.Core.DefeqBinders
+import ConPanqueque.T.Core.LitEq
