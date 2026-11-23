@@ -22,6 +22,7 @@ def fSub := ofString "bigSub"
 def fCmp := ofString "bigCmp"
 def fShr := ofString "bigShr"
 def fGcd := ofString "bigGcd"
+def fShl := ofString "bigShl"
 def fBit : BitOp → MlS
   | .and => ofString "bigAnd" | .or => ofString "bigOr" | .xor => ofString "bigXor"
 def fDm (isMod : Bool) : MlS := if isMod then ofString "bigMod" else ofString "bigDiv"
@@ -38,6 +39,8 @@ structure BigCodes (C : Ctx) : Prop where
   shr : C.code.lookup fShr = some (shrParams.map (fun p => (p, ShapeHOL.one)), shrBody C, .one)
   dm : ∀ isMod, C.code.lookup (fDm isMod) = some (dmParams.map (fun p => (p, ShapeHOL.one)), dmBody C isMod, .one)
   iconst : C.code.lookup fInternConst = some ([(lEn, .one), (lEus, .one)], constBody, .one)
+  shl : C.code.lookup fShl = some (shlParams.map (fun p => (p, ShapeHOL.one)), shlBody C, .one)
+  pow : C.code.lookup fPow = some (powParams.map (fun p => (p, ShapeHOL.one)), powBody C, .one)
   gcd : C.code.lookup fGcd = some (dmParams.map (fun p => (p, ShapeHOL.one)), gcdBody C, .one)
 
 def nbLocals : List MlS := [nX, nY, nR, nL, nM, nH, nC, nE, nS, nT]
@@ -428,6 +431,132 @@ theorem nbCmp_spec (isLe : Bool) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C 
     have e : cmpN a b % 18446744073709551616 < 2 ↔ a ≤ b := by
       rw [Nat.mod_eq_of_lt (by omega)]; unfold cmpN; split <;> [omega; (split <;> omega)]
     simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, e]
+
+/-! ## `shiftLeft` and `pow`: the twin's refusals become halts -/
+
+theorem shiftLeftGuard_run' (a b : Nat) (s : AState)
+    (h : a = 0 ∨ (b ≤ 4294967295 ∧ natSizeBytes a + Nat.shiftRight b 3 + 1 ≤ s.pins.maxNatSize)) :
+    shiftLeftGuard a b s = .ok ((), s) := by
+  unfold shiftLeftGuard
+  by_cases ha : a = 0
+  · simp [ha]; rfl
+  · have hb : ¬ b > 4294967295 := by omega
+    rw [if_neg ha, if_neg hb]
+    have hn : ¬ s.pins.maxNatSize < natSizeBytes a + b >>> 3 + 1 := by
+      rw [show b >>> 3 = Nat.shiftRight b 3 from rfl]; omega
+    simp [shiftLeftRefused, maxNatSizeM, hn, get, getThe, MonadStateOf.get, StateT.get, bind, StateT.bind, pure,
+      StateT.pure, Except.bind, Except.pure]
+
+theorem powGuard_run' (a b : Nat) (s : AState) (hb : b ≤ 4294967295)
+    (hm : natSizeBytes a * b ≤ s.pins.maxNatSize) : powGuard a b s = .ok ((), s) := by
+  unfold powGuard
+  rw [if_neg (by omega)]
+  have hr : powRefused a b s = .ok (false, s) := by
+    unfold powRefused
+    by_cases h1 : a ≤ 1
+    · simp [h1]; rfl
+    by_cases h0 : b = 0
+    · simp [h1, h0]; rfl
+    have hle : natSizeBytes a ≤ s.pins.maxNatSize / b := (Nat.le_div_iff_mul_le (by omega)).mpr hm
+    have : ¬ natSizeBytes a > s.pins.maxNatSize / b := by omega
+    simp [h1, h0, maxNatSizeM, this, get, getThe, MonadStateOf.get, StateT.get, bind, StateT.bind, pure,
+      StateT.pure, Except.bind, Except.pure]
+  simp only [bind, StateT.bind, hr]
+  rfl
+
+
+def nbShlMid (C : Ctx) : ProgHOL 64 :=
+  .seq (.assign .local nS (.load .one (vv nX)))
+  (.seq (.assign .local nT (.load .one (vv nY)))
+  (.ite (.cmp .equal (vv nS) (.const 0))
+    (.seq (.assign .local nR (vv nX)) (nbTail C))
+  (.ite (.cmp .lower (.const 1) (vv nT)) hang
+  (.seq (.assign .local nE (.load .one (.op .add [vv nY, .panop .mul [vv nT, .const 8]])))
+  (.ite (.cmp .lower (.const 4294967295) (vv nE)) hang
+  (.seq (.assign .local nM (.load .one (.const (ecell C (C.PO + pinCount + 3)))))
+  (.ite (.cmp .lower (vv nM)
+      (.op .add [.op .add [.panop .mul [vv nS, .const 8], .shift .lsr (vv nE) (.const 3)], .const 1])) hang
+  (.seq (.call (some (some (.local, nR), none)) fShl [vv nX, vv nY]) (nbTail C)))))))))
+
+def nbShlBody (C : Ctx) : ProgHOL 64 := prologue nbLocals (nbLits (nbShlMid C))
+
+theorem cellA_mul8 (C : Ctx) (o l : Nat) : cellA C o + BitVec.ofNat 64 l * 8#64 = cellA C (o + l) := by
+  have m8 : BitVec.ofNat 64 l * 8#64 = BitVec.ofNat 64 (8 * l) := CV.mul8_eq _
+  rw [m8]; unfold cellA; rw [BitVec.add_assoc, BitVec.ofNat_add_ofNat]; congr 2; omega
+
+theorem nbShl_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : BigCodes C)
+    (s : AState) (ha hb : EIdx) (a b : Nat)
+    (hva : s.store.view ha = some (.lit (.natVal a))) (hvb : s.store.view hb = some (.lit (.natVal b))) :
+    SpecR (σ := σ) (Pre C s (nbParams.zip [Enc.idxW ha, Enc.idxW hb])) (nbShlBody C) s
+      (natBinOpResult .shiftLeft a b) (UD.PostO C) := by
+  refine specR_prologue (UD.postO_locals C) (nb_none C _) ?_
+  show SpecR _ _ s (shiftLeftGuard a b >>= fun _ => internE (.lit (.natVal (Nat.shiftLeft a b))) >>= fun x =>
+    pure (some x)) _
+  refine nb_lits hok hc ha hb a b hva hvb (nbEnv_a C ha hb) (nbEnv_b C ha hb) (by decide)
+    (fun H ox oy hp hbx hby => ?_)
+  unfold nbShlMid
+  have hl0 : (ctxH C H).H[ox]? = some (BitVec.ofNat 64 (limbs a).length) := hbx.1
+  have hl1 : (ctxH C H).H[oy]? = some (BitVec.ofNat 64 (limbs b).length) := hby.1
+  refine UD.specR_heapLoadI' (C := ctxH C H) nS (vv nX) ox _ hl0 (by decide) (by simp; rfl) ?_
+  refine UD.specR_heapLoadI' (C := ctxH C H) nT (vv nY) oy _ hl1 (by decide) (by simp; rfl) ?_
+  refine specR_atEntry fun t0 ht0 => ?_
+  have hpins : s.pins = C.pins := ht0.sr.pins
+  have hsa := blk_small (C := ctxH C H) (ctxOK_H hok _) ht0.sr hbx
+  have hsb := blk_small (C := ctxH C H) (ctxOK_H hok _) ht0.sr hby
+  by_cases ha0 : (limbs a).length = 0
+  · have haz : a = 0 := by have := (limbs_length_lt_iff a 0).mp (by omega); simpa using this
+    refine specR_ifI _ 1 (by simp [sev, ha0, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    refine specR_runBind (shiftLeftGuard_run' a b s (Or.inl haz)) ?_
+    refine specR_assignI nR (vv nX) (cellA C ox) (by decide) (by simp) ?_
+    have e0 : Nat.shiftLeft a b = a := by rw [haz]; exact Nat.zero_shiftLeft b
+    rw [e0]
+    exact tail_plain ra hok a ox hp hbx hc.litb (by simp) (by decide)
+  have hw0 : BitVec.ofNat 64 (limbs a).length ≠ 0#64 := by
+    intro e; have := congrArg BitVec.toNat e; simp at this; omega
+  refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hw0])
+    (fun h => absurd rfl h) (fun _ => ?_)
+  have hwb := word_lt_iff 1 (limbs b).length (by decide) (by unfold B; omega)
+  by_cases hb1 : 1 < (limbs b).length
+  · exact specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hwb.mpr hb1])
+      (fun _ => specR_hangI) (fun h => absurd h (by decide))
+  refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, (not_congr hwb).mpr hb1])
+    (fun h => absurd rfl h) (fun _ => ?_)
+  obtain ⟨hbB, hbw⟩ := blk_word hby (by omega)
+  refine UD.specR_heapLoadI' (C := ctxH C H) nE _ (oy + (limbs b).length) _ hbw (by decide)
+    (by simp [sev]; exact cellA_mul8 C oy _) ?_
+  have hw32 := word_lt_iff 4294967295 b (by decide) hbB
+  by_cases hb32 : 4294967295 < b
+  · exact specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hw32.mpr hb32)
+      (fun _ => specR_hangI) (fun h => absurd h (by decide))
+  refine specR_ifI _ 0 (by
+      simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; have : b < 18446744073709551616 := hbB; omega)
+    (fun h => absurd rfl h) (fun _ => ?_)
+  have hpm := hok.pinsRel.2.2.2.2.2.1
+  refine specR_envLoadI (C := ctxH C H) nM _ (C.PO + pinCount + 3) _ (by decide) rfl hpm.1 ?_
+  have hm63 := hpm.2
+  have hXw : BitVec.ofNat 64 (limbs a).length * 8#64 + BitVec.ofNat 64 b >>> (3 : Nat) + 1#64 =
+      BitVec.ofNat 64 (8 * (limbs a).length + b / 8 + 1) := by
+    apply BitVec.eq_of_toNat_eq
+    simp [BitVec.toNat_add, BitVec.toNat_mul, Nat.shiftRight_eq_div_pow, Nat.mod_eq_of_lt hbB]
+    have h1 : (limbs a).length < 2 ^ 64 := by omega
+    first | (rw [Nat.mod_eq_of_lt h1]; congr 1; omega) | (congr 1; omega)
+  have hcmp := word_lt_iff C.pins.maxNatSize (8 * (limbs a).length + b / 8 + 1) (by unfold B; omega)
+    (by unfold B; omega)
+  by_cases hm : C.pins.maxNatSize < 8 * (limbs a).length + b / 8 + 1
+  · exact specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; rw [hXw]; exact hcmp.mpr hm)
+      (fun _ => specR_hangI) (fun h => absurd h (by decide))
+  refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; rw [hXw]; exact BitVec.not_lt.mp ((not_congr hcmp).mpr hm))
+    (fun h => absurd rfl h) (fun _ => ?_)
+  have hnsb : natSizeBytes a = 8 * (limbs a).length := by rw [natSizeBytes_limbs]; omega
+  refine specR_runBind (shiftLeftGuard_run' a b s (Or.inr ⟨by omega, by
+    have hsr : Nat.shiftRight b 3 = b / 8 := by have := Nat.shiftRight_eq_div_pow b 3; simpa using this
+    rw [hpins, hnsb, hsr]; omega⟩)) ?_
+  refine specR_callPH (C := ctxH C H) (k := fun r => internE (.lit (.natVal r)) >>= fun x => pure (some x))
+    nR fShl shlParams _ (shlBody C) [cellA C ox, cellA C oy] (a <<< b) (by decide) rfl (by decide) hc.shl
+    ⟨by simp, by simp, trivial⟩ (shl_spec (ctxH C H) (ctxOK_H hok _) s a b ox oy hc.mul hbx hby (by omega))
+    (fun H' r hp' hbr => ?_)
+  exact tail_plain ra hok (a <<< b) r (hp.trans hp') hbr hc.litb (by simp; rfl) (by decide)
 
 end
 
