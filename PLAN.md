@@ -656,3 +656,31 @@ Every `inferBody` arm except projection now has a port and a spec. All specs tak
 - `IProjEntry.typeAt` (`instLPFast` then `instantiateListFast`).
 
 After that: the `inferBody` composition, `inferBodyIO` (`inferSpineIO`), and `defeqBody`.
+
+### Progress (2026-11-23, later): the projection arm; every `inferBody` arm is done
+
+The projection arm `inferProj` (`pj_spec`, `T/Core/InferProj.lean`) and everything under it are ported and proved:
+
+- `hasLooseBVarInGo` (`hv_spec`, `T/Core/HasLoose.lean`):
+  - a heap memo list, like `wscopedBGo`;
+  - the cutoff goes through `looseBVarsBounded` and threads the twin state.
+  - Both twin walks equal one walk `hlGo msg` that takes the fuel-exhaustion message as a parameter (`hlIn_eq`, `hlB_eq`), so `hasLooseBVarBFast` is the window-1 case (`hb_spec`).
+- `zeroWhereZero` over level handles (`zw_spec`, `T/Core/LvlZero.lean`), via the parameter list `zps` of the zero-ness datum (`zwz_eq`).
+- `checkGuardRows` (`cg_spec`, `T/Core/CheckGuard.lean`):
+  - the rows form a block `[d₀, dom₀, …]`;
+  - `readLevelM` is a quiet cache-only step.
+- `projGuardFast` (`pf_spec`), `projGuardRowsGo` (`gq_spec`), `openPisRawGo` (`op_spec`), `projGuardRows` (`gw_spec`), `projGuardSort` (`gs_spec`, adapted from `formerNeverZeroAt`), `checkProjGuard` (`gd_spec`), `IProjEntry.typeAt` (`ta_spec`).
+
+**Twin-side preconditions.** Store well-formedness and the read caches are stated through a family `Q` of twin states. Each step has a closure fact (`Q s → run = ok (a, s') → Q s'`), as for `iotaFam`. Callees with such preconditions (`constTyAt`, the guard pieces, `typeAt`) are Q-restricted hypotheses one level up.
+
+**Resource-limit declines added:**
+- `projGuardRows` halts when `numParams + idx ≥ 2^56`;
+- `typeAt` halts when the index is outside the bodies block.
+
+The full library builds with no `sorry`.
+
+**Next:**
+1. Assemble `inferBody`: discharge `ib_spec`'s arm hypotheses from the arm specs.
+2. `inferBodyIO` (`inferSpineIO`, `inferAppIOAt`).
+3. `defeqBody`.
+4. The knot discharge (`EntrySpecs`): one invariant `Q` (con-ron's `StateOK`-family) closed under every twin step.
