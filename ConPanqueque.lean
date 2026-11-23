@@ -209,3 +209,4 @@ import ConPanqueque.T.Str.LitW
 import ConPanqueque.T.Str.Spine
 import ConPanqueque.T.Str.StrCtor
 import ConPanqueque.T.Core.ProjLit
+import ConPanqueque.T.Core.ReduceProj

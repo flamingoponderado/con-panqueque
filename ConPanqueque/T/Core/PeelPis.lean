@@ -32,116 +32,116 @@ theorem viewBind_of_view_forallE {st : EStore} {i ty b : EIdx}
         show ETag.forallE ≠ ETag.app by decide, show ETag.forallE ≠ ETag.lam by decide, ite_false];
         intro h1 h2; rw [Option.map_eq_none_iff] at h2; rw [h2] at h1; simp at h1)
 
-def pK := ofString "ppk"
-def pH := ofString "pph"
-def pB := ofString "ppb"
-def pR := ofString "ppr"
+def ppK := ofString "ppk"
+def ppH := ofString "pph"
+def ppB := ofString "ppb"
+def ppR := ofString "ppr"
 def fPp := ofString "peelPis"
 
-@[simp] theorem pp_pK_ne_pH : pK ≠ pH := by decide
-@[simp] theorem pp_pK_ne_pB : pK ≠ pB := by decide
-@[simp] theorem pp_pK_ne_pR : pK ≠ pR := by decide
-@[simp] theorem pp_pK_ne_lFl : pK ≠ lFl := by decide
-@[simp] theorem pp_lFl_ne_pK : lFl ≠ pK := by decide
-@[simp] theorem pp_pK_ne_lDh : pK ≠ lDh := by decide
-@[simp] theorem pp_lDh_ne_pK : lDh ≠ pK := by decide
-@[simp] theorem pp_pK_ne_lDt : pK ≠ lDt := by decide
-@[simp] theorem pp_lDt_ne_pK : lDt ≠ pK := by decide
-@[simp] theorem pp_pK_ne_lDg : pK ≠ lDg := by decide
-@[simp] theorem pp_lDg_ne_pK : lDg ≠ pK := by decide
-@[simp] theorem pp_pK_ne_lDi : pK ≠ lDi := by decide
-@[simp] theorem pp_lDi_ne_pK : lDi ≠ pK := by decide
-@[simp] theorem pp_pK_ne_lRp : pK ≠ lRp := by decide
-@[simp] theorem pp_lRp_ne_pK : lRp ≠ pK := by decide
-@[simp] theorem pp_pK_ne_lRn : pK ≠ lRn := by decide
-@[simp] theorem pp_lRn_ne_pK : lRn ≠ pK := by decide
-@[simp] theorem pp_pK_ne_lFle : pK ≠ lFle := by decide
-@[simp] theorem pp_lFle_ne_pK : lFle ≠ pK := by decide
-@[simp] theorem pp_pK_ne_lDir : pK ≠ lDir := by decide
-@[simp] theorem pp_lDir_ne_pK : lDir ≠ pK := by decide
-@[simp] theorem pp_pK_ne_lKb : pK ≠ lKb := by decide
-@[simp] theorem pp_lKb_ne_pK : lKb ≠ pK := by decide
-@[simp] theorem pp_pH_ne_pK : pH ≠ pK := by decide
-@[simp] theorem pp_pH_ne_pB : pH ≠ pB := by decide
-@[simp] theorem pp_pH_ne_pR : pH ≠ pR := by decide
-@[simp] theorem pp_pH_ne_lFl : pH ≠ lFl := by decide
-@[simp] theorem pp_lFl_ne_pH : lFl ≠ pH := by decide
-@[simp] theorem pp_pH_ne_lDh : pH ≠ lDh := by decide
-@[simp] theorem pp_lDh_ne_pH : lDh ≠ pH := by decide
-@[simp] theorem pp_pH_ne_lDt : pH ≠ lDt := by decide
-@[simp] theorem pp_lDt_ne_pH : lDt ≠ pH := by decide
-@[simp] theorem pp_pH_ne_lDg : pH ≠ lDg := by decide
-@[simp] theorem pp_lDg_ne_pH : lDg ≠ pH := by decide
-@[simp] theorem pp_pH_ne_lDi : pH ≠ lDi := by decide
-@[simp] theorem pp_lDi_ne_pH : lDi ≠ pH := by decide
-@[simp] theorem pp_pH_ne_lRp : pH ≠ lRp := by decide
-@[simp] theorem pp_lRp_ne_pH : lRp ≠ pH := by decide
-@[simp] theorem pp_pH_ne_lRn : pH ≠ lRn := by decide
-@[simp] theorem pp_lRn_ne_pH : lRn ≠ pH := by decide
-@[simp] theorem pp_pH_ne_lFle : pH ≠ lFle := by decide
-@[simp] theorem pp_lFle_ne_pH : lFle ≠ pH := by decide
-@[simp] theorem pp_pH_ne_lDir : pH ≠ lDir := by decide
-@[simp] theorem pp_lDir_ne_pH : lDir ≠ pH := by decide
-@[simp] theorem pp_pH_ne_lKb : pH ≠ lKb := by decide
-@[simp] theorem pp_lKb_ne_pH : lKb ≠ pH := by decide
-@[simp] theorem pp_pB_ne_pK : pB ≠ pK := by decide
-@[simp] theorem pp_pB_ne_pH : pB ≠ pH := by decide
-@[simp] theorem pp_pB_ne_pR : pB ≠ pR := by decide
-@[simp] theorem pp_pB_ne_lFl : pB ≠ lFl := by decide
-@[simp] theorem pp_lFl_ne_pB : lFl ≠ pB := by decide
-@[simp] theorem pp_pB_ne_lDh : pB ≠ lDh := by decide
-@[simp] theorem pp_lDh_ne_pB : lDh ≠ pB := by decide
-@[simp] theorem pp_pB_ne_lDt : pB ≠ lDt := by decide
-@[simp] theorem pp_lDt_ne_pB : lDt ≠ pB := by decide
-@[simp] theorem pp_pB_ne_lDg : pB ≠ lDg := by decide
-@[simp] theorem pp_lDg_ne_pB : lDg ≠ pB := by decide
-@[simp] theorem pp_pB_ne_lDi : pB ≠ lDi := by decide
-@[simp] theorem pp_lDi_ne_pB : lDi ≠ pB := by decide
-@[simp] theorem pp_pB_ne_lRp : pB ≠ lRp := by decide
-@[simp] theorem pp_lRp_ne_pB : lRp ≠ pB := by decide
-@[simp] theorem pp_pB_ne_lRn : pB ≠ lRn := by decide
-@[simp] theorem pp_lRn_ne_pB : lRn ≠ pB := by decide
-@[simp] theorem pp_pB_ne_lFle : pB ≠ lFle := by decide
-@[simp] theorem pp_lFle_ne_pB : lFle ≠ pB := by decide
-@[simp] theorem pp_pB_ne_lDir : pB ≠ lDir := by decide
-@[simp] theorem pp_lDir_ne_pB : lDir ≠ pB := by decide
-@[simp] theorem pp_pB_ne_lKb : pB ≠ lKb := by decide
-@[simp] theorem pp_lKb_ne_pB : lKb ≠ pB := by decide
-@[simp] theorem pp_pR_ne_pK : pR ≠ pK := by decide
-@[simp] theorem pp_pR_ne_pH : pR ≠ pH := by decide
-@[simp] theorem pp_pR_ne_pB : pR ≠ pB := by decide
-@[simp] theorem pp_pR_ne_lFl : pR ≠ lFl := by decide
-@[simp] theorem pp_lFl_ne_pR : lFl ≠ pR := by decide
-@[simp] theorem pp_pR_ne_lDh : pR ≠ lDh := by decide
-@[simp] theorem pp_lDh_ne_pR : lDh ≠ pR := by decide
-@[simp] theorem pp_pR_ne_lDt : pR ≠ lDt := by decide
-@[simp] theorem pp_lDt_ne_pR : lDt ≠ pR := by decide
-@[simp] theorem pp_pR_ne_lDg : pR ≠ lDg := by decide
-@[simp] theorem pp_lDg_ne_pR : lDg ≠ pR := by decide
-@[simp] theorem pp_pR_ne_lDi : pR ≠ lDi := by decide
-@[simp] theorem pp_lDi_ne_pR : lDi ≠ pR := by decide
-@[simp] theorem pp_pR_ne_lRp : pR ≠ lRp := by decide
-@[simp] theorem pp_lRp_ne_pR : lRp ≠ pR := by decide
-@[simp] theorem pp_pR_ne_lRn : pR ≠ lRn := by decide
-@[simp] theorem pp_lRn_ne_pR : lRn ≠ pR := by decide
-@[simp] theorem pp_pR_ne_lFle : pR ≠ lFle := by decide
-@[simp] theorem pp_lFle_ne_pR : lFle ≠ pR := by decide
-@[simp] theorem pp_pR_ne_lDir : pR ≠ lDir := by decide
-@[simp] theorem pp_lDir_ne_pR : lDir ≠ pR := by decide
-@[simp] theorem pp_pR_ne_lKb : pR ≠ lKb := by decide
-@[simp] theorem pp_lKb_ne_pR : lKb ≠ pR := by decide
+@[simp] theorem pp_pK_ne_pH : ppK ≠ ppH := by decide
+@[simp] theorem pp_pK_ne_pB : ppK ≠ ppB := by decide
+@[simp] theorem pp_pK_ne_pR : ppK ≠ ppR := by decide
+@[simp] theorem pp_pK_ne_lFl : ppK ≠ lFl := by decide
+@[simp] theorem pp_lFl_ne_pK : lFl ≠ ppK := by decide
+@[simp] theorem pp_pK_ne_lDh : ppK ≠ lDh := by decide
+@[simp] theorem pp_lDh_ne_pK : lDh ≠ ppK := by decide
+@[simp] theorem pp_pK_ne_lDt : ppK ≠ lDt := by decide
+@[simp] theorem pp_lDt_ne_pK : lDt ≠ ppK := by decide
+@[simp] theorem pp_pK_ne_lDg : ppK ≠ lDg := by decide
+@[simp] theorem pp_lDg_ne_pK : lDg ≠ ppK := by decide
+@[simp] theorem pp_pK_ne_lDi : ppK ≠ lDi := by decide
+@[simp] theorem pp_lDi_ne_pK : lDi ≠ ppK := by decide
+@[simp] theorem pp_pK_ne_lRp : ppK ≠ lRp := by decide
+@[simp] theorem pp_lRp_ne_pK : lRp ≠ ppK := by decide
+@[simp] theorem pp_pK_ne_lRn : ppK ≠ lRn := by decide
+@[simp] theorem pp_lRn_ne_pK : lRn ≠ ppK := by decide
+@[simp] theorem pp_pK_ne_lFle : ppK ≠ lFle := by decide
+@[simp] theorem pp_lFle_ne_pK : lFle ≠ ppK := by decide
+@[simp] theorem pp_pK_ne_lDir : ppK ≠ lDir := by decide
+@[simp] theorem pp_lDir_ne_pK : lDir ≠ ppK := by decide
+@[simp] theorem pp_pK_ne_lKb : ppK ≠ lKb := by decide
+@[simp] theorem pp_lKb_ne_pK : lKb ≠ ppK := by decide
+@[simp] theorem pp_pH_ne_pK : ppH ≠ ppK := by decide
+@[simp] theorem pp_pH_ne_pB : ppH ≠ ppB := by decide
+@[simp] theorem pp_pH_ne_pR : ppH ≠ ppR := by decide
+@[simp] theorem pp_pH_ne_lFl : ppH ≠ lFl := by decide
+@[simp] theorem pp_lFl_ne_pH : lFl ≠ ppH := by decide
+@[simp] theorem pp_pH_ne_lDh : ppH ≠ lDh := by decide
+@[simp] theorem pp_lDh_ne_pH : lDh ≠ ppH := by decide
+@[simp] theorem pp_pH_ne_lDt : ppH ≠ lDt := by decide
+@[simp] theorem pp_lDt_ne_pH : lDt ≠ ppH := by decide
+@[simp] theorem pp_pH_ne_lDg : ppH ≠ lDg := by decide
+@[simp] theorem pp_lDg_ne_pH : lDg ≠ ppH := by decide
+@[simp] theorem pp_pH_ne_lDi : ppH ≠ lDi := by decide
+@[simp] theorem pp_lDi_ne_pH : lDi ≠ ppH := by decide
+@[simp] theorem pp_pH_ne_lRp : ppH ≠ lRp := by decide
+@[simp] theorem pp_lRp_ne_pH : lRp ≠ ppH := by decide
+@[simp] theorem pp_pH_ne_lRn : ppH ≠ lRn := by decide
+@[simp] theorem pp_lRn_ne_pH : lRn ≠ ppH := by decide
+@[simp] theorem pp_pH_ne_lFle : ppH ≠ lFle := by decide
+@[simp] theorem pp_lFle_ne_pH : lFle ≠ ppH := by decide
+@[simp] theorem pp_pH_ne_lDir : ppH ≠ lDir := by decide
+@[simp] theorem pp_lDir_ne_pH : lDir ≠ ppH := by decide
+@[simp] theorem pp_pH_ne_lKb : ppH ≠ lKb := by decide
+@[simp] theorem pp_lKb_ne_pH : lKb ≠ ppH := by decide
+@[simp] theorem pp_pB_ne_pK : ppB ≠ ppK := by decide
+@[simp] theorem pp_pB_ne_pH : ppB ≠ ppH := by decide
+@[simp] theorem pp_pB_ne_pR : ppB ≠ ppR := by decide
+@[simp] theorem pp_pB_ne_lFl : ppB ≠ lFl := by decide
+@[simp] theorem pp_lFl_ne_pB : lFl ≠ ppB := by decide
+@[simp] theorem pp_pB_ne_lDh : ppB ≠ lDh := by decide
+@[simp] theorem pp_lDh_ne_pB : lDh ≠ ppB := by decide
+@[simp] theorem pp_pB_ne_lDt : ppB ≠ lDt := by decide
+@[simp] theorem pp_lDt_ne_pB : lDt ≠ ppB := by decide
+@[simp] theorem pp_pB_ne_lDg : ppB ≠ lDg := by decide
+@[simp] theorem pp_lDg_ne_pB : lDg ≠ ppB := by decide
+@[simp] theorem pp_pB_ne_lDi : ppB ≠ lDi := by decide
+@[simp] theorem pp_lDi_ne_pB : lDi ≠ ppB := by decide
+@[simp] theorem pp_pB_ne_lRp : ppB ≠ lRp := by decide
+@[simp] theorem pp_lRp_ne_pB : lRp ≠ ppB := by decide
+@[simp] theorem pp_pB_ne_lRn : ppB ≠ lRn := by decide
+@[simp] theorem pp_lRn_ne_pB : lRn ≠ ppB := by decide
+@[simp] theorem pp_pB_ne_lFle : ppB ≠ lFle := by decide
+@[simp] theorem pp_lFle_ne_pB : lFle ≠ ppB := by decide
+@[simp] theorem pp_pB_ne_lDir : ppB ≠ lDir := by decide
+@[simp] theorem pp_lDir_ne_pB : lDir ≠ ppB := by decide
+@[simp] theorem pp_pB_ne_lKb : ppB ≠ lKb := by decide
+@[simp] theorem pp_lKb_ne_pB : lKb ≠ ppB := by decide
+@[simp] theorem pp_pR_ne_pK : ppR ≠ ppK := by decide
+@[simp] theorem pp_pR_ne_pH : ppR ≠ ppH := by decide
+@[simp] theorem pp_pR_ne_pB : ppR ≠ ppB := by decide
+@[simp] theorem pp_pR_ne_lFl : ppR ≠ lFl := by decide
+@[simp] theorem pp_lFl_ne_pR : lFl ≠ ppR := by decide
+@[simp] theorem pp_pR_ne_lDh : ppR ≠ lDh := by decide
+@[simp] theorem pp_lDh_ne_pR : lDh ≠ ppR := by decide
+@[simp] theorem pp_pR_ne_lDt : ppR ≠ lDt := by decide
+@[simp] theorem pp_lDt_ne_pR : lDt ≠ ppR := by decide
+@[simp] theorem pp_pR_ne_lDg : ppR ≠ lDg := by decide
+@[simp] theorem pp_lDg_ne_pR : lDg ≠ ppR := by decide
+@[simp] theorem pp_pR_ne_lDi : ppR ≠ lDi := by decide
+@[simp] theorem pp_lDi_ne_pR : lDi ≠ ppR := by decide
+@[simp] theorem pp_pR_ne_lRp : ppR ≠ lRp := by decide
+@[simp] theorem pp_lRp_ne_pR : lRp ≠ ppR := by decide
+@[simp] theorem pp_pR_ne_lRn : ppR ≠ lRn := by decide
+@[simp] theorem pp_lRn_ne_pR : lRn ≠ ppR := by decide
+@[simp] theorem pp_pR_ne_lFle : ppR ≠ lFle := by decide
+@[simp] theorem pp_lFle_ne_pR : lFle ≠ ppR := by decide
+@[simp] theorem pp_pR_ne_lDir : ppR ≠ lDir := by decide
+@[simp] theorem pp_lDir_ne_pR : lDir ≠ ppR := by decide
+@[simp] theorem pp_pR_ne_lKb : ppR ≠ lKb := by decide
+@[simp] theorem pp_lKb_ne_pR : lKb ≠ ppR := by decide
 
-def ppParams : List MlS := [pK, pH]
-def ppLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, pB, pR]
+def ppParams : List MlS := [ppK, ppH]
+def ppLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, ppB, ppR]
 
 def ppCore : ProgHOL 64 :=
-  .ite (.cmp .equal (vv pK) (.const 0))
-    (.return (.op .add [vv pH, .const 1]))
-    (.ite (tagIsE pH 6)
-      (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv pH)) (.seq eViewP
-      (.seq (.assign .local pB (.load .one (.op .add [vv lRp, .const 8])))
-      (.seq (.call (some (some (.local, pR), none)) fPp [.op .sub [vv pK, .const 1], vv pB])
-        (.return (vv pR)))))))
+  .ite (.cmp .equal (vv ppK) (.const 0))
+    (.return (.op .add [vv ppH, .const 1]))
+    (.ite (tagIsE ppH 6)
+      (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv ppH)) (.seq eViewP
+      (.seq (.assign .local ppB (.load .one (.op .add [vv lRp, .const 8])))
+      (.seq (.call (some (some (.local, ppR), none)) fPp [.op .sub [vv ppK, .const 1], vv ppB])
+        (.return (vv ppR)))))))
       (.return (.const 0)))
 
 def ppBody : ProgHOL 64 := prologue ppLocals ppCore
@@ -194,11 +194,11 @@ theorem pp_spec (C : Ctx) (hok : CtxOK C)
       intro e; have := congrArg BitVec.toNat e; simp at this; omega
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ppParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
       (fun h => absurd rfl h) (fun _ => ?_)
-    refine Knot.specR_tagIteV pH h 6 (by decide) (by decide) (by simp +decide [Env.get, ppParams, ctxEnv])
+    refine Knot.specR_tagIteV ppH h 6 (by decide) (by decide) (by simp +decide [Env.get, ppParams, ctxEnv])
       (fun htg => ?_) (fun htg => ?_)
     · rw [if_pos (show (h.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
       refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
-      refine specR_assignI lDh (vv pH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, ppParams, ctxEnv]) ?_
+      refine specR_assignI lDh (vv ppH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, ppParams, ctxEnv]) ?_
       refine specR_viewP h (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
         (fun v P hv htn _ => ?_)
       have h6 : v.tagN = 6 := by rw [htn, htg]; rfl
@@ -206,10 +206,10 @@ theorem pp_spec (C : Ctx) (hok : CtxOK C)
         cases v <;> simp [ENodeView.tagN] at h6 ⊢
       have hvb : s.store.viewBind h = some (ty, b) := viewBind_of_view_forallE (by rw [htg]; rfl) hv
       refine specR_runBind (by rw [viewBind_run, hvb]) ?_
-      refine specR_loadI' pB _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW b) (by decide) (by simp +decide [sev]) rfl
+      refine specR_loadI' ppB _ (P + 8) (P + BitVec.ofNat 64 8) (Enc.idxW b) (by decide) (by simp +decide [sev]) rfl
         (by simpa [encEView, Enc.encBind] using wordsAt_mem1 P (Enc.idxW ty) (Enc.idxW b) [] []) ?_
       refine specR_dropM ?_
-      exact specR_callO pR fPp ppParams [.op .sub [vv pK, .const 1], vv pB] ppBody
+      exact specR_callO ppR fPp ppParams [.op .sub [vv ppK, .const 1], vv ppB] ppBody
         [BitVec.ofNat 64 k, Enc.idxW b] (by decide) rfl (by decide) hcp
         ⟨by simp +decide [sev, Env.get, ppParams, ctxEnv]; exact Ex.ofNat_succ_sub_one _, by simp, trivial⟩
         (ih b s (by omega))
