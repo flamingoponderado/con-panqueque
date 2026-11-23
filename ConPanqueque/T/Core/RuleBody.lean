@@ -1,5 +1,9 @@
 import ConPanqueque.T.Core.LamBody
 import ConPanqueque.T.Core.ConstVal
+import ConPanqueque.T.Big.ReduceNat
+import ConPanqueque.T.LsView
+import ConPanqueque.T.SRFacts
+import ConPanqueque.T.PinRead
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena
@@ -241,10 +245,12 @@ def rbSetP (C : Ctx) (x : MlS) (e0 e1 e2 ev : ExpHOL 64) (rest : ProgHOL 64) : P
       (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 2))]) e2)
         (.seq (.call (some (some (.local, x), none)) fMemoSet [.const (C.mG (.c .ruleBody)), .const 3, ev]) rest)))
 
-def rbLocals : List MlS := [rbX, rbLen, rbP, rbY, rbZ, rbB, lCn, lSrc, lDst, lCi, lCz]
+def rbLocals : List MlS := [rbX, rbLen, rbP, rbY, rbZ, rbB, lCn, lSrc, lDst, lCi, lCz, lDh, lFl, lDt, lDg, lDi, lRp, lRn]
 
 def rbMiss (C : Ctx) : ProgHOL 64 :=
   .seq (.call (some (some (.local, rbB), none)) fLb [vv ioRp, vv pmM])
+  (.seq (.assign .local lDh (vv rbB)) (.seq (.assign .local lFl (vv lFle)) (.seq eViewP
+  (.seq (.assign .local lDh (vv ioUj)) (.seq (.assign .local lFl (vv lFls)) (.seq lsViewP
   (.seq (.assign .local rbLen (.load .one (vv pmR)))
   (.seq (.assign .local lCn (.op .add [vv rbLen, .const 1]))
   (allocP C rbP (.panop .mul [vv lCn, .const 8])
@@ -252,7 +258,7 @@ def rbMiss (C : Ctx) : ProgHOL 64 :=
   (.seq copyLoop
   (.seq (.call (some (some (.local, rbY), none)) fInstLPF
       [.const (BitVec.ofNat 64 coreWalkFuel), vv rbB, vv rbP, vv ioUj])
-  (rbSetP C rbZ (vv pmC) (vv pmK) (vv ioUj) (vv rbY) (.return (vv rbY)))))))))))
+  (rbSetP C rbZ (vv pmC) (vv pmK) (vv ioUj) (vv rbY) (.return (vv rbY)))))))))))))))))
 
 def rbBody (C : Ctx) : ProgHOL 64 :=
   prologue rbLocals (rbGetP C rbX (vv pmC) (vv pmK) (vv ioUj)
@@ -333,12 +339,11 @@ theorem rb_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (hcf : C.code.lookup fInstLPF = some (ilpParams.map (fun p => (p, ShapeHOL.one)), ilpfBody C, .one))
     (hcl : C.code.lookup fLb = some (lbParams.map (fun p => (p, ShapeHOL.one)), lbBody, .one))
     (s : AState) (recN ctor : NIdx) (lps : List NIdx) (ks : List ConLeche.Name) (rhs : EIdx) (k : Nat) (us : LsIdx)
-    (vsL : List ConLeche.Level) (o : Nat) (hlp : EBlk C.EH o (lps.map Enc.idxW)) (hlen : lps.length + 1 < 2 ^ 60)
+    (o : Nat) (hlp : EBlk C.EH o (lps.map Enc.idxW)) (hlen : lps.length + 1 < 2 ^ 60)
     (hk : k < 2 ^ 64)
-    (hks : Frontend.denoteNList s.store.ns lps = some ks) (hus : denoteLs s.store.lss us = some vsL)
+    (hks : Frontend.denoteNList s.store.ns lps = some ks)
     (hst : StateOK s) (hcn : ReadNCacheOK s.caches.readNC s.store) (hcl' : ReadLCacheOK s.caches.readLC s.store)
-    (hcls : ReadLsCacheOK s.caches.readLsC s.store)
-    (hden : ∀ b, lamBody k rhs s = .ok (b, s) → (denoteE s.store b).isSome = true) :
+    (hcls : ReadLsCacheOK s.caches.readLsC s.store) :
     SpecR (σ := σ) (Pre C s (rbParams.zip [Enc.idxW recN, Enc.idxW ctor, ecell C o, Enc.idxW rhs, BitVec.ofNat 64 k,
       Enc.idxW us])) (rbBody C) s (ruleBodyAt recN ctor lps rhs k us) (PostK C) := by
   refine specR_prologue (postK_locals C) (rb_none C _) ?_
@@ -362,8 +367,22 @@ theorem rb_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     subst hw
     have hs1 : s1 = s := RO.lamBody k rhs s body s1 hrun
     subst s1
-    have hbden := hden body hrun
     have hok1 := ctxOK_H hok H1
+    refine specR_assignI lDh (vv rbB) (Enc.idxW body) (by decide) (by simp) ?_
+    refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
+    refine Big.specR_viewP (C := ctxH C H1) body (by simp) (by simp +decide [Env.get] <;> rfl)
+      (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide) (fun vb Pb hvb _ _ => ?_)
+    refine specR_atEntry fun tb htb => ?_
+    have hbden := denoteE_total' htb.sr.twf (by rw [hvb]; rfl)
+    refine specR_dropMem ?_
+    refine specR_assignI lDh (vv ioUj) (Enc.idxW us) (by decide) (by simp +decide [Env.get, rbParams, ctxEnv]) ?_
+    refine specR_assignI lFl (vv lFls) C.FLs (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
+    refine specR_lsviewPI (C := ctxH C H1) us (by simp +decide) (by simp +decide <;> rfl)
+      (by simp +decide [Env.get, ctxEnv] <;> rfl) ⟨by decide, by decide, by decide, by decide, by decide⟩
+      (fun vu Pu hvu _ _ => ?_)
+    refine specR_atEntry fun tu htu => ?_
+    obtain ⟨vsL, hus⟩ := Option.isSome_iff_exists.mp (denoteLs_total' (sr_lswf htu.sr) (by rw [hvu]; rfl))
+    refine specR_dropMem ?_
     have hl0 : C.EH[o]? = some (BitVec.ofNat 64 lps.length) := by have := hlp.1; simpa using this
     refine specR_envLoadI (C := ctxH C H1) rbLen (vv pmR) o _ (by decide)
       (by simp +decide [Env.get, rbParams, ctxEnv]; rfl) hl0 ?_
