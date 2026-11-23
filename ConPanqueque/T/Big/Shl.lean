@@ -908,6 +908,21 @@ theorem shl_spec (C : Ctx) (hok : CtxOK C) (s : AState) (a b : Nat) (oa ob : Nat
       rw [List.getElem?_set_self (by simp; omega)]; rfl
   have hpHP : H1 <+: HP := prefix_set_ge (prefix_set_ge (List.prefix_append _ _) _ (by omega) _) _ (by omega) _
   have hbaP : BlkAt HP oa (limbs a) := blkAt_mono hba (hp1.trans hpHP)
+  -- t = a * 2^r
+  refine specR_congr (m' := (pure (a * 2 ^ r) : AM Nat) >>= fun tt => pure (a <<< b)) rfl ?_
+  have hlim : (limbs a).length + (limbs (2 ^ r)).length < 2 ^ 59 := by rw [limbs_two_pow r hr64]; simp; omega
+  refine specR_callNIH gT fMul mulParams [vv gX, vv gP] (mulBody C) [cellA C oa, cellA C H1.length] (by decide) rfl
+    (by decide) hcm ⟨by simp +decide [sev, Env.get, shlParams, ctxEnv], by simp [sev], trivial⟩
+    (fun tt w s' st => (pure (a * 2 ^ r) : AM Nat) s = .ok (tt, s') ∧ PostH (ctxH C HP) s tt w s' st)
+    (fun tt w s' H2 => tt = a * 2 ^ r ∧ s' = s ∧ ∃ o2, w = cellA C o2 ∧ BlkAt H2 o2 (limbs tt))
+    (fun tt w s' st ⟨hrun, H2, o2, hp, hw, hb, hs, hsr⟩ => by
+      simp only [pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at hrun
+      obtain ⟨rfl, rfl⟩ := hrun
+      exact ⟨H2, hp, ⟨rfl, hs, o2, hw, hb⟩, hs ▸ hsr⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu mulParams _ rfl hlk)
+      (mul_spec (ctxH C HP) (ctxOK_H hok _) s a (2 ^ r) oa H1.length hbaP hPblk hlim)))
+    (fun tt w s' H2 hp2 ⟨htt, hs, o2, hw, hb2⟩ => ?_)
+  subst htt hs hw
   sorry
 
 end
