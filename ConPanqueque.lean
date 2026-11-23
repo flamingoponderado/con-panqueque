@@ -292,3 +292,4 @@ import ConPanqueque.T.Core.DeltaHeads
 import ConPanqueque.T.Core.DeltaQuick
 import ConPanqueque.T.Core.LazyDeltaStep
 import ConPanqueque.T.Core.LazyDelta
+import ConPanqueque.T.Core.DefeqProj
