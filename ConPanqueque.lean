@@ -278,3 +278,4 @@ import ConPanqueque.T.Core.InferProj
 import ConPanqueque.T.Core.InferIOArms
 import ConPanqueque.T.Core.InferSpineIO
 import ConPanqueque.T.Core.InferAppIO
+import ConPanqueque.T.Core.InferBodyIO
