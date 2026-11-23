@@ -236,3 +236,4 @@ import ConPanqueque.T.Core.NeverZero
 import ConPanqueque.T.Core.NzWalk
 import ConPanqueque.T.Core.NzParam
 import ConPanqueque.T.Core.NzSubst
+import ConPanqueque.T.Core.FormerNZ
