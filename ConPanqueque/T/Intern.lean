@@ -547,6 +547,15 @@ structure CtxOK (C : Ctx) : Prop where
   sepLs : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 0 8
   b0Ls : C.L.base 8 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + LsTag.list.toUInt64.toBitVec * 67108864
   b1Ls : C.L.base 8 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + LsTag.list.toUInt64.toBitVec * 67108864
+  sepSort : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 1 11
+  b0Sort : C.L.base 11 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.sort.toUInt64.toBitVec * 67108864
+  b1Sort : C.L.base 11 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.sort.toUInt64.toBitVec * 67108864
+  sepConst : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 2 12
+  b0Const : C.L.base 12 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.const.toUInt64.toBitVec * 67108864
+  b1Const : C.L.base 12 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.const.toUInt64.toBitVec * 67108864
+  sepFVar : SepK C.L C.FLn C.FLl C.FLs C.FLe C.KB 2 10
+  b0FVar : C.L.base 10 0 = (0 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.fvar.toUInt64.toBitVec * 67108864
+  b1FVar : C.L.base 10 1 = (1 : UInt32).toUInt64.toBitVec * 2147483648 + ETag.fvar.toUInt64.toBitVec * 67108864
 
 def fInternApp := ofString "internApp"
 

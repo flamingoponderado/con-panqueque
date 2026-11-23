@@ -92,6 +92,7 @@ import ConPanqueque.V.EApp2
 import ConPanqueque.T.Intern
 import ConPanqueque.T.LIntern
 import ConPanqueque.T.LsInternT
+import ConPanqueque.T.EIntern2
 import ConPanqueque.T.ReIntern
 import ConPanqueque.T.LInternLv
 import ConPanqueque.T.MemoModel
