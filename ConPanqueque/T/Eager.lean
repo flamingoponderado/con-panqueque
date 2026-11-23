@@ -93,7 +93,9 @@ theorem sr_mode {C : Ctx} {s s' : AState} {t u : PState σ} (sv : Option ModeMem
     fun j hj => by rw [hd]; exact h.kbuf j hj,
     fun k => by rw [hme]; exact memoAt_of_eq (h.memo k) hm hd,
     fun k => by rw [hme]; exact memoAtN_frame (h.memoN k) (fun _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd,
-    fun k => ?_, hmode, heapEx_frame h.heap (fun _ _ => by rw [hm]) hd (hgl _ (by decide))⟩
+    fun k => ?_, hmode,
+    envAt_frame h.env (fun _ _ _ => by rw [hm]) (fun _ _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd
+      ⟨hgl _ (by decide), hgl _ (by decide)⟩, heapEx_frame h.heap (fun _ _ => by rw [hm]) hd (hgl _ (by decide))⟩
   have := cacheAt_frame (h.cache k) (u := u) (fun _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd
   cases k <;> simp only [CacheAt] at this ⊢ <;> first | trivial | (rw [e7]; exact this) | (rw [e8]; exact this) |
     (rw [e9]; exact this)

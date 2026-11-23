@@ -131,7 +131,10 @@ theorem sr_upd_mode {C : Ctx} (hok : CtxOK C) (k : CacheK) {s s' : AState} {t u 
       rw [hme]
       exact memoAtN_frame (hsr.memoN nk) (fun c hc => hfr c (hok.memoDis (.n nk) _ c (by simp) hc))
         (fun kk hkk => hfr _ (hok.mdescMemo _ (.n nk) kk hkk)) hd,
-    fun ck => ?_, hM, heapEx_frame hsr.heap (fun i hi => hfr _ (hok.heapMemo _ i hi)) hd (by rw [hg])⟩
+    fun ck => ?_, hM,
+    envAt_frame hsr.env (fun b c hc => hfr c (hok.memoDis (envR b) _ c (by simp) hc))
+      (fun b kk hkk => hfr _ (hok.mdescMemo _ (envR b) kk hkk)) (fun i hi => hfr _ (hok.envMemo _ i hi)) hd
+      ⟨by rw [hg], by rw [hg]⟩, heapEx_frame hsr.heap (fun i hi => hfr _ (hok.heapMemo _ i hi)) hd (by rw [hg])⟩
   have := cacheAt_frame (hsr.cache ck) (u := u) (fun c hc => hfr c (hok.memoDis (.c ck) _ c (by simp) hc))
     (fun kk hkk => hfr _ (hok.mdescMemo _ (.c ck) kk hkk)) hd
   cases ck <;> simp only [CacheAt] at this ⊢ <;> first | trivial | (rw [e7]; exact this) | (rw [e8]; exact this) |
@@ -167,6 +170,9 @@ theorem sr_upd_fix {C : Ctx} (hok : CtxOK C) (k : CacheK) {s s' : AState} {t u :
     fun ck => ?_,
     modeAt_frame hmode (fun b ck c hc => hfr c (hok.memoDis (.m b ck) _ c (by simp) hc))
       (fun b ck kk hkk => hfr _ (hok.mdescMemo _ (.m b ck) kk hkk)) hd (by rw [hg]),
+    envAt_frame hsr.env (fun b c hc => hfr c (hok.memoDis (envR b) _ c (by simp) hc))
+      (fun b kk hkk => hfr _ (hok.mdescMemo _ (envR b) kk hkk)) (fun i hi => hfr _ (hok.envMemo _ i hi)) hd
+      ⟨by rw [hg], by rw [hg]⟩,
     heapEx_frame hsr.heap (fun i hi => hfr _ (hok.heapMemo _ i hi)) hd (by rw [hg])⟩
   by_cases e : ck = k
   · subst e; exact hk

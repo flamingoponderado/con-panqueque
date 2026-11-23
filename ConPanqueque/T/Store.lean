@@ -1,6 +1,7 @@
 import ConPanqueque.T.Call
 import ConPanqueque.V.View
 import ConPanqueque.T.MemoRep
+import ConRon.Arena.Env
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena
@@ -64,8 +65,20 @@ inductive CacheK | whnfCore | whnfCoreCheap | whnf | infer | inferIO | defeq | c
 
 /-- A memo's region: one of the `(EIdx × Nat) → EIdx` memos, one of the `EIdx → Nat` ones, or a mirrored
 cache. -/
-inductive Region | e (k : MemoK) | n (k : MemoNK) | c (k : CacheK) | m (b : Bool) (k : CacheK)
+inductive Region | e (k : MemoK) | n (k : MemoNK) | c (k : CacheK) | m (b : Bool) (k : CacheK) | env | tbl
   deriving DecidableEq
+
+/-- The environment's two tables: the constants (`true`) and the projection tables (`false`). -/
+def envR (b : Bool) : Region := if b then .env else .tbl
+
+@[simp] theorem envR_ne_e (b : Bool) (k : MemoK) : envR b ≠ .e k := by cases b <;> simp [envR]
+@[simp] theorem envR_ne_n (b : Bool) (k : MemoNK) : envR b ≠ .n k := by cases b <;> simp [envR]
+@[simp] theorem envR_ne_c (b : Bool) (k : CacheK) : envR b ≠ .c k := by cases b <;> simp [envR]
+@[simp] theorem envR_ne_m (b b' : Bool) (k : CacheK) : envR b ≠ .m b' k := by cases b <;> simp [envR]
+@[simp] theorem e_ne_envR (b : Bool) (k : MemoK) : Region.e k ≠ envR b := by cases b <;> simp [envR]
+@[simp] theorem n_ne_envR (b : Bool) (k : MemoNK) : Region.n k ≠ envR b := by cases b <;> simp [envR]
+@[simp] theorem c_ne_envR (b : Bool) (k : CacheK) : Region.c k ≠ envR b := by cases b <;> simp [envR]
+@[simp] theorem m_ne_envR (b b' : Bool) (k : CacheK) : Region.m b' k ≠ envR b := by cases b <;> simp [envR]
 
 /-- The six mode memos (swapped by the eager tower); the other three caches are fixed. -/
 def CacheK.isMode : CacheK → Bool
@@ -110,6 +123,11 @@ structure Ctx where
   plain mode memos saved by the enclosing `enterEager` (held on side `false` while side `true` is active). -/
   EO : BitVec 64
   saved : Option ModeMemos
+  /-- The environment (fixed while a declaration is checked), and its heap: base, capacity, image. -/
+  fe : IFEnv
+  EB : BitVec 64
+  EN : Nat
+  EH : List (BitVec 64)
 
 def gDir := ofString "Gdir"
 def gFln := ofString "Gfln"
@@ -120,6 +138,9 @@ def gKb := ofString "Gkb"
 def gHt := ofString "Ght"
 /-- The active mode-memo side's descriptor offset: `0` (plain) or `EO` (eager). -/
 def gEo := ofString "Geo"
+/-- The environment's literal flags (`natLit + 2 strLit`) and its heap top. -/
+def gLit := ofString "Glit"
+def gEt := ofString "Get"
 
 /-- The value heap at `HB` (capacity `HN` words) holds the image `H`, its top in `Ght`. Values are
 immutable once allocated, so facts about `H` survive every later step. -/
@@ -241,6 +262,111 @@ theorem modeAt_mirror {C : Ctx} {a b : Caches} {t : PState σ} (h : ModeAt t C b
   obtain ⟨e1, e2, _, _, _⟩ := he
   unfold ModeAt; rw [e1, e2]; exact h
 
+/-! ## The environment -/
+
+def ecell (C : Ctx) (j : Nat) : BitVec 64 := C.EB + BitVec.ofNat 64 (8 * j)
+
+/-- An environment-heap block `[n, x₀, …]` at index `o`. -/
+def EBlk (H : List (BitVec 64)) (o : Nat) (xs : List (BitVec 64)) : Prop :=
+  H[o]? = some (BitVec.ofNat 64 xs.length) ∧ ∀ i (hi : i < xs.length), H[o + 1 + i]? = some xs[i]
+
+/-- A word naming a block of handles. -/
+def ENList {k : IdxKind} (EB : BitVec 64) (H : List (BitVec 64)) (w : BitVec 64) (xs : List (Idx k)) : Prop :=
+  ∃ o, w = EB + BitVec.ofNat 64 (8 * o) ∧ EBlk H o (xs.map Enc.idxW)
+
+/-- A natural number field (below `2^63`). -/
+def NatE (H : List (BitVec 64)) (i n : Nat) : Prop := H[i]? = some (BitVec.ofNat 64 n) ∧ n < 2 ^ 63
+
+def hintN : ConLeche.ReducibilityHint → Nat
+  | .opaque => 0 | .abbrev => 1 | .regular h => h + 2
+
+def CVE (EB : BitVec 64) (H : List (BitVec 64)) (o : Nat) (v : IConstantVal) : Prop :=
+  H[o]? = some (Enc.idxW v.name) ∧ (∃ w, H[o + 1]? = some w ∧ ENList EB H w v.levelParams) ∧
+    H[o + 2]? = some (Enc.idxW v.type)
+
+def FireE (EB : BitVec 64) (H : List (BitVec 64)) (o : Nat) : IRecRuleFire → Prop
+  | .plain => H[o]? = some 0
+  | .nested lv pins => H[o]? = some 1 ∧ (∃ w, H[o + 1]? = some w ∧ ENList EB H w lv) ∧
+      ∃ w, H[o + 2]? = some w ∧ ENList EB H w pins
+  | .levels lv => H[o]? = some 2 ∧ ∃ w, H[o + 1]? = some w ∧ ENList EB H w lv
+
+/-- A recursor rule `[ctor, nfields, fireTag, fire₁, fire₂, rhs]`. -/
+def RuleE (EB : BitVec 64) (H : List (BitVec 64)) (o : Nat) (r : IRecRule) : Prop :=
+  H[o]? = some (Enc.idxW r.ctor) ∧ NatE H (o + 1) r.nfields ∧ FireE EB H (o + 2) r.fire ∧
+    H[o + 5]? = some (Enc.idxW r.rhs)
+
+/-- A block of rule pointers. -/
+def RulesE (EB : BitVec 64) (H : List (BitVec 64)) (w : BitVec 64) (rs : List IRecRule) : Prop :=
+  ∃ o, w = EB + BitVec.ofNat 64 (8 * o) ∧ H[o]? = some (BitVec.ofNat 64 rs.length) ∧
+    ∀ i (hi : i < rs.length), ∃ q, H[o + 1 + i]? = some (EB + BitVec.ofNat 64 (8 * q)) ∧ RuleE EB H q rs[i]
+
+/-- A stored constant at index `o`: `[tag, name, levelParams, type, fields…]`. -/
+def CIE (EB : BitVec 64) (H : List (BitVec 64)) (o : Nat) (ci : IConstantInfo) : Prop :=
+  CVE EB H (o + 1) ci.toConstantVal ∧
+  match ci with
+  | .axiomInfo _ => H[o]? = some 0
+  | .defnInfo _ val hint => H[o]? = some 1 ∧ H[o + 4]? = some (Enc.idxW val) ∧ NatE H (o + 5) (hintN hint)
+  | .thmInfo _ => H[o]? = some 2
+  | .indInfo _ caps => H[o]? = some 3 ∧ H[o + 4]? = some (boolW caps.eta) ∧
+      (∃ w, H[o + 5]? = some w ∧ ENList EB H w caps.all) ∧ NatE H (o + 6) caps.nparams ∧
+      NatE H (o + 7) caps.nIdx ∧ (∃ w, H[o + 8]? = some w ∧ ENList EB H w caps.ctors) ∧
+      H[o + 9]? = some (boolW caps.neverZero)
+  | .ctorInfo _ np nf ind => H[o]? = some 4 ∧ NatE H (o + 4) np ∧ NatE H (o + 5) nf ∧
+      H[o + 6]? = some (Enc.idxW ind)
+  | .recInfo _ mi rp isK rules => H[o]? = some 5 ∧ NatE H (o + 4) mi ∧ NatE H (o + 5) rp ∧
+      H[o + 6]? = some (boolW isK) ∧ ∃ w, H[o + 7]? = some w ∧ RulesE EB H w rules
+
+/-- A projection table `[structName, levelParams, numParams, ctor, numFields, bodies]`. -/
+def TblE (EB : BitVec 64) (H : List (BitVec 64)) (o : Nat) (t : IProjTable) : Prop :=
+  H[o]? = some (Enc.idxW t.structName) ∧ (∃ w, H[o + 1]? = some w ∧ ENList EB H w t.levelParams) ∧
+    NatE H (o + 2) t.numParams ∧ H[o + 3]? = some (Enc.idxW t.ctor) ∧ NatE H (o + 4) t.numFields ∧
+    ∃ w, H[o + 5]? = some w ∧ ENList EB H w t.bodies.toList
+
+/-- A name-keyed table key. -/
+def encNI (n : NIdx) : List (BitVec 64) := [Enc.idxW n]
+
+def litW (fe : IFEnv) : BitVec 64 := boolW fe.natLit + 2 * boolW fe.strLit
+
+/-- The environment heap at `EB` (capacity `EN`) holds the image `EH` (every cell a word), its top in `gEt`. -/
+structure EHeapAt (t : PState σ) (EB : BitVec 64) (EN : Nat) (EH : List (BitVec 64)) : Prop where
+  top : t.globals.lookup gEt = some (.val (.word (EB + BitVec.ofNat 64 (8 * EH.length))))
+  len : EH.length ≤ EN
+  lay : EB.toNat + 8 * EN < 2 ^ 64
+  dom : ∀ i, i < EN → t.memaddrs (EB + BitVec.ofNat 64 (8 * i))
+  val : ∀ i (hi : i < EH.length), t.memory (EB + BitVec.ofNat 64 (8 * i)) = .word EH[i]
+  words : ∀ i, i < EN → ∃ w, t.memory (EB + BitVec.ofNat 64 (8 * i)) = .word w
+
+/-- The environment `C.fe` in memory: its heap, the constant table (name ↦ the constant's block) and the
+projection-table table (structure name ↦ its table's block, exactly where `findTable?` answers), and the
+literal flags. -/
+def EnvAt (t : PState σ) (C : Ctx) : Prop :=
+  EHeapAt t C.EB C.EN C.EH ∧
+  (∃ m : Std.HashMap NIdx (BitVec 64), MemoAtG encNI id t (C.mG .env) (C.mg .env) m ∧
+    ∀ n, match C.fe.find? n with
+      | none => m[n]? = none
+      | some ci => ∃ o, m[n]? = some (ecell C o) ∧ CIE C.EB C.EH o ci) ∧
+  (∃ m : Std.HashMap NIdx (BitVec 64), MemoAtG encNI id t (C.mG .tbl) (C.mg .tbl) m ∧
+    ∀ n, match C.fe.findTable? n with
+      | none => m[n]? = none
+      | some tb => ∃ o, m[n]? = some (ecell C o) ∧ TblE C.EB C.EH o tb) ∧
+  t.globals.lookup gLit = some (.val (.word (litW C.fe)))
+
+theorem envAt_frame {C : Ctx} {t u : PState σ} (h : EnvAt t C)
+    (hT : ∀ b c, inR (C.mg (envR b)) c → u.memory c = t.memory c)
+    (hTd : ∀ b j, j < 8 → u.memory (C.mG (envR b) + BitVec.ofNat 64 (8 * j)) =
+      t.memory (C.mG (envR b) + BitVec.ofNat 64 (8 * j)))
+    (hE : ∀ i, i < C.EN → u.memory (ecell C i) = t.memory (ecell C i))
+    (hd : u.memaddrs = t.memaddrs)
+    (hg : u.globals.lookup gLit = t.globals.lookup gLit ∧ u.globals.lookup gEt = t.globals.lookup gEt) :
+    EnvAt u C := by
+  obtain ⟨hH, ⟨m, hm, hr⟩, ⟨m', hm', hr'⟩, hl⟩ := h
+  refine ⟨⟨by rw [hg.2]; exact hH.top, hH.len, hH.lay, fun i hi => by rw [hd]; exact hH.dom i hi,
+      fun i hi => by
+        have e := hE i (Nat.lt_of_lt_of_le hi hH.len); unfold ecell at e; rw [e]; exact hH.val i hi,
+      fun i hi => by have e := hE i hi; unfold ecell at e; rw [e]; exact hH.words i hi⟩,
+    ⟨m, memoAtG_frame hm (hT true) (hTd true) hd, hr⟩, ⟨m', memoAtG_frame hm' (hT false) (hTd false) hd, hr'⟩,
+    by rw [hg.1]; exact hl⟩
+
 structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   rep : SRep t C.L C.FLn C.FLl C.FLs C.FLe s.store
   gdir : t.globals.lookup gDir = some (.val (.word C.L.DIR))
@@ -260,6 +386,8 @@ structure SR (C : Ctx) (s : AState) (t : PState σ) : Prop where
   cache : ∀ k, CacheAt t C s.caches k
   /-- The mode memos and the eager tower. -/
   mode : ModeAt t C s.caches
+  /-- The environment. -/
+  env : EnvAt t C
   /-- The value heap. -/
   heap : HeapEx t C.HB C.HN C.H
 
@@ -273,6 +401,8 @@ theorem sr_of_eq {C : Ctx} {s : AState} {t u : PState σ} (h : SR C s t) (hm : u
     fun k => memoAtN_frame (h.memoN k) (fun _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd,
     fun k => cacheAt_frame (h.cache k) (fun _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd,
     modeAt_frame h.mode (fun _ _ _ _ => by rw [hm]) (fun _ _ _ _ => by rw [hm]) hd (by rw [hg]),
+    envAt_frame h.env (fun _ _ _ => by rw [hm]) (fun _ _ _ => by rw [hm]) (fun _ _ => by rw [hm]) hd
+      ⟨by rw [hg], by rw [hg]⟩,
     heapEx_frame h.heap (fun _ _ => by rw [hm]) hd (by rw [hg])⟩
 
 theorem eval_gv (t : PState σ) (g : MlS) (w : BitVec 64) (h : t.globals.lookup g = some (.val (.word w))) :

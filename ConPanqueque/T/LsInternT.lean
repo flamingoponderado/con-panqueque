@@ -178,6 +178,13 @@ theorem internLs_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx)
           (by rw [cellA_off] at e; unfold cellA at e; rw [← e]; exact hc)))
         (fun b ck k hk => hm _ (hok.mdescOut (.m b ck) k hk) (fun j hj e => hok.mdescHeap (.m b ck) (o + j) k (by omega) hk
           (by rw [cellA_off] at e; unfold cellA at e; exact e.symm))) hd (by rw [hg]; rfl),
+      envAt_frame ht.sr.env
+        (fun b c hc => hm c (hok.memoOut (envR b) c hc) (fun j hj e => hok.heapMemo (envR b) (o + j) (by omega)
+          (by rw [cellA_off] at e; unfold cellA at e; rw [← e]; exact hc)))
+        (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj e => hok.mdescHeap (envR b) (o + j) k (by omega) hk
+          (by rw [cellA_off] at e; unfold cellA at e; exact e.symm)))
+        (fun i hi => hm _ (hok.envOut i hi) (fun j hj e => hok.heapEnv (o + j) i (by omega) hi
+          (by rw [cellA_off] at e; unfold cellA at e; exact e.symm))) hd ⟨by rw [hg]; rfl, by rw [hg]; rfl⟩,
       heapEx_reframe (heapEx_prefix ht.sr.heap hp0)
         (fun i hi => by
           have hi' : i < H0.length := hi

@@ -119,6 +119,10 @@ theorem internLParam_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : 
       modeAt_frame ht.sr.mode
         (fun b mk c hc => hm c (hok.memoOut (.m b mk) c hc) (fun j hj e => hok.kbMemo (.m b mk) j (by omega) (e ▸ hc)))
         (fun b mk k hk => hm _ (hok.mdescOut (.m b mk) k hk) (fun j hj => hok.kbMdesc (.m b mk) k j hk (by omega))) hd (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all),
+      envAt_frame ht.sr.env
+        (fun b c hc => hm c (hok.memoOut (envR b) c hc) (fun j hj e => hok.kbMemo (envR b) j (by omega) (e ▸ hc)))
+        (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
+        (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
         (by rw [hg])⟩
 
@@ -159,6 +163,10 @@ theorem internLZero_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : C
       modeAt_frame ht.sr.mode
         (fun b mk c hc => hm c (hok.memoOut (.m b mk) c hc) (fun j hj e => hok.kbMemo (.m b mk) j (by omega) (e ▸ hc)))
         (fun b mk k hk => hm _ (hok.mdescOut (.m b mk) k hk) (fun j hj => hok.kbMdesc (.m b mk) k j hk (by omega))) hd (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all),
+      envAt_frame ht.sr.env
+        (fun b c hc => hm c (hok.memoOut (envR b) c hc) (fun j hj e => hok.kbMemo (envR b) j (by omega) (e ▸ hc)))
+        (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
+        (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
         (by rw [hg])⟩
 
@@ -199,6 +207,10 @@ theorem internLSucc_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : C
       modeAt_frame ht.sr.mode
         (fun b mk c hc => hm c (hok.memoOut (.m b mk) c hc) (fun j hj e => hok.kbMemo (.m b mk) j (by omega) (e ▸ hc)))
         (fun b mk k hk => hm _ (hok.mdescOut (.m b mk) k hk) (fun j hj => hok.kbMdesc (.m b mk) k j hk (by omega))) hd (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all),
+      envAt_frame ht.sr.env
+        (fun b c hc => hm c (hok.memoOut (envR b) c hc) (fun j hj e => hok.kbMemo (envR b) j (by omega) (e ▸ hc)))
+        (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
+        (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
         (by rw [hg])⟩
 
@@ -240,6 +252,10 @@ theorem internLMax_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ct
       modeAt_frame ht.sr.mode
         (fun b mk c hc => hm c (hok.memoOut (.m b mk) c hc) (fun j hj e => hok.kbMemo (.m b mk) j (by omega) (e ▸ hc)))
         (fun b mk k hk => hm _ (hok.mdescOut (.m b mk) k hk) (fun j hj => hok.kbMdesc (.m b mk) k j hk (by omega))) hd (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all),
+      envAt_frame ht.sr.env
+        (fun b c hc => hm c (hok.memoOut (envR b) c hc) (fun j hj e => hok.kbMemo (envR b) j (by omega) (e ▸ hc)))
+        (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
+        (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
         (by rw [hg])⟩
 
@@ -281,6 +297,10 @@ theorem internLImax_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : C
       modeAt_frame ht.sr.mode
         (fun b mk c hc => hm c (hok.memoOut (.m b mk) c hc) (fun j hj e => hok.kbMemo (.m b mk) j (by omega) (e ▸ hc)))
         (fun b mk k hk => hm _ (hok.mdescOut (.m b mk) k hk) (fun j hj => hok.kbMdesc (.m b mk) k j hk (by omega))) hd (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all),
+      envAt_frame ht.sr.env
+        (fun b c hc => hm c (hok.memoOut (envR b) c hc) (fun j hj e => hok.kbMemo (envR b) j (by omega) (e ▸ hc)))
+        (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj => hok.kbMdesc (envR b) k j hk (by omega)))
+        (fun i hi => hm _ (hok.envOut i hi) (fun j hj => hok.kbEnv i j hi (by omega))) hd ⟨(by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all), (by first | rfl | (rw [hg]) | (rw [hg']) | (rw [hgl _ (by decide)]) | simp_all)⟩,
       heapEx_frame ht.sr.heap (fun i hi => hm _ (hok.heapOut i hi) (fun j hj => hok.kbHeap i j hi (by omega))) hd
         (by rw [hg])⟩
 
