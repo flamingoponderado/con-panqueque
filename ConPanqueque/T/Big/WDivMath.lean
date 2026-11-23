@@ -40,4 +40,55 @@ theorem divmod_step (T y : Nat) (bit : Nat) (hy : 0 < y) (hb : bit < 2) :
       Nat.mod_eq_of_lt (by omega)]
     constructor <;> omega
 
+/-- The word code of one step: `c := r >>> 63; r' := (r <<< 1) + bit; ge := c ||| ((r' < y) ^^^ 1);
+r'' := r' - ge * y`. -/
+theorem wdiv_word (R y bit : Nat) (hR : R < y) (hy : y < B) (hb : bit < 2) :
+    let r := BitVec.ofNat 64 R
+    let yw := BitVec.ofNat 64 y
+    let c := r >>> 63
+    let r1 := (r <<< 1) + BitVec.ofNat 64 bit
+    let ge := c ||| ((if r1 < yw then (1 : BitVec 64) else 0) ^^^ 1)
+    ge = BitVec.ofNat 64 (if y ≤ 2 * R + bit then 1 else 0) ∧
+      r1 - ge * yw = BitVec.ofNat 64 (2 * R + bit - (if y ≤ 2 * R + bit then y else 0)) := by
+  intro r yw c r1 ge
+  have hB : B = 2 ^ 64 := rfl
+  rw [hB] at hy
+  have hR2 : R < 2 ^ 64 := by omega
+  have er1 : r1.toNat = (2 * R + bit) % 2 ^ 64 := by
+    simp only [r1, r, BitVec.toNat_add, BitVec.toNat_shiftLeft, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hR2,
+      Nat.shiftLeft_eq, Nat.mod_eq_of_lt (show bit < 2 ^ 64 by omega)]
+    omega
+  have ec : c.toNat = R / 2 ^ 63 := by
+    simp only [c, r, BitVec.toNat_ushiftRight, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hR2, Nat.shiftRight_eq_div_pow]
+  have eyw : yw.toNat = y := by simp only [yw, BitVec.toNat_ofNat]; omega
+  have hlt : (r1 < yw) ↔ (2 * R + bit) % 2 ^ 64 < y := by rw [BitVec.lt_def, er1, eyw]
+  have hc01 : c = 0 ∨ c = 1 := by
+    rcases (by omega : R / 2 ^ 63 = 0 ∨ R / 2 ^ 63 = 1) with h | h
+    · left; apply BitVec.eq_of_toNat_eq; rw [ec, h]; rfl
+    · right; apply BitVec.eq_of_toNat_eq; rw [ec, h]; rfl
+  have hge : ge = BitVec.ofNat 64 (if y ≤ 2 * R + bit then 1 else 0) := by
+    simp only [ge]
+    rcases hc01 with h | h
+    · have hc0 : R / 2 ^ 63 = 0 := by rw [← ec, h]; rfl
+      have hsm : (2 * R + bit) % 2 ^ 64 = 2 * R + bit := Nat.mod_eq_of_lt (by omega)
+      rw [hsm] at hlt
+      by_cases hq : y ≤ 2 * R + bit
+      · rw [if_pos hq, if_neg (by rw [hlt]; omega), h]; decide
+      · rw [if_neg hq, if_pos (by rw [hlt]; omega), h]; decide
+    · have hc1 : R / 2 ^ 63 = 1 := by rw [← ec, h]; rfl
+      rw [if_pos (by omega : y ≤ 2 * R + bit), h]
+      split <;> decide
+  refine ⟨hge, ?_⟩
+  rw [hge]
+  apply BitVec.eq_of_toNat_eq
+  by_cases hq : y ≤ 2 * R + bit
+  · rw [if_pos hq, if_pos hq]
+    simp only [BitVec.toNat_sub, BitVec.toNat_mul, er1, eyw, BitVec.toNat_ofNat]
+    rw [show (1 : Nat) % 2 ^ 64 = 1 from rfl, one_mul, Nat.mod_eq_of_lt (show y < 2 ^ 64 by omega)]
+    omega
+  · rw [if_neg hq, if_neg hq]
+    simp only [BitVec.toNat_sub, BitVec.toNat_mul, er1, BitVec.toNat_ofNat]
+    rw [show (0 : Nat) % 2 ^ 64 = 0 from rfl, zero_mul]
+    omega
+
 end ConPanqueque.T.Big
