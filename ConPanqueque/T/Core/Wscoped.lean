@@ -935,4 +935,84 @@ theorem specR_wsCallI {α : Type} {C : Ctx} (hok : CtxOK C) (hc : WsCodes C) {n 
 
 end
 
+theorem specR_wsArm2I {C : Ctx} (hok : CtxOK C) (hc : WsCodes C) {n : Nat} (ih : WsRec (σ := σ) C n)
+    {H0 H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} (h : EIdx) (d : Nat) (hd : d < 2 ^ 63)
+    (c1 c2 : EIdx) (pm : BitVec 64) (memo : Std.HashMap (EIdx × Nat) Bool)
+    (hD : wsK1 ∈ D ∧ wsK2 ∈ D ∧ wsR ∈ D ∧ wsM2 ∈ D ∧ wsN ∈ D ∧ wsO ∈ D) (hp : C.H <+: H) (h0 : H0 <+: H)
+    (hrep : WsRep C H pm memo) (hF : Γ.get wsF = some (BitVec.ofNat 64 (n + 1 + 1)))
+    (hDv : Γ.get wsD = some (BitVec.ofNat 64 d)) (hH : Γ.get wsH = some (Enc.idxW h)) (hM : Γ.get wsM = some pm)
+    (hC1 : Γ.get wsC1 = some (Enc.idxW c1)) (hC2 : Γ.get wsC2 = some (Enc.idxW c2)) :
+    SpecR (σ := σ) (Inv (ctxH C H) s Γ M D) (wsArm2 C) s
+      ((wscopedBGo memo n d c1 >>= fun x => match x with
+        | (rf, m) => if rf = true then wscopedBGo m n d c2 else pure (false, m)) >>= fun x => match x with
+        | (r, m') => pure (r, m'.insert (h, d) r)) (PostWs (ctxH C H0) s) := by
+  unfold wsArm2
+  rw [bind_assoc]
+  refine specR_wsCallI hok hc ih wsK1 (vv wsD) (vv wsC1) (vv wsM) d c1 pm memo ⟨hD.1, hD.2.2.1, hD.2.2.2.1⟩
+    ⟨by decide, by decide⟩ hp hd hrep hF (by simp [hDv]) (by simp [hC1]) (by simp [hM])
+    (fun rm H1 pm1 w1 hp1 hrep1 => ?_)
+  obtain ⟨rf, m1⟩ := rm
+  dsimp only
+  cases rf
+  · refine specR_ifI _ 0 (by simp [Env.get, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
+    simp only [Bool.false_eq_true, ↓reduceIte, pure_bind]
+    exact specR_wsInsI hok h d hd false pm1 m1 ⟨hD.2.2.2.2.1, hD.2.2.2.2.2⟩ (by simp [Env.get, hH])
+      (by simp [Env.get, hDv]) (by simp [Env.get]) (by simp [Env.get]) hrep1 (h0.trans hp1)
+  · refine specR_ifI _ 1 (by simp [Env.get, boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
+    simp only [↓reduceIte]
+    refine specR_wsCallI hok hc ih wsK2 (vv wsD) (vv wsC2) (vv wsM2) d c2 pm1 m1 ⟨hD.2.1, hD.2.2.1, hD.2.2.2.1⟩
+      ⟨by decide, by decide⟩ (hp.trans hp1) hd hrep1 (by simp [Env.get, hF]) (by simp [Env.get, hDv])
+      (by simp [Env.get, hC2]) (by simp [Env.get]) (fun rm H2 pm2 w2 hp2 hrep2 => ?_)
+    obtain ⟨r2, m2⟩ := rm
+    dsimp only
+    exact specR_wsInsI hok h d hd r2 pm2 m2 ⟨hD.2.2.2.2.1, hD.2.2.2.2.2⟩ (by simp [Env.get, hH])
+      (by simp [Env.get, hDv]) (by simp [Env.get]) (by simp [Env.get]) hrep2 (h0.trans (hp1.trans hp2))
+
+theorem specR_wsArm3I {C : Ctx} (hok : CtxOK C) (hc : WsCodes C) {n : Nat} (ih : WsRec (σ := σ) C n)
+    {H0 H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} (h : EIdx) (d : Nat) (hd : d < 2 ^ 63)
+    (c1 c2 c3 : EIdx) (pm : BitVec 64) (memo : Std.HashMap (EIdx × Nat) Bool)
+    (hD : wsK1 ∈ D ∧ wsK2 ∈ D ∧ wsK3 ∈ D ∧ wsR ∈ D ∧ wsM2 ∈ D ∧ wsN ∈ D ∧ wsO ∈ D) (hp : C.H <+: H)
+    (h0 : H0 <+: H) (hrep : WsRep C H pm memo) (hF : Γ.get wsF = some (BitVec.ofNat 64 (n + 1 + 1)))
+    (hDv : Γ.get wsD = some (BitVec.ofNat 64 d)) (hH : Γ.get wsH = some (Enc.idxW h)) (hM : Γ.get wsM = some pm)
+    (hC1 : Γ.get wsC1 = some (Enc.idxW c1)) (hC2 : Γ.get wsC2 = some (Enc.idxW c2))
+    (hC3 : Γ.get wsC3 = some (Enc.idxW c3)) :
+    SpecR (σ := σ) (Inv (ctxH C H) s Γ M D) (wsArm3 C) s
+      ((wscopedBGo memo n d c1 >>= fun x => match x with
+        | (rt, m) => if rt = true then (wscopedBGo m n d c2 >>= fun y => match y with
+          | (rv, m2) => if rv = true then wscopedBGo m2 n d c3 else pure (false, m2)) else pure (false, m)) >>=
+        fun x => match x with | (r, m') => pure (r, m'.insert (h, d) r)) (PostWs (ctxH C H0) s) := by
+  unfold wsArm3
+  rw [bind_assoc]
+  refine specR_wsCallI hok hc ih wsK1 (vv wsD) (vv wsC1) (vv wsM) d c1 pm memo ⟨hD.1, hD.2.2.2.1, hD.2.2.2.2.1⟩
+    ⟨by decide, by decide⟩ hp hd hrep hF (by simp [hDv]) (by simp [hC1]) (by simp [hM])
+    (fun rm H1 pm1 w1 hp1 hrep1 => ?_)
+  obtain ⟨rt, m1⟩ := rm
+  dsimp only
+  cases rt
+  · refine specR_ifI _ 0 (by simp [Env.get, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
+    simp only [Bool.false_eq_true, ↓reduceIte, pure_bind]
+    exact specR_wsInsI hok h d hd false pm1 m1 ⟨hD.2.2.2.2.2.1, hD.2.2.2.2.2.2⟩ (by simp [Env.get, hH])
+      (by simp [Env.get, hDv]) (by simp [Env.get]) (by simp [Env.get]) hrep1 (h0.trans hp1)
+  refine specR_ifI _ 1 (by simp [Env.get, boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
+  simp only [↓reduceIte, bind_assoc]
+  refine specR_wsCallI hok hc ih wsK2 (vv wsD) (vv wsC2) (vv wsM2) d c2 pm1 m1 ⟨hD.2.1, hD.2.2.2.1, hD.2.2.2.2.1⟩
+    ⟨by decide, by decide⟩ (hp.trans hp1) hd hrep1 (by simp [Env.get, hF]) (by simp [Env.get, hDv])
+    (by simp [Env.get, hC2]) (by simp [Env.get]) (fun rm H2 pm2 w2 hp2 hrep2 => ?_)
+  obtain ⟨rv, m2⟩ := rm
+  dsimp only
+  cases rv
+  · refine specR_ifI _ 0 (by simp [Env.get, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
+    simp only [Bool.false_eq_true, ↓reduceIte, pure_bind]
+    exact specR_wsInsI hok h d hd false pm2 m2 ⟨hD.2.2.2.2.2.1, hD.2.2.2.2.2.2⟩ (by simp [Env.get, hH])
+      (by simp [Env.get, hDv]) (by simp [Env.get]) (by simp [Env.get]) hrep2 (h0.trans (hp1.trans hp2))
+  refine specR_ifI _ 1 (by simp [Env.get, boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
+  simp only [↓reduceIte]
+  refine specR_wsCallI hok hc ih wsK3 (vv wsD) (vv wsC3) (vv wsM2) d c3 pm2 m2 ⟨hD.2.2.1, hD.2.2.2.1, hD.2.2.2.2.1⟩
+    ⟨by decide, by decide⟩ ((hp.trans hp1).trans hp2) hd hrep2 (by simp [Env.get, hF]) (by simp [Env.get, hDv])
+    (by simp [Env.get, hC3]) (by simp [Env.get]) (fun rm H3 pm3 w3 hp3 hrep3 => ?_)
+  obtain ⟨r3, m3⟩ := rm
+  dsimp only
+  exact specR_wsInsI hok h d hd r3 pm3 m3 ⟨hD.2.2.2.2.2.1, hD.2.2.2.2.2.2⟩ (by simp [Env.get, hH])
+    (by simp [Env.get, hDv]) (by simp [Env.get]) (by simp [Env.get]) hrep3 (h0.trans (hp1.trans (hp2.trans hp3)))
+
 end ConPanqueque.T.WC
