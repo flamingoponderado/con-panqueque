@@ -243,3 +243,4 @@ import ConPanqueque.T.Core.DefEqList
 import ConPanqueque.T.Core.IotaIndex
 import ConPanqueque.T.Core.ConstTy
 import ConPanqueque.T.Core.IotaCerts
+import ConPanqueque.T.Core.IotaCase3
