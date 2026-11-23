@@ -1175,7 +1175,27 @@ theorem rdTab_ops : rdTab.map (fun e => (e.i, e.op)) = opTab := rfl
 structure RdCodes (C : Ctx) : Prop where
   raw : C.code.lookup fRaw = some ([(qH, ShapeHOL.one)], rnBody C, .one)
   w : C.code.lookup fW = some (kParams.map (fun p => (p, ShapeHOL.one)), whnfE C fWB, .one)
-  nb : ∀ e ∈ rdTab, C.code.lookup e.fn = some (nbParams.map (fun p => (p, ShapeHOL.one)), e.body C, .one)
+  add : C.code.lookup fNbAdd = some (nbParams.map (fun p => (p, ShapeHOL.one)), nbAddBody C, .one)
+  sub : C.code.lookup fNbSub = some (nbParams.map (fun p => (p, ShapeHOL.one)), nbSubBody C, .one)
+  mul : C.code.lookup fNbMul = some (nbParams.map (fun p => (p, ShapeHOL.one)), nbMulBody C, .one)
+  pow : C.code.lookup fNbPow = some (nbParams.map (fun p => (p, ShapeHOL.one)), nbPowBody C, .one)
+  beq : C.code.lookup fNbBeq = some (nbParams.map (fun p => (p, ShapeHOL.one)), nbCmpBody C false, .one)
+  ble : C.code.lookup fNbBle = some (nbParams.map (fun p => (p, ShapeHOL.one)), nbCmpBody C true, .one)
+  div : C.code.lookup fNbDiv = some (nbParams.map (fun p => (p, ShapeHOL.one)), nbDmBody C false, .one)
+  mod : C.code.lookup fNbMod = some (nbParams.map (fun p => (p, ShapeHOL.one)), nbDmBody C true, .one)
+  gcd : C.code.lookup fNbGcd = some (nbParams.map (fun p => (p, ShapeHOL.one)), nbGcdBody C, .one)
+  land : C.code.lookup fNbLand = some (nbParams.map (fun p => (p, ShapeHOL.one)), nbBitBody .and C, .one)
+  lor : C.code.lookup fNbLor = some (nbParams.map (fun p => (p, ShapeHOL.one)), nbBitBody .or C, .one)
+  xor : C.code.lookup fNbXor = some (nbParams.map (fun p => (p, ShapeHOL.one)), nbBitBody .xor C, .one)
+  shl : C.code.lookup fNbShl = some (nbParams.map (fun p => (p, ShapeHOL.one)), nbShlBody C, .one)
+  shr : C.code.lookup fNbShr = some (nbParams.map (fun p => (p, ShapeHOL.one)), nbShrBody C, .one)
+
+theorem RdCodes.nb {C : Ctx} (hr : RdCodes C) :
+    ∀ e ∈ rdTab, C.code.lookup e.fn = some (nbParams.map (fun p => (p, ShapeHOL.one)), e.body C, .one) := by
+  intro e he
+  simp only [rdTab, List.mem_cons, List.not_mem_nil, or_false] at he
+  rcases he with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl
+  exacts [hr.add, hr.sub, hr.mul, hr.pow, hr.beq, hr.ble, hr.div, hr.mod, hr.gcd, hr.land, hr.lor, hr.xor, hr.shl, hr.shr]
 
 theorem rdTab_ok (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : CtxOK C) (hc : BigCodes C)
     (hr : RdCodes C) : ∀ e ∈ rdTab, e.i < pinCount ∧

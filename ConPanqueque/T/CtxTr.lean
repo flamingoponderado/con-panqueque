@@ -6,15 +6,31 @@ open Lean Meta Elab Tactic
 
 A bundle `X C` (a `Prop` structure of code-lookup facts, possibly nesting other bundles) holds at any `C'` that
 differs from `C` only in fields the bodies do not read (heap image, store floor, saved memos). `ctx_tr h`
-closes `X C'` from `h : X C`: by `h` itself when the two are definitionally equal, else field by field.
+closes `X C'` from `h : X C`: by `h` itself when the two are definitionally equal, else field by field. A field
+`∀ e ∈ T, …` over a finite table `T` (the natural-number operations) is closed entry by entry.
 -/
 
 namespace ConPanqueque.CtxTr
 
-partial def tr (h : Expr) (goal : Expr) : MetaM Expr := do
+/-- Close `∀ e ∈ rdTab, P e` from `h : ∀ e ∈ rdTab, P' e`, entry by entry. -/
+def trTable (h : Expr) (goal : Expr) : TermElabM Expr := do
+  let g ← mkFreshExprMVar goal
+  let (_, gid) ← g.mvarId!.note `hcx h
+  let tab := mkIdent `ConPanqueque.T.Big.rdTab
+  let hc := mkIdent `hcx
+  let rest ← Tactic.run gid (evalTactic (← `(tactic| (
+    intro x hx
+    have h' := $hc:ident x hx
+    simp only [$tab:ident, List.mem_cons, List.not_mem_nil, or_false] at hx
+    rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> exact h'))))
+  unless rest.isEmpty do throwError "ctx_tr: table field not closed"
+  instantiateMVars g
+
+partial def tr (h : Expr) (goal : Expr) : TermElabM Expr := do
   let ht ← inferType h
   if ← withDefault (isDefEq ht goal) then return h
   let env ← getEnv
+  if goal.isForall then return ← trTable h goal
   let goal ← whnfR goal
   let some n := goal.getAppFn.constName? | throwError "ctx_tr: goal is not a structure: {goal}"
   unless isStructure env n do throwError "ctx_tr: cannot transport {ht} to {goal}"

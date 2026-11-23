@@ -1,6 +1,7 @@
 import ConPanqueque.T.Core.Whnf
 import ConPanqueque.T.Core.Unfold
 import ConPanqueque.T.SRFacts
+import ConPanqueque.T.CtxTr
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena
@@ -41,11 +42,8 @@ structure WbCodes (C : Ctx) : Prop where
   rd : RdCodes C
   uf : UfCodes C
 
-theorem rdCodes_H {C : Ctx} (hc : RdCodes C) (H : List (BitVec 64)) : RdCodes (ctxH C H) :=
-  ⟨hc.raw, hc.w, fun e he => by
-    have h := hc.nb e he
-    simp only [rdTab, List.mem_cons, List.not_mem_nil, or_false] at he
-    rcases he with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> exact h⟩
+theorem rdCodes_H {C : Ctx} (hc : RdCodes C) (H : List (BitVec 64)) : RdCodes (ctxH C H) := by
+  ctx_tr hc
 
 theorem wbCodes_H {C : Ctx} (hc : WbCodes C) (H : List (BitVec 64)) : WbCodes (ctxH C H) :=
   ⟨hc.rn, bigCodes_H hc.big H, rdCodes_H hc.rd H, ufCodes_H hc.uf H⟩
