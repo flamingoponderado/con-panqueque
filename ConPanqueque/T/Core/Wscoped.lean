@@ -901,7 +901,7 @@ theorem ws_none (C : Ctx) (vals : List (BitVec 64)) :
 def WsRec (C : Ctx) (n : Nat) : Prop :=
   ∀ (d : Nat) (h : EIdx) (memo : Std.HashMap (EIdx × Nat) Bool) (H : List (BitVec 64)) (s : AState) (pm : BitVec 64),
     C.H <+: H → d < 2 ^ 63 → WsRep C H pm memo →
-    SpecR (σ := σ) (Pre (ctxH C H) s (wsParams.zip [BitVec.ofNat 64 (n + 1), BitVec.ofNat 64 d, Enc.idxW h, pm]))
+    SpecR (σ := σ) (Pre (ctxH C H) s (wsParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW h, pm]))
       (wsBody C) s (wscopedBGo memo n d h) (PostWs (ctxH C H) s)
 
 /-- One recursive call, then the pair block read back. -/
@@ -910,14 +910,14 @@ theorem specR_wsCallI {α : Type} {C : Ctx} (hok : CtxOK C) (hc : WsCodes C) {n 
     {k : Bool × Std.HashMap (EIdx × Nat) Bool → AM α} {R : α → BitVec 64 → AState → PState σ → Prop}
     (x : MlS) (eD eH eM : ExpHOL 64) (d : Nat) (h : EIdx) (pm : BitVec 64) (memo : Std.HashMap (EIdx × Nat) Bool)
     (hx : x ∈ D ∧ wsR ∈ D ∧ wsM2 ∈ D) (hxn : x ≠ wsR ∧ wsM2 ≠ x) (hp : C.H <+: H) (hd : d < 2 ^ 63) (hrep : WsRep C H pm memo)
-    (hF : Γ.get wsF = some (BitVec.ofNat 64 (n + 1 + 1))) (heD : sev Γ eD = some (BitVec.ofNat 64 d))
+    (hF : Γ.get wsF = some (BitVec.ofNat 64 (n + 1))) (heD : sev Γ eD = some (BitVec.ofNat 64 d))
     (heH : sev Γ eH = some (Enc.idxW h)) (heM : sev Γ eM = some pm)
     (hk : ∀ (rm : Bool × Std.HashMap (EIdx × Nat) Bool) H' pm' w, H <+: H' → WsRep C H' pm' rm.2 →
       SpecR (Inv (ctxH C H') s ((wsM2, pm') :: (wsR, boolW rm.1) :: (x, w) :: Γ) [] D) rest s (k rm) R) :
     SpecR (Inv (ctxH C H) s Γ M D) (wsCall x eD eH eM rest) s (wscopedBGo memo n d h >>= k) R := by
   unfold wsCall
   refine specR_callNIH (C := ctxH C H) x fWs wsParams [.op .sub [vv wsF, .const 1], eD, eH, eM] (wsBody C)
-    [BitVec.ofNat 64 (n + 1), BitVec.ofNat 64 d, Enc.idxW h, pm] (by decide) rfl hx.1 hc.self
+    [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW h, pm] (by decide) rfl hx.1 hc.self
     ⟨by simp [sev, hF]; exact Ex.ofNat_succ_sub_one _, heD, heH, heM, trivial⟩
     (PostWs (ctxH C H) s)
     (fun rm w s' H' => s' = s ∧ ∃ o pm', w = cellA C o ∧ H'[o]? = some (boolW rm.1) ∧ H'[o + 1]? = some pm' ∧
@@ -939,7 +939,7 @@ theorem specR_wsArm2I {C : Ctx} (hok : CtxOK C) (hc : WsCodes C) {n : Nat} (ih :
     {H0 H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} (h : EIdx) (d : Nat) (hd : d < 2 ^ 63)
     (c1 c2 : EIdx) (pm : BitVec 64) (memo : Std.HashMap (EIdx × Nat) Bool)
     (hD : wsK1 ∈ D ∧ wsK2 ∈ D ∧ wsR ∈ D ∧ wsM2 ∈ D ∧ wsN ∈ D ∧ wsO ∈ D) (hp : C.H <+: H) (h0 : H0 <+: H)
-    (hrep : WsRep C H pm memo) (hF : Γ.get wsF = some (BitVec.ofNat 64 (n + 1 + 1)))
+    (hrep : WsRep C H pm memo) (hF : Γ.get wsF = some (BitVec.ofNat 64 (n + 1)))
     (hDv : Γ.get wsD = some (BitVec.ofNat 64 d)) (hH : Γ.get wsH = some (Enc.idxW h)) (hM : Γ.get wsM = some pm)
     (hC1 : Γ.get wsC1 = some (Enc.idxW c1)) (hC2 : Γ.get wsC2 = some (Enc.idxW c2)) :
     SpecR (σ := σ) (Inv (ctxH C H) s Γ M D) (wsArm2 C) s
@@ -972,7 +972,7 @@ theorem specR_wsArm3I {C : Ctx} (hok : CtxOK C) (hc : WsCodes C) {n : Nat} (ih :
     {H0 H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} (h : EIdx) (d : Nat) (hd : d < 2 ^ 63)
     (c1 c2 c3 : EIdx) (pm : BitVec 64) (memo : Std.HashMap (EIdx × Nat) Bool)
     (hD : wsK1 ∈ D ∧ wsK2 ∈ D ∧ wsK3 ∈ D ∧ wsR ∈ D ∧ wsM2 ∈ D ∧ wsN ∈ D ∧ wsO ∈ D) (hp : C.H <+: H)
-    (h0 : H0 <+: H) (hrep : WsRep C H pm memo) (hF : Γ.get wsF = some (BitVec.ofNat 64 (n + 1 + 1)))
+    (h0 : H0 <+: H) (hrep : WsRep C H pm memo) (hF : Γ.get wsF = some (BitVec.ofNat 64 (n + 1)))
     (hDv : Γ.get wsD = some (BitVec.ofNat 64 d)) (hH : Γ.get wsH = some (Enc.idxW h)) (hM : Γ.get wsM = some pm)
     (hC1 : Γ.get wsC1 = some (Enc.idxW c1)) (hC2 : Γ.get wsC2 = some (Enc.idxW c2))
     (hC3 : Γ.get wsC3 = some (Enc.idxW c3)) :
