@@ -577,3 +577,23 @@ Pancake has no division instruction, and resource-limit declines are allowed (so
   - `hsd`: the stored sort's level denotes;
   - `hsl`: after the instantiation and the loop, the level denotes and the level store and cache invariants hold.
 - When `re_spec`/`io_spec` are composed, their unconditional `hFz` callee hypothesis must be restricted to states satisfying the invariant family.
+
+### Progress (2026-11-23, night): `iotaFam`
+
+`fm_spec` (`T/Core/IotaFamBody.lean`) is proved at the verified mode. It is stated against callees restricted to the states of an invariant family `Q`, with `Q` closed under each step's twin run.
+
+The pieces, each with its own spec:
+- `iotaNoCert`: `nc_spec`, read-only, called with `specR_callPure`.
+- `recFireLevels`: `rf_spec`, over the element loops `rgL_spec`/`rgP_spec`.
+  - Each comparand is substituted and re-interned by the memo-free `substLH_core`.
+  - The twin's reads move only read caches (`specR_quiet`).
+  - The result block is fresh, so `internLsNode` can roll the heap image back (`ExPre.specR_callAppF`).
+- `iotaCase3At`: `c3_spec`, calling `formerNeverZeroAt` (`fza_spec`, split out of `fz_spec`).
+- `recFireArgs`: `fa_spec`. `.nested` runs `instSpinePins` (`ip_spec`) over fresh copies of the level parameters and of `args.take rP` (`specR_takeCopyI`). The other kinds copy `args.take cnP`.
+- `defEqList` (`dl_spec`), `constTyAt` (`ct_spec`), `iotaCertsFull` (`ic_spec`), `piResidual`/`iotaIndexOk` (`px_spec`/`ix_spec`).
+
+A `lvlsEq?` refusal halts the port (`liftFueled`).
+
+**Composition note.** `io_spec`'s `hFam` and `re_spec`'s `hFz` are unconditional callee hypotheses. The new specs need `Q`-states and closure facts. When the knot is discharged, those hypotheses must become `∀ s1, Q s1 → …`, and the closure facts must come from con-ron's preservation lemmas (`CheckOK`).
+
+**Remaining for ι:** `fabScopeOk`, which needs the scratch seen-set region.
