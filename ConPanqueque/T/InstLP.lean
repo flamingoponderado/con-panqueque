@@ -883,4 +883,85 @@ theorem fvarI_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
 
 end
 
+section
+variable {σ : Type}
+open ConRon.Bridge.ExprOps
+
+/-- A call of an expression-node intern wrapper, in a caller (the image is kept). -/
+theorem callE_spec {β : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64}
+    {m : AM EIdx} {k : EIdx → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    (x f : MlS) (ps : List MlS) (es : List (ExpHOL 64)) (B : ProgHOL 64) (vs : List (BitVec 64))
+    (hnd : ps.Nodup) (hl : vs.length = ps.length)
+    (hx : x ∈ D) (hC : C.code.lookup f = some (ps.map (fun p => (p, ShapeHOL.one)), B, .one))
+    (hes : EvAll (fun e v => sev Γ e = some v) es vs)
+    (hspec : SpecR (Pre (σ := σ) C s (ps.zip vs)) B s m (PostE C))
+    (hk : ∀ h s', SpecR (Inv C s' ((x, Enc.idxW h) :: Γ) [] D) rest s' (k h) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, x), none)) f es) rest) s (m >>= k) R :=
+  specR_callNIM x f ps es B vs hnd hl hx hC hes (PostE C) (fun _ _ _ _ hp => hp.2)
+    (fun u hu _ hlk => fun w hw => by subst hw; exact hspec _ (pre_of_lookups hu ps vs hl hlk))
+    (fun h w s' st hp => by obtain ⟨rfl, _⟩ := hp; exact hk h s')
+
+theorem sortI_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (B : ProgHOL 64)
+    (hc : CodesILP C B) (ko : Nat) (khs : List NIdx) (ks : List ConLeche.Name) (usH : LsIdx)
+    (vsL : List ConLeche.Level) {H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} (h : EIdx) (u : LIdx)
+    (hv : s.store.view h = some (.sort u))
+    (hp : PInv s khs ks usH vsL) (hden : (denoteE s.store h).isSome = true) (hb : BlkAt H ko (khs.map Enc.idxW))
+    (hh : Γ.get pH = some (Enc.idxW h))
+    (hkp : Γ.get pKp = some (cellA C ko)) (hus : Γ.get pUs = some (Enc.idxW usH))
+    (hfle : Γ.get lFle = some C.FLe) (hdir : Γ.get lDir = some C.L.DIR) :
+    SpecR (Inv (σ := σ) (ctxH C H) s Γ M DI) sortI s
+      (do let hl ← substLMemoAt ks vsL u; internRebuiltSort h (hl == u) hl) (PostILP (ctxH C H)) := by
+  obtain ⟨l, hdl⟩ : ∃ l, denoteL s.store.ls u = some l := by
+    have hd := hden
+    rw [denoteE_view_eq hp.ok.wf hv] at hd
+    simp only [denoteEView] at hd
+    cases e : denoteL s.store.ls u <;> simp_all
+  obtain ⟨uh2, hu2, hvs2⟩ : ∃ uh2, s.store.lss.view usH = some uh2 ∧ denoteLList s.store.ls uh2 = some vsL := by
+    have := hp.levels; unfold denoteLs at this; split at this
+    · simp at this
+    · rename_i v hv'; exact ⟨v, hv', this⟩
+  unfold sortI viewH
+  refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [hfle]) ?_
+  refine specR_assignI lDh (vv pH) (Enc.idxW h) (by decide) (by simp +decide [hh]) ?_
+  refine specR_congr (m' := ConRon.Arena.view h >>= fun w => match w with
+    | .sort u' => (do let hl ← substLMemoAt ks vsL u'; internRebuiltSort h (hl == u') hl)
+    | _ => (do let hl ← substLMemoAt ks vsL u; internRebuiltSort h (hl == u) hl))
+    (by simp only [bind, StateT.bind]; rw [view_run, hv]; rfl) ?_
+  refine specR_viewIv h (by simp) (by simp +decide [hfle] <;> rfl) (by simp +decide [hdir] <;> rfl) (by decide)
+    (fun w P hv' _ _ => ?_)
+  rw [hv] at hv'; cases hv'
+  simp only
+  refine specR_loadI' lA1 (vv lRp) P (P + BitVec.ofNat 64 0) (Enc.idxW u) (by decide) (by simp [sev]) (by simp)
+    (by simpa [encEView, Enc.encSort] using wordsAt_mem0 P (Enc.idxW u) [] M) ?_
+  refine specR_callNIH lA2 fSubstLH substMParams [vv lA1, vv pKp, vv pUs] (substLHBody C)
+    [Enc.idxW u, cellA C ko, Enc.idxW usH] (by decide) rfl (by decide) hc.substLH
+    ⟨by simp +decide, by simp +decide [hkp], by simp +decide [hus], trivial⟩
+    (PostSLH (ctxH C H) s ks vsL l) (fun a w s' _ => w = Enc.idxW a)
+    (fun a w s' st ⟨H', hpH, hw, hsr, _⟩ => ⟨H', hpH, hw, hsr⟩)
+    (fun u0 hu0 _ hlk => fun w hw => by
+      subst hw
+      exact substLH_spec ra C hok hc.substM hc.neq hc.goM hc.lZero hc.lSucc hc.lMax hc.lImax hc.lParam hc.lv s ko khs
+        ks usH uh2 vsL hp.names hu2 hvs2 hp.cl hp.ml hp.ok.wf H hb u l hdl _ (pre_of_lookups hu0 substMParams _ rfl hlk))
+    (fun hl w s1 H1 hp1 hw => ?_)
+  subst hw
+  unfold internRebuiltSort
+  by_cases e : hl = u
+  · subst e
+    refine specR_ifI _ 1 (by simp +decide [eqE, sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun hw => absurd hw (by decide))
+    simp only [beq_self_eq_true, ite_true]
+    exact specR_returnI (vv pH) (Enc.idxW h) (by simp +decide [hh])
+      (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  · have hne : Enc.idxW hl ≠ Enc.idxW u := fun x => e (Enc.idxW_inj x)
+    refine specR_ifI _ 0 (by simp +decide [eqE, sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun hw => absurd rfl hw) (fun _ => ?_)
+    have eb : (hl == u) = false := by simp [e]
+    rw [eb]; simp only [Bool.false_eq_true, ite_false]
+    refine specR_congr (m' := internSortE hl >>= fun r => pure r) (by simp) ?_
+    refine callE_spec (C := ctxH C H1) lW fInternSort [lEu] [vv lA2] sortBody [Enc.idxW hl] (by decide) rfl
+      (by decide) hc.internSort ⟨by simp +decide, trivial⟩ (sort_body_spec ra (ctxH C H1) (ctxOK_H hok H1) s1 hl)
+      (fun r s2 => ?_)
+    exact specR_returnI (vv lW) (Enc.idxW r) (by simp)
+      (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+end
+
 end ConPanqueque.T.ILP
