@@ -624,3 +624,35 @@ All three ι callees (`iotaFam`, `familyNeverZeroAt`, `fabScopeOk`) now have spe
 - `inferBody`/`defeqBody`/`inferBodyIO`.
 
 (`ConPanqueque/GetArgs.lean` is an unfinished executable helper with a `sorry`. It is not imported by the library.)
+
+### Progress (2026-11-23): the `inferBody` arms
+
+Every `inferBody` arm except projection now has a port and a spec. All specs take the knot's `infer`/`whnf` (and, where used, `defeq`/`defeqE`) as callee hypotheses at every extended heap, quantified over depth.
+
+- ∀ arm:
+  - `inferPisOut` (`po_spec`), `inferPisLeaf` (`pz_spec`), the loop (`tq_spec`, induction on the peel budget): `T/Core/InferPis.lean`.
+  - Wrapper `inferForall` (`qf_spec`): `T/Core/InferForall.lean`.
+- λ arm:
+  - `inferLamsOut` (`qo_spec`) and `inferLamsLeaf` (`qe_spec`): `T/Core/InferLams.lean`. They use `abstractRangeFast` as the Pancake function `fAbsRF` (`ExR.fastBodyR`).
+  - The loop (`qn_spec`) and wrapper `inferLam` (`qm_spec`): `T/Core/InferLamsLoop.lean`.
+- Application arm:
+  - `isEagerReduce` (`ie_spec`): `T/Core/EagerRed.lean`.
+  - `defeqArg` (`da_spec`) and `inferSpine` (`sp_spec`, induction on `args.size - i`): `T/Core/InferSpine.lean`.
+  - Wrapper `inferApp` (`qa_spec`, `headAndArgs` as in `StepApp`): `T/Core/InferApp.lean`.
+- Literal arm (`il_spec`): `T/Core/InferLit.lean`.
+- Already done: sort, const and let arms (`T/Core/InferArms.lean`).
+
+**Conventions:**
+- A twin `fail` is a halt in the port.
+- The two binder wrappers halt at depth `≥ 2^62`, a resource-limit decline. This keeps `d + k + peel < 2^63` for the loops.
+- Singleton blocks are built by appending to one empty block (`specR_emptyBlk`).
+
+**Next:** the projection arm, `inferProj`. It needs:
+- the projection table lookup (`findProj?`, as in `ReduceProj`);
+- `checkProjGuard`:
+  - `projGuardSort`, built from `formerResSort` and `formerSortLoop`, plus `isAlwaysZero`;
+  - `projGuardRows`: `constTyAt`, `openPisRawGo`, `projGuardFast` (`hasLooseBVarIn`), `projGuardRowsGo` (`hasLooseBVarBFast`), `instantiateListFast`;
+  - `checkGuardRows`, which uses `inferIO`, `whnf` and `zeroWhereZero`;
+- `IProjEntry.typeAt` (`instLPFast` then `instantiateListFast`).
+
+After that: the `inferBody` composition, `inferBodyIO` (`inferSpineIO`), and `defeqBody`.
