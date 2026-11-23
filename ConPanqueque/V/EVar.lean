@@ -292,7 +292,7 @@ type's handle in `ety` and `idx`'s low word in `iw`. -/
 def eFVarWith (rest : ProgHOL 64) : ProgHOL 64 :=
   .seq (.assign .local lFl (vv lFle))
   (.seq (.assign .local lDh (vv lEty))
-  (.seq (storeDerived 9 10)
+  (.seq (storeDerivedC 9 10 badE)
   (.seq (.assign .local lDty (vv lDo1))
   (.seq (.assign .local lDv ExprData.fvarDataE)
   (.seq (.assign .local lDv2 (.const 0))
@@ -316,8 +316,9 @@ theorem eInternFVar_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSem
     (ldir : t.locals.lookup lDir = some (.val (.word L.DIR)))
     (lfle : t.locals.lookup lFle = some (.val (.word FLe)))
     (hw : ∀ y, y ∈ fvarScratch → ∃ w, t.locals.lookup y = some (.val (.word w))) :
-    ERes t L FLn FLl FLs FLe KB (Enc.encFVar ⟨idx, ty⟩).length st (st.intern (.fvar idx ty))
-      (evaluateHOLFiniteState t (eFVarWith (rRestE 10 (vv lEn) lFle))) := by
+    (ERes t L FLn FLl FLs FLe KB (Enc.encFVar ⟨idx, ty⟩).length st (st.intern (.fvar idx ty))
+      (evaluateHOLFiniteState t (eFVarWith (rRestE 10 (vv lEn) lFle)))) ∧
+      (Stop (evaluateHOLFiniteState t (eFVarWith (rRestE 10 (vv lEn) lFle))).1 ∨ ((st.view ty).isSome = true)) := by
   have W : ∀ y, y ∈ fvarScratch → ∃ w, t.locals.lookup y = some (.val (.word w)) := hw
   unfold eFVarWith
   obtain ⟨wf, hwf⟩ := W lFl (by decide)
@@ -331,15 +332,18 @@ theorem eInternFVar_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSem
     intro y hy a1 a2; obtain ⟨w, hw⟩ := W y hy; exact ⟨w, by lk [t3, t2]; exact hw⟩
   have hR3 : SRep t3 L FLn FLl FLs FLe st := srep_frame hR ⟨rfl, rfl, rfl, rfl⟩ rfl
     (fun _ _ _ _ => ⟨fun _ _ => rfl, fun _ _ => rfl⟩)
-  have D := eDerived_spec t3 L FLe st hR3.e ty (lookup_setVar_same _ _ _) (by lk [t3, t2]; exact ldir)
+  rcases eDerivedC_spec t3 L FLe st hR3.e ty (lookup_setVar_same _ _ _) (by lk [t3, t2]; exact ldir)
     (by lk [t3, t2]) (W3 lDt (by decide) (by decide) (by decide)) (W3 lDg (by decide) (by decide) (by decide))
     (W3 lDi (by decide) (by decide) (by decide)) (W3 lDo1 (by decide) (by decide) (by decide))
     (W3 lDo2 (by decide) (by decide) (by decide))
+    with hSD | ⟨hvD, D⟩
+  · exact ⟨Or.inl (seq_stop _ _ _ hSD), Or.inl (seq_stop _ _ _ hSD)⟩
   obtain ⟨n1, m1', d1, c1, g1, ta1, ck1, o1, o2, fr1, wd1⟩ := D
-  generalize hs1 : evaluateHOLFiniteState t3 (storeDerived 9 10) = q1 at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1
+  generalize hs1 : evaluateHOLFiniteState t3 (storeDerivedC 9 10 badE) = q1 at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1
   obtain ⟨q1r, u4⟩ := q1
   simp only at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1; subst n1
   rw [seq_normal _ hs1]
+  refine ⟨?_, Or.inr hvD⟩
   have back : ∀ y, y ≠ lDo1 → y ≠ lDo2 → y ≠ lDt → y ≠ lDg → y ≠ lDi → y ≠ lDh → y ≠ lFl →
       u4.locals.lookup y = t.locals.lookup y := by
     intro y a1 a2 a3 a4 a5 a6 a7; rw [fr1 y a1 a2 a3 a4 a5]; lk [t3, t2]
@@ -625,11 +629,11 @@ the handles in `ep` and `ee`, and `i`'s low word in `iw`. -/
 def eProjWith (rest : ProgHOL 64) : ProgHOL 64 :=
   .seq (.assign .local lFl (vv lFln))
   (.seq (.assign .local lDh (vv lEp))
-  (.seq (storeDerived 0 3)
+  (.seq (storeDerivedC 0 3 badN)
   (.seq (.assign .local lHs (vv lDo1))
   (.seq (.assign .local lFl (vv lFle))
   (.seq (.assign .local lDh (vv lEe))
-  (.seq (storeDerived 9 10)
+  (.seq (storeDerivedC 9 10 badE)
   (.seq (.assign .local lDe (vv lDo1))
   (.seq (.assign .local lDv ExprData.projDataE)
   (.seq (.assign .local lDv2 (.const 0))
@@ -656,8 +660,9 @@ theorem eInternProj_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSem
     (lfln : t.locals.lookup lFln = some (.val (.word FLn)))
     (lfle : t.locals.lookup lFle = some (.val (.word FLe)))
     (hw : ∀ y, y ∈ projScratch → ∃ w, t.locals.lookup y = some (.val (.word w))) :
-    ERes t L FLn FLl FLs FLe KB (Enc.encProj ⟨n, i, e⟩).length st (st.intern (.proj n i e))
-      (evaluateHOLFiniteState t (eProjWith (rRestE 18 (vv lEn) lFle))) := by
+    (ERes t L FLn FLl FLs FLe KB (Enc.encProj ⟨n, i, e⟩).length st (st.intern (.proj n i e))
+      (evaluateHOLFiniteState t (eProjWith (rRestE 18 (vv lEn) lFle)))) ∧
+      (Stop (evaluateHOLFiniteState t (eProjWith (rRestE 18 (vv lEn) lFle))).1 ∨ ((st.lss.ls.ns.view n).isSome = true ∧ (st.view e).isSome = true)) := by
   have W : ∀ y, y ∈ projScratch → ∃ w, t.locals.lookup y = some (.val (.word w)) := hw
   unfold eProjWith
   -- the name's derived word
@@ -672,10 +677,12 @@ theorem eInternProj_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSem
     intro y hy a1 a2; obtain ⟨w, hw⟩ := W y hy; exact ⟨w, by lk [t2, t1]; exact hw⟩
   have hR2 : SRep t2 L FLn FLl FLs FLe st := srep_frame hR ⟨rfl, rfl, rfl, rfl⟩ rfl
     (fun _ _ _ _ => ⟨fun _ _ => rfl, fun _ _ => rfl⟩)
-  have D1 := nDerived_spec t2 L FLn st.lss.ls.ns hR2.n n (lookup_setVar_same _ _ _) (by lk [t2, t1]; exact ldir)
+  rcases nDerivedC_spec t2 L FLn st.lss.ls.ns hR2.n n (lookup_setVar_same _ _ _) (by lk [t2, t1]; exact ldir)
     (by lk [t2, t1]) (W2 lDt (by decide) (by decide) (by decide)) (W2 lDg (by decide) (by decide) (by decide)) (W2 lDi (by decide) (by decide) (by decide)) (W2 lDo1 (by decide) (by decide) (by decide)) (W2 lDo2 (by decide) (by decide) (by decide))
+    with hSD1 | ⟨hvD1, D1⟩
+  · exact ⟨Or.inl (seq_stop _ _ _ hSD1), Or.inl (seq_stop _ _ _ hSD1)⟩
   obtain ⟨n1, m1, d1, c1, g1, ta1, ck1, o1, o2, fr1, wd1⟩ := D1
-  generalize hs1 : evaluateHOLFiniteState t2 (storeDerived 0 3) = q1 at n1 m1 d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1
+  generalize hs1 : evaluateHOLFiniteState t2 (storeDerivedC 0 3 badN) = q1 at n1 m1 d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1
   obtain ⟨q1r, u3⟩ := q1
   simp only at n1 m1 d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1; subst n1
   rw [seq_normal _ hs1]
@@ -708,15 +715,18 @@ theorem eInternProj_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSem
     intro y hy
     obtain ⟨w, hw⟩ := wd1 y hy
     rcases hy with rfl | rfl | rfl <;> exact ⟨w, by lk [u6, u5, u4]; exact hw⟩
-  have D2 := eDerived_spec u6 L FLe st hR6.e e (lookup_setVar_same _ _ _)
+  rcases eDerivedC_spec u6 L FLe st hR6.e e (lookup_setVar_same _ _ _)
     (by lk [u6, u5, u4]; rw [back1 _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)]; exact ldir) (by lk [u6, u5])
     (wd6 lDt (Or.inl rfl)) (wd6 lDg (Or.inr (Or.inl rfl))) (wd6 lDi (Or.inr (Or.inr rfl)))
     ⟨_, by lk [u6, u5, u4]; exact o1⟩ ⟨_, by lk [u6, u5, u4]; exact o2⟩
+    with hSD2 | ⟨hvD2, D2⟩
+  · exact ⟨Or.inl (seq_stop _ _ _ hSD2), Or.inl (seq_stop _ _ _ hSD2)⟩
   obtain ⟨n2, m2, d2, c2, g2, ta2, ck2, o1', o2', fr2, wd2⟩ := D2
-  generalize hs2 : evaluateHOLFiniteState u6 (storeDerived 9 10) = q2 at n2 m2 d2 c2 g2 ta2 ck2 o1' o2' fr2 wd2
+  generalize hs2 : evaluateHOLFiniteState u6 (storeDerivedC 9 10 badE) = q2 at n2 m2 d2 c2 g2 ta2 ck2 o1' o2' fr2 wd2
   obtain ⟨q2r, u7⟩ := q2
   simp only at n2 m2 d2 c2 g2 ta2 ck2 o1' o2' fr2 wd2; subst n2
   rw [seq_normal _ hs2]
+  refine ⟨?_, Or.inr ⟨hvD1, hvD2⟩⟩
   have back2 : ∀ y, y ≠ lDo1 → y ≠ lDo2 → y ≠ lDt → y ≠ lDg → y ≠ lDi → y ≠ lDh → y ≠ lFl → y ≠ lHs →
       u7.locals.lookup y = t.locals.lookup y := by
     intro y a1 a2 a3 a4 a5 a6 a7 a8; rw [fr2 y a1 a2 a3 a4 a5]; lk [u6, u5, u4]; exact back1 y a1 a2 a3 a4 a5 a6 a7

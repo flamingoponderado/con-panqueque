@@ -28,8 +28,9 @@ theorem eInternApp2_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSem
     (ldir : t.locals.lookup lDir = some (.val (.word L.DIR)))
     (lfle : t.locals.lookup lFle = some (.val (.word FLe)))
     (hw : ∀ y, y ∈ bin2Scratch → ∃ w, t.locals.lookup y = some (.val (.word w))) :
-    ERes t L FLn FLl FLs FLe KB 2 st (st.intern (.app f a))
-      (evaluateHOLFiniteState t (eBin2With Der.appDataE (eRest 13 2))) := by
+    (ERes t L FLn FLl FLs FLe KB 2 st (st.intern (.app f a))
+      (evaluateHOLFiniteState t (eBin2With Der.appDataE (eRest 13 2)))) ∧
+      (Stop (evaluateHOLFiniteState t (eBin2With Der.appDataE (eRest 13 2))).1 ∨ ((st.view f).isSome = true ∧ (st.view a).isSome = true)) := by
   have hint := estore_app st f a
   simp only at hint
   have hd : st.derOfView (.app f a) = Der.appDataW (st.derived f) (st.derived a) := Der.derOfApp_eq ra st f a

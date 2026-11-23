@@ -20,7 +20,7 @@ def lSuccWith (rest : ProgHOL 64) : ProgHOL 64 :=
   .seq (.store (vv lKb) (vv lEu))
   (.seq (.assign .local lFl (vv lFll))
   (.seq (.assign .local lDh (vv lEu))
-  (.seq (storeDerived 3 5)
+  (.seq (storeDerivedC 3 5 badL)
   (.seq (.assign .local lHv (vv lDo1))
   (.seq (.assign .local lDv Der.succHashE)
   (.seq (.assign .local lDv2 (vv lDo2))
@@ -98,8 +98,9 @@ theorem lInternSucc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSem
     (ldir : t.locals.lookup lDir = some (.val (.word L.DIR)))
     (lfll : t.locals.lookup lFll = some (.val (.word FLl)))
     (hw : ∀ y, y ∈ succScratch → ∃ w, t.locals.lookup y = some (.val (.word w))) :
-    XRes t L FLn FLl FLs FLe KB 1 (withL st (st.lss.ls.intern (.succ u)).1) (st.lss.ls.intern (.succ u)).2
-      (evaluateHOLFiniteState t (lSuccWith (rRest 4 1 lFll))) := by
+    (XRes t L FLn FLl FLs FLe KB 1 (withL st (st.lss.ls.intern (.succ u)).1) (st.lss.ls.intern (.succ u)).2
+      (evaluateHOLFiniteState t (lSuccWith (rRest 4 1 lFll)))) ∧
+      (Stop (evaluateHOLFiniteState t (lSuccWith (rRest 4 1 lFll))).1 ∨ ((st.lss.ls.view u).isSome = true)) := by
   have KB0 : KB + BitVec.ofNat 64 (8 * 0) = KB := by simp
   have flne : ∀ F, (F = FLn ∨ F = FLl ∨ F = FLs ∨ F = FLe) → F ≠ KB := fun F hF => by
     have := (hS.fls F hF).2.2 0 (by decide); rwa [KB0] at this
@@ -127,15 +128,18 @@ theorem lInternSucc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSem
     intro y hy a1 a2; obtain ⟨w, hw⟩ := W y hy; exact ⟨w, by lk [t3, t2]; exact hw⟩
   have hR3 : SRep t3 L FLn FLl FLs FLe st := srep_frame hR1 ⟨rfl, rfl, rfl, rfl⟩ rfl
     (fun _ _ _ _ => ⟨fun _ _ => rfl, fun _ _ => rfl⟩)
-  have D := lDerived_spec t3 L FLl st.lss.ls hR3.l u (lookup_setVar_same _ _ _) (by lk [t3, t2]; exact ldir)
+  rcases lDerivedC_spec t3 L FLl st.lss.ls hR3.l u (lookup_setVar_same _ _ _) (by lk [t3, t2]; exact ldir)
     (by lk [t3, t2]) (W3 lDt (by decide) (by decide) (by decide)) (W3 lDg (by decide) (by decide) (by decide))
     (W3 lDi (by decide) (by decide) (by decide)) (W3 lDo1 (by decide) (by decide) (by decide))
     (W3 lDo2 (by decide) (by decide) (by decide))
+    with hSD | ⟨hvD, D⟩
+  · exact ⟨Or.inl (seq_stop _ _ _ hSD), Or.inl (seq_stop _ _ _ hSD)⟩
   obtain ⟨n1, m1', d1, c1, g1, ta1, ck1, o1, o2, fr1, wd1⟩ := D
-  generalize hs1 : evaluateHOLFiniteState t3 (storeDerived 3 5) = q1 at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1
+  generalize hs1 : evaluateHOLFiniteState t3 (storeDerivedC 3 5 badL) = q1 at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1
   obtain ⟨q1r, u4⟩ := q1
   simp only at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1; subst n1
   rw [seq_normal _ hs1]
+  refine ⟨?_, Or.inr hvD⟩
   have back : ∀ y, y ≠ lDo1 → y ≠ lDo2 → y ≠ lDt → y ≠ lDg → y ≠ lDi → y ≠ lDh → y ≠ lFl →
       u4.locals.lookup y = t.locals.lookup y := by
     intro y a1 a2 a3 a4 a5 a6 a7; rw [fr1 y a1 a2 a3 a4 a5]; lk [t3, t2]; rfl

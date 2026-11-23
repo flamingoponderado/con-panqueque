@@ -969,8 +969,8 @@ theorem specR_internLamI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions)
       (internLamE ty b >>= k) R :=
   specR_bin2I hok fInternLam lamDataE 14 internLamE (fun st f a => st.internLam f a)
     (fun t st f a hR kbd lkb lef lea ldir lfle hw =>
-      eInternLam_spec ra t C.L C.FLn C.FLl C.FLs C.FLe C.KB st f a hR hok.sepLam kbd (kb_ne_kb8 _) hok.b0Lam hok.b1Lam
-        lkb lef lea ldir lfle hw)
+      (eInternLam_spec ra t C.L C.FLn C.FLl C.FLs C.FLe C.KB st f a hR hok.sepLam kbd (kb_ne_kb8 _) hok.b0Lam hok.b1Lam
+        lkb lef lea ldir lfle hw).1)
     (fun s f a t hsr => internLamE_eq s f a (Nat.le_trans (tabAt_size_le hsr.e.p5) (hok.sepLam.cap 0 (by decide)))
       (Nat.le_trans (tabAt_size_le hsr.e.s5) (hok.sepLam.cap 1 (by decide))))
     hcode x e1 e2 ty b hx he1 he2 hk
@@ -985,8 +985,8 @@ theorem specR_internForallEI {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumpti
       (internForallEE ty b >>= k) R :=
   specR_bin2I hok fInternForallE forDataE 15 internForallEE (fun st f a => st.internForallE f a)
     (fun t st f a hR kbd lkb lef lea ldir lfle hw =>
-      eInternForallE_spec ra t C.L C.FLn C.FLl C.FLs C.FLe C.KB st f a hR hok.sepFor kbd (kb_ne_kb8 _) hok.b0For
-        hok.b1For lkb lef lea ldir lfle hw)
+      (eInternForallE_spec ra t C.L C.FLn C.FLl C.FLs C.FLe C.KB st f a hR hok.sepFor kbd (kb_ne_kb8 _) hok.b0For
+        hok.b1For lkb lef lea ldir lfle hw).1)
     (fun s f a t hsr => internForallEE_eq s f a (Nat.le_trans (tabAt_size_le hsr.e.p6) (hok.sepFor.cap 0 (by decide)))
       (Nat.le_trans (tabAt_size_le hsr.e.s6) (hok.sepFor.cap 1 (by decide))))
     hcode x e1 e2 ty b hx he1 he2 hk

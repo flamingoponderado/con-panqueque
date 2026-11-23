@@ -26,11 +26,11 @@ def lBin2With (E : ExpHOL 64) (rest : ProgHOL 64) : ProgHOL 64 :=
   (.seq (.store (.op .add [vv lKb, .const 8]) (vv lEv))
   (.seq (.assign .local lFl (vv lFll))
   (.seq (.assign .local lDh (vv lEu))
-  (.seq (storeDerived 3 5)
+  (.seq (storeDerivedC 3 5 badL)
   (.seq (.assign .local lHu (vv lDo1))
   (.seq (.assign .local lPu (vv lDo2))
   (.seq (.assign .local lDh (vv lEv))
-  (.seq (storeDerived 3 5)
+  (.seq (storeDerivedC 3 5 badL)
   (.seq (.assign .local lHvv (vv lDo1))
   (.seq (.assign .local lDv2 (.op .or [vv lPu, vv lDo2]))
   (.seq (.assign .local lDv E)
@@ -127,7 +127,8 @@ theorem lBin2_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FLn FLl FLs 
     (ldir : t.locals.lookup lDir = some (.val (.word L.DIR)))
     (lfll : t.locals.lookup lFll = some (.val (.word FLl)))
     (hw : ∀ y, y ∈ lbin2Scratch → ∃ w, t.locals.lookup y = some (.val (.word w))) :
-    XRes t L FLn FLl FLs FLe KB 2 (withL st res.1) res.2 (evaluateHOLFiniteState t (lBin2With E (rRest k 2 lFll))) := by
+    (XRes t L FLn FLl FLs FLe KB 2 (withL st res.1) res.2 (evaluateHOLFiniteState t (lBin2With E (rRest k 2 lFll)))) ∧
+      (Stop (evaluateHOLFiniteState t (lBin2With E (rRest k 2 lFll))).1 ∨ ((st.lss.ls.view u).isSome = true ∧ (st.lss.ls.view v).isSome = true)) := by
   have KB0 : KB + BitVec.ofNat 64 (8 * 0) = KB := by simp
   have KB1 : KB + BitVec.ofNat 64 (8 * 1) = KB + 8 := rfl
   have flne : ∀ F, (F = FLn ∨ F = FLl ∨ F = FLs ∨ F = FLe) → F ≠ KB ∧ F ≠ KB + 8 := fun F hF => by
@@ -168,12 +169,14 @@ theorem lBin2_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FLn FLl FLs 
     intro y hy a1 a2; obtain ⟨w, hw⟩ := W y hy; exact ⟨w, by lk [t4, t3]; exact hw⟩
   have hR4 : SRep t4 L FLn FLl FLs FLe st := srep_frame hR2 ⟨rfl, rfl, rfl, rfl⟩ rfl
     (fun _ _ _ _ => ⟨fun _ _ => rfl, fun _ _ => rfl⟩)
-  have D1 := lDerived_spec t4 L FLl st.lss.ls hR4.l u (lookup_setVar_same _ _ _) (by lk [t4, t3]; exact ldir)
+  rcases lDerivedC_spec t4 L FLl st.lss.ls hR4.l u (lookup_setVar_same _ _ _) (by lk [t4, t3]; exact ldir)
     (by lk [t4, t3]) (W4 lDt (by decide) (by decide) (by decide)) (W4 lDg (by decide) (by decide) (by decide))
     (W4 lDi (by decide) (by decide) (by decide)) (W4 lDo1 (by decide) (by decide) (by decide))
     (W4 lDo2 (by decide) (by decide) (by decide))
+    with hSD1 | ⟨hvD1, D1⟩
+  · exact ⟨Or.inl (seq_stop _ _ _ hSD1), Or.inl (seq_stop _ _ _ hSD1)⟩
   obtain ⟨n1, m1', d1, c1, g1, ta1, ck1, o1, o2, fr1, wd1⟩ := D1
-  generalize hs1 : evaluateHOLFiniteState t4 (storeDerived 3 5) = q1 at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1
+  generalize hs1 : evaluateHOLFiniteState t4 (storeDerivedC 3 5 badL) = q1 at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1
   obtain ⟨q1r, u5⟩ := q1
   simp only at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1; subst n1
   rw [seq_normal _ hs1]
@@ -200,17 +203,20 @@ theorem lBin2_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FLn FLl FLs 
     (fun _ _ _ _ => ⟨fun _ _ => by rw [mem8], fun _ _ => by rw [mem8]⟩)
   have fl8 : u8.locals.lookup lFl = some (.val (.word FLl)) := by
     lk [u8, u7, u6]; rw [fr1 _ (by decide) (by decide) (by decide) (by decide) (by decide)]; lk [t4, t3]
-  have D2 := lDerived_spec u8 L FLl st.lss.ls hR8.l v (lookup_setVar_same _ _ _)
+  rcases lDerivedC_spec u8 L FLl st.lss.ls hR8.l v (lookup_setVar_same _ _ _)
     (by lk [u8, u7, u6]; rw [back5 _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)]; exact ldir)
     fl8 (by obtain ⟨w, hw⟩ := wd1 lDt (Or.inl rfl); exact ⟨w, by lk [u8, u7, u6]; exact hw⟩)
     (by obtain ⟨w, hw⟩ := wd1 lDg (Or.inr (Or.inl rfl)); exact ⟨w, by lk [u8, u7, u6]; exact hw⟩)
     (by obtain ⟨w, hw⟩ := wd1 lDi (Or.inr (Or.inr rfl)); exact ⟨w, by lk [u8, u7, u6]; exact hw⟩)
     ⟨_, by lk [u8, u7, u6]; exact o1⟩ ⟨_, by lk [u8, u7, u6]; exact o2⟩
+    with hSD2 | ⟨hvD2, D2⟩
+  · exact ⟨Or.inl (seq_stop _ _ _ hSD2), Or.inl (seq_stop _ _ _ hSD2)⟩
   obtain ⟨n2, m2', d2, c2, g2, ta2, ck2, p1, p2, fr2, wd2⟩ := D2
-  generalize hs2 : evaluateHOLFiniteState u8 (storeDerived 3 5) = q2 at n2 m2' d2 c2 g2 ta2 ck2 p1 p2 fr2 wd2
+  generalize hs2 : evaluateHOLFiniteState u8 (storeDerivedC 3 5 badL) = q2 at n2 m2' d2 c2 g2 ta2 ck2 p1 p2 fr2 wd2
   obtain ⟨q2r, u9⟩ := q2
   simp only at n2 m2' d2 c2 g2 ta2 ck2 p1 p2 fr2 wd2; subst n2
   rw [seq_normal _ hs2]
+  refine ⟨?_, Or.inr ⟨hvD1, hvD2⟩⟩
   have back9 : ∀ y, y ≠ lDo1 → y ≠ lDo2 → y ≠ lDt → y ≠ lDg → y ≠ lDi → y ≠ lDh → y ≠ lFl → y ≠ lHu → y ≠ lPu →
       u9.locals.lookup y = t.locals.lookup y := fun y a1 a2 a3 a4 a5 a6 a7 a8 a9 => by
     rw [fr2 y a1 a2 a3 a4 a5]; lk [u8, u7, u6]; exact back5 y a1 a2 a3 a4 a5 a6 a7
@@ -319,8 +325,9 @@ theorem lInternMax_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSemS
     (ldir : t.locals.lookup lDir = some (.val (.word L.DIR)))
     (lfll : t.locals.lookup lFll = some (.val (.word FLl)))
     (hw : ∀ y, y ∈ lbin2Scratch → ∃ w, t.locals.lookup y = some (.val (.word w))) :
-    XRes t L FLn FLl FLs FLe KB 2 (withL st (st.lss.ls.intern (.max u v)).1) (st.lss.ls.intern (.max u v)).2
-      (evaluateHOLFiniteState t (lBin2With maxHashE (rRest 5 2 lFll))) := by
+    (XRes t L FLn FLl FLs FLe KB 2 (withL st (st.lss.ls.intern (.max u v)).1) (st.lss.ls.intern (.max u v)).2
+      (evaluateHOLFiniteState t (lBin2With maxHashE (rRest 5 2 lFll)))) ∧
+      (Stop (evaluateHOLFiniteState t (lBin2With maxHashE (rRest 5 2 lFll))).1 ∨ ((st.lss.ls.view u).isSome = true ∧ (st.lss.ls.view v).isSome = true)) := by
   have hint := lstore_max st.lss.ls u v
   simp only at hint
   rw [Der.lmax_eq ra] at hint
@@ -346,8 +353,9 @@ theorem lInternImax_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSem
     (ldir : t.locals.lookup lDir = some (.val (.word L.DIR)))
     (lfll : t.locals.lookup lFll = some (.val (.word FLl)))
     (hw : ∀ y, y ∈ lbin2Scratch → ∃ w, t.locals.lookup y = some (.val (.word w))) :
-    XRes t L FLn FLl FLs FLe KB 2 (withL st (st.lss.ls.intern (.imax u v)).1) (st.lss.ls.intern (.imax u v)).2
-      (evaluateHOLFiniteState t (lBin2With imaxHashE (rRest 6 2 lFll))) := by
+    (XRes t L FLn FLl FLs FLe KB 2 (withL st (st.lss.ls.intern (.imax u v)).1) (st.lss.ls.intern (.imax u v)).2
+      (evaluateHOLFiniteState t (lBin2With imaxHashE (rRest 6 2 lFll)))) ∧
+      (Stop (evaluateHOLFiniteState t (lBin2With imaxHashE (rRest 6 2 lFll))).1 ∨ ((st.lss.ls.view u).isSome = true ∧ (st.lss.ls.view v).isSome = true)) := by
   have hint := lstore_imax st.lss.ls u v
   simp only at hint
   rw [Der.limax_eq ra] at hint

@@ -24,10 +24,10 @@ def eBin2With (E : ExpHOL 64) (rest : ProgHOL 64) : ProgHOL 64 :=
   (.seq (.store (.op .add [vv lKb, .const 8]) (vv lEa))
   (.seq (.assign .local lFl (vv lFle))
   (.seq (.assign .local lDh (vv lEf))
-  (.seq (storeDerived 9 10)
+  (.seq (storeDerivedC 9 10 badE)
   (.seq (.assign .local lDfv (vv lDo1))
   (.seq (.assign .local lDh (vv lEa))
-  (.seq (storeDerived 9 10)
+  (.seq (storeDerivedC 9 10 badE)
   (.seq (.assign .local lDav (vv lDo1))
   (.seq (.assign .local lDv E)
   (.seq (.assign .local lDv2 (.const 0))
@@ -74,7 +74,8 @@ theorem eBin2_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FLn FLl FLs 
     (ldir : t.locals.lookup lDir = some (.val (.word L.DIR)))
     (lfle : t.locals.lookup lFle = some (.val (.word FLe)))
     (hw : ∀ y, y ∈ bin2Scratch → ∃ w, t.locals.lookup y = some (.val (.word w))) :
-    ERes t L FLn FLl FLs FLe KB 2 st res (evaluateHOLFiniteState t (eBin2With E (eRest k 2))) := by
+    (ERes t L FLn FLl FLs FLe KB 2 st res (evaluateHOLFiniteState t (eBin2With E (eRest k 2)))) ∧
+      (Stop (evaluateHOLFiniteState t (eBin2With E (eRest k 2))).1 ∨ ((st.view f).isSome = true ∧ (st.view a).isSome = true)) := by
   have KB0 : KB + BitVec.ofNat 64 (8 * 0) = KB := by simp
   have KB1 : KB + BitVec.ofNat 64 (8 * 1) = KB + 8 := rfl
   have flne : ∀ F, (F = FLn ∨ F = FLl ∨ F = FLs ∨ F = FLe) → F ≠ KB ∧ F ≠ KB + 8 := fun F hF => by
@@ -115,12 +116,14 @@ theorem eBin2_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FLn FLl FLs 
     intro y hy a1 a2; obtain ⟨w, hw⟩ := W y hy; exact ⟨w, by lk [t4, t3]; exact hw⟩
   have hR4 : SRep t4 L FLn FLl FLs FLe st := srep_frame hR2 ⟨rfl, rfl, rfl, rfl⟩ rfl
     (fun _ _ _ _ => ⟨fun _ _ => rfl, fun _ _ => rfl⟩)
-  have D1 := eDerived_spec t4 L FLe st hR4.e f (lookup_setVar_same _ _ _) (by lk [t4, t3]; exact ldir)
+  rcases eDerivedC_spec t4 L FLe st hR4.e f (lookup_setVar_same _ _ _) (by lk [t4, t3]; exact ldir)
     (by lk [t4, t3]) (W4 lDt (by decide) (by decide) (by decide)) (W4 lDg (by decide) (by decide) (by decide))
     (W4 lDi (by decide) (by decide) (by decide)) (W4 lDo1 (by decide) (by decide) (by decide))
     (W4 lDo2 (by decide) (by decide) (by decide))
+    with hSD1 | ⟨hvD1, D1⟩
+  · exact ⟨Or.inl (seq_stop _ _ _ hSD1), Or.inl (seq_stop _ _ _ hSD1)⟩
   obtain ⟨n1, m1', d1, c1, g1, ta1, ck1, o1, o2, fr1, wd1⟩ := D1
-  generalize hs1 : evaluateHOLFiniteState t4 (storeDerived 9 10) = q1 at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1
+  generalize hs1 : evaluateHOLFiniteState t4 (storeDerivedC 9 10 badE) = q1 at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1
   obtain ⟨q1r, u5⟩ := q1
   simp only at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1; subst n1
   rw [seq_normal _ hs1]
@@ -151,15 +154,18 @@ theorem eBin2_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FLn FLl FLs 
     · exact ⟨_, by lk [u7, u6]; exact o2⟩
   have fl7 : u7.locals.lookup lFl = some (.val (.word FLe)) := by
     lk [u7, u6]; rw [fr1 _ (by decide) (by decide) (by decide) (by decide) (by decide)]; lk [t4, t3]
-  have D2 := eDerived_spec u7 L FLe st hR7.e a (lookup_setVar_same _ _ _)
+  rcases eDerivedC_spec u7 L FLe st hR7.e a (lookup_setVar_same _ _ _)
     (by lk [u7, u6]; rw [back5 _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)]; exact ldir)
     fl7 (w7 lDt (Or.inl rfl)) (w7 lDg (Or.inr (Or.inl rfl))) (w7 lDi (Or.inr (Or.inr (Or.inl rfl))))
     (w7 lDo1 (Or.inr (Or.inr (Or.inr (Or.inl rfl))))) (w7 lDo2 (Or.inr (Or.inr (Or.inr (Or.inr rfl)))))
+    with hSD2 | ⟨hvD2, D2⟩
+  · exact ⟨Or.inl (seq_stop _ _ _ hSD2), Or.inl (seq_stop _ _ _ hSD2)⟩
   obtain ⟨n2, m2', d2, c2, g2, ta2, ck2, p1, p2, fr2, wd2⟩ := D2
-  generalize hs2 : evaluateHOLFiniteState u7 (storeDerived 9 10) = q2 at n2 m2' d2 c2 g2 ta2 ck2 p1 p2 fr2 wd2
+  generalize hs2 : evaluateHOLFiniteState u7 (storeDerivedC 9 10 badE) = q2 at n2 m2' d2 c2 g2 ta2 ck2 p1 p2 fr2 wd2
   obtain ⟨q2r, u8⟩ := q2
   simp only at n2 m2' d2 c2 g2 ta2 ck2 p1 p2 fr2 wd2; subst n2
   rw [seq_normal _ hs2]
+  refine ⟨?_, Or.inr ⟨hvD1, hvD2⟩⟩
   have back8 : ∀ y, y ≠ lDo1 → y ≠ lDo2 → y ≠ lDt → y ≠ lDg → y ≠ lDi → y ≠ lDh → y ≠ lFl → y ≠ lDfv →
       u8.locals.lookup y = t.locals.lookup y := fun y a1 a2 a3 a4 a5 a6 a7 a8 => by
     rw [fr2 y a1 a2 a3 a4 a5]; lk [u7, u6]; exact back5 y a1 a2 a3 a4 a5 a6 a7
@@ -316,7 +322,8 @@ theorem eInternLam_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSemS
     (ldir : t.locals.lookup lDir = some (.val (.word L.DIR)))
     (lfle : t.locals.lookup lFle = some (.val (.word FLe)))
     (hw : ∀ y, y ∈ bin2Scratch → ∃ w, t.locals.lookup y = some (.val (.word w))) :
-    ERes t L FLn FLl FLs FLe KB 2 st (st.internLam ty b) (evaluateHOLFiniteState t (eBin2With lamDataE (eRest 14 2))) := by
+    (ERes t L FLn FLl FLs FLe KB 2 st (st.internLam ty b) (evaluateHOLFiniteState t (eBin2With lamDataE (eRest 14 2)))) ∧
+      (Stop (evaluateHOLFiniteState t (eBin2With lamDataE (eRest 14 2))).1 ∨ ((st.view ty).isSome = true ∧ (st.view b).isSome = true)) := by
   have hint := estore_internLam st ty b
   simp only at hint
   have hd : st.derOfBindAt 19 ty b = Der.bindDataW 19 (st.derived ty) (st.derived b) := Der.derOfBind_eq ra st 19 ty b
@@ -341,8 +348,9 @@ theorem eInternForallE_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : Pan
     (ldir : t.locals.lookup lDir = some (.val (.word L.DIR)))
     (lfle : t.locals.lookup lFle = some (.val (.word FLe)))
     (hw : ∀ y, y ∈ bin2Scratch → ∃ w, t.locals.lookup y = some (.val (.word w))) :
-    ERes t L FLn FLl FLs FLe KB 2 st (st.internForallE ty b)
-      (evaluateHOLFiniteState t (eBin2With forDataE (eRest 15 2))) := by
+    (ERes t L FLn FLl FLs FLe KB 2 st (st.internForallE ty b)
+      (evaluateHOLFiniteState t (eBin2With forDataE (eRest 15 2)))) ∧
+      (Stop (evaluateHOLFiniteState t (eBin2With forDataE (eRest 15 2))).1 ∨ ((st.view ty).isSome = true ∧ (st.view b).isSome = true)) := by
   have hint := estore_internForallE st ty b
   simp only at hint
   have hd : st.derOfBindAt 23 ty b = Der.bindDataW 23 (st.derived ty) (st.derived b) := Der.derOfBind_eq ra st 23 ty b

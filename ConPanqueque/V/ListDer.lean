@@ -22,7 +22,7 @@ def lLp := ofString "lp"
 def lsStep : ProgHOL 64 :=
   .seq (.assign .local lLn (.op .sub [vv lLn, .const 1]))
   (.seq (.assign .local lDh (.load .one (.op .add [vv lLa, .shift .lsl (vv lLn) (.const 3)])))
-  (.seq (storeDerived 3 5)
+  (.seq (storeDerivedC 3 5 badL)
   (.seq (.assign .local lLr (mixExp (vv lDo1) (vv lLr)))
     (.assign .local lLp (.op .or [vv lLp, vv lDo2])))))
 
@@ -65,7 +65,8 @@ def LsI (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL A : BitVec 64) (st :
   (∀ y, y = lDh ∨ y = lDt ∨ y = lDg ∨ y = lDi ∨ y = lDo1 ∨ y = lDo2 → ∃ w, u.locals.lookup y = some (.val (.word w))) ∧
   ∃ j, j ≤ us.length ∧ u.locals.lookup lLn = some (.val (.word (BitVec.ofNat 64 j))) ∧
     u.locals.lookup lLr = some (.val (.word (lsModel st (us.drop j)).1.toBitVec)) ∧
-    u.locals.lookup lLp = some (.val (.word (bit (lsModel st (us.drop j)).2)))
+    u.locals.lookup lLp = some (.val (.word (bit (lsModel st (us.drop j)).2))) ∧
+    ∀ k (hk : k < us.length), j ≤ k → (st.view us[k]).isSome = true
 
 end
 
@@ -78,9 +79,10 @@ theorem ls_step (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL A : BitVec 6
     (hdir : t.locals.lookup lDir = some (.val (.word L.DIR))) (hfl : t.locals.lookup lFl = some (.val (.word FL)))
     (u : PanSemStateFiniteExact 64 σ) (hu : LsI t L FL A st us u)
     (hnz : ∀ w, u.locals.lookup lLn = some (.val (.word w)) → w ≠ 0) :
-    (evaluateHOLFiniteState (decClockHOLFinite u) lsStep).1 = none ∧
-      LsI t L FL A st us (evaluateHOLFiniteState (decClockHOLFinite u) lsStep).2 := by
-  obtain ⟨m0, d0, c0, g0, ta0, fr, cw, j, hjl, hj, hr, hp⟩ := hu
+    Stop (evaluateHOLFiniteState (decClockHOLFinite u) lsStep).1 ∨
+    ((evaluateHOLFiniteState (decClockHOLFinite u) lsStep).1 = none ∧
+      LsI t L FL A st us (evaluateHOLFiniteState (decClockHOLFinite u) lsStep).2) := by
+  obtain ⟨m0, d0, c0, g0, ta0, fr, cw, j, hjl, hj, hr, hp, hvk⟩ := hu
   have hj0 : j ≠ 0 := fun e => hnz _ hj (by rw [e]; rfl)
   let v := decClockHOLFinite u
   have hjx : j - 1 < us.length := by omega
@@ -109,15 +111,17 @@ theorem ls_step (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL A : BitVec 6
     intro y hy
     obtain ⟨w, hw⟩ := cw y (Or.inr hy)
     rcases hy with rfl | rfl | rfl | rfl | rfl <;> exact ⟨w, by lk [v2, v1, v]; exact hw⟩
-  have hD := lDerived_spec v2 L FL st (lRep_eq hR m0 d0) us[j - 1] (lookup_setVar_same _ _ _)
+  rcases lDerivedC_spec v2 L FL st (lRep_eq hR m0 d0) us[j - 1] (lookup_setVar_same _ _ _)
     (by rw [back _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)
       (by decide)]; exact hdir)
     (by rw [back _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)
       (by decide)]; exact hfl)
     (cw2 lDt (Or.inl rfl)) (cw2 lDg (Or.inr (Or.inl rfl))) (cw2 lDi (Or.inr (Or.inr (Or.inl rfl))))
     (cw2 lDo1 (Or.inr (Or.inr (Or.inr (Or.inl rfl))))) (cw2 lDo2 (Or.inr (Or.inr (Or.inr (Or.inr rfl)))))
+    with hS3 | ⟨hv3, hD⟩
+  · exact Or.inl (seq_stop _ _ _ hS3)
   obtain ⟨hn3, m3, d3, c3, g3, ta3, ck3, o1, o2, fr3, w3c⟩ := hD
-  generalize hs3 : evaluateHOLFiniteState v2 (storeDerived 3 5) = st3 at hn3 m3 d3 c3 g3 ta3 ck3 o1 o2 fr3 w3c
+  generalize hs3 : evaluateHOLFiniteState v2 (storeDerivedC 3 5 badL) = st3 at hn3 m3 d3 c3 g3 ta3 ck3 o1 o2 fr3 w3c
   obtain ⟨r3, w3⟩ := st3
   simp only at hn3 m3 d3 c3 g3 ta3 ck3 o1 o2 fr3 w3c; subst hn3
   rw [seq_normal _ hs3]
@@ -135,8 +139,8 @@ theorem ls_step (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL A : BitVec 6
   rw [ConsLoop.assign_local w4 lLp _ (bit (lsModel st (us.drop (j - 1))).2) _
     (by rw [eval_or2 w4 _ _ _ _ (eval_vv w4 lLp _ lp4) (eval_vv w4 lDo2 _ (by lk [w4]; exact o2)), hdrop]
         simp only [lsModel, bit, dWL]; rw [dWL_cons_snd]; rfl) lp4]
-  refine ⟨rfl, m3.trans m0, d3.trans d0, c3.trans c0, g3.trans g0, ta3.trans ta0,
-    fun y a1 a2 a3 a4 a5 a6 a7 a8 a9 => ?_, fun y hy => ?_, j - 1, by omega, ?_, ?_, by lk⟩
+  refine Or.inr ⟨rfl, m3.trans m0, d3.trans d0, c3.trans c0, g3.trans g0, ta3.trans ta0,
+    fun y a1 a2 a3 a4 a5 a6 a7 a8 a9 => ?_, fun y hy => ?_, j - 1, by omega, ?_, ?_, by lk, fun k hk hjk => ?_⟩
   · lk [w4]; rw [fr3 y a8 a9 a5 a6 a7]; exact back y a1 a2 a3 a4 a5 a6 a7 a8 a9
   · rcases hy with rfl | rfl | rfl | rfl | rfl | rfl
     · exact ⟨Enc.idxW us[j - 1], by lk [w4]; rw [fr3 _ (by decide) (by decide) (by decide) (by decide) (by decide)]; lk [v2]⟩
@@ -147,6 +151,9 @@ theorem ls_step (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL A : BitVec 6
     · exact ⟨_, by lk [w4]; exact o2⟩
   · lk [w4]; rw [fr3 _ (by decide) (by decide) (by decide) (by decide) (by decide)]; lk [v2, v1]
   · lk [w4]; rw [hdrop]; rfl
+  · rcases (by omega : k = j - 1 ∨ j ≤ k) with rfl | h
+    · exact hv3
+    · exact hvk k hk h
 
 end
 
@@ -164,7 +171,8 @@ theorem lsDer_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL A : BitVe
     Stop (evaluateHOLFiniteState t lsDer).1 ∨ ((evaluateHOLFiniteState t lsDer).1 = none ∧
       LsI t L FL A st us (evaluateHOLFiniteState t lsDer).2 ∧
       (evaluateHOLFiniteState t lsDer).2.locals.lookup lLr = some (.val (.word (lsModel st us).1.toBitVec)) ∧
-      (evaluateHOLFiniteState t lsDer).2.locals.lookup lLp = some (.val (.word (bit (lsModel st us).2)))) := by
+      (evaluateHOLFiniteState t lsDer).2.locals.lookup lLp = some (.val (.word (bit (lsModel st us).2))) ∧
+      ∀ c ∈ us, (st.view c).isSome = true) := by
   obtain ⟨wr, hwr⟩ := hlr; obtain ⟨wp, hwp⟩ := hlp
   unfold lsDer
   rw [seq_normal _ (ConsLoop.assign_local t lLr (.const 13) 13 wr (eval_const t 13) hwr)]
@@ -176,11 +184,11 @@ theorem lsDer_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL A : BitVe
       obtain ⟨w, hw⟩ := hw6 y hy
       rcases hy with rfl | rfl | rfl | rfl | rfl | rfl <;> exact ⟨w, by lk [t2, t1]; exact hw⟩,
     us.length, Nat.le_refl _, by lk [t2, t1]; exact hln, by rw [List.drop_length]; lk [t2, t1]; rfl,
-    by rw [List.drop_length]; exact lookup_setVar_same _ _ _⟩
+    by rw [List.drop_length]; exact lookup_setVar_same _ _ _, fun k hk hjk => absurd hjk (by omega)⟩
   have := while_stop (vv lLn) lsStep (LsI t L FL A st us)
     (fun u => LsI t L FL A st us u ∧ u.locals.lookup lLn = some (.val (.word 0)))
     (fun u hu => by
-      obtain ⟨_, _, _, _, _, _, _, j, hj, hjn, _, _⟩ := id hu
+      obtain ⟨_, _, _, _, _, _, _, j, hj, hjn, _, _, _⟩ := id hu
       by_cases h0 : BitVec.ofNat 64 j = 0
       · exact ⟨0, by simp [evalHOLFinite, vv, evalHOLExact, hjn, h0], fun _ => ⟨hu, by rw [hjn, h0]⟩,
           fun e => absurd rfl e⟩
@@ -188,17 +196,20 @@ theorem lsDer_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL A : BitVe
         have := ls_step t L FL A st us hR hW hL hla hdir hfl u hu (fun w hw => by
           rw [hjn] at hw; simp only [Option.some.injEq, ValueHOL.val.injEq, HolWordLab.word.injEq] at hw
           rw [← hw]; exact h0)
-        exact Or.inr this)
+        exact this)
     t2 hI
   rcases this with h | ⟨h1, h2, h3⟩
   · exact Or.inl h
   refine Or.inr ⟨h1, h2, ?_⟩
-  obtain ⟨_, _, _, _, _, _, _, j, hj, hjn, hr, hp⟩ := h2
+  obtain ⟨_, _, _, _, _, _, _, j, hj, hjn, hr, hp, hvk⟩ := h2
   have : j = 0 := by
     rw [hjn] at h3; simp only [Option.some.injEq, ValueHOL.val.injEq, HolWordLab.word.injEq] at h3
     have := congrArg BitVec.toNat h3; simp at this; omega
   subst this
-  rw [List.drop_zero] at hr hp; exact ⟨hr, hp⟩
+  rw [List.drop_zero] at hr hp
+  refine ⟨hr, hp, fun c hc => ?_⟩
+  obtain ⟨k, hk, rfl⟩ := List.mem_iff_getElem.mp hc
+  exact hvk k hk (Nat.zero_le _)
 
 end
 

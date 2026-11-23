@@ -31,7 +31,7 @@ def eInternSort : ProgHOL 64 :=
   .seq (.store (vv lKb) (vv lEu))
   (.seq (.assign .local lFl (vv lFll))
   (.seq (.assign .local lDh (vv lEu))
-  (.seq (storeDerived 3 5)
+  (.seq (storeDerivedC 3 5 badL)
   (.seq (.assign .local lLh (vv lDo1))
   (.seq (.assign .local lLpv (vv lDo2))
   (.seq (.assign .local lDv ExprData.sortDataE)
@@ -154,7 +154,7 @@ theorem eInternSort_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSem
     (ldir : t.locals.lookup lDir = some (.val (.word L.DIR)))
     (lfll : t.locals.lookup lFll = some (.val (.word FLl))) (lfle : t.locals.lookup lFle = some (.val (.word FLe)))
     (hw : ∀ y, y ∈ sortScratch → ∃ w, t.locals.lookup y = some (.val (.word w))) :
-    Stop (evaluateHOLFiniteState t eInternSort).1 ∨
+    (Stop (evaluateHOLFiniteState t eInternSort).1 ∨
       ((evaluateHOLFiniteState t eInternSort).1 =
           some (.returned (.val (.word (Enc.idxW (st.intern (.sort u)).2)))) ∧
         SRep (evaluateHOLFiniteState t eInternSort).2 L FLn FLl FLs FLe (st.intern (.sort u)).1 ∧
@@ -162,7 +162,8 @@ theorem eInternSort_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSem
         (evaluateHOLFiniteState t eInternSort).2.globals = t.globals ∧
         (evaluateHOLFiniteState t eInternSort).2.memaddrs = t.memaddrs ∧
         (evaluateHOLFiniteState t eInternSort).2.topAddr = t.topAddr ∧
-        ∀ c, ¬ inAny L c → c ≠ KB → (evaluateHOLFiniteState t eInternSort).2.memory c = t.memory c) := by
+        ∀ c, ¬ inAny L c → c ≠ KB → (evaluateHOLFiniteState t eInternSort).2.memory c = t.memory c)) ∧
+      (Stop (evaluateHOLFiniteState t eInternSort).1 ∨ ((st.lss.ls.view u).isSome = true)) := by
   have KB0 : KB + BitVec.ofNat 64 (8 * 0) = KB := by simp
   unfold eInternSort
   rw [seq_normal _ (store_word t (vv lKb) (vv lEu) KB (Enc.idxW u) (eval_vv t lKb _ lkb) (eval_vv t lEu _ leu) hkbd)]
@@ -190,15 +191,18 @@ theorem eInternSort_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSem
     intro y hy a1 a2; obtain ⟨w, hw⟩ := W y hy; exact ⟨w, by lk [t3, t2]; exact hw⟩
   have hR3 : SRep t3 L FLn FLl FLs FLe st := srep_frame hR1 ⟨rfl, rfl, rfl, rfl⟩ rfl
     (fun _ _ _ _ => ⟨fun _ _ => rfl, fun _ _ => rfl⟩)
-  have D := lDerived_spec t3 L FLl st.lss.ls hR3.l u (lookup_setVar_same _ _ _) (by lk [t3, t2]; exact ldir)
+  rcases lDerivedC_spec t3 L FLl st.lss.ls hR3.l u (lookup_setVar_same _ _ _) (by lk [t3, t2]; exact ldir)
     (by lk [t3, t2]) (W3 lDt (by decide) (by decide) (by decide)) (W3 lDg (by decide) (by decide) (by decide))
     (W3 lDi (by decide) (by decide) (by decide)) (W3 lDo1 (by decide) (by decide) (by decide))
     (W3 lDo2 (by decide) (by decide) (by decide))
+    with hSD | ⟨hvD, D⟩
+  · exact ⟨Or.inl (seq_stop _ _ _ hSD), Or.inl (seq_stop _ _ _ hSD)⟩
   obtain ⟨n1, m1', d1, c1, g1, ta1, ck1, o1, o2, fr1, wd1⟩ := D
-  generalize hs1 : evaluateHOLFiniteState t3 (storeDerived 3 5) = q1 at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1
+  generalize hs1 : evaluateHOLFiniteState t3 (storeDerivedC 3 5 badL) = q1 at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1
   obtain ⟨q1r, u4⟩ := q1
   simp only at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1; subst n1
   rw [seq_normal _ hs1]
+  refine ⟨?_, Or.inr hvD⟩
   have back : ∀ y, y ≠ lDo1 → y ≠ lDo2 → y ≠ lDt → y ≠ lDg → y ≠ lDi → y ≠ lDh → y ≠ lFl →
       u4.locals.lookup y = t.locals.lookup y := by
     intro y a1 a2 a3 a4 a5 a6 a7; rw [fr1 y a1 a2 a3 a4 a5]; lk [t3, t2]; rfl

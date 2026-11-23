@@ -84,8 +84,9 @@ theorem lsIntern_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSemSta
     (ldir : t.locals.lookup lDir = some (.val (.word L.DIR)))
     (lfll : t.locals.lookup lFll = some (.val (.word FLl))) (lfls : t.locals.lookup lFls = some (.val (.word FLs)))
     (hw : ∀ y, y ∈ lsScratch → ∃ w, t.locals.lookup y = some (.val (.word w))) :
-    XRes t L FLn FLl FLs FLe KB us.length (withLs st (st.lss.intern us).1) (st.lss.intern us).2
-      (evaluateHOLFiniteState t (lsInternWith (rRestE 8 (vv lEc) lFls))) := by
+    (XRes t L FLn FLl FLs FLe KB us.length (withLs st (st.lss.intern us).1) (st.lss.intern us).2
+      (evaluateHOLFiniteState t (lsInternWith (rRestE 8 (vv lEc) lFls)))) ∧
+      (Stop (evaluateHOLFiniteState t (lsInternWith (rRestE 8 (vv lEc) lFls))).1 ∨ (∀ c ∈ us, (st.lss.ls.view c).isSome = true)) := by
   have W : ∀ y, y ∈ lsScratch → ∃ w, t.locals.lookup y = some (.val (.word w)) := hw
   unfold lsInternWith
   obtain ⟨wa, hwa⟩ := W lLa (by decide)
@@ -106,12 +107,13 @@ theorem lsIntern_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSemSta
     (fun y hy => by
       obtain ⟨w, hw⟩ := W y (by rcases hy with rfl | rfl | rfl | rfl | rfl | rfl <;> decide)
       rcases hy with rfl | rfl | rfl | rfl | rfl | rfl <;> exact ⟨w, by lk [t3, t2, t1]; exact hw⟩)
-  rcases D with hs | ⟨hn4, hI4, hr4, hp4⟩
-  · exact Or.inl (seq_stop _ _ _ hs)
+  rcases D with hs | ⟨hn4, hI4, hr4, hp4, hvs⟩
+  · exact ⟨Or.inl (seq_stop _ _ _ hs), Or.inl (seq_stop _ _ _ hs)⟩
   generalize hq : evaluateHOLFiniteState t3 lsDer = q at hn4 hI4 hr4 hp4
   obtain ⟨q1, u4⟩ := q
   simp only at hn4 hI4 hr4 hp4; subst hn4
   rw [seq_normal _ hq]
+  refine ⟨?_, Or.inr hvs⟩
   obtain ⟨m4, d4, c4, g4, ta4, fr4, wd4, _⟩ := hI4
   let dd := st.lss.derOfView us
   have hdd := lsModel_eq ra st.lss us

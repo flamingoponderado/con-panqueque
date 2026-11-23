@@ -159,7 +159,7 @@ prefix handle in `ep` and the number's low word in `nw`. -/
 def nNumWith (rest : ProgHOL 64) : ProgHOL 64 :=
   .seq (.assign .local lFl (vv lFln))
   (.seq (.assign .local lDh (vv lEp))
-  (.seq (storeDerived 0 3)
+  (.seq (storeDerivedC 0 3 badN)
   (.seq (.assign .local lDp (vv lDo1))
   (.seq (.assign .local lDv Der.numDerE)
   (.seq (.assign .local lDv2 (.const 0))
@@ -183,8 +183,9 @@ theorem nInternNum_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSemS
     (ldir : t.locals.lookup lDir = some (.val (.word L.DIR)))
     (lfln : t.locals.lookup lFln = some (.val (.word FLn)))
     (hw : ∀ y, y ∈ numScratch → ∃ w, t.locals.lookup y = some (.val (.word w))) :
-    XRes t L FLn FLl FLs FLe KB (Enc.encNum ⟨p, n⟩).length (withN st (st.lss.ls.ns.intern (.num p n)).1)
-      (st.lss.ls.ns.intern (.num p n)).2 (evaluateHOLFiniteState t (nNumWith (rRestE 2 (vv lEn) lFln))) := by
+    (XRes t L FLn FLl FLs FLe KB (Enc.encNum ⟨p, n⟩).length (withN st (st.lss.ls.ns.intern (.num p n)).1)
+      (st.lss.ls.ns.intern (.num p n)).2 (evaluateHOLFiniteState t (nNumWith (rRestE 2 (vv lEn) lFln)))) ∧
+      (Stop (evaluateHOLFiniteState t (nNumWith (rRestE 2 (vv lEn) lFln))).1 ∨ ((st.lss.ls.ns.view p).isSome = true)) := by
   have W : ∀ y, y ∈ numScratch → ∃ w, t.locals.lookup y = some (.val (.word w)) := hw
   unfold nNumWith
   obtain ⟨wf, hwf⟩ := W lFl (by decide)
@@ -198,15 +199,18 @@ theorem nInternNum_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSemS
     intro y hy a1 a2; obtain ⟨w, hw⟩ := W y hy; exact ⟨w, by lk [t3, t2]; exact hw⟩
   have hR3 : SRep t3 L FLn FLl FLs FLe st := srep_frame hR ⟨rfl, rfl, rfl, rfl⟩ rfl
     (fun _ _ _ _ => ⟨fun _ _ => rfl, fun _ _ => rfl⟩)
-  have D := nDerived_spec t3 L FLn st.lss.ls.ns hR3.n p (lookup_setVar_same _ _ _) (by lk [t3, t2]; exact ldir)
+  rcases nDerivedC_spec t3 L FLn st.lss.ls.ns hR3.n p (lookup_setVar_same _ _ _) (by lk [t3, t2]; exact ldir)
     (by lk [t3, t2]) (W3 lDt (by decide) (by decide) (by decide)) (W3 lDg (by decide) (by decide) (by decide))
     (W3 lDi (by decide) (by decide) (by decide)) (W3 lDo1 (by decide) (by decide) (by decide))
     (W3 lDo2 (by decide) (by decide) (by decide))
+    with hSD | ⟨hvD, D⟩
+  · exact ⟨Or.inl (seq_stop _ _ _ hSD), Or.inl (seq_stop _ _ _ hSD)⟩
   obtain ⟨n1, m1', d1, c1, g1, ta1, ck1, o1, o2, fr1, wd1⟩ := D
-  generalize hs1 : evaluateHOLFiniteState t3 (storeDerived 0 3) = q1 at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1
+  generalize hs1 : evaluateHOLFiniteState t3 (storeDerivedC 0 3 badN) = q1 at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1
   obtain ⟨q1r, u4⟩ := q1
   simp only at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1; subst n1
   rw [seq_normal _ hs1]
+  refine ⟨?_, Or.inr hvD⟩
   have back : ∀ y, y ≠ lDo1 → y ≠ lDo2 → y ≠ lDt → y ≠ lDg → y ≠ lDi → y ≠ lDh → y ≠ lFl →
       u4.locals.lookup y = t.locals.lookup y := by
     intro y a1 a2 a3 a4 a5 a6 a7; rw [fr1 y a1 a2 a3 a4 a5]; lk [t3, t2]
@@ -301,7 +305,7 @@ end
 def nStrTail (rest : ProgHOL 64) : ProgHOL 64 :=
   .seq (.assign .local lFl (vv lFln))
   (.seq (.assign .local lDh (vv lEp))
-  (.seq (storeDerived 0 3)
+  (.seq (storeDerivedC 0 3 badN)
   (.seq (.assign .local lDp (vv lDo1))
   (.seq (.assign .local lDv Der.strDerE)
   (.seq (.assign .local lDv2 (.const 0))
@@ -324,8 +328,9 @@ theorem nStrTail_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSemSta
     (ldir : t.locals.lookup lDir = some (.val (.word L.DIR)))
     (lfln : t.locals.lookup lFln = some (.val (.word FLn)))
     (hw : ∀ y, y ∈ numScratch → ∃ w, t.locals.lookup y = some (.val (.word w))) :
-    XRes t L FLn FLl FLs FLe KB (Enc.encStr ⟨p, s⟩).length (withN st (st.lss.ls.ns.intern (.str p s)).1)
-      (st.lss.ls.ns.intern (.str p s)).2 (evaluateHOLFiniteState t (nStrTail (rRestE 1 (vv lEn) lFln))) := by
+    (XRes t L FLn FLl FLs FLe KB (Enc.encStr ⟨p, s⟩).length (withN st (st.lss.ls.ns.intern (.str p s)).1)
+      (st.lss.ls.ns.intern (.str p s)).2 (evaluateHOLFiniteState t (nStrTail (rRestE 1 (vv lEn) lFln)))) ∧
+      (Stop (evaluateHOLFiniteState t (nStrTail (rRestE 1 (vv lEn) lFln))).1 ∨ ((st.lss.ls.ns.view p).isSome = true)) := by
   have W : ∀ y, y ∈ numScratch → ∃ w, t.locals.lookup y = some (.val (.word w)) := hw
   unfold nStrTail
   obtain ⟨wf, hwf⟩ := W lFl (by decide)
@@ -339,15 +344,18 @@ theorem nStrTail_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSemSta
     intro y hy a1 a2; obtain ⟨w, hw⟩ := W y hy; exact ⟨w, by lk [t3, t2]; exact hw⟩
   have hR3 : SRep t3 L FLn FLl FLs FLe st := srep_frame hR ⟨rfl, rfl, rfl, rfl⟩ rfl
     (fun _ _ _ _ => ⟨fun _ _ => rfl, fun _ _ => rfl⟩)
-  have D := nDerived_spec t3 L FLn st.lss.ls.ns hR3.n p (lookup_setVar_same _ _ _) (by lk [t3, t2]; exact ldir)
+  rcases nDerivedC_spec t3 L FLn st.lss.ls.ns hR3.n p (lookup_setVar_same _ _ _) (by lk [t3, t2]; exact ldir)
     (by lk [t3, t2]) (W3 lDt (by decide) (by decide) (by decide)) (W3 lDg (by decide) (by decide) (by decide))
     (W3 lDi (by decide) (by decide) (by decide)) (W3 lDo1 (by decide) (by decide) (by decide))
     (W3 lDo2 (by decide) (by decide) (by decide))
+    with hSD | ⟨hvD, D⟩
+  · exact ⟨Or.inl (seq_stop _ _ _ hSD), Or.inl (seq_stop _ _ _ hSD)⟩
   obtain ⟨n1, m1', d1, c1, g1, ta1, ck1, o1, o2, fr1, wd1⟩ := D
-  generalize hs1 : evaluateHOLFiniteState t3 (storeDerived 0 3) = q1 at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1
+  generalize hs1 : evaluateHOLFiniteState t3 (storeDerivedC 0 3 badN) = q1 at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1
   obtain ⟨q1r, u4⟩ := q1
   simp only at n1 m1' d1 c1 g1 ta1 ck1 o1 o2 fr1 wd1; subst n1
   rw [seq_normal _ hs1]
+  refine ⟨?_, Or.inr hvD⟩
   have back : ∀ y, y ≠ lDo1 → y ≠ lDo2 → y ≠ lDt → y ≠ lDg → y ≠ lDi → y ≠ lDh → y ≠ lFl →
       u4.locals.lookup y = t.locals.lookup y := by
     intro y a1 a2 a3 a4 a5 a6 a7; rw [fr1 y a1 a2 a3 a4 a5]; lk [t3, t2]
@@ -466,8 +474,9 @@ theorem nInternStr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSemS
     (ldir : t.locals.lookup lDir = some (.val (.word L.DIR)))
     (lfln : t.locals.lookup lFln = some (.val (.word FLn)))
     (hw : ∀ y, y ∈ strScratch → ∃ w, t.locals.lookup y = some (.val (.word w))) :
-    XRes t L FLn FLl FLs FLe KB (Enc.encStr ⟨p, s⟩).length (withN st (st.lss.ls.ns.intern (.str p s)).1)
-      (st.lss.ls.ns.intern (.str p s)).2 (evaluateHOLFiniteState t (nStrWith (rRestE 1 (vv lEn) lFln))) := by
+    (XRes t L FLn FLl FLs FLe KB (Enc.encStr ⟨p, s⟩).length (withN st (st.lss.ls.ns.intern (.str p s)).1)
+      (st.lss.ls.ns.intern (.str p s)).2 (evaluateHOLFiniteState t (nStrWith (rRestE 1 (vv lEn) lFln)))) ∧
+      (Stop (evaluateHOLFiniteState t (nStrWith (rRestE 1 (vv lEn) lFln))).1 ∨ ((st.lss.ls.ns.view p).isSome = true)) := by
   have W : ∀ y, y ∈ strScratch → ∃ w, t.locals.lookup y = some (.val (.word w)) := hw
   let bs := s.toByteArray.data.toList
   have hbl : (Enc.encStr ⟨p, s⟩).length = bs.length + 1 := by simp [Enc.encStr, Enc.strW, bs]
@@ -479,7 +488,7 @@ theorem nInternStr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSemS
       rcases hs with h | ⟨ev, h⟩
       · exact ⟨_, h⟩
       · exact ⟨_, h⟩
-    rw [seq_abort _ _ _ _ hres]; exact Or.inl hs
+    rw [seq_abort _ _ _ _ hres]; exact ⟨Or.inl hs, Or.inl hs⟩
   generalize hy : evaluateHOLFiniteState t strHash = q at hn yp
   obtain ⟨qr, y⟩ := q
   simp only at hn yp; subst hn
@@ -506,6 +515,8 @@ theorem nInternStr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSemS
       obtain ⟨a, b, c, d, e⟩ := nd z hz
       obtain ⟨w, hw⟩ := W z (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ hz)))
       exact ⟨w, by rw [yb z a b c d e]; exact hw⟩)
+  obtain ⟨T, TV⟩ := T
+  refine ⟨?_, TV⟩
   rcases T with hs | ⟨a, b, c, d, e, f, g⟩
   · exact Or.inl hs
   exact Or.inr ⟨a, b, c.trans yc, d.trans yg, e.trans yd, f.trans yt, fun c h1 h2 => by rw [g c h1 h2]; exact congrFun ym c⟩
