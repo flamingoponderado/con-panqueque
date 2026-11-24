@@ -485,4 +485,188 @@ theorem brDef {β : Type} {k : StateD ⊕ RecordVerdict → AM β} {R : β → B
 end
 
 
+section
+variable {F rb capD jN jL jE cap bufJ : Nat} {b : ByteArray}
+
+theorem brBVar {β : Type} {k : StateD ⊕ RecordVerdict → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    {rest : ProgHOL 64} (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
+    (hcB : C.code.lookup fInternBVar = some ([(lIw, .one)], bvarBody, .one))
+    (fL : MlS) (hcL : C.code.lookup fL =
+      some (linePs.map (fun p => (p, ShapeHOL.one)), prologue natL (natLineP exBVarP), .one))
+    (s : AState) (Γ : Env) (M : Mem) (D : List MlS) (hx : kR0 ∈ D) (st : StateD)
+    (hfs : FrontSt C F rb capD jN jL jE cap bufJ b C.H st)
+    (ws0 : BitVec 64) (pl : LinePayload) (hpl : PlOK b (BitVec.ofNat 64 1) ws0 pl) (j0 j' : USize) (ik : UInt8)
+    (idx : Nat) (rec : LineRec) (hle : lineEnd j0 ik idx pl = .ok rec j') (n : Nat) (hn : n ≠ 0) (hi : idx < cap)
+    (h1 : Γ.get fTN = some (cellA C jN)) (h2 : Γ.get fTL = some (cellA C jL)) (h3 : Γ.get fTE = some (cellA C jE))
+    (h4 : Γ.get fCap = some (BitVec.ofNat 64 cap)) (h5 : Γ.get kIx = some (BitVec.ofNat 64 (min idx natCap)))
+    (h6 : Γ.get kS0 = some ws0)
+    (h7 : Γ.get kBA = some (cellA C bufJ)) (h8 : Γ.get kBN = some (BitVec.ofNat 64 b.size))
+    (h9 : Γ.get kRB = some (cellA C rb)) (h10 : Γ.get kCapD = some (BitVec.ofNat 64 capD))
+    (hk : ∀ st' w s' H', FrontSt C F rb capD jN jL jE cap bufJ b H' st' →
+      SpecR (Inv (ctxH C H') s' ((kR0, w) :: Γ) [] D) rest s' (k (.inl st')) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, kR0), none)) fL lineArgs) rest) s
+      (applyLine st rec n >>= k) R := by
+  obtain ⟨kk, a, hm, hta, he⟩ := plOK_tag (by decide) (by decide) hpl
+  obtain rfl := tag_1 hm hta
+  obtain ⟨-, u, rfl, rfl⟩ := he
+  rw [lineEnd_expr hle, applyLine_expr _ _ _ _ hn]
+  simp only [bind_assoc, pure_bind]
+  exact specR_exLineCall kR0 fL natL _ lineArgs _ rfl hx hcL
+    (evAll_lineArgs Γ C jN jL jE cap _ _ bufJ b.size rb capD h1 h2 h3 h4 h5 h6 h7 h8 h9 h10)
+    (natL_none C jN jL jE cap _ _ bufJ b.size rb capD) st idx _ hi hfs
+    (bvarCore ra C hok hcB s st jN jL jE cap rb capD hfs.tE hfs.lay.cap8 bufJ b.size idx u)
+    hk
+
+theorem brSort {β : Type} {k : StateD ⊕ RecordVerdict → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    {rest : ProgHOL 64} (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
+    (hcS : C.code.lookup fInternSort = some ([(lEu, .one)], sortBody, .one))
+    (fL : MlS) (hcL : C.code.lookup fL =
+      some (linePs.map (fun p => (p, ShapeHOL.one)), prologue natL (natLineP exSortP), .one))
+    (s : AState) (Γ : Env) (M : Mem) (D : List MlS) (hx : kR0 ∈ D) (st : StateD)
+    (hfs : FrontSt C F rb capD jN jL jE cap bufJ b C.H st)
+    (ws0 : BitVec 64) (pl : LinePayload) (hpl : PlOK b (BitVec.ofNat 64 2) ws0 pl) (j0 j' : USize) (ik : UInt8)
+    (idx : Nat) (rec : LineRec) (hle : lineEnd j0 ik idx pl = .ok rec j') (n : Nat) (hn : n ≠ 0) (hi : idx < cap)
+    (h1 : Γ.get fTN = some (cellA C jN)) (h2 : Γ.get fTL = some (cellA C jL)) (h3 : Γ.get fTE = some (cellA C jE))
+    (h4 : Γ.get fCap = some (BitVec.ofNat 64 cap)) (h5 : Γ.get kIx = some (BitVec.ofNat 64 (min idx natCap)))
+    (h6 : Γ.get kS0 = some ws0)
+    (h7 : Γ.get kBA = some (cellA C bufJ)) (h8 : Γ.get kBN = some (BitVec.ofNat 64 b.size))
+    (h9 : Γ.get kRB = some (cellA C rb)) (h10 : Γ.get kCapD = some (BitVec.ofNat 64 capD))
+    (hk : ∀ st' w s' H', FrontSt C F rb capD jN jL jE cap bufJ b H' st' →
+      SpecR (Inv (ctxH C H') s' ((kR0, w) :: Γ) [] D) rest s' (k (.inl st')) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, kR0), none)) fL lineArgs) rest) s
+      (applyLine st rec n >>= k) R := by
+  obtain ⟨kk, a, hm, hta, he⟩ := plOK_tag (by decide) (by decide) hpl
+  obtain rfl := tag_2 hm hta
+  obtain ⟨-, u, rfl, rfl⟩ := he
+  rw [lineEnd_expr hle, applyLine_expr _ _ _ _ hn]
+  simp only [bind_assoc, pure_bind]
+  exact specR_exLineCall kR0 fL natL _ lineArgs _ rfl hx hcL
+    (evAll_lineArgs Γ C jN jL jE cap _ _ bufJ b.size rb capD h1 h2 h3 h4 h5 h6 h7 h8 h9 h10)
+    (natL_none C jN jL jE cap _ _ bufJ b.size rb capD) st idx _ hi hfs
+    (sortCore ra C hok hcS s st jN jL jE cap rb capD hfs.tE hfs.tL hfs.lay.cap8 bufJ b.size idx u)
+    hk
+
+theorem brSucc {β : Type} {k : StateD ⊕ RecordVerdict → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    {rest : ProgHOL 64} (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
+    (hcS : C.code.lookup fInternLSucc = some ([(lEu, .one)], internLSuccBody, .one))
+    (fL : MlS) (hcL : C.code.lookup fL =
+      some (linePs.map (fun p => (p, ShapeHOL.one)), prologue natL (natLineP lvSuccP), .one))
+    (s : AState) (Γ : Env) (M : Mem) (D : List MlS) (hx : kR0 ∈ D) (st : StateD)
+    (hfs : FrontSt C F rb capD jN jL jE cap bufJ b C.H st)
+    (ws0 : BitVec 64) (pl : LinePayload) (hpl : PlOK b (BitVec.ofNat 64 3) ws0 pl) (j0 j' : USize) (ik : UInt8)
+    (idx : Nat) (rec : LineRec) (hle : lineEnd j0 ik idx pl = .ok rec j') (n : Nat) (hn : n ≠ 0) (hi : idx < cap)
+    (h1 : Γ.get fTN = some (cellA C jN)) (h2 : Γ.get fTL = some (cellA C jL)) (h3 : Γ.get fTE = some (cellA C jE))
+    (h4 : Γ.get fCap = some (BitVec.ofNat 64 cap)) (h5 : Γ.get kIx = some (BitVec.ofNat 64 (min idx natCap)))
+    (h6 : Γ.get kS0 = some ws0)
+    (h7 : Γ.get kBA = some (cellA C bufJ)) (h8 : Γ.get kBN = some (BitVec.ofNat 64 b.size))
+    (h9 : Γ.get kRB = some (cellA C rb)) (h10 : Γ.get kCapD = some (BitVec.ofNat 64 capD))
+    (hk : ∀ st' w s' H', FrontSt C F rb capD jN jL jE cap bufJ b H' st' →
+      SpecR (Inv (ctxH C H') s' ((kR0, w) :: Γ) [] D) rest s' (k (.inl st')) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, kR0), none)) fL lineArgs) rest) s
+      (applyLine st rec n >>= k) R := by
+  obtain ⟨kk, a, hm, hta, he⟩ := plOK_tag (by decide) (by decide) hpl
+  obtain rfl := tag_3 hm hta
+  obtain ⟨-, u, rfl, rfl⟩ := he
+  rw [lineEnd_level hle, applyLine_level _ _ _ _ hn]
+  simp only [bind_assoc, pure_bind]
+  exact specR_lvLineCall kR0 fL natL _ lineArgs _ rfl hx hcL
+    (evAll_lineArgs Γ C jN jL jE cap _ _ bufJ b.size rb capD h1 h2 h3 h4 h5 h6 h7 h8 h9 h10)
+    (natL_none C jN jL jE cap _ _ bufJ b.size rb capD) st idx _ hi hfs
+    (succCore ra C hok hcS s st jN jL jE cap rb capD hfs.tL hfs.lay.cap8 bufJ b.size idx u)
+    hk
+
+theorem brParam {β : Type} {k : StateD ⊕ RecordVerdict → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    {rest : ProgHOL 64} (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
+    (hcP : C.code.lookup fInternLParam = some ([(lEn, .one)], internLParamBody, .one))
+    (fL : MlS) (hcL : C.code.lookup fL =
+      some (linePs.map (fun p => (p, ShapeHOL.one)), prologue natL (natLineP lvParamP), .one))
+    (s : AState) (Γ : Env) (M : Mem) (D : List MlS) (hx : kR0 ∈ D) (st : StateD)
+    (hfs : FrontSt C F rb capD jN jL jE cap bufJ b C.H st)
+    (ws0 : BitVec 64) (pl : LinePayload) (hpl : PlOK b (BitVec.ofNat 64 4) ws0 pl) (j0 j' : USize) (ik : UInt8)
+    (idx : Nat) (rec : LineRec) (hle : lineEnd j0 ik idx pl = .ok rec j') (n : Nat) (hn : n ≠ 0) (hi : idx < cap)
+    (h1 : Γ.get fTN = some (cellA C jN)) (h2 : Γ.get fTL = some (cellA C jL)) (h3 : Γ.get fTE = some (cellA C jE))
+    (h4 : Γ.get fCap = some (BitVec.ofNat 64 cap)) (h5 : Γ.get kIx = some (BitVec.ofNat 64 (min idx natCap)))
+    (h6 : Γ.get kS0 = some ws0)
+    (h7 : Γ.get kBA = some (cellA C bufJ)) (h8 : Γ.get kBN = some (BitVec.ofNat 64 b.size))
+    (h9 : Γ.get kRB = some (cellA C rb)) (h10 : Γ.get kCapD = some (BitVec.ofNat 64 capD))
+    (hk : ∀ st' w s' H', FrontSt C F rb capD jN jL jE cap bufJ b H' st' →
+      SpecR (Inv (ctxH C H') s' ((kR0, w) :: Γ) [] D) rest s' (k (.inl st')) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, kR0), none)) fL lineArgs) rest) s
+      (applyLine st rec n >>= k) R := by
+  obtain ⟨kk, a, hm, hta, he⟩ := plOK_tag (by decide) (by decide) hpl
+  obtain rfl := tag_4 hm hta
+  obtain ⟨-, u, rfl, rfl⟩ := he
+  rw [lineEnd_level hle, applyLine_level _ _ _ _ hn]
+  simp only [bind_assoc, pure_bind]
+  exact specR_lvLineCall kR0 fL natL _ lineArgs _ rfl hx hcL
+    (evAll_lineArgs Γ C jN jL jE cap _ _ bufJ b.size rb capD h1 h2 h3 h4 h5 h6 h7 h8 h9 h10)
+    (natL_none C jN jL jE cap _ _ bufJ b.size rb capD) st idx _ hi hfs
+    (paramCore ra C hok hcP s st jN jL jE cap rb capD hfs.tL hfs.tN hfs.lay.cap8 bufJ b.size idx u)
+    hk
+
+theorem brMax {β : Type} {k : StateD ⊕ RecordVerdict → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    {rest : ProgHOL 64} (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hnc : ∀ t : PState σ, t.code = C.code → NnCodes t) (hcN : C.code.lookup fNth = some ([(sB, .one), (sN, .one), (sI, .one), (sL, .one)], nnFun, .one))
+    (hcM : C.code.lookup fInternLMax = some ([(lEu, .one), (lEv, .one)], internLMaxBody, .one))
+    (fL : MlS) (hcL : C.code.lookup fL =
+      some (linePs.map (fun p => (p, ShapeHOL.one)), prologue pairL (lvPairLineP fInternLMax), .one))
+    (s : AState) (Γ : Env) (M : Mem) (D : List MlS) (hx : kR0 ∈ D) (st : StateD)
+    (hfs : FrontSt C F rb capD jN jL jE cap bufJ b C.H st)
+    (ws0 : BitVec 64) (pl : LinePayload) (hpl : PlOK b (BitVec.ofNat 64 18) ws0 pl) (j0 j' : USize) (ik : UInt8)
+    (idx : Nat) (rec : LineRec) (hle : lineEnd j0 ik idx pl = .ok rec j') (n : Nat) (hn : n ≠ 0) (hi : idx < cap)
+    (h1 : Γ.get fTN = some (cellA C jN)) (h2 : Γ.get fTL = some (cellA C jL)) (h3 : Γ.get fTE = some (cellA C jE))
+    (h4 : Γ.get fCap = some (BitVec.ofNat 64 cap)) (h5 : Γ.get kIx = some (BitVec.ofNat 64 (min idx natCap)))
+    (h6 : Γ.get kS0 = some ws0)
+    (h7 : Γ.get kBA = some (cellA C bufJ)) (h8 : Γ.get kBN = some (BitVec.ofNat 64 b.size))
+    (h9 : Γ.get kRB = some (cellA C rb)) (h10 : Γ.get kCapD = some (BitVec.ofNat 64 capD))
+    (hk : ∀ st' w s' H', FrontSt C F rb capD jN jL jE cap bufJ b H' st' →
+      SpecR (Inv (ctxH C H') s' ((kR0, w) :: Γ) [] D) rest s' (k (.inl st')) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, kR0), none)) fL lineArgs) rest) s
+      (applyLine st rec n >>= k) R := by
+  obtain ⟨kk, a, hm, hta, he⟩ := plOK_tag (by decide) (by decide) hpl
+  obtain rfl := tag_18 hm hta
+  obtain ⟨-, v, e, hs0, rfl⟩ := he
+  obtain ⟨x, y, rfl, hs⟩ := levMax_ok hs0
+  rw [lineEnd_level hle, applyLine_level _ _ _ _ hn]
+  simp only [bind_assoc, pure_bind]
+  have hbuf : BufOK C bufJ b := by have := hfs.buf; rwa [ctxH_self] at this
+  exact specR_lvLineCall kR0 fL pairL _ lineArgs _ rfl hx hcL
+    (evAll_lineArgs Γ C jN jL jE cap _ _ bufJ b.size rb capD h1 h2 h3 h4 h5 h6 h7 h8 h9 h10)
+    (pairL_none C jN jL jE cap _ _ bufJ b.size rb capD) st idx _ hi hfs
+    (maxCore ra C hok hnc hcN hcM s st jN jL jE cap rb capD hfs.tL hfs.lay.cap8 bufJ b hbuf v e x y idx hs)
+    hk
+
+theorem brImax {β : Type} {k : StateD ⊕ RecordVerdict → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    {rest : ProgHOL 64} (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hnc : ∀ t : PState σ, t.code = C.code → NnCodes t) (hcN : C.code.lookup fNth = some ([(sB, .one), (sN, .one), (sI, .one), (sL, .one)], nnFun, .one))
+    (hcM : C.code.lookup fInternLImax = some ([(lEu, .one), (lEv, .one)], internLImaxBody, .one))
+    (fL : MlS) (hcL : C.code.lookup fL =
+      some (linePs.map (fun p => (p, ShapeHOL.one)), prologue pairL (lvPairLineP fInternLImax), .one))
+    (s : AState) (Γ : Env) (M : Mem) (D : List MlS) (hx : kR0 ∈ D) (st : StateD)
+    (hfs : FrontSt C F rb capD jN jL jE cap bufJ b C.H st)
+    (ws0 : BitVec 64) (pl : LinePayload) (hpl : PlOK b (BitVec.ofNat 64 19) ws0 pl) (j0 j' : USize) (ik : UInt8)
+    (idx : Nat) (rec : LineRec) (hle : lineEnd j0 ik idx pl = .ok rec j') (n : Nat) (hn : n ≠ 0) (hi : idx < cap)
+    (h1 : Γ.get fTN = some (cellA C jN)) (h2 : Γ.get fTL = some (cellA C jL)) (h3 : Γ.get fTE = some (cellA C jE))
+    (h4 : Γ.get fCap = some (BitVec.ofNat 64 cap)) (h5 : Γ.get kIx = some (BitVec.ofNat 64 (min idx natCap)))
+    (h6 : Γ.get kS0 = some ws0)
+    (h7 : Γ.get kBA = some (cellA C bufJ)) (h8 : Γ.get kBN = some (BitVec.ofNat 64 b.size))
+    (h9 : Γ.get kRB = some (cellA C rb)) (h10 : Γ.get kCapD = some (BitVec.ofNat 64 capD))
+    (hk : ∀ st' w s' H', FrontSt C F rb capD jN jL jE cap bufJ b H' st' →
+      SpecR (Inv (ctxH C H') s' ((kR0, w) :: Γ) [] D) rest s' (k (.inl st')) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, kR0), none)) fL lineArgs) rest) s
+      (applyLine st rec n >>= k) R := by
+  obtain ⟨kk, a, hm, hta, he⟩ := plOK_tag (by decide) (by decide) hpl
+  obtain rfl := tag_19 hm hta
+  obtain ⟨-, v, e, hs0, rfl⟩ := he
+  obtain ⟨x, y, rfl, hs⟩ := levImax_ok hs0
+  rw [lineEnd_level hle, applyLine_level _ _ _ _ hn]
+  simp only [bind_assoc, pure_bind]
+  have hbuf : BufOK C bufJ b := by have := hfs.buf; rwa [ctxH_self] at this
+  exact specR_lvLineCall kR0 fL pairL _ lineArgs _ rfl hx hcL
+    (evAll_lineArgs Γ C jN jL jE cap _ _ bufJ b.size rb capD h1 h2 h3 h4 h5 h6 h7 h8 h9 h10)
+    (pairL_none C jN jL jE cap _ _ bufJ b.size rb capD) st idx _ hi hfs
+    (imaxCore ra C hok hnc hcN hcM s st jN jL jE cap rb capD hfs.tL hfs.lay.cap8 bufJ b hbuf v e x y idx hs)
+    hk
+
+end
+
+
 end ConPanqueque.Front
