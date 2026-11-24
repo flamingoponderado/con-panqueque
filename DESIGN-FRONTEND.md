@@ -181,3 +181,18 @@ Next:
 - `const` (the level list key, `internLs`), `natVal` (limbs from the digits), `strVal`.
 - Declarations (`parseCVD`, `pushDecl` into the `RecOK` block), `applyLine` with placement,
   `feedChunk`, the chunk reads, the prelude, pins, the code table, the harness, the top theorem.
+
+### Interning status (1b825bd)
+
+All `Front/` rules are SpecR rules against the twin's entry functions:
+- names `str`/`num` (`parseNameEntryD`);
+- levels: all kinds;
+- expressions: all but `natVal`/`strVal` (`const` via `nnFun`, a count loop and the key fill loop);
+- `def` declarations (`processLineCoreD`), into a registry of records in the `RecOK` layout
+  (`RecEnc`, `DeclsRel`).
+
+Byte reads are byte-order independent (`byteE`), so scanners can be called from the `Inv` world.
+
+Still to come: `thm`/`opaque` (`dfP` minus safety and hint), `natVal`/`strVal`, the
+`applyLine` dispatcher with placement, `feedChunk` and the chunk reads, init, prelude, pins, the
+code table, the harness and the top theorem.
