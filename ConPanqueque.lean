@@ -391,3 +391,5 @@ import ConPanqueque.Scan.RecFuns
 import ConPanqueque.Scan.RecEnds
 import ConPanqueque.Scan.LineFun
 import ConPanqueque.Scan.Braced
+import ConPanqueque.Front.Buf
+import ConPanqueque.Front.Tbl
