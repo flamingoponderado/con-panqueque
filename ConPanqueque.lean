@@ -1,5 +1,6 @@
 import ConPanqueque.Basic
 import ConPanqueque.Logic.Basic
+import ConPanqueque.Logic.Byte
 import ConPanqueque.Logic.Sep
 import ConPanqueque.Logic.Stop
 import ConPanqueque.Alloc
