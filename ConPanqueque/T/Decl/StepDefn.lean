@@ -46,6 +46,8 @@ structure DeclCodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
   strF : C.code.lookup fStrF = some (([] : List MlS).map (fun p => (p, ShapeHOL.one)), strFBody C, .one)
   flags : C.code.lookup fFlags = some (([] : List MlS).map (fun p => (p, ShapeHOL.one)), flBody, .one)
   rsm : C.code.lookup fRsm = some (rmParams.map (fun p => (p, ShapeHOL.one)), rsmBody, .one)
+  th : C.code.lookup fTh = some (thParams.map (fun p => (p, ShapeHOL.one)), thBody C, .one)
+  eqv : C.code.lookup LLeq.fEqv = some ([LEq.pLa, LEq.pLb].map (fun p => (p, ShapeHOL.one)), LLeq.eqvBody, .one)
 
 theorem natOpNames_list {C : Ctx} (hok : CtxOK C) {s : AState} (hp : s.pins = C.pins) (n : NIdx) :
     (natOpNames >>= fun l => (pure (l.contains n) : AM Bool)) s = .ok (pinIn C 14 21 n, s) := by
@@ -368,5 +370,40 @@ theorem kd_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ctx)
     by unfold LitsPinned; rw [IFEnv.push_base]; exact hL⟩)
 
 end
+
+
+/-- An opaque's value check returns the opaque as an axiom. -/
+theorem checkOpaqueVal_ci {mode : ConLeche.CheckMode} {fe : IFEnv} {cv : IConstantVal} {v : EIdx}
+    {s s' : AState} {ci : IConstantInfo}
+    (h : checkOpaqueVal mode fe cv v s = .ok (ci, s')) : ci = .axiomInfo cv := by
+  have e : checkOpaqueVal mode fe cv v = (do
+      valueGuards fe cv v
+      let vtype ← inferTypeCore mode fe checkFuel 0 v
+      unless ← isDefEqCore mode fe checkFuel 0 vtype cv.type do
+        fail (.invalid "type mismatch in opaque")) >>= fun _ => pure (.axiomInfo cv) := by
+    unfold checkOpaqueVal; simp only [bind_assoc]
+    congr 1; funext _; congr 1; funext _; congr 1; funext x
+    split <;> simp
+  rw [e] at h
+  exact ok_of_bind_pure h
+
+/-- A theorem's check returns the theorem. -/
+theorem checkThmVal_ci {mode : ConLeche.CheckMode} {fe : IFEnv} {cv : IConstantVal} {v : EIdx}
+    {s s' : AState} {ci : IConstantInfo}
+    (h : checkThmVal mode fe cv v s = .ok (ci, s')) : ci = .thmInfo cv := by
+  have e : checkThmVal mode fe cv v = (do
+      let stype ← inferTypeCore mode fe checkFuel 0 cv.type
+      let u ← ensureSortCore mode fe checkFuel 0 stype
+      let z ← zeroLevel
+      unless ← liftFueled "level comparison" (← lvlEq? u z) do
+        fail (.invalid "type of theorem is not a proposition")
+      valueGuards fe cv v
+      let vtype ← inferTypeCore mode fe checkFuel 0 v
+      unless ← isDefEqCore mode fe checkFuel 0 vtype cv.type do
+        fail (.invalid "type mismatch in theorem")) >>= fun _ => pure (.thmInfo cv) := by
+    unfold checkThmVal
+    simp only [bind_assoc, ite_bindM, pure_bind]
+  rw [e] at h
+  exact ok_of_bind_pure h
 
 end ConPanqueque.T.Decl
