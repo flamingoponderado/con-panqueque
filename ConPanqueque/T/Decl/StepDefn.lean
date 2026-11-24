@@ -132,4 +132,241 @@ theorem checkDefnVal_ci {mode : ConLeche.CheckMode} {fe : IFEnv} {cv : IConstant
   rw [e] at h
   exact ok_of_bind_pure h
 
+
+def kdQ := ofString "kd_q"
+def kdV := ofString "kd_v"
+def kdHn := ofString "kd_h"
+def kdN := ofString "kd_n"
+def kdX := ofString "kd_x"
+def kdL := ofString "kd_l"
+def kdLn := ofString "kd_ln"
+def kdParams : List MlS := [kdQ, kdV, kdHn]
+def kdLocals : List MlS := [kdN, kdX, kdL, kdLn, lJ0]
+
+/-- `checkDecl` at a definition (its constant value at `kdQ`, value `kdV`, hint `kdHn`). -/
+def kdBody (C : Ctx) : ProgHOL 64 := prologue kdLocals
+  (.seq (.assign .local kdN (.load .one (vv kdQ)))
+  (callR kdX fCcv [vv kdQ, .const 1, .const 0, .const 0]
+  (callR kdX fDv [vv kdQ, vv kdV]
+  (callR kdX fPim [vv kdN, .const 14, .const 21]
+  (.ite (.cmp .notEqual (vv kdX) (.const 0)) rejectP
+  (callR kdX fPim [vv kdN, .const 21, .const 29]
+  (.ite (.cmp .notEqual (vv kdX) (.const 0)) rejectP
+  (callR kdX fInst [.const 1, vv kdQ, vv kdV, vv kdHn]
+  (callR kdX fFlags []
+  (flushCode C (flushRegions false)
+  (.seq (.assign .local kdL (.load .one (.const (ecell C (C.PO + pinCount + 4)))))
+  (.seq (.assign .local kdLn (.load .one (vv kdL)))
+  (callR kdX fRsm [vv kdN, vv kdL, .const 0, vv kdLn]
+  (.ite (.cmp .notEqual (vv kdX) (.const 0)) rejectP (.return (.const 0))))))))))))))))
+
+theorem ite_bindM {α β : Type} (c : Prop) [Decidable c] (F K : AM α) (f : α → AM β) :
+    ((if c then F else K) >>= f) = if c then F >>= f else K >>= f := by split <;> rfl
+
+/-- The context after a record: its environment, images and heap. -/
+def ctxNew (C : Ctx) (fe : IFEnv) (EH : List (BitVec 64)) (envM : Std.HashMap NIdx (BitVec 64))
+    (H : List (BitVec 64)) : Ctx := { C with fe := fe, EH := EH, envM := envM, H := H }
+
+section
+variable {σ : Type}
+
+/-- After a record: the next context is well formed and related, with the fold's invariants. -/
+def PostStep (C : Ctx) (fe : IFEnv) (_ : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
+  ∃ EH envM H, C.EH <+: EH ∧ C.H <+: H ∧ CtxOK (ctxNew C fe EH envM H) ∧ SR (ctxNew C fe EH envM H) s' st ∧
+    TblGate fe ∧ FlagsOK fe ∧ LitsPinned fe C.pins
+
+theorem postStep_locals (C : Ctx) : ∀ a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
+    PostStep C a w s' st → PostStep C a w s' { st with locals := L } :=
+  fun _ _ _ _ _ ⟨EH, envM, H, h1, h2, h3, h4, h5⟩ => ⟨EH, envM, H, h1, h2, h3, sr_of_eq h4 rfl rfl rfl rfl, h5⟩
+
+theorem kd_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ kdLocals → (ctxEnv C ++ kdParams.zip vals).get x = none :=
+  Knot.params_none C kdLocals kdParams vals (by decide) (by decide)
+
+set_option maxHeartbeats 2000000 in
+/-- **`checkDecl` at a definition**. -/
+theorem kd_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ctx) (hok : CtxOK C)
+    (hc : DeclCodes mode C) (ra : ConPanqueque.Hash.RuntimeAssumptions) (hs : C.side = false)
+    (hpl : C.saved = none) (hg : TblGate C.fe) (hF : FlagsOK C.fe) (hL : LitsPinned C.fe C.pins)
+    (cv : IConstantVal) (v : EIdx) (hint : ConLeche.ReducibilityHint) (q o : Nat)
+    (hn : C.H[q]? = some (Enc.idxW cv.name)) (hl : C.H[q + 1]? = some (cellA C o))
+    (ht : C.H[q + 2]? = some (Enc.idxW cv.type)) (hb : BlkAt C.H o (cv.levelParams.map Enc.idxW))
+    (hlen : cv.levelParams.length < 2 ^ 59) (ks : List ConLeche.Name) (hkl : ks.length = cv.levelParams.length)
+    (hks : ∀ j (hj : j < cv.levelParams.length), denoteN C.St.ns cv.levelParams[j] = some (ks[j]'(by omega)))
+    (htyD : (denoteE C.St cv.type).isSome = true) (hvD : (denoteE C.St v).isSome = true)
+    (hhint : hintN hint < 2 ^ 63) (s : AState) :
+    SpecR (σ := σ) (Pre C s (kdParams.zip [cellA C q, Enc.idxW v, BitVec.ofNat 64 (hintN hint)])) (kdBody C) s
+      (checkDecl mode pins C.fe (.defnDecl cv v hint)) (PostStep C) := by
+  refine specR_prologue (postStep_locals C) (kd_none C _) ?_
+  unfold checkDecl checkDeclKind
+  dsimp only
+  simp only [bind_assoc]
+  refine UD.specR_heapLoadI' (C := C) kdN _ q _ hn (by decide) (by simp +decide [Env.get, kdParams, ctxEnv]) ?_
+  -- the front door
+  refine specR_callNIH (C := C) kdX fCcv ccvParams [vv kdQ, .const 1, .const 0, .const 0] (ccvBody C)
+    [cellA C q, boolW true, boolW false, boolW false] (by decide) rfl (by decide) hc.ccv
+    ⟨(by simp +decide [Env.get, kdParams, ctxEnv]), rfl, rfl, rfl, trivial⟩
+    (fun a w s' st => checkConstantVal mode C.fe cv true false false s = .ok (a, s') ∧ PostU C a w s' st)
+    (fun a w s' H' => checkConstantVal mode C.fe cv true false false s = .ok (a, s'))
+    (fun a w s' st ⟨hrun, H', hp', hsr⟩ => ⟨H', hp', hrun, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ccvParams _ rfl hlk)
+      (specR_run (ccv_full mode C hok hc.k.g hc.k.p hc.pim ra hs hc.k hc.ac hc.lso hc.lsoc hc.ndh hc.ndg hc.lbb hc.cB
+        hc.bvb hc.hf hc.cF hc.fvb hc.atc hc.al hc.crff hc.crf hc.ens C.fe rfl cv true false false q o hn hl ht hb
+        (by omega) ks hkl hks s)))
+    (fun _ w s1 H1 hp1 hrun1 => ?_)
+  have hnew := ccv_fresh hrun1
+  have hok1 := ctxOK_H hok H1
+  -- the value check
+  refine specR_callNIH (C := ctxH C H1) kdX fDv dvParams [vv kdQ, vv kdV] dvBody [cellA C q, Enc.idxW v]
+    (by decide) rfl (by decide) hc.dv ⟨(by simp +decide [Env.get, kdParams, ctxEnv]), (by simp +decide [Env.get, kdParams, ctxEnv]), trivial⟩
+    (fun a w s' st => checkDefnVal mode C.fe cv v hint s1 = .ok (a, s') ∧ PostCI (ctxH C H1) a w s' st)
+    (fun a w s' H' => checkDefnVal mode C.fe cv v hint s1 = .ok (a, s'))
+    (fun a w s' st ⟨hrun, H', hp', hsr⟩ => ⟨H', hp', hrun, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu dvParams _ rfl hlk)
+      (specR_run (defn_spec mode (ctxH C H1) hok1 ra hs (kcodes_H hc.k H1) (allCodes_H hc.ac H1) hc.vg cv v q
+        (fun H s' hp => vg_spec (ctxH C H) (ctxOK_H hok H) hc.lbb (by ctx_tr hc.cB) hc.bvb hc.hf (by ctx_tr hc.cF) hc.fvb
+          hc.atc (by ctx_tr hc.al) hc.crff (by ctx_tr hc.crf) C.fe rfl cv v q o (get_prefix hl (hp1.trans hp))
+          (blkAt_mono hb (hp1.trans hp)) (by omega) ks hkl hks s')
+        (get_prefix ht hp1) hint s1)))
+    (fun ci w s2 H2 hp2 hrun2 => ?_)
+  have hci := checkDefnVal_ci hrun2
+  subst hci
+  have hp12 : C.H <+: H2 := hp1.trans hp2
+  have hok2 := ctxOK_H hok H2
+  -- the pinned Nat operations: the port stops at them
+  refine specR_atEntry fun t2 ht2 => ?_
+  have hpins := ht2.sr.pins
+  refine specR_runBind (natOpNames_run hok2 hpins) ?_
+  rw [ite_bindM]
+  unfold natOpsL
+  rw [rangeL_contains]
+  refine specR_callPure (C := ctxH C H2) kdX fPim pmParams [vv kdN, .const 14, .const 21] (pimBody C)
+    [Enc.idxW cv.name, BitVec.ofNat 64 14, BitVec.ofNat 64 21] (pinIn C 14 21 cv.name) (by decide) rfl (by decide) hc.pim
+    ⟨(by simp +decide [Env.get, kdParams, ctxEnv]), rfl, rfl, trivial⟩ (PostB (ctxH C H2)) (fun b w _ _ => w = boolW b)
+    (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu pmParams _ rfl hlk)
+      (pim_spec C hok hc.pim s2 cv.name 21 (by decide) _ 14 H2 hp12 rfl (by omega)))
+    (fun w H3 hp3 hw => ?_)
+  subst hw
+  refine specR_failIteT (c := pinIn C 14 21 cv.name) _ (boolW (pinIn C 14 21 cv.name))
+    (by simp +decide [sev, Env.get]; exact nez_b _) (boolW_ne _) (boolW_eq _) (fun _ => ?_)
+  simp only [pure_bind, bind_assoc]
+  refine specR_runBind (divModNames_run (ctxOK_H hok H3) hpins) ?_
+  unfold divModsL
+  rw [rangeL_contains]
+  have hp13 : C.H <+: H3 := hp12.trans hp3
+  refine specR_callPure (C := ctxH C H3) kdX fPim pmParams [vv kdN, .const 21, .const 29] (pimBody C)
+    [Enc.idxW cv.name, BitVec.ofNat 64 21, BitVec.ofNat 64 29] (pinIn C 21 29 cv.name) (by decide) rfl (by decide) hc.pim
+    ⟨(by simp +decide [Env.get, kdParams, ctxEnv]), rfl, rfl, trivial⟩ (PostB (ctxH C H3)) (fun b w _ _ => w = boolW b)
+    (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu pmParams _ rfl hlk)
+      (pim_spec C hok hc.pim s2 cv.name 29 (by decide) _ 21 H3 hp13 rfl (by omega)))
+    (fun w H4 hp4 hw => ?_)
+  subst hw
+  rw [ite_bindM]
+  refine specR_failIteT (c := pinIn C 21 29 cv.name) _ (boolW (pinIn C 21 29 cv.name))
+    (by simp +decide [sev, Env.get]; exact nez_b _) (boolW_ne _) (boolW_eq _) (fun _ => ?_)
+  -- install
+  have hp14 : C.H <+: H4 := hp13.trans hp4
+  have hok4 := ctxOK_H hok H4
+  have hden : NewDen (.defnInfo cv v hint) s2.store := by
+    refine ⟨fun n hn' => ?_, denoteE_isSome_ext ht2.sr.floor htyD, by show cv.levelParams.length + 1 < 2 ^ 60; omega,
+      fun cv' v' h' e => by cases e; exact denoteE_isSome_ext ht2.sr.floor hvD, fun _ _ e => by cases e⟩
+    obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem hn'
+    exact Option.isSome_iff_exists.mpr ⟨_, denoteN_ext (hks j hj) ht2.sr.floor⟩
+  refine specR_callNC (C := ctxH C H4) (D := ctxLocals ++ kdLocals) kdX fInst inParams
+    [.const 1, vv kdQ, vv kdV, vv kdHn] (instBody C)
+    [1, cellA C q, Enc.idxW v, BitVec.ofNat 64 (hintN hint)] (by decide) rfl (by decide) hc.inst ?_
+    (fun a w s' st => (pure (C.fe.push (.defnInfo cv v hint)) : AM IFEnv) s2 = .ok (a, s') ∧
+      PostInst (ctxH C H4) (.defnInfo cv v hint) a w s' st)
+    (fun a w s' C' => s' = s2 ∧ a = C.fe.push (.defnInfo cv v hint) ∧ ∃ EH ox, C' = ctxIns (ctxH C H4)
+        ((C.fe.push (.defnInfo cv v hint)).setFlags C.fe.natLit C.fe.strLit) EH
+        (C.envM.insert cv.name (ecell C ox)) ∧ C.EH <+: EH ∧ CIE C.EB EH ox (.defnInfo cv v hint))
+    (fun a w s' st ⟨hrun, ⟨EH, ox, hpE, hcie, hsr⟩⟩ => by
+      simp only [pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at hrun
+      exact ⟨_, ⟨hrun.2.symm, hrun.1.symm, EH, ox, rfl, hpE, hcie⟩, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu inParams _ rfl hlk)
+      (specR_run (inst_spec (ctxH C H4) hok4 hc.cp hc.k.s hc.k.i s2 (.defnInfo cv v hint) q o
+        (get_prefix hn hp14) (get_prefix hl hp14) (get_prefix ht hp14) (blkAt_mono hb hp14)
+        (by show cv.levelParams.length < 2 ^ 60; omega)
+        1 (Enc.idxW v) (BitVec.ofNat 64 (hintN hint)) (fun EH ox b h => cie_defn hhint h) hg hnew hden
+        (fun _ _ _ _ _ e => by cases e))))
+    (fun a w s3 C3 ⟨hs3, ha, EH, ox, eC, hpE, hcie⟩ => ?_)
+  · exact ⟨rfl, (by simp +decide [Env.get, kdParams, ctxEnv]), (by simp +decide [Env.get, kdParams, ctxEnv]), (by simp +decide [Env.get, kdParams, ctxEnv]), trivial⟩
+  subst eC hs3 ha
+  -- the literal flags
+  set ci : IConstantInfo := .defnInfo cv v hint with hcidef
+  set CI := ctxIns (ctxH C H4) ((C.fe.push ci).setFlags C.fe.natLit C.fe.strLit) EH (C.envM.insert cv.name (ecell C ox))
+    with hCI
+  have hokI : CtxOK CI := ctxOK_ins hok4 hpE hcie (pushOld_find C.fe ci) (pushOld_findTable hg ci hnew)
+  have hfP : ∀ n, (C.fe.push ci).find? n = CI.fe.find? n := fun n => (IFEnv.setFlags_find? _ _ _ n).symm
+  have htP : ∀ n, (C.fe.push ci).findTable? n = CI.fe.findTable? n := fun n => by
+    show _ = ((C.fe.push ci).setFlags C.fe.natLit C.fe.strLit).findTable? n
+    unfold IFEnv.findTable?; rw [IFEnv.setFlags_find?, IFEnv.setFlags_rawTable?]
+  obtain ⟨hfn, hfs⟩ := push_flags_found (C := ctxH C H4) hF hL ci ox EH
+  refine specR_congr (m' := (pure () : AM Unit) >>= fun _ => (pure (C.fe.push ci) >>= fun fe₂ => (do
+      flushCaches
+      let b ← basisNamesOk (IDeclaration.defnDecl cv v hint)
+      if b = true then pure fe₂ else do
+        let e ← basisNamesError (IDeclaration.defnDecl cv v hint)
+        fail e))) rfl ?_
+  refine specR_callNC (C := CI) (D := ctxLocals ++ kdLocals) kdX fFlags [] [] flBody [] (by decide) rfl (by decide)
+    hc.flags trivial (fun a w s' st => PostFl CI (C.fe.push ci) a w s' st ∧ s' = s3)
+    (fun _ w s' C' => s' = s3 ∧ ∃ H5, C' = ctxFe (ctxH CI H5) (C.fe.push ci) ∧ CI.H <+: H5)
+    (fun a w s' st ⟨⟨H5, hp5, hsr⟩, hs'⟩ => ⟨_, ⟨hs', H5, rfl, hp5⟩, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu [] _ rfl hlk)
+      (specR_pureState (fl_spec CI hokI hc.natF hc.strF hc.k.g hc.k.p s3 hfP htP hfn hfs)))
+    (fun _ w s4 C4 ⟨hs4, H5, eC, hp5⟩ => ?_)
+  subst eC hs4
+  simp only [pure_bind]
+  -- the flush
+  have hokF : CtxOK (ctxFe (ctxH CI H5) (C.fe.push ci)) :=
+    ctxOK_fe (ctxOK_H hokI H5) (fun n => hfP n) (fun n => htP n)
+  refine specR_flushTopI hokF hpl false flushCaches rfl (by decide) ?_
+  -- the reserved names
+  simp only [basisNamesOk]
+  refine specR_atEntry fun t4 ht4 => ?_
+  refine specR_runBind (basisUnres_run hokF ht4.sr.pins cv.name) ?_
+  obtain ⟨wR, hwR, oR, hwoR, hblkR⟩ := hokF.pinsRel.2.2.2.2.2.2
+  have hblkR' : EBlk EH oR (C.pins.reserved.map Enc.idxW) := hblkR
+  refine specR_envLoadI kdL _ (C.PO + pinCount + 4) wR (by decide) rfl hwR ?_
+  have hlR : (ctxFe (ctxH CI H5) (C.fe.push ci)).EH[oR]? = some (BitVec.ofNat 64 C.pins.reserved.length) := by
+    have h := hblkR'.1; simp only [List.length_map] at h; exact h
+  refine specR_envLoadI kdLn (vv kdL) oR _ (by decide) (by simp [Env.get, hwoR]; rfl) hlR ?_
+  refine specR_atEntry fun t5 ht5 => ?_
+  have hlenR : C.pins.reserved.length < 2 ^ 62 := by
+    have hl2 : EH.length ≤ C.EN := ht5.sr.env.1.len
+    have hlay : C.EB.toNat + 8 * C.EN + 8 < 2 ^ 64 := hokF.envLay
+    rcases Nat.eq_zero_or_pos C.pins.reserved.length with h0 | hpos
+    · omega
+    · have h1 := hblkR'.2 (C.pins.reserved.length - 1) (by simp; omega)
+      have hlt : oR + 1 + (C.pins.reserved.length - 1) < EH.length := (List.getElem?_eq_some_iff.mp h1).1
+      omega
+  refine specR_callPure (C := ctxFe (ctxH CI H5) (C.fe.push ci)) kdX fRsm rmParams
+    [vv kdN, vv kdL, .const 0, vv kdLn] rsmBody
+    [Enc.idxW cv.name, ecell C oR, BitVec.ofNat 64 0, BitVec.ofNat 64 C.pins.reserved.length]
+    (C.pins.reserved.contains cv.name) (by decide) rfl (by decide) hc.rsm
+    ⟨by simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, kdParams, ctxEnv], by simp [Env.get, hwoR]; rfl,
+      rfl, by simp +decide [Env.get], trivial⟩
+    (PostB (ctxFe (ctxH CI H5) (C.fe.push ci))) (fun b w _ _ => w = boolW b)
+    (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu rmParams _ rfl hlk)
+      (rsm_spec (ctxFe (ctxH CI H5) (C.fe.push ci)) hc.rsm C.pins.reserved oR hblkR' hlenR cv.name _ _ 0
+        (ctxFe (ctxH CI H5) (C.fe.push ci)).H (List.prefix_refl _) rfl (Nat.zero_le _)))
+    (fun w H6 hp6 hw => ?_)
+  subst hw
+  refine specR_failIteF (c := !C.pins.reserved.contains cv.name) _ (boolW (C.pins.reserved.contains cv.name))
+    (by simp +decide [sev, Env.get]; exact nez_b _)
+    (fun h => by
+      have e : C.pins.reserved.contains cv.name = false := by simpa using h
+      rw [e]; rfl)
+    (fun h => by
+      have e : C.pins.reserved.contains cv.name = true := by simpa using h
+      rw [e]; decide) (fun _ => ?_)
+  exact specR_returnI _ 0 rfl (fun t ht => ⟨EH, C.envM.insert cv.name (ecell C ox), H6, hpE,
+    hp14.trans (hp5.trans hp6), ctxOK_H hokF H6, sr_of_eq ht.sr rfl rfl rfl rfl, hg.push ci, hF.push ci,
+    by unfold LitsPinned; rw [IFEnv.push_base]; exact hL⟩)
+
+end
+
 end ConPanqueque.T.Decl
