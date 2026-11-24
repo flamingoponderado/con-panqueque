@@ -232,3 +232,24 @@ Next, the dispatcher (`applyLine`):
    Spec: `SpecR … (applyLine st r lineNo)` with post `∃ H', SR (ctxH C H') ∧ FrontSt … H' st'`.
 3. Then `feedChunk` (`specR_whileT` over lines), the FFI chunk read, init, prelude, pins, the
    code table, the harness and the top theorem.
+
+### Line functions (aec89bf)
+
+`Front/LineCall`: `linePs` are the uniform parameters. `specR_protoCall` combines prologue and
+`specR_callNIA`. `specR_{ex,lv,nm,dc}LineCall` carry the callee's post to
+`FrontSt C … H' st'` at the image the post names. `Front/LineFns`: `lineVs`/`lineEnv` are the
+entry environment, and there are 17 `*Core` lemmas: each line procedure at
+`Inv C s (lineEnv …) [] (ctxLocals ++ L)` with its locals list `L`; `L_none` discharges the
+call rule's `hL`. `Front/Tags`: `tag_t` maps a tag to its `lineTblP` entry, and `objPl` maps an
+object entry to con-leche's payload.
+
+Dispatcher plan (`Front/Dispatch`, next):
+- Code entries: `lineFun x` for `x ∈ {sPl, slotName 0, sIdx, sI}`, and one line function per tag
+  (`prologue L core`).
+- `applyLineP`: four `lineFun` calls into `kTg`, `kS0`, `kIx` and `kNx`. Then, if `kTg = 17`
+  (header), continue only when `kLn = 0`. Otherwise require `kLn ≠ 0`, guard `kIx < fCap` for
+  non-declaration tags, and call the tag's function with `fI := kIx` and `fU := kPos := kS0`.
+  Tags 0, 13 and 20 (blank, strVal, natVal) hang.
+- One lemma per branch: PlOK with that tag → `tag_t` → payload → `lineEnd` gives the record →
+  `applyLine st rec lineNo` (placed, since `lineNo ≠ 0`) becomes `parseXEntryD … >>= pure ∘ .inl`
+  → `specR_xLineCall` with the core. The scanner's start `v < b.size` comes from its `{` check.
