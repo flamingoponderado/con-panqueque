@@ -620,4 +620,22 @@ theorem inst_spec (C : Ctx) (hok : CtxOK C)
 
 end
 
+
+theorem lay6_cve {C : Ctx} {EH : List (BitVec 64)} {ox b : Nat} {tW vW hW : BitVec 64} {ci : IConstantInfo}
+    (h : Lay6 C EH ox b tW vW hW ci) : CVE C.EB EH (ox + 1) ci.toConstantVal := by
+  have hn : EH[ox + 1]? = some (Enc.idxW ci.toConstantVal.name) := by cases ci <;> exact h.2.1
+  exact ⟨hn, ⟨ecell C b, by simpa using h.2.2.1, b, rfl, h.2.2.2.2.2.2⟩, by simpa using h.2.2.2.1⟩
+
+theorem cie_axiom {C : Ctx} {EH : List (BitVec 64)} {ox b : Nat} {vW hW : BitVec 64} {cv : IConstantVal}
+    (h : Lay6 C EH ox b 0 vW hW (.axiomInfo cv)) : CIE C.EB EH ox (.axiomInfo cv) := ⟨lay6_cve h, h.1⟩
+
+theorem cie_thm {C : Ctx} {EH : List (BitVec 64)} {ox b : Nat} {vW hW : BitVec 64} {cv : IConstantVal}
+    (h : Lay6 C EH ox b 2 vW hW (.thmInfo cv)) : CIE C.EB EH ox (.thmInfo cv) := ⟨lay6_cve h, h.1⟩
+
+theorem cie_defn {C : Ctx} {EH : List (BitVec 64)} {ox b : Nat} {cv : IConstantVal} {v : EIdx}
+    {hint : ConLeche.ReducibilityHint} (hh : hintN hint < 2 ^ 63)
+    (h : Lay6 C EH ox b 1 (Enc.idxW v) (BitVec.ofNat 64 (hintN hint)) (.defnInfo cv v hint)) :
+    CIE C.EB EH ox (.defnInfo cv v hint) :=
+  ⟨lay6_cve h, h.1, by simpa using h.2.2.2.2.1, by simpa using h.2.2.2.2.2.1, hh⟩
+
 end ConPanqueque.T.Decl
