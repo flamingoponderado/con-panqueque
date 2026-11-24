@@ -419,3 +419,4 @@ import ConPanqueque.Front.LineCall
 import ConPanqueque.Front.Tags
 import ConPanqueque.Front.LineFns
 import ConPanqueque.Front.Dispatch
+import ConPanqueque.Front.PlTag
