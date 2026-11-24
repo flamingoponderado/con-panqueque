@@ -357,3 +357,4 @@ import ConPanqueque.T.Decl.CheckConst
 import ConPanqueque.T.Decl.LitShape
 import ConPanqueque.T.Decl.Arms
 import ConPanqueque.T.Decl.EnvGrow
+import ConPanqueque.T.Decl.Push
