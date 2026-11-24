@@ -320,3 +320,8 @@ two index-0 handles needs one of:
   The name needs a new anonymous-name intern procedure (`nStrWith`'s pattern, kind 0, a
   `FrontOK` separation clause for the anons table).
 (b) keeps the frontend independent of pin facts. (a) is less code if the lemma is short.
+Update: (a) is viable. con-ron's `NWFAt.consP` (Arena/WF.lean:131, and its level/expression
+analogues) states `pers.find? v = some i ↔ view i = some v ∧ i.isPersistent`. With
+`PinsOK.anon` (decode → view), word 0 being persistent, and `NStore.find?` probing `pers`
+first, we get `internNNode .anonymous s = pure default s`. The zero level is similar, through
+`pins.zeroLevel` (its persistence presumably comes from a StateOK pins clause).
