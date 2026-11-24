@@ -1664,6 +1664,78 @@ theorem lineFun_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : Byt
   obtain ⟨q1, q2, q3, q4, q5, q6⟩ := return_vv u1 x w lw
   exact Or.inr ⟨w, q1, ⟨u1, hout, lw⟩, q2, q3, q4, q5, q6⟩
 
+
+/-- `linePk(b, n, i)`: the payload tag plus the payload's value/position shifted by eight, from one
+scan (so the two belong to the same record). -/
+def lineFunPk : ProgHOL 64 :=
+  decsOf lineFunLocals (.seq lineStmt (.return (.op .add [vv sPl, .shift .lsl (vv (slotName 0)) (.const (BitVec.ofNat 64 8))])))
+
+theorem lineFunPk_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray)
+    (hp : Plat b) (hb : BytesAt t A b.data.toList) (hc : LineCodes t) (i : USize) (hi : i.toNat ≤ b.size)
+    (lb : t.locals.lookup sB = some (.val (.word A)))
+    (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
+    (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
+    RetP t lineFunPk (fun w => ∃ u' : PanSemStateFiniteExact 64 σ, LineOut b i u' ∧
+      ∃ wpl ws0, u'.locals.lookup sPl = some (.val (.word wpl)) ∧
+        u'.locals.lookup (slotName 0) = some (.val (.word ws0)) ∧ w = wpl + (ws0 <<< (8 : Nat))) := by
+  unfold lineFunPk
+  apply retP_decsOf
+  have hlk := fun y => lookup_foldl_setVar (σ := σ) y lineFunLocals t
+  let u0 := lineFunLocals.foldl (fun s (x, w) => setVarHOLFinite x (.val (.word w)) s) t
+  have L : ∀ y, u0.locals.lookup y = _ := hlk
+  have e := lineStmt_spec t A b hp hb hc i hi u0 rfl rfl rfl rfl rfl
+    (by rw [L]; simp (config := {decide := true}) [lineFunLocals, slotName, slotNames, sB, sN, sI, sG, sW, sIK, sIdx,
+      sPl, sC, sK, sV, sKK, sE2]; exact lb)
+    (by rw [L]; simp (config := {decide := true}) [lineFunLocals, slotName, slotNames, sB, sN, sI, sG, sW, sIK, sIdx,
+      sPl, sC, sK, sV, sKK, sE2]; exact ln)
+    (by rw [L]; simp (config := {decide := true}) [lineFunLocals, slotName, slotNames, sB, sN, sI, sG, sW, sIK, sIdx,
+      sPl, sC, sK, sV, sKK, sE2]; exact li)
+    (by rw [L]; simp (config := {decide := true}) [lineFunLocals, slotName, slotNames, sB, sN, sI, sG, sW, sIK, sIdx,
+      sPl, sC, sK, sV, sKK, sE2])
+    (by rw [L]; simp (config := {decide := true}) [lineFunLocals, slotName, slotNames, sB, sN, sI, sG, sW, sIK, sIdx,
+      sPl, sC, sK, sV, sKK, sE2])
+    (by rw [L]; simp (config := {decide := true}) [lineFunLocals, slotName, slotNames, sB, sN, sI, sG, sW, sIK, sIdx,
+      sPl, sC, sK, sV, sKK, sE2])
+    (by rw [L]; simp (config := {decide := true}) [lineFunLocals, slotName, slotNames, sB, sN, sI, sG, sW, sIK, sIdx,
+      sPl, sC, sK, sV, sKK, sE2])
+    (by rw [L]; simp (config := {decide := true}) [lineFunLocals, slotName, slotNames, sB, sN, sI, sG, sW, sIK, sIdx,
+      sPl, sC, sK, sV, sKK, sE2])
+    ⟨0, by rw [L]; simp (config := {decide := true}) [lineFunLocals, slotName, slotNames, sB, sN, sI, sG, sW, sIK,
+      sIdx, sPl, sC, sK, sV, sKK, sE2]⟩
+    (by intro y hy; simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hy
+        rcases hy with rfl | rfl | rfl | rfl | rfl <;>
+          exact ⟨0, by rw [L]; simp (config := {decide := true}) [lineFunLocals, slotName, slotNames, sB, sN, sI, sG,
+            sW, sIK, sIdx, sPl, sC, sK, sV, sKK, sE2]⟩)
+  rcases e with hs | ⟨hn, hout, f1, f2, f3, f4, f5⟩
+  · exact Or.inl (seq_stop u0 _ _ hs)
+  generalize he : evaluateHOLFiniteState u0 lineStmt = r at hn hout f1 f2 f3 f4 f5
+  obtain ⟨r1, u1⟩ := r
+  simp only at hn hout f1 f2 f3 f4 f5
+  subst hn
+  refine retP_seq he ?_ f1 f2 f3 f4 f5
+  obtain ⟨wpl, lpl⟩ : ∃ w, u1.locals.lookup sPl = some (.val (.word w)) := by
+    obtain ⟨rec, next, -, -, hk⟩ := hout
+    rcases hk with ⟨-, hpl, -⟩ | ⟨ik, idx, pl, wpl, ws0, j0, j', -, -, lpl, -, -⟩
+    · exact ⟨_, hpl⟩
+    · exact ⟨_, lpl⟩
+  obtain ⟨ws0, ls0⟩ : ∃ w, u1.locals.lookup (slotName 0) = some (.val (.word w)) := by
+    obtain ⟨rec, next, -, -, hk⟩ := hout
+    rcases hk with ⟨-, -, hrest⟩ | ⟨ik, idx, pl, wpl, ws0, j0, j', -, -, -, ls0, -⟩
+    · exact hrest _ (by simp)
+    · exact ⟨_, ls0⟩
+  have hev : @evalHOLExact 64 σ _ u1.toExact (fun a => Classical.propDecidable (u1.memaddrs a))
+      (.op .add [vv sPl, .shift .lsl (vv (slotName 0)) (.const (BitVec.ofNat 64 8))]) =
+      some (.val (.word (wpl + (ws0 <<< (8 : Nat))))) := by
+    exact eval_add2 (s := u1) (vv sPl) (.shift .lsl (vv (slotName 0)) (.const (BitVec.ofNat 64 8))) wpl
+      (ws0 <<< (BitVec.ofNat 64 8).toNat) (eval_vv u1 sPl _ lpl)
+      (eval_shl (s := u1) (vv (slotName 0)) (BitVec.ofNat 64 8) ws0 (eval_vv u1 _ _ ls0) (by decide))
+  unfold RetP
+  rw [evaluateHOLFiniteState_eq_evaluate_def u1 (.return _)]
+  refine Or.inr ⟨wpl + (ws0 <<< (8 : Nat)), ?_, ⟨u1, hout, wpl, ws0, lpl, ls0, rfl⟩, ?_⟩
+  · simp [hev, shapeOfHOLExact, Flapjack.Pancake.PanLang.sizeOfShapeWithContextHOL]
+  · simp [hev, shapeOfHOLExact, Flapjack.Pancake.PanLang.sizeOfShapeWithContextHOL, emptyLocalsHOLFinite] <;>
+      exact ⟨rfl, rfl, rfl, rfl, rfl⟩
+
 end
 
 end ConPanqueque.Scan
