@@ -178,7 +178,8 @@ def LnI (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (R : 
     u.locals.lookup (slotName 0) = some (.val (.word ws0)) ∧
     PlOK b wpl ws0 pl ∧
     ((u.locals.lookup sG = some (.val (.word 1)) ∧ lineLoopI lineTbl b j wm ik idx pl = R) ∨
-     (u.locals.lookup sG = some (.val (.word 0)) ∧ ∃ j0 rec, lineEnd j0 ik idx pl = .ok rec j ∧ R = .ok rec j))
+     (u.locals.lookup sG = some (.val (.word 0)) ∧ j.toNat ≤ b.size ∧
+       ∃ j0 rec, lineEnd j0 ik idx pl = .ok rec j ∧ R = .ok rec j))
 
 end
 
@@ -965,7 +966,8 @@ theorem line_step (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteAr
       w.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 j'.toNat))) →
       w.locals.lookup sW = some (.val (.word (bw (wm' = true)))) →
       ((w.locals.lookup sG = some (.val (.word 1)) ∧ lineLoopI lineTbl b j' wm' ik idx pl = R) ∨
-       (w.locals.lookup sG = some (.val (.word 0)) ∧ ∃ j0 rec, lineEnd j0 ik idx pl = .ok rec j' ∧ R = .ok rec j')) →
+       (w.locals.lookup sG = some (.val (.word 0)) ∧ j'.toNat ≤ b.size ∧
+         ∃ j0 rec, lineEnd j0 ik idx pl = .ok rec j' ∧ R = .ok rec j')) →
       LnI t A b R w := by
     intro w j' wm' a1 a2 a3 a4 a5 hlo hj' li' lw' hg'
     have q : ∀ y, y ∉ [sI, sW, sG] → y ≠ sC → w.locals.lookup y = u.locals.lookup y := fun y h1 h2 => by
@@ -1051,7 +1053,7 @@ theorem line_step (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteAr
     obtain ⟨rec, hrec⟩ := hend hg'.symm
     rw [he]
     refine Or.inr ⟨rfl, mk _ (j + 1) wm rfl rfl rfl rfl rfl (fun y hy => ?_) (by omega) (by lk; rw [hj1])
-      (by lk; exact lw1) (Or.inr ⟨by lk, j, rec, hrec, by rw [← hR, hstep, hrec]⟩)⟩
+      (by lk; exact lw1) (Or.inr ⟨by lk, by omega, j, rec, hrec, by rw [← hR, hstep, hrec]⟩)⟩
     simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false, not_or] at hy
     show (setVarHOLFinite _ _ (setVarHOLFinite _ _ v1)).locals.lookup y = _
     rw [lookup_setVar_other _ _ hy.2.2, lookup_setVar_other _ _ hy.1]
@@ -1256,6 +1258,82 @@ theorem lineLoopP_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : B
   rcases this with h | ⟨h1, h2, h3⟩
   · exact Or.inl h
   · exact Or.inr ⟨h1, h2, h3⟩
+
+end
+
+end ConPanqueque.Scan
+
+/-! # `scanLineFwd` -/
+
+namespace ConPanqueque.Scan
+
+open ConLeche.Frontend
+open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
+open ConPanqueque.Logic ConPanqueque.V
+
+/-- The line's kind word: `0` a blank line or an incomplete tail, `1` a record. -/
+def sLK := ofString "lk"
+
+/-- One line from `i`: whitespace, then a newline (blank), the end of the buffer (incomplete: next
+position `0`), or a record and whitespace to the newline.  The next position is left in `i`. -/
+def lineStmt : ProgHOL 64 :=
+  .seq (callTo sE2 fSkipWs [vv sB, vv sN, vv sI])
+    (.seq (bAt sC (vv sE2))
+      (.ite (.cmp .equal (vv sC) (.const 10))
+        (.seq (.assign .local sLK (.const 0)) (.assign .local sI (.op .add [vv sE2, .const 1])))
+        (.ite (.cmp .lower (vv sE2) (vv sN))
+          (.ite (.cmp .equal (vv sC) (.const 123))
+            (.seq (.assign .local sI (.op .add [vv sE2, .const 1]))
+              (.seq lineLoopP
+                (.seq (callTo sE2 fSkipWs [vv sB, vv sN, vv sI])
+                  (.seq (bAt sC (vv sE2))
+                    (.ite (.cmp .equal (vv sC) (.const 10))
+                      (.seq (.assign .local sLK (.const 1)) (.assign .local sI (.op .add [vv sE2, .const 1])))
+                      (.ite (.cmp .lower (vv sE2) (vv sN)) hang
+                        (.seq (.assign .local sLK (.const 1)) (.assign .local sI (.const 0)))))))))
+            hang)
+          (.seq (.assign .local sLK (.const 0)) (.assign .local sI (.const 0))))))
+
+section
+variable {σ : Type}
+
+/-- What a scanned line leaves: con-leche's `scanLineFwd` accepted it; a record's locals. -/
+def LineOut (b : ByteArray) (i : USize) (u : PanSemStateFiniteExact 64 σ) : Prop :=
+  ∃ (rec : LineRec) (next : USize), scanLineFwd b i = .ok rec next ∧
+    u.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 next.toNat))) ∧
+    ((rec = .blank ∧ u.locals.lookup sLK = some (.val (.word 0))) ∨
+     (u.locals.lookup sLK = some (.val (.word 1)) ∧
+      ∃ (ik : UInt8) (idx : Nat) (pl : LinePayload) (wpl ws0 : BitVec 64) (j0 j' : USize),
+        u.locals.lookup sIK = some (.val (.word (BitVec.ofNat 64 ik.toNat))) ∧
+        u.locals.lookup sIdx = some (.val (.word (BitVec.ofNat 64 (min idx natCap)))) ∧
+        u.locals.lookup sPl = some (.val (.word wpl)) ∧
+        u.locals.lookup (slotName 0) = some (.val (.word ws0)) ∧ PlOK b wpl ws0 pl ∧
+        lineEnd j0 ik idx pl = .ok rec j'))
+
+theorem lineStmt_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray)
+    (hp : Plat b) (hb : BytesAt t A b.data.toList) (hc : LineCodes t) (i : USize) (hi : i.toNat ≤ b.size)
+    (u : PanSemStateFiniteExact 64 σ)
+    (m0 : u.memory = t.memory) (d0 : u.memaddrs = t.memaddrs) (c0 : u.code = t.code) (g0 : u.globals = t.globals)
+    (b0 : u.be = t.be)
+    (lb : u.locals.lookup sB = some (.val (.word A)))
+    (ln : u.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
+    (li : u.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat))))
+    (lg : u.locals.lookup sG = some (.val (.word 1)))
+    (lw : u.locals.lookup sW = some (.val (.word 1)))
+    (lik : u.locals.lookup sIK = some (.val (.word 0)))
+    (lidx : u.locals.lookup sIdx = some (.val (.word 0)))
+    (lpl : u.locals.lookup sPl = some (.val (.word 0)))
+    (ls0 : ∃ w, u.locals.lookup (slotName 0) = some (.val (.word w)))
+    (llk : ∃ w, u.locals.lookup sLK = some (.val (.word w)))
+    (scr : ∀ x ∈ [sC, sK, sV, sKK, sE2], ∃ w, u.locals.lookup x = some (.val (.word w))) :
+    Stop (evaluateHOLFiniteState u lineStmt).1 ∨ ((evaluateHOLFiniteState u lineStmt).1 = none ∧
+      LineOut b i (evaluateHOLFiniteState u lineStmt).2 ∧
+      (evaluateHOLFiniteState u lineStmt).2.memory = t.memory ∧
+      (evaluateHOLFiniteState u lineStmt).2.memaddrs = t.memaddrs ∧
+      (evaluateHOLFiniteState u lineStmt).2.globals = t.globals ∧
+      (evaluateHOLFiniteState u lineStmt).2.code = t.code ∧
+      (evaluateHOLFiniteState u lineStmt).2.be = t.be) := by
+  sorry
 
 end
 
