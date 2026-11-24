@@ -415,3 +415,4 @@ import ConPanqueque.Front.ExprLine
 import ConPanqueque.Front.NameLine
 import ConPanqueque.Front.LevelLine
 import ConPanqueque.Front.FrontSt
+import ConPanqueque.Front.LineCall
