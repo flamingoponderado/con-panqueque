@@ -308,3 +308,15 @@ to `.anonymous`, and `pins.zeroLevel` decodes to `.zero`. So `StateD.init` only 
 `singleton zeroL`, both handle words the program knows (the zero name handle, and the
 `Ctx.pins` zero level). The program's init is therefore stores only: zero the tables, write
 `anonH+1` at `jN`, `zeroL+1` at `jL` and count 0 at `rb`. No interning call is needed.
+
+Init: the open obstacle (b8e5626). `zeroFill_spec` (Front/Init) zeroes the tables. Writing the
+two index-0 handles needs one of:
+- (a) **Store lemmas**: `denoteN ns default = some .anonymous` (`PinsOK.anon`) plus WF implies
+  `ns.find? .anonymous = some default`, and likewise `ls.find? .zero = some pins.zeroLevel`. Then
+  `StateD.init` is probe-only and the program stores the constant word 0 (+1) and the pin
+  block's zero-level word (`SR.pins`, block at `PO`). This needs a find-of-view lemma for the
+  hash tables; none exists in con-ron (`NStore.find?_cases` goes the other way).
+- (b) **Ported calls**: the level is easy, since `fInternLZero`/`internLZero_body_spec` exist.
+  The name needs a new anonymous-name intern procedure (`nStrWith`'s pattern, kind 0, a
+  `FrontOK` separation clause for the anons table).
+(b) keeps the frontend independent of pin facts. (a) is less code if the lemma is short.
