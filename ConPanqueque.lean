@@ -406,3 +406,4 @@ import ConPanqueque.Front.Name
 import ConPanqueque.Front.Steps
 import ConPanqueque.Front.Const
 import ConPanqueque.Front.LstBlk
+import ConPanqueque.Front.DeclRel
