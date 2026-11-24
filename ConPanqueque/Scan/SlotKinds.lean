@@ -115,4 +115,50 @@ theorem objLoop_kinds (sp : ObjSpec) (ks : List Nat) (hsp : SpecKinds sp ks) (b 
       · simp at h
     · simp at h
 
+theorem scanNatListLoop_len (b : ByteArray) :
+    ∀ msr (i : USize) (acc : List Nat) (wi : Bool), b.size - i.toNat = msr →
+      ∀ us e, scanNatListLoop b i acc wi = .ok us e → us.length ≤ acc.length + (b.size - i.toNat) := by
+  intro msr
+  induction msr using Nat.strongRecOn with
+  | ind msr ih =>
+    intro i acc wi hm us e h
+    rw [scanNatListLoop] at h
+    split at h
+    · rename_i hi
+      have h1 := usizeInBounds b i hi
+      have h2 := usizeStep b i hi
+      simp only at h
+      split at h
+      · have := ih _ (by omega) _ _ _ rfl _ _ h; omega
+      split at h
+      · split at h
+        · simp at h
+        · simp only [ScanRes.ok.injEq] at h; obtain ⟨rfl, -⟩ := h; simp
+      split at h
+      · split at h
+        · simp at h
+        · have := ih _ (by omega) _ _ _ rfl _ _ h; omega
+      split at h
+      · split at h
+        · simp at h
+        split at h
+        · simp at h
+        split at h
+        · rename_i hj
+          have hj' := USize.lt_iff_toNat_lt.mp hj
+          have := ih _ (by omega) _ _ _ rfl _ _ h
+          simp only [List.length_cons] at this
+          have : (numEnd b i).toNat ≤ b.size ∨ True := Or.inr trivial
+          omega
+        · simp at h
+      · simp at h
+    · simp at h
+
+theorem scanNatList_len {b : ByteArray} {p e : USize} {us : List Nat} (h : scanNatList b p = .ok us e) :
+    us.length ≤ b.size := by
+  rw [scanNatList] at h
+  split at h
+  · have := scanNatListLoop_len b _ _ [] true rfl _ _ h; simp at this; omega
+  · simp at h
+
 end ConPanqueque.Scan

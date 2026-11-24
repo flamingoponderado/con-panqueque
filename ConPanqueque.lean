@@ -410,3 +410,4 @@ import ConPanqueque.Front.Const
 import ConPanqueque.Front.LstBlk
 import ConPanqueque.Front.DeclRel
 import ConPanqueque.Front.Decl
+import ConPanqueque.Front.DeclLine
