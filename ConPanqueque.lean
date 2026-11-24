@@ -362,3 +362,4 @@ import ConPanqueque.T.Decl.Install
 import ConPanqueque.T.Decl.Flags
 import ConPanqueque.T.Decl.Flush
 import ConPanqueque.T.Decl.Names
+import ConPanqueque.T.Decl.StepDefn
