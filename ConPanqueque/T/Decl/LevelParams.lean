@@ -98,7 +98,7 @@ structure LpCodes (C : Ctx) : Prop where
 structure LpsAt (C : Ctx) (s : AState) (o : Nat) (xs : List NIdx) (ks : List ConLeche.Name) : Prop where
   blk : BlkAt C.H o (xs.map Enc.idxW)
   len : ks.length = xs.length
-  den : ∀ j (hj : j < xs.length), ∃ f, denoteNAux s.store.ns f xs[j] = some (ks[j]'(by rw [len]; exact hj))
+  den : ∀ j (hj : j < xs.length), denoteN s.store.ns xs[j] = some (ks[j]'(by rw [len]; exact hj))
   small : xs.length < 2 ^ 62
 
 section
@@ -149,14 +149,14 @@ theorem lpm_spec (C : Ctx) (hc : LpCodes C) (s : AState) {o : Nat} {xs : List NI
     refine UD.specR_heapLoadI' (C := ctxH C H) lmK _ (o + 1 + j) _ hw (by decide)
       (by simp +decide [sev, Env.get, lmParams, ctxEnv]; exact cellA_idx C o j) ?_
     refine specR_dropM ?_
-    obtain ⟨fk, hfk⟩ := hL.den j hjl
+    have hfk : denoteNAux s.store.ns (s.store.ns.nodeCount + 1) xs[j] = some (ks[j]'(by omega)) := hL.den j hjl
     refine specR_callPure (C := ctxH C H) lmE NEq.fNeq [NEq.pNa, NEq.pNb] [vv lmK, vv lmN] NEq.neqBody
       [Enc.idxW xs[j], Enc.idxW n] (decide ((ks[j]'(by omega)) = nm)) (by decide) rfl (by decide) hc.neq
       ⟨by simp +decide [Env.get], by simp +decide [Env.get, lmParams, ctxEnv], trivial⟩
       (ExM.PostB (ctxH C H)) (fun b w _ H' => H' = H ∧ w = boolW b)
       (fun b w s' st ⟨hw, hsr⟩ => ⟨H, List.prefix_refl _, ⟨rfl, by rw [hw]; cases b <;> rfl⟩, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu [NEq.pNa, NEq.pNb] _ rfl hlk)
-        (NEq.neq_spec (ctxH C H) hc.neq _ xs[j] n nm fk fn s hfk hn))
+        (NEq.neq_spec (ctxH C H) hc.neq _ xs[j] n nm _ fn s hfk hn))
       (fun w H1 hp1 ⟨eH1, hw⟩ => ?_)
     subst hw; subst H1
     rw [List.drop_eq_getElem_cons (show j < ks.length by omega)]
