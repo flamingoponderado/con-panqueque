@@ -1623,4 +1623,31 @@ theorem recBody_spec (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ
 
 end
 
+section
+variable {σ : Type}
+
+theorem lookup_foldl_setVar (y : MlS) :
+    ∀ (ds : List (MlS × BitVec 64)) (u : PanSemStateFiniteExact 64 σ),
+      (ds.foldl (fun s (x, w) => setVarHOLFinite x (.val (.word w)) s) u).locals.lookup y =
+        match (ds.reverse.find? (fun d => d.1 = y)) with
+        | some d => some (.val (.word d.2))
+        | none => u.locals.lookup y := by
+  intro ds
+  induction ds with
+  | nil => intro u; simp
+  | cons d ds ih =>
+    intro u
+    obtain ⟨x, w⟩ := d
+    simp only [List.foldl_cons, List.reverse_cons, List.find?_append]
+    rw [ih]
+    cases hf : ds.reverse.find? (fun d => d.1 = y) with
+    | some d => simp
+    | none =>
+      simp only [Option.none_or, List.find?_cons, List.find?_nil]
+      by_cases hxy : x = y
+      · subst hxy; simp [lookup_setVar_same]
+      · simp [hxy, lookup_setVar_other _ _ (Ne.symm hxy)]
+
+end
+
 end ConPanqueque.Scan
