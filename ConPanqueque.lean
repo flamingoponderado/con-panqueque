@@ -432,3 +432,4 @@ import ConPanqueque.Front.ParseTop
 import ConPanqueque.Front.ToFold
 import ConPanqueque.Front.FoldCall
 import ConPanqueque.Front.Main
+import ConPanqueque.Front.ByteSet
