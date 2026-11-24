@@ -380,3 +380,4 @@ import ConPanqueque.Scan.Str
 import ConPanqueque.Scan.Obj
 import ConPanqueque.Scan.ObjInst
 import ConPanqueque.Scan.Lits
+import ConPanqueque.Scan.NatList
