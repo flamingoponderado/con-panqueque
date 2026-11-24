@@ -359,3 +359,4 @@ import ConPanqueque.T.Decl.Arms
 import ConPanqueque.T.Decl.EnvGrow
 import ConPanqueque.T.Decl.Push
 import ConPanqueque.T.Decl.Install
+import ConPanqueque.T.Decl.Flags
