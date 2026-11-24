@@ -129,4 +129,63 @@ theorem crRep_insert {C : Ctx} {H : List (BitVec 64)} {p' : BitVec 64} {memo : S
     simp only [this]
     exact he h'
 
+
+section
+variable {σ : Type}
+
+/-- The answer and memo as a fresh pair block. -/
+def PostCr (C : Ctx) (rm : Bool × Std.HashMap EIdx Bool) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
+  ∃ H' o pm, C.H <+: H' ∧ w = cellA C o ∧ H'[o]? = some (boolW rm.1) ∧ H'[o + 1]? = some pm ∧
+    CrRep C H' pm rm.2 ∧ SR (ctxH C H') s' st
+
+theorem postCr_locals (C : Ctx) : ∀ a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
+    PostCr C a w s' st → PostCr C a w s' { st with locals := L } :=
+  fun _ _ _ _ _ ⟨H', o, pm, h2, h3, h4, h5, h6, h7⟩ => ⟨H', o, pm, h2, h3, h4, h5, h6, sr_of_eq h7 rfl rfl rfl rfl⟩
+
+theorem specR_crfRetI {C : Ctx} (hok : CtxOK C) {H0 H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem}
+    {D : List MlS} (er em : ExpHOL 64) (r : Bool) (pm : BitVec 64) (memo : Std.HashMap EIdx Bool)
+    (hD : crfO ∈ D) (her : ∀ w, sev ((crfO, w) :: Γ) er = some (boolW r)) (hem : ∀ w, sev ((crfO, w) :: Γ) em = some pm)
+    (hrep : CrRep C H pm memo) (h0 : H0 <+: H) :
+    SpecR (σ := σ) (Inv (ctxH C H) s Γ M D) (crfRet C er em) s (pure (r, memo)) (PostCr (ctxH C H0)) := by
+  refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN => ?_)
+  have hlay := hok.heapLay
+  refine specR_allocI (C := ctxH C H) crfO (.const 16) 2 (by omega) hD (fun _ => rfl) (fun H1 ws hp1 hws hroom => ?_)
+  have hp1' : H <+: H1 := hp1
+  have hL := hp1'.length_le
+  change SpecR (Inv (ctxH C (H1 ++ ws)) s ((crfO, cellA C H1.length) :: Γ) _ _) _ _ _ _
+  refine specR_heapStoreI (ctxOK_H hok _) (vv crfO) er H1.length (by show _ < (H1 ++ ws).length; simp; omega)
+    (boolW r) (by simp <;> rfl) (her _) ?_
+  change SpecR (Inv (ctxH C ((H1 ++ ws).set H1.length (boolW r))) _ _ _ _) _ _ _ _
+  refine specR_heapStoreI (ctxOK_H hok _) (.op .add [vv crfO, .const 8]) em (H1.length + 1)
+    (by show _ < ((H1 ++ ws).set _ _).length; simp; omega) pm (by simp +decide [sev]; exact cellA_add8 C _) (hem _) ?_
+  have g0 : (((H1 ++ ws).set H1.length (boolW r)).set (H1.length + 1) pm)[H1.length]? = some (boolW r) := by
+    simp [List.getElem?_set, hws]
+  have g1 : (((H1 ++ ws).set H1.length (boolW r)).set (H1.length + 1) pm)[H1.length + 1]? = some pm := by
+    simp [List.getElem?_set, hws]
+  have hpre : H <+: ((H1 ++ ws).set H1.length (boolW r)).set (H1.length + 1) pm :=
+    prefix_set_ge (prefix_set_ge (hp1'.trans (List.prefix_append _ _)) _ (by omega) _) _ (by omega) _
+  exact specR_returnI _ (cellA C H1.length) (by simp +decide [Env.get] <;> rfl)
+    (fun t ht => ⟨_, H1.length, pm, h0.trans hpre, rfl, g0, g1, crRep_toH (crRep_mono hpre hrep),
+      sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+theorem specR_crfInsI {C : Ctx} (hok : CtxOK C) {H0 H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem}
+    {D : List MlS} (h : EIdx) (r : Bool) (pm : BitVec 64)
+    (memo : Std.HashMap EIdx Bool) (hD : crfN ∈ D ∧ crfO ∈ D) (hH : Γ.get crfH = some (Enc.idxW h))
+    (hR : Γ.get crfR = some (boolW r)) (hM : Γ.get crfM2 = some pm)
+    (hrep : CrRep C H pm memo) (h0 : H0 <+: H) :
+    SpecR (σ := σ) (Inv (ctxH C H) s Γ M D) (crfIns C) s (pure (r, memo.insert h r)) (PostCr (ctxH C H0)) := by
+  obtain ⟨xs, hm, he⟩ := hrep
+  unfold crfIns
+  refine specR_mlInsI hok crfN (vv crfH) (.const 0) (vv crfR) (vv crfM2) (Enc.idxW h) (BitVec.ofNat 64 0) pm r xs hD.1
+    (fun w => by simp [Env.get, hH]; try (intro e; exact absurd e (by decide))) (fun w => rfl) (fun w => by simp [Env.get, hR]; try (intro e; exact absurd e (by decide)))
+    (fun w => by simp [Env.get, hM]; try (intro e; exact absurd e (by decide))) hm (fun H' o hp' hm' => ?_)
+  exact specR_crfRetI hok (vv crfR) (vv crfN) r (cellA C o) (memo.insert h r) hD.2
+    (fun w => by simp [Env.get, hR]; rw [if_neg (by decide), if_neg (by decide)]) (fun w => by simp [Env.get]; try (intro e; exact absurd e (by decide))) (crRep_insert he h r hm') (h0.trans hp')
+
+theorem crf_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ crfLocals → (ctxEnv C ++ crfParams.zip vals).get x = none :=
+  Knot.params_none C crfLocals crfParams vals (by decide) (by decide)
+
+end
+
 end ConPanqueque.T.Decl
