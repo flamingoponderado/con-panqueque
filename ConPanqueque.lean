@@ -348,3 +348,4 @@ import ConPanqueque.T.Comp.KnotC
 import ConPanqueque.T.Comp.Entries
 import ConPanqueque.T.Decl.EnsureSort
 import ConPanqueque.T.Decl.ConstsResolve
+import ConPanqueque.T.Decl.ConstsResolveF
