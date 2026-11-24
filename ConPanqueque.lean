@@ -396,3 +396,5 @@ import ConPanqueque.Front.Tbl
 import ConPanqueque.Front.RetCall
 import ConPanqueque.Front.Level
 import ConPanqueque.Front.Expr
+import ConPanqueque.Front.NameTwin
+import ConPanqueque.Front.NameIntern
