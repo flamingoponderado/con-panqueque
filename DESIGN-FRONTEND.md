@@ -67,3 +67,30 @@ Declarations go into the record block in the `RecOK` layout (kind word, CVE, val
 5. `preparePrelude`, `internAllPins`, `internReservedPins`.
 6. The code table, the executable (C harness: FFI read, exit code), and the top-level theorem.
 7. Remaining kinds: axioms, quot, inductives, pinned `Nat`/reduce certification.
+
+## Scanner status and the record-scanner plan (556b9a8)
+
+Proved against con-leche (each `*_refines`: the Pancake function stops or returns con-leche's
+value, frame unchanged):
+- `skipWs`, `skipDigits` (generic skip loop `Skip.lean`);
+- `readNatAt`, capped at `2^62` (`ReadNat.lean`);
+- `numEnd` (`NumEnd.lean`);
+- `keyAt` (`Keys.lean`/`KeyFun.lean`: the decision tree as data, generated from the source,
+  plus a generic table compiler);
+- `keyEnd` (`KeyEnd.lean`).
+
+Infrastructure: `RetSpec` (pure callee), `call3_ret`, `retSpec_seq/ite/dec`.
+
+**Record scanners.** Every `scan*Loop` is one object loop:
+
+    ws → '}' (seen-mask complete?) | ',' | '"' key → keyEnd, valueAt, keyAt → per-key action
+
+Each action scans one value (nat, string, nat list, bool, nested object), checks a duplicate bit
+and sets a slot. Error payloads are not modelled: an `.err` is a rejection. Plan:
+1. A generic interpreter `objLoop spec` over a slot table (key → bit, value kind, slot).
+2. Prove each con-leche loop equals `objLoop` at its table, by induction on the measure with a
+   shared tactic.
+3. Compile the table to Pancake once and prove it once, as for `keyAt`.
+
+Capped numbers (`natCap`) are sound because any index at or above `2^62` misses every table, so
+both sides reject.
