@@ -61,3 +61,20 @@ record's preconditions). Twin failures map to `rejectP` (a stop, the soundness d
    the empty tables for the grown context.
 4. **The fold** (`checkDeclsPureGo`) is the record step iterated; the verdict theorem relates the port's
    accept to `checkDeclsPure`'s success (con-ron's bridge takes it to con-leche).
+
+## Status (0a8c852)
+
+Composed end to end, every theorem without `sorry`:
+
+- `checkConstantVal` (`ccv_full`), the value arms (`defn_spec`, `thm_spec`, `opaque_spec`);
+- the install (`inst_spec`: deep copy into the environment heap, constant-table insert, `CIE` of the new block,
+  `EnvDen` of the pushed environment), the literal flags (`fl_spec`), the flush (`specR_flushTopI`);
+- one record (`step_spec` = `checkDeclStep`) and the fold (`fold_spec` = `checkDeclsPureGo`), each record in the
+  context the previous one left (`declCodes_new`/`foldCodes_new` by `ctx_tr`, `recOK_new`).
+
+Records the port stops at (sound; not ported yet): axioms (`stdAxiomOk`, `trustCompiler`, `ofReduce*`, the sorry
+axiom), quotient records, inductive blocks, and definitions/opaques at the pinned `Nat`-operation or reduce names.
+
+Next: the driver start (`checkDeclsPure`'s `mkIFEnvLits IEnv.empty` as the initial context, its invariants), the
+frontend (bytes → interned store + record encodings satisfying `RecOK`), the concrete code table, the
+executables, and the verdict theorem; then the stopped record kinds.
