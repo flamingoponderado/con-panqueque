@@ -30,8 +30,7 @@ partial def expStr : ExpHOL 64 → String
   | .load sh a => s!"(lds {shapeStr sh} {expStr a})"
   | .loadByte a => s!"(ld8 {expStr a})"
   | .load32 a => s!"(ld32 {expStr a})"
-  | .op o (a :: rest) => rest.foldl (fun acc e => s!"({acc} {binStr o} {expStr e})") (expStr a)
-  | .op _ [] => "0"
+  | .op o as => "(" ++ (" " ++ binStr o ++ " ").intercalate (as.map expStr) ++ ")"
   | .panop .mul [a, b] => s!"({expStr a} * {expStr b})"
   | .panop _ _ => "0"
   | .cmp .equal a b => s!"({expStr a} == {expStr b})"

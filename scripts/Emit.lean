@@ -1,4 +1,4 @@
-import ConPanqueque.Emit.Print
+import ConPanqueque.Emit.Check
 open ConPanqueque.Emit Flapjack
 
 def g0 : ConPanqueque.V.VGeo := ⟨0, 0, 0, 0, 0, 0, 0, 0, 0⟩
@@ -22,3 +22,7 @@ def C0 : ConPanqueque.T.Ctx :=
   match Flapjack.Parser.parseTopDecs (BitVec.ofInt 64) src with
   | .ok ds => IO.println s!"parsed {ds.length} declarations"
   | .error errs => IO.println s!"parse errors: {(errs.take 3).map (fun e => e.message)}"
+  match roundTrip src es with
+  | .ok [] => IO.println "round trip: every function matches"
+  | .ok bad => IO.println s!"round trip: {bad.length} differ, e.g. {bad.take 5}"
+  | .error e => IO.println e
