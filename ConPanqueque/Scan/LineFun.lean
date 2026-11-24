@@ -181,4 +181,58 @@ def LnI (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (R : 
 
 end
 
+/-! ## One key's value -/
+
+/-- The fixed locals of the line loop. -/
+def lineLocals : List MlS := [sB, sN, sI, sG, sW, sIK, sIdx, sPl, slotName 0, sC, sK, sV, sKK, sE2]
+
+theorem lineLocals_nodup : lineLocals.Nodup := by decide
+
+section
+variable {σ : Type}
+
+/-- The state the key dispatch hands to a value's code. -/
+structure LCtx (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (j v : USize) (ik : UInt8)
+    (idx : Nat) (pl : LinePayload) (u : PanSemStateFiniteExact 64 σ) : Prop where
+  mem : u.memory = t.memory
+  dom : u.memaddrs = t.memaddrs
+  code : u.code = t.code
+  glob : u.globals = t.globals
+  be : u.be = t.be
+  lb : u.locals.lookup sB = some (.val (.word A))
+  ln : u.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size)))
+  li : u.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 j.toNat)))
+  lv : u.locals.lookup sV = some (.val (.word (BitVec.ofNat 64 v.toNat)))
+  lik : u.locals.lookup sIK = some (.val (.word (BitVec.ofNat 64 ik.toNat)))
+  lidx : u.locals.lookup sIdx = some (.val (.word (BitVec.ofNat 64 (min idx natCap))))
+  pl0 : ∃ wpl ws0, u.locals.lookup sPl = some (.val (.word wpl)) ∧
+    u.locals.lookup (slotName 0) = some (.val (.word ws0)) ∧ PlOK b wpl ws0 pl
+  lg : u.locals.lookup sG = some (.val (.word 1))
+  lw : ∃ w, u.locals.lookup sW = some (.val (.word w))
+  scratch : ∀ x ∈ [sC, sK, sV, sKK, sE2], ∃ w, u.locals.lookup x = some (.val (.word w))
+  hj : j.toNat < b.size
+  hv : v.toNat ≤ b.size
+
+/-- The tag word of a present payload is nonzero; of an absent one, zero. -/
+theorem plOK_tag {b : ByteArray} {wpl ws0 : BitVec 64} {pl : LinePayload} (h : PlOK b wpl ws0 pl) :
+    (wpl = 0 ↔ pl.isAbsent = true) := by
+  rcases h with ⟨rfl, rfl⟩ | ⟨k, a, hm, he⟩
+  · simp [LinePayload.isAbsent]
+  · simp only [lineTblP, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false] at hm
+    rcases hm with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ |
+      ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ |
+      ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;>
+      simp only [PlEntry] at he
+    all_goals first
+      | exact he.elim
+      | (obtain ⟨rfl, n, rfl, -⟩ := he; simp [LinePayload.isAbsent]; done)
+      | (obtain ⟨rfl, v, e, hsc, -⟩ := he
+         simp only [nameStr, nameNum, exprApp, exprLam, exprForall, exprLet, exprConst, exprProj, declDef,
+           declThm, declOpaque] at hsc
+         obtain ⟨r, -, rfl⟩ := srMap_ok hsc
+         simp [LinePayload.isAbsent]; done)
+      | (obtain ⟨rfl, v, e, str, rfl, -, -⟩ := he; simp [LinePayload.isAbsent]; done)
+
+end
+
 end ConPanqueque.Scan
