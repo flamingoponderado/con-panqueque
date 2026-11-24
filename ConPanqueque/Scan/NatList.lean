@@ -311,12 +311,12 @@ theorem nlLoop_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : Byte
 /-- **`scanNatList` in Pancake is sound for con-leche's**: when it returns, con-leche's
 `scanNatList` accepts the list at `i`, ending there. -/
 theorem nlFun_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
-    (hb : BytesAt t A b.data.toList) (i : USize) (hi : i.toNat < b.size)
+    (hb : BytesAt t A b.data.toList) (i : USize) (hi : i.toNat ≤ b.size)
     (hc : NumEndCode t) (hc2 : SkipDigitsCode t)
     (lb : t.locals.lookup sB = some (.val (.word A)))
     (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
     (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
-    RetP t nlFun (fun w => ∃ (e : USize) (xs : List Nat), w = BitVec.ofNat 64 e.toNat ∧
+    RetP t nlFun (fun w => ∃ (e : USize) (xs : List Nat), w = BitVec.ofNat 64 e.toNat ∧ e.toNat ≤ b.size ∧
       ConLeche.Frontend.scanNatList b i = .ok xs e) := by
   have hL : b.size < 2 ^ 64 := hp.size
   unfold nlFun
@@ -338,7 +338,11 @@ theorem nlFun_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : Byte
   refine retP_ite hcmp (fun hw => ?_) (fun _ => retP_hang _ _)
   have h91 : (byteL b.data.toList i.toNat).toNat = 91 := by
     cases hh : decide ((byteL b.data.toList i.toNat).toNat = 91) <;> simp_all [bw]
-  have hi1 : (i + 1).toNat = i.toNat + 1 := ConLeche.Frontend.usizeStep b i ((hp.lt_iff i).mpr hi)
+  have hi' : i.toNat < b.size := by
+    by_cases h : i.toNat < b.size
+    · exact h
+    · simp [byteL, List.getElem?_eq_none (by simp; omega : b.data.toList.length ≤ i.toNat)] at h91
+  have hi1 : (i + 1).toNat = i.toNat + 1 := ConLeche.Frontend.usizeStep b i ((hp.lt_iff i).mpr hi')
   have li6 : t6.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat))) := by lk [t6, t5]; exact li
   have ei : evaluateHOLFiniteState t6 incI =
       (none, setVarHOLFinite sI (.val (.word (BitVec.ofNat 64 (i + 1).toNat))) t6) :=
@@ -352,7 +356,7 @@ theorem nlFun_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : Byte
       by lk [t7, t6, t5]; rfl, Or.inl ⟨by lk [t7, t6, t5], rfl⟩⟩
   rcases nlLoop_spec t A b hp _ hb hc hc2 t7 h0 with hs | ⟨hn, hI, hg⟩
   · exact Or.inl (seq_stop t7 _ _ hs)
-  obtain ⟨m0, d0, c0, g0, b0, -, -, -, -, j, acc, wi, -, lj, -, -, br⟩ := hI
+  obtain ⟨m0, d0, c0, g0, b0, -, -, -, -, j, acc, wi, hjb, lj, -, -, br⟩ := hI
   have hR := (br.resolve_left (fun ⟨h1, _⟩ => by rw [hg] at h1; cases h1)).2
   generalize hu : evaluateHOLFiniteState t7 nlLoop = r at hn lj m0 d0 c0 g0 b0
   obtain ⟨r1, r2⟩ := r
@@ -360,7 +364,7 @@ theorem nlFun_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : Byte
   subst hn
   refine retP_seq hu ?_ m0 d0 g0 c0 b0
   obtain ⟨q1, q2, q3, q4, q5, q6⟩ := return_vv r2 sI _ lj
-  refine Or.inr ⟨_, q1, ⟨j, acc.reverse, rfl, ?_⟩, q2, q3, q4, q5, q6⟩
+  refine Or.inr ⟨_, q1, ⟨j, acc.reverse, rfl, hjb, ?_⟩, q2, q3, q4, q5, q6⟩
   rw [ConLeche.Frontend.scanNatList, byteAt_eq hp]
   have : (b.data.toList[i.toNat]?.getD 0 == 91) = true := by
     rw [show (91 : UInt8) = UInt8.ofNat 91 from rfl, beq_ofNat _ 91 (by decide)]

@@ -191,6 +191,35 @@ theorem ScanCodes.entry {t s : PanSemStateFiniteExact 64 σ} (h : ScanCodes t) (
 
 end
 
+theorem scanBool_facts {b : ByteArray} (hp : Plat b) (v : USize) (hv : v.toNat ≤ b.size) {x : Bool} {e : USize}
+    (h : ConLeche.Frontend.scanBool b v = .ok x e) :
+    e.toNat ≤ v.toNat + 5 ∧ (x = true ↔ (byteL b.data.toList v.toNat).toNat = 116) := by
+  have hroom := hp.room
+  have mt := matchLit_L hp "true".toUTF8 (by decide) (by decide) _ v 0 rfl
+    (by rw [show "true".toUTF8.size = 4 by decide]; simp; omega) (by simp)
+  have mf := matchLit_L hp "false".toUTF8 (by decide) (by decide) _ v 0 rfl
+    (by rw [show "false".toUTF8.size = 5 by decide]; simp; omega) (by simp)
+  simp only [show "true".toUTF8.data.toList = [116, 114, 117, 101] by decide,
+    show "false".toUTF8.data.toList = [102, 97, 108, 115, 101] by decide, List.drop_zero, USize.toNat_zero] at mt mf
+  have h4 : (v + 4).toNat = v.toNat + 4 := usize_add_toNat hp.bits v 4 (by omega)
+  have h5 : (v + 5).toNat = v.toNat + 5 := usize_add_toNat hp.bits v 5 (by omega)
+  rw [ConLeche.Frontend.scanBool, mt, mf] at h
+  split at h
+  · rename_i ht
+    simp only [ConLeche.Frontend.ScanRes.ok.injEq] at h
+    obtain ⟨rfl, rfl⟩ := h
+    simp only [litsL, Nat.add_zero, Bool.and_eq_true, beq_iff_eq] at ht
+    refine ⟨by omega, ?_⟩
+    simp [ht.1]
+  · split at h
+    · rename_i _ hf
+      simp only [ConLeche.Frontend.ScanRes.ok.injEq] at h
+      obtain ⟨rfl, rfl⟩ := h
+      simp only [litsL, Nat.add_zero, Bool.and_eq_true, beq_iff_eq] at hf
+      refine ⟨by omega, ?_⟩
+      simp [hf.1]
+    · simp at h
+
 /-! ## One key's value -/
 
 theorem numEndL_skip (bs : List UInt8) (i : Nat) (h : numEndL bs i ≠ i) : numEndL bs i = skipDigitsL bs i := by
@@ -573,6 +602,330 @@ theorem act_binder (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec
       rw [lo1 _ (slotName_fixed k (by have := hk.short; omega) sE2 (by simp [fixedLocals]))]
       exact hk.slotsOK k hk') rfl (by omega) hR'
   rw [hu3]; exact Or.inr ⟨rfl, hI⟩
+end
+
+section
+variable {σ : Type}
+
+theorem act_natListDrop (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+    (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (R : ScanRes (List SVal)) (j v : USize) (seen bit : UInt32)
+    (slots : List SVal) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u)
+    (hR : contAfter sp b j v seen bit slots (.natListDrop) = R) :
+    Stop (evaluateHOLFiniteState u (actCode bit (.natListDrop))).1 ∨
+      ((evaluateHOLFiniteState u (actCode bit (.natListDrop))).1 = none ∧
+        ObjI sp t A b R (evaluateHOLFiniteState u (actCode bit (.natListDrop))).2) := by
+  have hL : b.size < 2 ^ 64 := hp.size
+  have hroom := hp.room
+  have hvb := hk.hv
+  have hjb := hk.hj
+  have hcu : ScanCodes u := hc.congr hk.code
+  obtain ⟨e0, le0⟩ := hk.scratch sE2 (by simp)
+  have hcall := call3_retP u sE2 fNatList sB sN sI nlFun (vv sB) (vv sN) (vv sV) A
+    (BitVec.ofNat 64 b.size) (BitVec.ofNat 64 v.toNat) e0 _
+    (by decide) (by decide) (by decide) hcu.2.2.2.2.2.2.2.1 (eval_vv u sB _ hk.lb) (eval_vv u sN _ hk.ln)
+    (eval_vv u sV _ hk.lv) le0
+    (fun callee h1 h2 h3 => nlFun_sound (callEntryStateHOLFinite u callee) A b hp
+      (bytesAt_congr hb (by exact hk.mem) (by exact hk.dom) (by exact hk.be)) v hk.hv
+      (hcu.entry rfl callee).2.2.2.2.1 (hcu.entry rfl callee).2.1 h1 h2 h3)
+  simp only [actCode, callTo]
+  rcases hcall with hs | ⟨w, u1, ⟨E, xs, rfl, hEl, hnl⟩, hu1, m1, d1, g1, k1, b1, le1, lo1⟩
+  · exact Or.inl (seq_stop u _ _ hs)
+  rw [seq_normal _ hu1]
+  have li1 : u1.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 j.toNat))) := by
+    rw [lo1 sI (by decide)]; exact hk.li
+  rw [ite_word u1 _ _ _ _ (eval_lower u1 (vv sI) (vv sE2) j.toNat E.toNat (by omega) (by omega)
+    (eval_vv u1 sI _ li1) (eval_vv u1 sE2 _ le1))]
+  by_cases hjE0 : ¬ j.toNat < E.toNat
+  · simp only [bw, hjE0, ↓reduceIte, ne_eq, not_true_eq_false]; exact Or.inl (stop_hang u1)
+  have hjE : j.toNat < E.toNat := by omega
+  simp only [bw, hjE, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
+  have hR' : objLoop sp b E false (seen ||| bit) slots = R := by
+    rw [← hR]; unfold contAfter stepVal; simp only [hnl, applyUpd]
+    rw [if_pos (USize.lt_iff_toNat_lt.mpr hjE)]
+  obtain ⟨u3, hu3, hI⟩ := adv_from_ctx sp t A b R u u1 j v E seen bit slots slots hk m1 d1 k1 g1 b1
+    (fun y _ hy => lo1 y hy) le1
+    (fun k hk' => by
+      rw [lo1 _ (slotName_fixed k (by have := hk.short; omega) sE2 (by simp [fixedLocals]))]
+      exact hk.slotsOK k hk') rfl (by omega) hR'
+  rw [hu3]; exact Or.inr ⟨rfl, hI⟩
+
+theorem act_natList (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+    (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (R : ScanRes (List SVal)) (j v : USize) (seen bit : UInt32)
+    (slots : List SVal) (sl : Nat) (hsl : sl < slots.length) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u)
+    (hR : contAfter sp b j v seen bit slots (.natList sl) = R) :
+    Stop (evaluateHOLFiniteState u (actCode bit (.natList sl))).1 ∨
+      ((evaluateHOLFiniteState u (actCode bit (.natList sl))).1 = none ∧
+        ObjI sp t A b R (evaluateHOLFiniteState u (actCode bit (.natList sl))).2) := by
+  have hL : b.size < 2 ^ 64 := hp.size
+  have hroom := hp.room
+  have hvb := hk.hv
+  have hjb := hk.hj
+  have hcu : ScanCodes u := hc.congr hk.code
+  obtain ⟨e0, le0⟩ := hk.scratch sE2 (by simp)
+  have hcall := call3_retP u sE2 fNatList sB sN sI nlFun (vv sB) (vv sN) (vv sV) A
+    (BitVec.ofNat 64 b.size) (BitVec.ofNat 64 v.toNat) e0 _
+    (by decide) (by decide) (by decide) hcu.2.2.2.2.2.2.2.1 (eval_vv u sB _ hk.lb) (eval_vv u sN _ hk.ln)
+    (eval_vv u sV _ hk.lv) le0
+    (fun callee h1 h2 h3 => nlFun_sound (callEntryStateHOLFinite u callee) A b hp
+      (bytesAt_congr hb (by exact hk.mem) (by exact hk.dom) (by exact hk.be)) v hk.hv
+      (hcu.entry rfl callee).2.2.2.2.1 (hcu.entry rfl callee).2.1 h1 h2 h3)
+  simp only [actCode, callTo]
+  rcases hcall with hs | ⟨w, u1, ⟨E, xs, rfl, hEl, hnl⟩, hu1, m1, d1, g1, k1, b1, le1, lo1⟩
+  · exact Or.inl (seq_stop u _ _ hs)
+  rw [seq_normal _ hu1]
+  have li1 : u1.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 j.toNat))) := by
+    rw [lo1 sI (by decide)]; exact hk.li
+  rw [ite_word u1 _ _ _ _ (eval_lower u1 (vv sI) (vv sE2) j.toNat E.toNat (by omega) (by omega)
+    (eval_vv u1 sI _ li1) (eval_vv u1 sE2 _ le1))]
+  by_cases hjE0 : ¬ j.toNat < E.toNat
+  · simp only [bw, hjE0, ↓reduceIte, ne_eq, not_true_eq_false]; exact Or.inl (stop_hang u1)
+  have hjE : j.toNat < E.toNat := by omega
+  simp only [bw, hjE, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
+  have hR' : objLoop sp b E false (seen ||| bit) (slots.set sl (.l xs)) = R := by
+    rw [← hR]; unfold contAfter stepVal; simp only [hnl, applyUpd]
+    rw [if_pos (USize.lt_iff_toNat_lt.mpr hjE)]
+  have hfx : ∀ x ∈ fixedLocals, slotName sl ≠ x := slotName_fixed sl (by have := hk.short; omega)
+  obtain ⟨ws, lws⟩ : ∃ w, u1.locals.lookup (slotName sl) = some (.val (.word w)) := by
+    obtain ⟨w, hw, -⟩ := hk.slotsOK sl hsl
+    exact ⟨w, by rw [lo1 _ (hfx sE2 (by simp [fixedLocals]))]; exact hw⟩
+  have lv1 : u1.locals.lookup sV = some (.val (.word (BitVec.ofNat 64 v.toNat))) := by
+    rw [lo1 sV (by decide)]; exact hk.lv
+  rw [seq_normal _ (ConsLoop.assign_local u1 (slotName sl) (vv sV) _ ws (eval_vv u1 sV _ lv1) lws)]
+  let u2 := setVarHOLFinite (slotName sl) (.val (.word (BitVec.ofNat 64 v.toNat))) u1
+  obtain ⟨u3, hu3, hI⟩ := adv_from_ctx sp t A b R u u2 j v E seen bit slots (slots.set sl (.l xs)) hk m1 d1 k1 g1 b1
+    (fun y hy hne => by
+      show (setVarHOLFinite _ _ u1).locals.lookup y = _
+      rw [lookup_setVar_other _ _ (Ne.symm (hfx y hy)), lo1 y hne])
+    (by show (setVarHOLFinite _ _ u1).locals.lookup sE2 = _
+        rw [lookup_setVar_other _ _ (Ne.symm (hfx sE2 (by simp [fixedLocals])))]; exact le1)
+    (fun k hk' => by
+      simp only [List.length_set] at hk'
+      by_cases hks : k = sl
+      · subst hks
+        refine ⟨_, lookup_setVar_same _ _ _, ?_⟩
+        simp only [List.getElem_set_self, SlotOK]
+        exact Or.inl ⟨v, E, rfl, hnl⟩
+      · have hne : slotName k ≠ slotName sl := slotName_inj k (by have := hk.short; omega) sl
+          (by have := hk.short; omega) hks
+        obtain ⟨w, hw, hok⟩ := hk.slotsOK k hk'
+        refine ⟨w, ?_, by rw [List.getElem_set_ne (Ne.symm hks)]; exact hok⟩
+        show (setVarHOLFinite _ _ u1).locals.lookup _ = _
+        rw [lookup_setVar_other _ _ hne, lo1 _ (slotName_fixed k (by have := hk.short; omega) sE2
+          (by simp [fixedLocals]))]
+        exact hw)
+    (by simp) (by omega) hR'
+  rw [hu3]; exact Or.inr ⟨rfl, hI⟩
+
+theorem act_hints (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray)
+    (R : ScanRes (List SVal)) (bit : UInt32) (sl : Nat) (u : PanSemStateFiniteExact 64 σ) :
+    Stop (evaluateHOLFiniteState u (actCode bit (.hints sl))).1 ∨
+      ((evaluateHOLFiniteState u (actCode bit (.hints sl))).1 = none ∧
+        ObjI sp t A b R (evaluateHOLFiniteState u (actCode bit (.hints sl))).2) :=
+  Or.inl (by simp only [actCode]; exact stop_hang u)
+
+end
+
+section
+variable {σ : Type}
+
+theorem act_boolDrop (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+    (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (R : ScanRes (List SVal)) (j v : USize) (seen bit : UInt32)
+    (slots : List SVal) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u)
+    (hR : contAfter sp b j v seen bit slots (.boolDrop) = R) :
+    Stop (evaluateHOLFiniteState u (actCode bit (.boolDrop))).1 ∨
+      ((evaluateHOLFiniteState u (actCode bit (.boolDrop))).1 = none ∧
+        ObjI sp t A b R (evaluateHOLFiniteState u (actCode bit (.boolDrop))).2) := by
+  have hL : b.size < 2 ^ 64 := hp.size
+  have hroom := hp.room
+  have hvb := hk.hv
+  have hjb := hk.hj
+  have hcu : ScanCodes u := hc.congr hk.code
+  obtain ⟨e0, le0⟩ := hk.scratch sE2 (by simp)
+  have hcall := call3_retP u sE2 fBool sB sN sI sbFun (vv sB) (vv sN) (vv sV) A
+    (BitVec.ofNat 64 b.size) (BitVec.ofNat 64 v.toNat) e0 _
+    (by decide) (by decide) (by decide) hcu.2.2.2.2.2.2.2.2.2.1 (eval_vv u sB _ hk.lb) (eval_vv u sN _ hk.ln)
+    (eval_vv u sV _ hk.lv) le0
+    (fun callee h1 h2 h3 => sbFun_sound (callEntryStateHOLFinite u callee) A b hp
+      (bytesAt_congr hb (by exact hk.mem) (by exact hk.dom) (by exact hk.be)) v (by omega) h1 h2 h3)
+  simp only [actCode, callTo]
+  rcases hcall with hs | ⟨w, u1, ⟨E, x, rfl, hsb⟩, hu1, m1, d1, g1, k1, b1, le1, lo1⟩
+  · exact Or.inl (seq_stop u _ _ hs)
+  rw [seq_normal _ hu1]
+  obtain ⟨hEb, hx⟩ := scanBool_facts hp v hk.hv hsb
+  have li1 : u1.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 j.toNat))) := by
+    rw [lo1 sI (by decide)]; exact hk.li
+  rw [ite_word u1 _ _ _ _ (eval_lower u1 (vv sI) (vv sE2) j.toNat E.toNat (by omega) (by omega)
+    (eval_vv u1 sI _ li1) (eval_vv u1 sE2 _ le1))]
+  by_cases hjE0 : ¬ j.toNat < E.toNat
+  · simp only [bw, hjE0, ↓reduceIte, ne_eq, not_true_eq_false]; exact Or.inl (stop_hang u1)
+  have hjE : j.toNat < E.toNat := by omega
+  simp only [bw, hjE, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
+  have hR' : objLoop sp b E false (seen ||| bit) slots = R := by
+    rw [← hR]; unfold contAfter stepVal; simp only [hsb, applyUpd]
+    rw [if_pos (USize.lt_iff_toNat_lt.mpr hjE)]
+  obtain ⟨u3, hu3, hI⟩ := adv_from_ctx sp t A b R u u1 j v E seen bit slots slots hk m1 d1 k1 g1 b1
+    (fun y _ hy => lo1 y hy) le1
+    (fun k hk' => by
+      rw [lo1 _ (slotName_fixed k (by have := hk.short; omega) sE2 (by simp [fixedLocals]))]
+      exact hk.slotsOK k hk') rfl (by omega) hR'
+  rw [hu3]; exact Or.inr ⟨rfl, hI⟩
+
+theorem act_bool (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+    (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (R : ScanRes (List SVal)) (j v : USize) (seen bit : UInt32)
+    (slots : List SVal) (sl : Nat) (hsl : sl < slots.length) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u)
+    (hR : contAfter sp b j v seen bit slots (.bool sl) = R) :
+    Stop (evaluateHOLFiniteState u (actCode bit (.bool sl))).1 ∨
+      ((evaluateHOLFiniteState u (actCode bit (.bool sl))).1 = none ∧
+        ObjI sp t A b R (evaluateHOLFiniteState u (actCode bit (.bool sl))).2) := by
+  have hL : b.size < 2 ^ 64 := hp.size
+  have hroom := hp.room
+  have hvb := hk.hv
+  have hjb := hk.hj
+  have hcu : ScanCodes u := hc.congr hk.code
+  obtain ⟨e0, le0⟩ := hk.scratch sE2 (by simp)
+  have hcall := call3_retP u sE2 fBool sB sN sI sbFun (vv sB) (vv sN) (vv sV) A
+    (BitVec.ofNat 64 b.size) (BitVec.ofNat 64 v.toNat) e0 _
+    (by decide) (by decide) (by decide) hcu.2.2.2.2.2.2.2.2.2.1 (eval_vv u sB _ hk.lb) (eval_vv u sN _ hk.ln)
+    (eval_vv u sV _ hk.lv) le0
+    (fun callee h1 h2 h3 => sbFun_sound (callEntryStateHOLFinite u callee) A b hp
+      (bytesAt_congr hb (by exact hk.mem) (by exact hk.dom) (by exact hk.be)) v (by omega) h1 h2 h3)
+  simp only [actCode, callTo]
+  rcases hcall with hs | ⟨w, u1, ⟨E, x, rfl, hsb⟩, hu1, m1, d1, g1, k1, b1, le1, lo1⟩
+  · exact Or.inl (seq_stop u _ _ hs)
+  rw [seq_normal _ hu1]
+  obtain ⟨hEb, hx⟩ := scanBool_facts hp v hk.hv hsb
+  have li1 : u1.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 j.toNat))) := by
+    rw [lo1 sI (by decide)]; exact hk.li
+  rw [ite_word u1 _ _ _ _ (eval_lower u1 (vv sI) (vv sE2) j.toNat E.toNat (by omega) (by omega)
+    (eval_vv u1 sI _ li1) (eval_vv u1 sE2 _ le1))]
+  by_cases hjE0 : ¬ j.toNat < E.toNat
+  · simp only [bw, hjE0, ↓reduceIte, ne_eq, not_true_eq_false]; exact Or.inl (stop_hang u1)
+  have hjE : j.toNat < E.toNat := by omega
+  simp only [bw, hjE, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
+  have hR' : objLoop sp b E false (seen ||| bit) (slots.set sl (.b x)) = R := by
+    rw [← hR]; unfold contAfter stepVal; simp only [hsb, applyUpd]
+    rw [if_pos (USize.lt_iff_toNat_lt.mpr hjE)]
+  have hfx : ∀ x ∈ fixedLocals, slotName sl ≠ x := slotName_fixed sl (by have := hk.short; omega)
+  obtain ⟨ws, lws⟩ : ∃ w, u1.locals.lookup (slotName sl) = some (.val (.word w)) := by
+    obtain ⟨w, hw, -⟩ := hk.slotsOK sl hsl
+    exact ⟨w, by rw [lo1 _ (hfx sE2 (by simp [fixedLocals]))]; exact hw⟩
+  have lv1 : u1.locals.lookup sV = some (.val (.word (BitVec.ofNat 64 v.toNat))) := by
+    rw [lo1 sV (by decide)]; exact hk.lv
+  have e2 := bAt_spec u1 A b.data.toList (slotName sl) (vv sV) v.toNat
+    (bytesAt_congr hb (m1.trans hk.mem) (d1.trans hk.dom) (b1.trans hk.be)) (by omega) ws lws
+    (by rw [lo1 sB (by decide)]; exact hk.lb) (by rw [lo1 sN (by decide)]; simpa using hk.ln) (eval_vv u1 sV _ lv1)
+  rw [seq_normal _ e2]
+  let u2 := setVarHOLFinite (slotName sl) (.val (.word (BitVec.ofNat 64 (byteL b.data.toList v.toNat).toNat))) u1
+  have lsl2 : u2.locals.lookup (slotName sl) =
+      some (.val (.word (BitVec.ofNat 64 (byteL b.data.toList v.toNat).toNat))) := lookup_setVar_same _ _ _
+  have hcmp := eval_eq_c u2 (slotName sl) (byteL b.data.toList v.toNat).toNat 116
+    (by have := UInt8.toNat_lt (byteL b.data.toList v.toNat); omega) (by decide) lsl2
+  simp only [show (116 : BitVec 64) = BitVec.ofNat 64 116 from rfl] at *
+  rw [seq_normal _ (ConsLoop.assign_local u2 (slotName sl) _ _ _ hcmp lsl2)]
+  let u3 := setVarHOLFinite (slotName sl) (.val (.word (bw ((byteL b.data.toList v.toNat).toNat = 116)))) u2
+  obtain ⟨u4, hu4, hI⟩ := adv_from_ctx sp t A b R u u3 j v E seen bit slots (slots.set sl (.b x)) hk m1 d1 k1 g1 b1
+    (fun y hy hne => by
+      show (setVarHOLFinite _ _ (setVarHOLFinite _ _ u1)).locals.lookup y = _
+      rw [lookup_setVar_other _ _ (Ne.symm (hfx y hy)), lookup_setVar_other _ _ (Ne.symm (hfx y hy)), lo1 y hne])
+    (by show (setVarHOLFinite _ _ (setVarHOLFinite _ _ u1)).locals.lookup sE2 = _
+        rw [lookup_setVar_other _ _ (Ne.symm (hfx sE2 (by simp [fixedLocals]))),
+          lookup_setVar_other _ _ (Ne.symm (hfx sE2 (by simp [fixedLocals])))]; exact le1)
+    (fun k hk' => by
+      simp only [List.length_set] at hk'
+      by_cases hks : k = sl
+      · subst hks
+        refine ⟨_, lookup_setVar_same _ _ _, ?_⟩
+        simp only [List.getElem_set_self, SlotOK]
+        cases x <;> simp_all [bw]
+      · have hne : slotName k ≠ slotName sl := slotName_inj k (by have := hk.short; omega) sl
+          (by have := hk.short; omega) hks
+        obtain ⟨w, hw, hok⟩ := hk.slotsOK k hk'
+        refine ⟨w, ?_, by rw [List.getElem_set_ne (Ne.symm hks)]; exact hok⟩
+        show (setVarHOLFinite _ _ (setVarHOLFinite _ _ u1)).locals.lookup _ = _
+        rw [lookup_setVar_other _ _ hne, lookup_setVar_other _ _ hne, lo1 _ (slotName_fixed k (by have := hk.short; omega) sE2
+          (by simp [fixedLocals]))]
+        exact hw)
+    (by simp) (by omega) hR'
+  rw [hu4]; exact Or.inr ⟨rfl, hI⟩
+
+theorem act_str (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+    (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (R : ScanRes (List SVal)) (j v : USize) (seen bit : UInt32)
+    (slots : List SVal) (sl : Nat) (hsl : sl < slots.length) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u)
+    (hR : contAfter sp b j v seen bit slots (.str sl) = R) :
+    Stop (evaluateHOLFiniteState u (actCode bit (.str sl))).1 ∨
+      ((evaluateHOLFiniteState u (actCode bit (.str sl))).1 = none ∧
+        ObjI sp t A b R (evaluateHOLFiniteState u (actCode bit (.str sl))).2) := by
+  have hL : b.size < 2 ^ 64 := hp.size
+  have hroom := hp.room
+  have hvb := hk.hv
+  have hjb := hk.hj
+  have hcu : ScanCodes u := hc.congr hk.code
+  obtain ⟨e0, le0⟩ := hk.scratch sE2 (by simp)
+  have hcall := call3_retP u sE2 fStr sB sN sI ssFun (vv sB) (vv sN) (vv sV) A
+    (BitVec.ofNat 64 b.size) (BitVec.ofNat 64 v.toNat) e0 _
+    (by decide) (by decide) (by decide) hcu.2.2.2.2.2.2.2.2.1 (eval_vv u sB _ hk.lb) (eval_vv u sN _ hk.ln)
+    (eval_vv u sV _ hk.lv) le0
+    (fun callee h1 h2 h3 => ssFun_sound (callEntryStateHOLFinite u callee) A b hp
+      (bytesAt_congr hb (by exact hk.mem) (by exact hk.dom) (by exact hk.be)) v hk.hv
+      (hcu.entry rfl callee).2.2.2.1 h1 h2 h3)
+  simp only [actCode, callTo]
+  rcases hcall with hs | ⟨w, u1, ⟨e, rfl, hel, str, hss, -⟩, hu1, m1, d1, g1, k1, b1, le1', lo1⟩
+  · exact Or.inl (seq_stop u _ _ hs)
+  rw [seq_normal _ hu1]
+  have he1 : (e + 1).toNat = e.toNat + 1 := ConLeche.Frontend.usizeStep b e ((hp.lt_iff e).mpr hel)
+  obtain ⟨E, hE⟩ : ∃ E, E = e + 1 := ⟨_, rfl⟩
+  rw [seq_normal _ (ConsLoop.assign_local u1 sE2 _ (BitVec.ofNat 64 E.toNat) _ (by
+    rw [eval_add_c u1 sE2 _ _ le1', hE, he1]; congr 3; apply BitVec.eq_of_toNat_eq
+    simp [BitVec.toNat_add]; try omega) le1')]
+  let u1' := setVarHOLFinite sE2 (.val (.word (BitVec.ofNat 64 E.toNat))) u1
+  have le1 : u1'.locals.lookup sE2 = some (.val (.word (BitVec.ofNat 64 E.toNat))) := lookup_setVar_same _ _ _
+  have lo1' : ∀ y, y ≠ sE2 → u1'.locals.lookup y = u.locals.lookup y := fun y hy => by
+    show (setVarHOLFinite _ _ u1).locals.lookup y = _; rw [lookup_setVar_other _ _ hy, lo1 y hy]
+  have hEb : E.toNat ≤ b.size := by rw [hE, he1]; omega
+  clear lo1
+  have li1 : u1'.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 j.toNat))) := by
+    rw [lo1' sI (by decide)]; exact hk.li
+  rw [ite_word u1' _ _ _ _ (eval_lower u1' (vv sI) (vv sE2) j.toNat E.toNat (by omega) (by omega)
+    (eval_vv u1' sI _ li1) (eval_vv u1' sE2 _ le1))]
+  by_cases hjE0 : ¬ j.toNat < E.toNat
+  · simp only [bw, hjE0, ↓reduceIte, ne_eq, not_true_eq_false]; exact Or.inl (stop_hang u1')
+  have hjE : j.toNat < E.toNat := by omega
+  simp only [bw, hjE, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
+  have hR' : objLoop sp b E false (seen ||| bit) (slots.set sl (.s str)) = R := by
+    rw [← hR]; unfold contAfter stepVal; simp only [hss, applyUpd, ← hE]
+    rw [if_pos (USize.lt_iff_toNat_lt.mpr hjE)]
+  have hfx : ∀ x ∈ fixedLocals, slotName sl ≠ x := slotName_fixed sl (by have := hk.short; omega)
+  obtain ⟨ws, lws⟩ : ∃ w, u1'.locals.lookup (slotName sl) = some (.val (.word w)) := by
+    obtain ⟨w, hw, -⟩ := hk.slotsOK sl hsl
+    exact ⟨w, by rw [lo1' _ (hfx sE2 (by simp [fixedLocals]))]; exact hw⟩
+  have lv1 : u1'.locals.lookup sV = some (.val (.word (BitVec.ofNat 64 v.toNat))) := by
+    rw [lo1' sV (by decide)]; exact hk.lv
+  rw [seq_normal _ (ConsLoop.assign_local u1' (slotName sl) (vv sV) _ ws (eval_vv u1' sV _ lv1) lws)]
+  let u2 := setVarHOLFinite (slotName sl) (.val (.word (BitVec.ofNat 64 v.toNat))) u1'
+  obtain ⟨u3, hu3, hI⟩ := adv_from_ctx sp t A b R u u2 j v E seen bit slots (slots.set sl (.s str)) hk m1 d1 k1 g1 b1
+    (fun y hy hne => by
+      show (setVarHOLFinite _ _ u1').locals.lookup y = _
+      rw [lookup_setVar_other _ _ (Ne.symm (hfx y hy)), lo1' y hne])
+    (by show (setVarHOLFinite _ _ u1').locals.lookup sE2 = _
+        rw [lookup_setVar_other _ _ (Ne.symm (hfx sE2 (by simp [fixedLocals])))]; exact le1)
+    (fun k hk' => by
+      simp only [List.length_set] at hk'
+      by_cases hks : k = sl
+      · subst hks
+        refine ⟨_, lookup_setVar_same _ _ _, ?_⟩
+        simp only [List.getElem_set_self, SlotOK]
+        exact Or.inl ⟨v, e + 1, rfl, hss⟩
+      · have hne : slotName k ≠ slotName sl := slotName_inj k (by have := hk.short; omega) sl
+          (by have := hk.short; omega) hks
+        obtain ⟨w, hw, hok⟩ := hk.slotsOK k hk'
+        refine ⟨w, ?_, by rw [List.getElem_set_ne (Ne.symm hks)]; exact hok⟩
+        show (setVarHOLFinite _ _ u1').locals.lookup _ = _
+        rw [lookup_setVar_other _ _ hne, lo1' _ (slotName_fixed k (by have := hk.short; omega) sE2
+          (by simp [fixedLocals]))]
+        exact hw)
+    (by simp) (by omega) hR'
+  rw [hu3]; exact Or.inr ⟨rfl, hI⟩
+
 end
 
 end ConPanqueque.Scan
