@@ -139,4 +139,52 @@ theorem specR_memoSetGIC {β : Type} {C C' : Ctx} (hinj : ∀ x y, enc x = enc y
 
 end
 
+
+/-- A context with the environment `fe`, image `EH` and constant table `envM` in place of `C`'s. -/
+def ctxIns (C : Ctx) (fe : IFEnv) (EH : List (BitVec 64)) (envM : Std.HashMap NIdx (BitVec 64)) : Ctx :=
+  { C with fe := fe, EH := EH, envM := envM }
+
+section
+variable {σ : Type}
+
+/-- Rebuilding `SR` after a write confined to the constant table's region: every other part is framed; the
+caller supplies the new table, the environment's denotation facts, and the unchanged literal word. -/
+theorem sr_envIns {C : Ctx} {EH : List (BitVec 64)} (hok : CtxOK (ctxE C EH)) {s : AState} {t u : PState σ}
+    (hsr : SR (ctxE C EH) s t) (hfr : ∀ c, ¬ inR (C.mg .env) c → u.memory c = t.memory c)
+    (hd : u.memaddrs = t.memaddrs) (hg : u.globals = t.globals) (hc : u.code = t.code)
+    {fe : IFEnv} {envM : Std.HashMap NIdx (BitVec 64)}
+    (hm : MemoAtG encNI id u (C.mG .env) (C.mg .env) envM) (hlit : litW fe = litW C.fe)
+    (hden : EnvDen fe C.pins s.store) :
+    SR (ctxIns C fe EH envM) s u := by
+  have r := Region.env
+  obtain ⟨hH, _, hm2, hl⟩ := hsr.env
+  refine ⟨srep_frame hsr.rep ⟨hfr _ (hok.flMemo .env _ (Or.inl rfl)), hfr _ (hok.flMemo .env _ (Or.inr (Or.inl rfl))),
+      hfr _ (hok.flMemo .env _ (Or.inr (Or.inr (Or.inl rfl)))), hfr _ (hok.flMemo .env _ (Or.inr (Or.inr (Or.inr rfl))))⟩ hd
+      (fun kk tier hk1 hk2 => ⟨fun mm hm => hfr _ (hok.dirMemo .env kk tier mm hk1 hk2 hm),
+        fun c hc => hfr c (fun hin => hok.memoOut .env c hin ⟨kk, tier, hk1, hk2, hc⟩)⟩),
+    by rw [hg]; exact hsr.gdir, by rw [hg]; exact hsr.gfln, by rw [hg]; exact hsr.gfll, by rw [hg]; exact hsr.gfls,
+    by rw [hg]; exact hsr.gfle, by rw [hg]; exact hsr.gkb, by rw [hc]; exact hsr.code,
+    fun j hj => by rw [hd]; exact hsr.kbuf j hj,
+    fun k => memoAt_frame (hsr.memo k) (fun c hc => hfr c (hok.memoDis (.e k) .env c (by simp) hc))
+        (fun kk hkk => hfr _ (hok.mdescMemo .env (.e k) kk hkk)) hd,
+    fun k => memoAtN_frame (hsr.memoN k) (fun c hc => hfr c (hok.memoDis (.n k) .env c (by simp) hc))
+        (fun kk hkk => hfr _ (hok.mdescMemo .env (.n k) kk hkk)) hd,
+    fun k => cacheAt_frame (hsr.cache k) (fun c hc => hfr c (hok.memoDis (.c k) .env c (by simp) hc))
+        (fun kk hkk => hfr _ (hok.mdescMemo .env (.c k) kk hkk)) hd,
+    modeAt_frame hsr.mode (fun b k c hc => hfr c (hok.memoDis (.m b k) .env c (by simp) hc))
+      (fun b k kk hkk => hfr _ (hok.mdescMemo .env (.m b k) kk hkk)) hd (by rw [hg]),
+    ⟨⟨by rw [hg]; exact hH.top, hH.len, hH.lay, fun i hi => by rw [hd]; exact hH.dom i hi,
+        fun i hi => by
+          have e := hfr _ (hok.envMemo .env i (Nat.lt_of_lt_of_le hi hH.len)); unfold ecell at e
+          exact e.trans (hH.val i hi),
+        fun i hi => by
+          have e := hfr _ (hok.envMemo .env i hi); unfold ecell at e
+          exact (hH.words i hi).imp fun w hw => e.trans hw⟩,
+      hm, memoAtG_frame hm2 (fun c hc => hfr c (hok.memoDis .tbl .env c (by decide) hc))
+        (fun kk hkk => hfr _ (hok.mdescMemo .env .tbl kk hkk)) hd,
+      by rw [hg, show (ctxIns C fe EH envM).fe = fe from rfl, hlit]; exact hl⟩, hsr.pins,
+    heapEx_frame hsr.heap (fun i hi => hfr _ (hok.heapMemo .env i hi)) hd (by rw [hg]), hsr.twf, hden, hsr.floor, hsr.cok⟩
+
+end
+
 end ConPanqueque.T.Decl
