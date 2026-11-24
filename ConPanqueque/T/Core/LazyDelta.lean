@@ -585,7 +585,7 @@ def ldrBody (_v : Bool) (C : Ctx) : ProgHOL 64 := prologue ldrLocals (.ite (.cmp
 structure LdrCodes (C : Ctx) (v : Bool) : Prop where
   of : C.code.lookup fOf = some (ofParams.map (fun p => (p, ShapeHOL.one)), ofBody, .one)
   dn : C.code.lookup fDn = some ([dnA, dnB].map (fun p => (p, ShapeHOL.one)), dnBody, .one)
-  rn : C.code.lookup fRN = some (kParams.map (fun p => (p, ShapeHOL.one)), rdBody C, .one)
+  rn : C.code.lookup WB.fRN = some (kParams.map (fun p => (p, ShapeHOL.one)), rdBody C, .one)
   d : C.code.lookup fD = some (dParams.map (fun p => (p, ShapeHOL.one)), dE C, .one)
   ld : C.code.lookup fLds = some (ldParams.map (fun p => (p, ShapeHOL.one)), ldBody, .one)
   self : C.code.lookup fLdr = some (ldrParams.map (fun p => (p, ShapeHOL.one)), ldrBody v C, .one)

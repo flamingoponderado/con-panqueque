@@ -24,7 +24,7 @@ structure UfCodes (C : Ctx) : Prop where
   uf : C.code.lookup UD.fUnfold = some (pmap [UD.uE], UD.ufBody C, .one)
   ilp : CodesILP C (ilpBody C)
   ilpf : C.code.lookup fInstLPF = some (ILP.ilpParams.map (fun p => (p, ShapeHOL.one)), ilpfBody C, .one)
-  cv : C.code.lookup fCV = some (cvParams.map (fun p => (p, ShapeHOL.one)), cvBody C, .one)
+  cv : C.code.lookup UD.fCV = some (cvParams.map (fun p => (p, ShapeHOL.one)), cvBody C, .one)
   gaa : C.code.lookup ExG.fGaa = some ([(pFu, .one), (pH, .one)], ExG.gaaBody C, .one)
   mka : C.code.lookup ExK.fMka = some ([(ExK.pF, .one), (ExK.pP, .one), (ExK.pI, .one), (ExK.pN, .one)],
     ExK.mkaBody, .one)
@@ -37,7 +37,7 @@ theorem ufCodes_H {C : Ctx} (hc : UfCodes C) (H : List (BitVec 64)) : UfCodes (c
 
 /-- The code `whnfBody` runs besides the knot entries. -/
 structure WbCodes (C : Ctx) : Prop where
-  rn : C.code.lookup fRN = some (pmap kParams, rdBody C, .one)
+  rn : C.code.lookup WB.fRN = some (pmap kParams, rdBody C, .one)
   big : BigCodes C
   rd : RdCodes C
   uf : UfCodes C
