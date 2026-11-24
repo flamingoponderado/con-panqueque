@@ -1470,7 +1470,8 @@ theorem objStmt_spec (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ
       ∃ (j : USize) (slots' : List SVal),
         (if ConLeche.Frontend.byteAt b i == 123 then objLoop sp b (i + 1) true 0 slots
           else .err ⟨i.toNat, .expectedObject⟩) = .ok slots' j ∧
-        ObjI sp nS t A b (.ok slots' j) (evaluateHOLFiniteState u (objStmt sp)).2) := by
+        ObjI sp nS t A b (.ok slots' j) (evaluateHOLFiniteState u (objStmt sp)).2 ∧
+        (evaluateHOLFiniteState u (objStmt sp)).2.locals.lookup sG = some (.val (.word 0))) := by
   have hL : b.size < 2 ^ 64 := hp.size
   have hroom := hp.room
   obtain ⟨wc, lc⟩ := scr sC (by simp)
@@ -1527,8 +1528,98 @@ theorem objStmt_spec (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ
   refine Or.inr ⟨hn, ?_⟩
   obtain ⟨m', d', c', g', b', lb', ln', scr', j, wm, seen, slots', hj', hlen', li', lw', ls', hsl', br⟩ := hI
   have hR := (br.resolve_left (fun ⟨h1, _⟩ => by rw [hg] at h1; cases h1)).2
-  exact ⟨j, slots', hR, m', d', c', g', b', lb', ln', scr', j, wm, seen, slots', hj', hlen', li', lw', ls',
-    hsl', Or.inr ⟨hg, rfl⟩⟩
+  exact ⟨j, slots', hR, ⟨m', d', c', g', b', lb', ln', scr', j, wm, seen, slots', hj', hlen', li', lw', ls',
+    hsl', Or.inr ⟨hg, rfl⟩⟩, hg⟩
+
+end
+
+/-! ## A record as a function -/
+
+/-- Nested declarations of word locals. -/
+def decsOf : List (MlS × BitVec 64) → ProgHOL 64 → ProgHOL 64
+  | [], body => body
+  | (x, w) :: r, body => .dec x .one (.const w) (decsOf r body)
+
+section
+variable {σ : Type}
+
+theorem retP_decsOf (P : BitVec 64 → Prop) :
+    ∀ (ds : List (MlS × BitVec 64)) (body : ProgHOL 64) (u : PanSemStateFiniteExact 64 σ),
+      RetP (ds.foldl (fun s (x, w) => setVarHOLFinite x (.val (.word w)) s) u) body P →
+      RetP u (decsOf ds body) P := by
+  intro ds
+  induction ds with
+  | nil => intro body u h; exact h
+  | cons d r ih =>
+    intro body u h
+    obtain ⟨x, w⟩ := d
+    exact retP_dec (by simp [evalHOLExact]) (ih body _ h)
+
+end
+
+/-- The record function's locals: the loop's fixed locals and the slots, with their initial words. -/
+def recLocals (inits : List (BitVec 64)) : List (MlS × BitVec 64) :=
+  [(sG, 1), (sW, 1), (sS, 0), (sC, 0), (sK, 0), (sV, 0), (sKK, 0), (sE2, 0)] ++
+    inits.zipIdx.map (fun (w, k) => (slotName k, w))
+
+/-- `rec(b, n, i)`: the record at `i`; returns `ret` (its end, or one of its slots). -/
+def recFun (sp : ObjSpec) (inits : List (BitVec 64)) (ret : ExpHOL 64) : ProgHOL 64 :=
+  decsOf (recLocals inits) (.seq (objStmt sp) (.return ret))
+
+section
+variable {σ : Type}
+
+/-- The record body's result: con-leche's record at `i` accepted, ending at `j`, with these slots. -/
+def RecOut (sp : ObjSpec) (b : ByteArray) (i : USize) (slots : List SVal) (j : USize) (slots' : List SVal) : Prop :=
+  (if ConLeche.Frontend.byteAt b i == 123 then objLoop sp b (i + 1) true 0 slots
+    else .err ⟨i.toNat, .expectedObject⟩) = .ok slots' j
+
+theorem recBody_spec (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray)
+    (hp : Plat b) (hb : BytesAt t A b.data.toList) (hc : ScanCodes t)
+    (hks : ∀ e ∈ sp.keys, ActOK nS e.2.2) (hn10 : nS ≤ 10)
+    (i : USize) (hi : i.toNat ≤ b.size) (slots : List SVal) (hlen : slots.length = nS)
+    (x : MlS) (hx : x = sI ∨ ∃ k, k < nS ∧ x = slotName k)
+    (u : PanSemStateFiniteExact 64 σ)
+    (m0 : u.memory = t.memory) (d0 : u.memaddrs = t.memaddrs) (c0 : u.code = t.code) (g0 : u.globals = t.globals)
+    (b0 : u.be = t.be)
+    (lb : u.locals.lookup sB = some (.val (.word A)))
+    (ln : u.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
+    (li : u.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat))))
+    (lg : u.locals.lookup sG = some (.val (.word 1)))
+    (lw : u.locals.lookup sW = some (.val (.word 1)))
+    (ls : u.locals.lookup sS = some (.val (.word 0)))
+    (scr : ∀ x ∈ [sC, sK, sV, sKK, sE2], ∃ w, u.locals.lookup x = some (.val (.word w)))
+    (hsl : ∀ k (hk : k < slots.length), ∃ w, u.locals.lookup (slotName k) = some (.val (.word w)) ∧
+      SlotOK b w slots[k]) :
+    RetP u (.seq (objStmt sp) (.return (vv x))) (fun w => ∃ j slots', RecOut sp b i slots j slots' ∧
+      (x = sI → w = BitVec.ofNat 64 j.toNat) ∧
+      (∀ k (hk : k < slots'.length), x = slotName k → SlotOK b w slots'[k])) := by
+  rcases objStmt_spec sp nS t A b hp hb hc hks hn10 i hi slots hlen u m0 d0 c0 g0 b0 lb ln li lg lw ls scr hsl with
+    hs | ⟨hn, j, slots', hR, hI, hg⟩
+  · exact Or.inl (seq_stop u _ _ hs)
+  generalize he : evaluateHOLFiniteState u (objStmt sp) = r at hn hI hg
+  obtain ⟨r1, r2⟩ := r
+  simp only at hn hI hg
+  subst hn
+  obtain ⟨m', d', c', g', b', -, -, -, j', wm, seen, sl2, hj', hlen2, li', -, -, hsl2, br⟩ := hI
+  have hR2 := (br.resolve_left (fun ⟨h1, _⟩ => by rw [hg] at h1; cases h1)).2
+  simp only [ScanRes.ok.injEq] at hR2
+  obtain ⟨rfl, rfl⟩ := hR2
+  refine retP_seq he ?_ (m'.trans m0.symm) (d'.trans d0.symm) (g'.trans g0.symm) (c'.trans c0.symm)
+    (b'.trans b0.symm)
+  rcases hx with rfl | ⟨k, hk, rfl⟩
+  · obtain ⟨q1, q2, q3, q4, q5, q6⟩ := return_vv r2 sI _ li'
+    exact Or.inr ⟨_, q1, ⟨j, slots', hR, fun _ => rfl, fun k hk h => absurd h (Ne.symm (slotName_fixed k
+      (by omega) sI (by simp [fixedLocals])))⟩, q2, q3, q4, q5, q6⟩
+  · obtain ⟨w, hw, hok⟩ := hsl2 k (by omega)
+    obtain ⟨q1, q2, q3, q4, q5, q6⟩ := return_vv r2 (slotName k) _ hw
+    refine Or.inr ⟨_, q1, ⟨j, slots', hR, fun h => absurd h (slotName_fixed k (by omega) sI (by simp [fixedLocals])),
+      fun k' hk' h => ?_⟩, q2, q3, q4, q5, q6⟩
+    have : k' = k := by
+      by_cases hkk : k' = k
+      · exact hkk
+      · exact absurd h (slotName_inj k (by omega) k' (by omega) (Ne.symm hkk))
+    subst this; exact hok
 
 end
 
