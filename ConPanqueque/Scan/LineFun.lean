@@ -776,4 +776,58 @@ theorem lineDispatch_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b 
 
 end
 
+/-! ## The closing brace -/
+
+def tagLookup (t : Nat) : List (Nat × Nat) → Option Nat
+  | [] => none
+  | (t', g) :: r => if t = t' then some g else tagLookup t r
+
+section
+variable {σ : Type}
+
+/-- `endCheck` at a tag: the tag's group must be the index kind, then the loop ends past the brace. -/
+theorem endCheck_spec (u : PanSemStateFiniteExact 64 σ) (t : Nat) (ht : t < 2 ^ 32) (ik : UInt8) (j : USize)
+    (lpl : u.locals.lookup sPl = some (.val (.word (BitVec.ofNat 64 t))))
+    (lik : u.locals.lookup sIK = some (.val (.word (BitVec.ofNat 64 ik.toNat))))
+    (li : u.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 j.toNat))))
+    (lg : ∃ w, u.locals.lookup sG = some (.val (.word w))) (hj1 : j.toNat + 1 < 2 ^ 64) :
+    ∀ (L : List (Nat × Nat)), (∀ e ∈ L, e.1 < 2 ^ 32 ∧ e.2 < 4) →
+      Stop (evaluateHOLFiniteState u (endCheck L)).1 ∨
+        ∃ g, tagLookup t L = some g ∧ g = ik.toNat ∧
+          evaluateHOLFiniteState u (endCheck L) =
+            (none, setVarHOLFinite sG (.val (.word 0))
+              (setVarHOLFinite sI (.val (.word (BitVec.ofNat 64 (j.toNat + 1)))) u)) := by
+  intro L
+  induction L with
+  | nil => intro _; exact Or.inl (stop_hang u)
+  | cons e r ih =>
+    intro hL
+    obtain ⟨t', g⟩ := e
+    have h1 := hL (t', g) (List.mem_cons_self ..)
+    simp only at h1
+    unfold endCheck
+    rw [ite_word u _ _ _ _ (eval_eq_c u sPl t t' (by omega) (by omega) lpl)]
+    by_cases htt : t = t'
+    · subst htt
+      simp only [bw, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
+      have hikl : ik.toNat < 2 ^ 64 := by have := ik.toNat_lt; omega
+      rw [ite_word u _ _ _ _ (eval_eq_c u sIK ik.toNat g hikl (by omega) lik)]
+      by_cases hg : ik.toNat = g
+      · simp only [bw, hg, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
+        right
+        refine ⟨g, by simp [tagLookup], by first | rfl | exact hg.symm, ?_⟩
+        unfold incI
+        rw [seq_normal _ (ConsLoop.assign_local u sI _ (BitVec.ofNat 64 (j.toNat + 1)) _ (by
+          rw [eval_add_c u sI _ _ li]; congr 3; apply BitVec.eq_of_toNat_eq
+          simp [BitVec.toNat_add]; try omega) li)]
+        obtain ⟨wg, lg⟩ := lg
+        rw [ConsLoop.assign_local _ sG (.const 0) 0 wg (by simp [evalHOLExact]) (by lk; exact lg)]
+      · simp only [bw, hg, ↓reduceIte, ne_eq, not_true_eq_false]; exact Or.inl (stop_hang u)
+    · simp only [bw, htt, ↓reduceIte, ne_eq, not_true_eq_false]
+      rcases ih (fun e he => hL e (List.mem_cons_of_mem _ he)) with hs | ⟨g', hl, hg', he⟩
+      · exact Or.inl hs
+      · exact Or.inr ⟨g', by simp [tagLookup, htt, hl], hg', he⟩
+
+end
+
 end ConPanqueque.Scan
