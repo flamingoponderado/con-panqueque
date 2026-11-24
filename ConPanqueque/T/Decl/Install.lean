@@ -187,4 +187,186 @@ theorem sr_envIns {C : Ctx} {EH : List (BitVec 64)} (hok : CtxOK (ctxE C EH)) {s
 
 end
 
+
+/-- The denotation facts `EnvDen` asks of one constant. -/
+def NewDen (ci : IConstantInfo) (st : EStore) : Prop :=
+  (∀ n ∈ ci.toConstantVal.levelParams, (denoteN st.ns n).isSome = true) ∧
+    (denoteE st ci.toConstantVal.type).isSome = true ∧ ci.toConstantVal.levelParams.length + 1 < 2 ^ 60 ∧
+    (∀ cv v hint, ci = .defnInfo cv v hint → (denoteE st v).isSome = true) ∧
+    (∀ cv caps, ci = .indInfo cv caps → caps.nparams + caps.nIdx < 2 ^ 63)
+
+/-- An environment answering as `fe.push ci` (any literal flags) keeps the denotation facts, given the new
+constant's own and that it is not a recursor. -/
+theorem envDen_push {fe fe' : IFEnv} {p : Pins} {st : EStore} {ci : IConstantInfo}
+    (hf : ∀ n, fe'.find? n = if (ci.name == n) = true then some ci else fe.find? n)
+    (ht : ∀ n, fe'.findTable? n = fe.findTable? n) (h : EnvDen fe p st) (hnew : NewDen ci st)
+    (hrec : ∀ cv mI rP isK rules, ci ≠ .recInfo cv mI rP isK rules) : EnvDen fe' p st := by
+  obtain ⟨hc, htb, hp, hr⟩ := h
+  refine ⟨fun c ci' hci => ?_, fun T tbl h' => htb T tbl (by rw [← ht]; exact h'), hp,
+    fun c cv mI rP isK rules hci => ?_⟩
+  · rw [hf] at hci
+    split at hci
+    · cases hci; exact hnew
+    · exact hc c ci' hci
+  · rw [hf] at hci
+    split at hci
+    · cases hci; exact absurd rfl (hrec cv mI rP isK rules)
+    · exact hr c cv mI rP isK rules hci
+
+
+section
+variable {σ : Type}
+
+/-- A call whose callee's post names the context the caller continues in (`Qc … C'` with `SR C'`). -/
+theorem specR_callNC {α β : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64}
+    {m : AM α} {k : α → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    (x f : MlS) (ps : List MlS) (es : List (ExpHOL 64)) (B : ProgHOL 64) (vs : List (BitVec 64))
+    (hnd : ps.Nodup) (hl : vs.length = ps.length)
+    (hx : x ∈ D) (hC : C.code.lookup f = some (ps.map (fun p => (p, ShapeHOL.one)), B, .one))
+    (hes : EvAll (fun e v => sev Γ e = some v) es vs)
+    (Rf : α → BitVec 64 → AState → PState σ → Prop) (Qc : α → BitVec 64 → AState → Ctx → Prop)
+    (hRf : ∀ a w s' st, Rf a w s' st → ∃ C', Qc a w s' C' ∧ SR C' s' st)
+    (hB : ∀ u : PState σ, SR C s u → (∀ a v, (a, v) ∈ M → u.memaddrs a ∧ u.memory a = .word v) →
+      (∀ i (hi : i < ps.length), u.locals.lookup ps[i] = some (.val (.word (vs[i]'(by omega))))) →
+      SpecR (· = u) B s m Rf)
+    (hk : ∀ a w s' C', Qc a w s' C' → SpecR (Inv C' s' ((x, w) :: Γ) [] D) rest s' (k a) R) :
+    SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, x), none)) f es) rest) s (m >>= k) R := by
+  intro t ht
+  obtain ⟨cal, hlk, hcal⟩ := lookupCodeN t f ps B vs hnd hl (by rw [ht.sr.code]; exact hC)
+  have hc := spec_callN (P := (· = t)) (s := s) (m := m)
+    (Q := fun a s' t' => ∃ w C', Qc a w s' C' ∧ Inv C' s' ((x, w) :: Γ) [] D t')
+    x f es B (fun _ => vs.map fun v => .val (.word v)) (fun _ => cal)
+    (fun u hu => by subst hu; exact evalList_words u es vs (evAll_imp (fun e v h => inv_ev ht h) es vs hes))
+    (fun u hu => by subst hu; exact hlk) (fun u hu => by rw [hu]; exact ht.decl x hx) (fun _ => Rf)
+    (fun u hu => by
+      subst hu
+      exact hB _ (sr_of_eq ht.sr rfl rfl rfl rfl) (fun a v ha => ht.mem a v ha) hcal)
+    (fun u hu a w s' st hr => by
+      subst hu
+      obtain ⟨C', hq, hs⟩ := hRf a w s' st hr
+      refine ⟨w, C', hq, ⟨sr_of_eq hs rfl rfl rfl rfl, fun y v hy => ?_, fun _ _ h => absurd h (by simp),
+        fun y hy => ?_⟩⟩
+      · simp only [setKvarHOLFinite, Env.get] at hy ⊢
+        split at hy
+        · rename_i e; subst e; simp at hy; subst hy; exact lookup_setVar_same _ _ _
+        · rename_i e; rw [lookup_setVar_other _ _ e]; exact ht.env y v hy
+      · simp only [setKvarHOLFinite]
+        by_cases e : y = x
+        · subst e; exact ⟨w, lookup_setVar_same _ _ _⟩
+        · rw [lookup_setVar_other _ _ e]; exact ht.decl y hy)
+  exact specR_bind (Q1 := fun a s' t' => ∃ w C', Qc a w s' C' ∧ Inv C' s' ((x, w) :: Γ) [] D t')
+    hc (fun a s' u ⟨w, C', hq, hu⟩ => hk a w s' C' hq u hu) t rfl
+
+end
+
+
+def cpS := ofString "cp_s"
+def cpD := ofString "cp_d"
+def cpI := ofString "cp_i"
+def cpN := ofString "cp_n"
+def cpW := ofString "cp_w"
+def cpR := ofString "cp_r"
+def fCpy := ofString "copyToEnv"
+def cpParams : List MlS := [cpS, cpD, cpI, cpN]
+def cpLocals : List MlS := [cpW, cpR]
+
+/-- Copy words `i … n-1` of a value-heap block at `cpS` into the environment block at `cpD` (after their
+length words). -/
+def cpyBody : ProgHOL 64 := prologue cpLocals
+  (.ite (.cmp .lower (vv cpI) (vv cpN))
+    (.seq (.assign .local cpW (.load .one (.op .add [vv cpS, .op .add [.panop .mul [vv cpI, .const 8], .const 8]])))
+    (.seq (.store (.op .add [vv cpD, .op .add [.panop .mul [vv cpI, .const 8], .const 8]]) (vv cpW))
+    (.seq (.call (some (some (.local, cpR), none)) fCpy [vv cpS, vv cpD, .op .add [vv cpI, .const 1], vv cpN])
+      (.return (vv cpR)))))
+    (.return (.const 0)))
+
+theorem ecell_idx (C : Ctx) (o i : Nat) :
+    ecell C o + (BitVec.ofNat 64 i * 8#64 + 8#64) = ecell C (o + 1 + i) := by
+  simp only [ecell, BitVec.add_assoc]
+  congr 1
+  apply BitVec.eq_of_toNat_eq
+  simp [BitVec.toNat_add, BitVec.toNat_mul, BitVec.toNat_ofNat]
+  omega
+
+section
+variable {σ : Type}
+
+theorem cp_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ cpLocals → (ctxEnv C ++ cpParams.zip vals).get x = none :=
+  Knot.params_none C cpLocals cpParams vals (by decide) (by decide)
+
+/-- The copy's answer: the environment image now holds the block's words `i …` at `b + 1 + i …`, cells below
+`b + 1 + i` as they were, the length unchanged. -/
+def PostCp (C : Ctx) (b : Nat) (xs : List (BitVec 64)) (i : Nat) (EHc : List (BitVec 64)) (_ : Unit) (_ : BitVec 64)
+    (s' : AState) (st : PState σ) : Prop :=
+  ∃ EH', EH'.length = EHc.length ∧ (∀ p, p < b + 1 + i → EH'[p]? = EHc[p]?) ∧
+    (∀ j (hj : j < xs.length), i ≤ j → EH'[b + 1 + j]? = some xs[j]) ∧ SR (ctxE C EH') s' st
+
+theorem postCp_locals (C : Ctx) (b : Nat) (xs : List (BitVec 64)) (i : Nat) (EHc : List (BitVec 64)) :
+    ∀ a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
+    PostCp C b xs i EHc a w s' st → PostCp C b xs i EHc a w s' { st with locals := L } :=
+  fun _ _ _ _ _ ⟨EH', h1, h2, h3, h4⟩ => ⟨EH', h1, h2, h3, sr_of_eq h4 rfl rfl rfl rfl⟩
+
+/-- **`cpy`**: the block's words from `i` on, copied. -/
+theorem cpy_spec (C : Ctx) (hok : CtxOK C)
+    (hc : C.code.lookup fCpy = some (cpParams.map (fun p => (p, ShapeHOL.one)), cpyBody, .one))
+    (o b : Nat) (xs : List (BitVec 64)) (hb : BlkAt C.H o xs) (hbase : C.EH.length ≤ b)
+    (hlen : xs.length < 2 ^ 62) (s : AState) :
+    ∀ k i (EHc : List (BitVec 64)), C.EH <+: EHc → b + 1 + xs.length ≤ EHc.length → xs.length - i = k →
+      i ≤ xs.length →
+      SpecR (σ := σ) (Pre (ctxE C EHc) s (cpParams.zip [cellA C o, ecell C b, BitVec.ofNat 64 i,
+        BitVec.ofNat 64 xs.length])) cpyBody s (pure ()) (PostCp C b xs i EHc) := by
+  intro k
+  induction k with
+  | zero =>
+    intro i EHc hp hroom hk hi
+    have hil : i = xs.length := by omega
+    subst hil
+    refine specR_prologue (postCp_locals C b xs _ EHc) (cp_none _ _) ?_
+    have hlw := nd_lt_iff xs.length xs.length (by omega) (by omega)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, cpParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨EHc, rfl, fun _ _ => rfl, fun j hj hij => absurd hj (by omega),
+      sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  | succ k ih =>
+    intro i EHc hp hroom hk hi
+    have hil : i < xs.length := by omega
+    refine specR_prologue (postCp_locals C b xs _ EHc) (cp_none _ _) ?_
+    have hlw := nd_lt_iff i xs.length (by omega) (by omega)
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get, cpParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw.mpr hil])
+      (fun _ => ?_) (fun h => absurd h (by decide))
+    have hw : (ctxE C EHc).H[o + 1 + i]? = some xs[i] := hb.2 i hil
+    refine UD.specR_heapLoadI' (C := ctxE C EHc) cpW _ (o + 1 + i) _ hw (by decide)
+      (by simp +decide [sev, Env.get, cpParams, ctxEnv]; exact cellA_idx C o i) ?_
+    have hok' := ctxOK_E hok hp
+    have hj : b + 1 + i < (ctxE C EHc).EH.length := by show _ < EHc.length; omega
+    refine specR_envStoreI hok' _ (vv cpW) (b + 1 + i) hj xs[i]
+      (by simp +decide [sev, Env.get, cpParams, ctxEnv]; exact ecell_idx C b i) (by simp +decide [Env.get]) ?_
+    have hp2 : C.EH <+: EHc.set (b + 1 + i) xs[i] :=
+      (prefix_set_ge hp (b + 1 + i) (by have := hp.length_le; omega) xs[i] : _)
+    refine specR_congr (m' := (pure () : AM Unit) >>= fun _ => pure ()) rfl ?_
+    refine specR_callNC (C := ctxE C (EHc.set (b + 1 + i) xs[i])) (D := ctxLocals ++ cpLocals) cpR fCpy cpParams
+      [vv cpS, vv cpD, .op .add [vv cpI, .const 1], vv cpN] cpyBody
+      [cellA C o, ecell C b, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 xs.length] (by decide) rfl (by decide) hc ?_
+      (PostCp C b xs (i + 1) (EHc.set (b + 1 + i) xs[i]))
+      (fun _ w s' C' => ∃ EH', C' = ctxE C EH' ∧ EH'.length = EHc.length ∧ (∀ p, p < b + 1 + i → EH'[p]? = EHc[p]?) ∧
+        (∀ j (hj : j < xs.length), i ≤ j → EH'[b + 1 + j]? = some xs[j]))
+      (fun a w s' st ⟨EH', h1, h2, h3, h4⟩ => ⟨ctxE C EH', ⟨EH', rfl, by rw [h1]; simp, fun p hp' => by
+          rw [h2 p (by omega)]; simp [List.getElem?_set]; intro e; omega,
+          fun j hj hij => by
+            rcases Nat.eq_or_lt_of_le hij with e | e
+            · subst e; rw [h2 _ (by omega)]; simp [List.getElem?_set_self, show b + 1 + i < EHc.length by omega]
+            · exact h3 j hj e⟩, h4⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cpParams _ rfl hlk)
+        (ih (i + 1) _ hp2 (by simp; omega) (by omega) (by omega)))
+      (fun _ w s2 C2 ⟨EH2, eC, h1, h2, h3⟩ => ?_)
+    · exact ⟨by simp +decide [Env.get, cpParams, ctxEnv], by simp +decide [Env.get, cpParams, ctxEnv],
+        by simp +decide [sev, Env.get, cpParams, ctxEnv]; exact word_add1_eq i, by simp +decide [Env.get, cpParams, ctxEnv],
+        trivial⟩
+    subst eC
+    exact specR_returnI _ w (by simp +decide [Env.get])
+      (fun t ht => ⟨EH2, h1, h2, h3, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+end
+
 end ConPanqueque.T.Decl
