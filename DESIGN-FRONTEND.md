@@ -135,3 +135,29 @@ con-leche's `scanNatListLoop` step by step (`nlLoop_ws/digit/comma/close`).
 **natVal:** `natValPl` = `srMap (.expr ∘ .natVal) (scanQuotedNat b v)`. The Pancake `qnFun`
 (`Scan/QNat.lean`) returns the end, and the payload slot keeps the position, so interning reads
 the digits again (big values go to the arena limbs).
+
+## The interning half: plan (2026-11-24)
+
+The line scanner (`lineFun`, RetP world) is done for the value-declaration fragment. What remains
+of the frontend runs in the SpecR/Inv world of the declaration layer:
+
+1. **The input buffer lives in the value heap `H`.** The ported intern specs (`PostE`, …) give SR
+   afterwards but no frame for memory outside the arena, so a buffer kept elsewhere would lose
+   `BytesAt` after the first intern. SR tracks `H` exactly (`heap_cell`), so `BytesAt` at
+   `cellA C j0` follows from the packed words `C.H[j0 + i/8]` (`bytesAt_of_heap`).
+2. **Chunks come from one FFI `read` each.** Pancake's `extCall` writes the oracle's bytes over the
+   array argument (`extCallStepHOLExact`). A read into the buffer cells re-establishes
+   `SR (ctxH C H')` with the packed words replaced. The end-to-end theorem is relative to the
+   oracle's byte stream.
+3. **Tables are fixed-capacity arrays in `H`**, one per kind (names, levels, exprs).
+   `TblRel C j cap tbl`: cell `j + i` holds `0` for an unbound index and `idxW h + 1` for a bound
+   one, for every `i < cap`; no index `≥ cap` is bound. A record at an index `≥ cap` is rejected,
+   which is sound. `IdTable.get?_insert` is the only table fact needed.
+4. **Record fields** are read again by `recFun spec inits (vv (slotName k))` (the slot variant of
+   `recBody_spec`), one call per field. Strings and `natVal`s are re-read from their position.
+5. **`applyLine`** is a SpecR procedure per payload tag. It reads the fields, looks up the
+   handles, calls the ported intern procedure and inserts the handle. Declarations append to the
+   record block in the `RecOK` layout.
+6. Then `feedChunk`/`parseChunks`, `StateD.init`, the prelude (static text, parsed by the same
+   code), pins, the code table and the C harness, and finally the top theorem: from the oracle's
+   chunks and an accepting exit, con-ron's stage runs, then `stages_frame`/`fold_verdict`.
