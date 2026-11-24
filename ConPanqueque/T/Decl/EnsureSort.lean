@@ -29,11 +29,11 @@ def ensBody : ProgHOL 64 := prologue ensLocals
 
 /-- A level handle, the heap extended. -/
 def PostLH (C : Ctx) (u : LIdx) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
-  ∃ H', C.H <+: H' ∧ w = Enc.idxW u ∧ SR (ctxH C H') s' st
+  ∃ H', C.H <+: H' ∧ w = Enc.idxW u ∧ SR (ctxH C H') s' st ∧ ∃ h, s'.store.view h = some (.sort u)
 
 theorem postLH_locals (C : Ctx) : ∀ (a : LIdx) w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
     PostLH C a w s' st → PostLH C a w s' { st with locals := L } :=
-  fun _ _ _ _ _ ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, sr_of_eq hsr rfl rfl rfl rfl⟩
+  fun _ _ _ _ _ ⟨H', hp, hw, hsr, hv⟩ => ⟨H', hp, hw, sr_of_eq hsr rfl rfl rfl rfl, hv⟩
 
 section
 variable {σ : Type}
@@ -68,7 +68,7 @@ theorem ens_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     obtain ⟨u, rfl⟩ : ∃ u, vw = .sort u := by cases vw <;> simp [ENodeView.tagN] at h2 ⊢
     refine specR_loadI' ensU (vv lRp) P (P + BitVec.ofNat 64 0) (Enc.idxW u) (by decide) (by simp) (by simp)
       (by simpa [encEView, Enc.encSort] using wordsAt_mem0 P (Enc.idxW u) [] []) ?_
-    exact specR_returnI _ (Enc.idxW u) (by simp) (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    exact specR_returnI _ (Enc.idxW u) (by simp) (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl, hh, hv⟩)
   · rw [if_neg (show ¬ (hh.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
     exact specR_hangI
 

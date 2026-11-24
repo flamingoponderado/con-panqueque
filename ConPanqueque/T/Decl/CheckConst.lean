@@ -195,7 +195,7 @@ theorem specR_inferEnsI (mode : ConLeche.CheckMode) (C : Ctx) (hok : CtxOK C)
   refine specR_callNIH (C := ctxH C H9) cvX fEns kParams [.const (BitVec.ofNat 64 checkFuel), .const 0, vv cvX]
     ensBody [BitVec.ofNat 64 checkFuel, BitVec.ofNat 64 0, Enc.idxW st] (by decide) rfl hD hens
     ⟨rfl, rfl, by simp [sev, Env.get], trivial⟩ (PostLH (ctxH C H9)) (fun _ _ _ _ => True)
-    (fun u w s' st' ⟨H', hp', _, hsr⟩ => ⟨H', hp', trivial, hsr⟩)
+    (fun u w s' st' ⟨H', hp', _, hsr, _⟩ => ⟨H', hp', trivial, hsr⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu kParams _ rfl hlk)
       (ens_top ra mode hok9 (kcodes_H hk H9) (allCodes_H hac H9) hs s9 st))
     (fun u w s10 H10 hp10 _ => ?_)
