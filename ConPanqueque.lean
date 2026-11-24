@@ -431,3 +431,4 @@ import ConPanqueque.Front.ParseTwin
 import ConPanqueque.Front.ParseTop
 import ConPanqueque.Front.ToFold
 import ConPanqueque.Front.FoldCall
+import ConPanqueque.Front.Main
