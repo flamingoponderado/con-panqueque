@@ -325,3 +325,25 @@ analogues) states `pers.find? v = some i ↔ view i = some v ∧ i.isPersistent`
 `PinsOK.anon` (decode → view), word 0 being persistent, and `NStore.find?` probing `pers`
 first, we get `internNNode .anonymous s = pure default s`. The zero level is similar, through
 `pins.zeroLevel` (its persistence presumably comes from a StateOK pins clause).
+
+### The whole-program verdict (417aa9f)
+
+- `Front/InitTwin`: `stateD_init_probe`. After the pins, `StateD.init` only probes
+  (through `NWFAt.consP`).
+- `Front/InitProg`: `initP_spec` (zero-fill plus three stores) establishes `FrontSt` for that state.
+- `Front/ParseTwin`: `parseBytes_of_feedAll` and `parse_twin`, through con-ron's
+  `parseBytes_run`, give con-leche's `parseBytes` result and the denotations.
+- `Front/ParseTop`: `parseP_spec` (init, then `feed(…,0,0)`).
+- `Front/ToFold`: `registry_block` turns the registry into the fold's `BlkAt`/`RecOK` input.
+- `Front/FoldCall`: `foldCall_spec`, the fold at the context raised to the current store.
+- `Front/Main`: `front_verdict`. From a pinned `StateOK` state with the input in the buffer
+  cells and the code table present, if `mainP` returns, then
+  `ConLeche.Frontend.parseBytes b = .ok rc` and con-leche's `checkDeclsPure` accepts
+  `rc.decls`. (con-leche's `parseChunks_eq_parseBytes` extends this to the chunked parse.)
+
+Not yet done:
+- Loading the input (FFI read into the buffer cells).
+- The stage composition up to con-leche's top-level verdict: prelude and `preparePrelude`, which
+  need inductives and axioms in the fold.
+- A concrete code table (`FrontCodes`/`FoldCodes` instances).
+- The C harness and executable.
