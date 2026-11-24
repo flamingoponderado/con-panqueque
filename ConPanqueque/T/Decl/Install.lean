@@ -431,10 +431,10 @@ def inTy := ofString "in_ty"
 def inLn := ofString "in_ln"
 def inB := ofString "in_b"
 def inX := ofString "in_x"
-def inR := ofString "in_r"
+def inRet := ofString "in_r"
 def fInst := ofString "installConst"
 def inParams : List MlS := [inT, inQ, inV, inHn]
-def inLocals : List MlS := [inN, inL, inTy, inLn, inB, inX, inR]
+def inLocals : List MlS := [inN, inL, inTy, inLn, inB, inX, inRet]
 
 /-- Install: the level-parameter block and a six-word constant block `[tag, name, lps, type, value, hint]` in
 fresh environment cells, then the name into the constant table. -/
@@ -445,7 +445,7 @@ def instBody (C : Ctx) : ProgHOL 64 := prologue inLocals
   (.seq (.assign .local inLn (.load .one (vv inL)))
   (envAllocP C inB (.op .add [.panop .mul [vv inLn, .const 8], .const 8])
   (.seq (.store (vv inB) (vv inLn))
-  (.seq (.call (some (some (.local, inR), none)) fCpy [vv inL, vv inB, .const 0, vv inLn])
+  (.seq (.call (some (some (.local, inRet), none)) fCpy [vv inL, vv inB, .const 0, vv inLn])
   (envAllocP C inX (.const 48)
   (.seq (.store (vv inX) (vv inT))
   (.seq (.store (.op .add [vv inX, .const 8]) (vv inN))
@@ -454,7 +454,7 @@ def instBody (C : Ctx) : ProgHOL 64 := prologue inLocals
   (.seq (.store (.op .add [vv inX, .const 32]) (vv inV))
   (.seq (.store (.op .add [vv inX, .const 40]) (vv inHn))
   (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 0))]) (vv inN))
-  (.seq (.call (some (some (.local, inR), none)) fMemoSet [.const (C.mG .env), .const 1, vv inX])
+  (.seq (.call (some (some (.local, inRet), none)) fMemoSet [.const (C.mG .env), .const 1, vv inX])
   (.return (vv inX))))))))))))))))))
 
 /-- The six words of an installed constant block, and its level-parameter block. -/
@@ -525,7 +525,7 @@ theorem inst_spec (C : Ctx) (hok : CtxOK C)
   -- copy the names
   set E2 := (C.EH ++ ws1).set C.EH.length (BitVec.ofNat 64 lps.length) with hE2
   refine specR_congr (m' := (pure () : AM Unit) >>= fun _ => pure (C.fe.push ci)) rfl ?_
-  refine specR_callNC (C := ctxE C E2) (D := ctxLocals ++ inLocals) inR fCpy cpParams
+  refine specR_callNC (C := ctxE C E2) (D := ctxLocals ++ inLocals) inRet fCpy cpParams
     [vv inL, vv inB, .const 0, vv inLn] cpyBody
     [cellA C o, ecell C C.EH.length, BitVec.ofNat 64 0, BitVec.ofNat 64 (lps.map Enc.idxW).length]
     (by decide) rfl (by decide) hcp ?_ (fun a w s' st => PostCp C C.EH.length (lps.map Enc.idxW) 0 E2 a w s' st ∧ s' = s)
@@ -605,7 +605,7 @@ theorem inst_spec (C : Ctx) (hok : CtxOK C)
     (fun j hj => hok.mdescMemo .env .env j hj)
     (fun u u' hsr hmem hfr hd hg' hc => sr_envIns (ctxOK_E hok hpE) hsr hfr hd hg' hc hmem rfl
       (envDen_push (pushOld_find C.fe ci) (pushOld_findTable hg ci hnew) hsr.envd hden hrec))
-    hcS hcI inR (.const (C.mG .env)) (.const 1) (vv inX) (by decide) ?_ ?_ ?_
+    hcS hcI inRet (.const (C.mG .env)) (.const 1) (vv inX) (by decide) ?_ ?_ ?_
     (by simp [encNI]) (fun u hM j hj => by
       have e : j = 0 := by simp [encNI] at hj; omega
       subst e; exact hM _ (Enc.idxW ci.name) (by simp)) (fun w => ?_)

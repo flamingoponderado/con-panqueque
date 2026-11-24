@@ -360,3 +360,4 @@ import ConPanqueque.T.Decl.EnvGrow
 import ConPanqueque.T.Decl.Push
 import ConPanqueque.T.Decl.Install
 import ConPanqueque.T.Decl.Flags
+import ConPanqueque.T.Decl.Flush
