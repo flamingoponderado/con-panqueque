@@ -136,14 +136,14 @@ def SlotOK (b : ByteArray) (w : BitVec 64) : SVal → Prop
 section
 variable {σ : Type}
 
-def ObjI (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray)
+def ObjI (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray)
     (R : ScanRes (List SVal)) (u : PanSemStateFiniteExact 64 σ) : Prop :=
   u.memory = t.memory ∧ u.memaddrs = t.memaddrs ∧ u.code = t.code ∧ u.globals = t.globals ∧
   u.be = t.be ∧
   u.locals.lookup sB = some (.val (.word A)) ∧
   u.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))) ∧
   (∀ x ∈ [sC, sK, sV, sKK, sE2], ∃ w, u.locals.lookup x = some (.val (.word w))) ∧
-  ∃ (j : USize) (wm : Bool) (seen : UInt32) (slots : List SVal), j.toNat ≤ b.size + 64 ∧
+  ∃ (j : USize) (wm : Bool) (seen : UInt32) (slots : List SVal), j.toNat ≤ b.size + 64 ∧ slots.length = nS ∧
     u.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 j.toNat))) ∧
     u.locals.lookup sW = some (.val (.word (bw (wm = true)))) ∧
     u.locals.lookup sS = some (.val (.word (BitVec.ofNat 64 seen.toNat))) ∧
@@ -220,6 +220,31 @@ theorem scanBool_facts {b : ByteArray} (hp : Plat b) (v : USize) (hv : v.toNat �
       simp [hf.1]
     · simp at h
 
+theorem keyEndL_lt (bs : List UInt8) (j : Nat) (h : keyEndL bs j ≠ 0) : keyEndL bs j < bs.length ∧ j ≤ keyEndL bs j := by
+  have hge := skipL_ge isKeyN bs _ j rfl
+  unfold keyEndL at *; simp only at *
+  split at h
+  · rename_i hq
+    rw [if_pos hq]
+    refine ⟨?_, hge⟩
+    by_cases hl : skipL isKeyN bs j < bs.length
+    · exact hl
+    · rw [List.getElem?_eq_none (by omega)] at hq; simp at hq
+  · exact absurd rfl h
+
+theorem valueAtL_le (bs : List UInt8) (i ke : Nat) (hi : i ≤ bs.length) (hke : ke < bs.length) :
+    valueAtL bs i ke ≤ bs.length := by
+  unfold valueAtL; simp only
+  split
+  · rename_i hq
+    have h1 := skipL_le_length isWsN bs _ (ke + 1) rfl (by omega)
+    have hl : skipWsL bs (ke + 1) < bs.length := by
+      by_cases h : skipWsL bs (ke + 1) < bs.length
+      · exact h
+      · rw [List.getElem?_eq_none (by omega)] at hq; simp at hq
+    exact skipL_le_length isWsN bs _ _ rfl (by omega)
+  · exact hi
+
 /-! ## One key's value -/
 
 theorem numEndL_skip (bs : List UInt8) (i : Nat) (h : numEndL bs i ≠ i) : numEndL bs i = skipDigitsL bs i := by
@@ -260,7 +285,7 @@ end
 section
 variable {σ : Type}
 
-theorem advance_spec (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray)
+theorem advance_spec (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray)
     (R : ScanRes (List SVal)) (u : PanSemStateFiniteExact 64 σ) (E : USize) (seen bit : UInt32)
     (slots : List SVal)
     (m0 : u.memory = t.memory) (d0 : u.memaddrs = t.memaddrs) (c0 : u.code = t.code) (g0 : u.globals = t.globals)
@@ -275,9 +300,9 @@ theorem advance_spec (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitV
     (li : ∃ w, u.locals.lookup sI = some (.val (.word w)))
     (hslots : ∀ k (hk : k < slots.length), ∃ w, u.locals.lookup (slotName k) = some (.val (.word w)) ∧
       SlotOK b w slots[k])
-    (hshort : slots.length ≤ 10) (hE : E.toNat ≤ b.size + 64)
+    (hshort : slots.length ≤ 10) (hE : E.toNat ≤ b.size + 64) (hn : slots.length = nS)
     (hR : objLoop sp b E false (seen ||| bit) slots = R) :
-    ∃ u', evaluateHOLFiniteState u (advance bit) = (none, u') ∧ ObjI sp t A b R u' := by
+    ∃ u', evaluateHOLFiniteState u (advance bit) = (none, u') ∧ ObjI sp nS t A b R u' := by
   obtain ⟨ww, lw⟩ := lw
   obtain ⟨wi, li⟩ := li
   have hor : @evalHOLExact 64 σ _ u.toExact (fun a => Classical.propDecidable (u.memaddrs a))
@@ -297,7 +322,7 @@ theorem advance_spec (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitV
   let u3 := setVarHOLFinite sI (.val (.word (BitVec.ofNat 64 E.toNat))) u2
   have hfx : ∀ k, k < 10 → ∀ x ∈ fixedLocals, slotName k ≠ x := slotName_fixed
   refine ⟨u3, rfl, m0, d0, c0, g0, b0, by lk [u3, u2, u1]; exact lb, by lk [u3, u2, u1]; exact ln, ?_,
-    E, false, seen ||| bit, slots, hE, by lk [u3], by lk [u3, u2]; rfl, by lk [u3, u2, u1], ?_,
+    E, false, seen ||| bit, slots, hE, hn, by lk [u3], by lk [u3, u2]; rfl, by lk [u3, u2, u1], ?_,
     Or.inl ⟨by lk [u3, u2, u1]; exact lg, hR⟩⟩
   · intro x hx
     obtain ⟨w, hw⟩ := scratch x hx
@@ -334,13 +359,13 @@ def contAfter (sp : ObjSpec) (b : ByteArray) (j v : USize) (seen bit : UInt32) (
   | .ok upd e => if j < e then objLoop sp b e false (seen ||| bit) (applyUpd slots upd)
       else .err ⟨j.toNat, .noProgress⟩
 
-theorem act_natSet (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+theorem act_natSet (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
     (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (R : ScanRes (List SVal)) (j v : USize) (seen bit : UInt32)
-    (slots : List SVal) (sl : Nat) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u)
+    (slots : List SVal) (sl : Nat) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u) (hn : slots.length = nS)
     (hsl : sl < slots.length) (hR : contAfter sp b j v seen bit slots (.natSet sl) = R) :
     Stop (evaluateHOLFiniteState u (actCode bit (.natSet sl))).1 ∨
       ((evaluateHOLFiniteState u (actCode bit (.natSet sl))).1 = none ∧
-        ObjI sp t A b R (evaluateHOLFiniteState u (actCode bit (.natSet sl))).2) := by
+        ObjI sp nS t A b R (evaluateHOLFiniteState u (actCode bit (.natSet sl))).2) := by
   have hL : b.size < 2 ^ 64 := hp.size
   have hvb := hk.hv
   have hjb := hk.hj
@@ -404,7 +429,7 @@ theorem act_natSet (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec
     rw [if_pos (USize.lt_iff_toNat_lt.mpr hjE)]
   have hlo : ∀ y, y ≠ slotName sl → y ≠ sE2 → u2.locals.lookup y = u.locals.lookup y := fun y h1 h2 => by
     rw [lo2 y h1, lo1 y h2]
-  obtain ⟨u3, hu3, hI⟩ := advance_spec sp t A b R u2 E seen bit _ (m2.trans (m1.trans hk.mem))
+  obtain ⟨u3, hu3, hI⟩ := advance_spec sp nS t A b R u2 E seen bit _ (m2.trans (m1.trans hk.mem))
     (d2.trans (d1.trans hk.dom)) (k2.trans (k1.trans hk.code)) (g2.trans (g1.trans hk.glob))
     (b2.trans (b1.trans hk.be))
     (by rw [hlo sB (Ne.symm (hfx sB (by simp [fixedLocals]))) (by decide)]; exact hk.lb)
@@ -436,7 +461,7 @@ theorem act_natSet (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec
         refine ⟨w, ?_, by rw [List.getElem_set_ne (Ne.symm hks)]; exact hok⟩
         rw [hlo _ hne (slotName_fixed k (by have := hk.short; omega) sE2 (by simp [fixedLocals]))]
         exact hw)
-    (by simp only [List.length_set]; exact hk.short) (by omega) hR'
+    (by simp only [List.length_set]; exact hk.short) (by omega) (by simp [hn]) hR'
   rw [hu3]
   exact Or.inr ⟨rfl, hI⟩
 
@@ -445,7 +470,7 @@ end
 section
 variable {σ : Type}
 
-theorem adv_from_ctx (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray)
+theorem adv_from_ctx (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray)
     (R : ScanRes (List SVal)) (u u2 : PanSemStateFiniteExact 64 σ) (j v E : USize) (seen bit : UInt32)
     (slots slots' : List SVal) (hk : KCtx t A b j v seen slots u)
     (m : u2.memory = u.memory) (d : u2.memaddrs = u.memaddrs) (c : u2.code = u.code) (g : u2.globals = u.globals)
@@ -454,12 +479,12 @@ theorem adv_from_ctx (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitV
     (le : u2.locals.lookup sE2 = some (.val (.word (BitVec.ofNat 64 E.toNat))))
     (hslots : ∀ k (hk : k < slots'.length), ∃ w, u2.locals.lookup (slotName k) = some (.val (.word w)) ∧
       SlotOK b w slots'[k])
-    (hlen : slots'.length = slots.length) (hE : E.toNat ≤ b.size + 64)
+    (hlen : slots'.length = slots.length) (hE : E.toNat ≤ b.size + 64) (hn : slots.length = nS)
     (hR : objLoop sp b E false (seen ||| bit) slots' = R) :
-    ∃ u3, evaluateHOLFiniteState u2 (advance bit) = (none, u3) ∧ ObjI sp t A b R u3 := by
+    ∃ u3, evaluateHOLFiniteState u2 (advance bit) = (none, u3) ∧ ObjI sp nS t A b R u3 := by
   have q : ∀ y ∈ fixedLocals, y ≠ sE2 → ∀ w, u.locals.lookup y = some (.val (.word w)) →
       u2.locals.lookup y = some (.val (.word w)) := fun y hy hne w h => by rw [hlo y hy hne]; exact h
-  exact advance_spec sp t A b R u2 E seen bit slots' (m.trans hk.mem) (d.trans hk.dom) (c.trans hk.code)
+  exact advance_spec sp nS t A b R u2 E seen bit slots' (m.trans hk.mem) (d.trans hk.dom) (c.trans hk.code)
     (g.trans hk.glob) (be.trans hk.be) (q sB (by simp [fixedLocals]) (by decide) _ hk.lb)
     (q sN (by simp [fixedLocals]) (by decide) _ hk.ln)
     (by
@@ -473,7 +498,7 @@ theorem adv_from_ctx (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitV
         rcases hx with rfl | rfl | rfl | rfl | rfl <;> simp)
     (q sS (by simp [fixedLocals]) (by decide) _ hk.ls) le (q sG (by simp [fixedLocals]) (by decide) _ hk.lg)
     (by obtain ⟨w, hw⟩ := hk.lw; exact ⟨w, q sW (by simp [fixedLocals]) (by decide) _ hw⟩)
-    ⟨_, q sI (by simp [fixedLocals]) (by decide) _ hk.li⟩ hslots (by rw [hlen]; exact hk.short) hE hR
+    ⟨_, q sI (by simp [fixedLocals]) (by decide) _ hk.li⟩ hslots (by rw [hlen]; exact hk.short) hE (by rw [hlen, hn]) hR
 
 /-- The slots of a state that changed only fixed locals. -/
 theorem slots_keep (b : ByteArray) (u u2 : PanSemStateFiniteExact 64 σ) (slots : List SVal) (hshort : slots.length ≤ 10)
@@ -488,13 +513,13 @@ end
 section
 variable {σ : Type}
 
-theorem act_natDrop (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+theorem act_natDrop (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
     (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (R : ScanRes (List SVal)) (j v : USize) (seen bit : UInt32)
-    (slots : List SVal) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u)
+    (slots : List SVal) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u) (hn : slots.length = nS)
     (hR : contAfter sp b j v seen bit slots .natDrop = R) :
     Stop (evaluateHOLFiniteState u (actCode bit .natDrop)).1 ∨
       ((evaluateHOLFiniteState u (actCode bit .natDrop)).1 = none ∧
-        ObjI sp t A b R (evaluateHOLFiniteState u (actCode bit .natDrop)).2) := by
+        ObjI sp nS t A b R (evaluateHOLFiniteState u (actCode bit .natDrop)).2) := by
   have hL : b.size < 2 ^ 64 := hp.size
   have hvb := hk.hv
   have hjb := hk.hj
@@ -538,20 +563,20 @@ theorem act_natDrop (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVe
     have : (E == v) = false := beq_eq_false_iff_ne.mpr (fun h => hEv (by rw [h]))
     rw [this]; simp only [Bool.false_eq_true, ↓reduceIte, applyUpd]
     rw [if_pos (USize.lt_iff_toNat_lt.mpr hjE)]
-  obtain ⟨u3, hu3, hI⟩ := adv_from_ctx sp t A b R u u1 j v E seen bit slots slots hk m1 d1 k1 g1 b1
+  obtain ⟨u3, hu3, hI⟩ := adv_from_ctx sp nS t A b R u u1 j v E seen bit slots slots hk m1 d1 k1 g1 b1
     (fun y _ hy => lo1 y hy) le1
     (fun k hk' => by
       rw [lo1 _ (slotName_fixed k (by have := hk.short; omega) sE2 (by simp [fixedLocals]))]
-      exact hk.slotsOK k hk') rfl (by omega) hR'
+      exact hk.slotsOK k hk') rfl (by omega) hn hR'
   rw [hu3]; exact Or.inr ⟨rfl, hI⟩
 
-theorem act_binder (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+theorem act_binder (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
     (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (R : ScanRes (List SVal)) (j v : USize) (seen bit : UInt32)
-    (slots : List SVal) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u)
+    (slots : List SVal) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u) (hn : slots.length = nS)
     (hR : contAfter sp b j v seen bit slots .binder = R) :
     Stop (evaluateHOLFiniteState u (actCode bit .binder)).1 ∨
       ((evaluateHOLFiniteState u (actCode bit .binder)).1 = none ∧
-        ObjI sp t A b R (evaluateHOLFiniteState u (actCode bit .binder)).2) := by
+        ObjI sp nS t A b R (evaluateHOLFiniteState u (actCode bit .binder)).2) := by
   have hL : b.size < 2 ^ 64 := hp.size
   have hroom := hp.room
   have hvb := hk.hv
@@ -596,24 +621,24 @@ theorem act_binder (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec
     have : (E == 0) = false := beq_eq_false_iff_ne.mpr hE0
     rw [this]; simp only [Bool.false_eq_true, ↓reduceIte, applyUpd]
     rw [if_pos (USize.lt_iff_toNat_lt.mpr hjE)]
-  obtain ⟨u3, hu3, hI⟩ := adv_from_ctx sp t A b R u u1 j v E seen bit slots slots hk m1 d1 k1 g1 b1
+  obtain ⟨u3, hu3, hI⟩ := adv_from_ctx sp nS t A b R u u1 j v E seen bit slots slots hk m1 d1 k1 g1 b1
     (fun y _ hy => lo1 y hy) le1
     (fun k hk' => by
       rw [lo1 _ (slotName_fixed k (by have := hk.short; omega) sE2 (by simp [fixedLocals]))]
-      exact hk.slotsOK k hk') rfl (by omega) hR'
+      exact hk.slotsOK k hk') rfl (by omega) hn hR'
   rw [hu3]; exact Or.inr ⟨rfl, hI⟩
 end
 
 section
 variable {σ : Type}
 
-theorem act_natListDrop (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+theorem act_natListDrop (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
     (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (R : ScanRes (List SVal)) (j v : USize) (seen bit : UInt32)
-    (slots : List SVal) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u)
+    (slots : List SVal) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u) (hn : slots.length = nS)
     (hR : contAfter sp b j v seen bit slots (.natListDrop) = R) :
     Stop (evaluateHOLFiniteState u (actCode bit (.natListDrop))).1 ∨
       ((evaluateHOLFiniteState u (actCode bit (.natListDrop))).1 = none ∧
-        ObjI sp t A b R (evaluateHOLFiniteState u (actCode bit (.natListDrop))).2) := by
+        ObjI sp nS t A b R (evaluateHOLFiniteState u (actCode bit (.natListDrop))).2) := by
   have hL : b.size < 2 ^ 64 := hp.size
   have hroom := hp.room
   have hvb := hk.hv
@@ -642,20 +667,20 @@ theorem act_natListDrop (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : B
   have hR' : objLoop sp b E false (seen ||| bit) slots = R := by
     rw [← hR]; unfold contAfter stepVal; simp only [hnl, applyUpd]
     rw [if_pos (USize.lt_iff_toNat_lt.mpr hjE)]
-  obtain ⟨u3, hu3, hI⟩ := adv_from_ctx sp t A b R u u1 j v E seen bit slots slots hk m1 d1 k1 g1 b1
+  obtain ⟨u3, hu3, hI⟩ := adv_from_ctx sp nS t A b R u u1 j v E seen bit slots slots hk m1 d1 k1 g1 b1
     (fun y _ hy => lo1 y hy) le1
     (fun k hk' => by
       rw [lo1 _ (slotName_fixed k (by have := hk.short; omega) sE2 (by simp [fixedLocals]))]
-      exact hk.slotsOK k hk') rfl (by omega) hR'
+      exact hk.slotsOK k hk') rfl (by omega) hn hR'
   rw [hu3]; exact Or.inr ⟨rfl, hI⟩
 
-theorem act_natList (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+theorem act_natList (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
     (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (R : ScanRes (List SVal)) (j v : USize) (seen bit : UInt32)
-    (slots : List SVal) (sl : Nat) (hsl : sl < slots.length) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u)
+    (slots : List SVal) (sl : Nat) (hsl : sl < slots.length) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u) (hn : slots.length = nS)
     (hR : contAfter sp b j v seen bit slots (.natList sl) = R) :
     Stop (evaluateHOLFiniteState u (actCode bit (.natList sl))).1 ∨
       ((evaluateHOLFiniteState u (actCode bit (.natList sl))).1 = none ∧
-        ObjI sp t A b R (evaluateHOLFiniteState u (actCode bit (.natList sl))).2) := by
+        ObjI sp nS t A b R (evaluateHOLFiniteState u (actCode bit (.natList sl))).2) := by
   have hL : b.size < 2 ^ 64 := hp.size
   have hroom := hp.room
   have hvb := hk.hv
@@ -692,7 +717,7 @@ theorem act_natList (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVe
     rw [lo1 sV (by decide)]; exact hk.lv
   rw [seq_normal _ (ConsLoop.assign_local u1 (slotName sl) (vv sV) _ ws (eval_vv u1 sV _ lv1) lws)]
   let u2 := setVarHOLFinite (slotName sl) (.val (.word (BitVec.ofNat 64 v.toNat))) u1
-  obtain ⟨u3, hu3, hI⟩ := adv_from_ctx sp t A b R u u2 j v E seen bit slots (slots.set sl (.l xs)) hk m1 d1 k1 g1 b1
+  obtain ⟨u3, hu3, hI⟩ := adv_from_ctx sp nS t A b R u u2 j v E seen bit slots (slots.set sl (.l xs)) hk m1 d1 k1 g1 b1
     (fun y hy hne => by
       show (setVarHOLFinite _ _ u1).locals.lookup y = _
       rw [lookup_setVar_other _ _ (Ne.symm (hfx y hy)), lo1 y hne])
@@ -713,14 +738,14 @@ theorem act_natList (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVe
         rw [lookup_setVar_other _ _ hne, lo1 _ (slotName_fixed k (by have := hk.short; omega) sE2
           (by simp [fixedLocals]))]
         exact hw)
-    (by simp) (by omega) hR'
+    (by simp) (by omega) hn hR'
   rw [hu3]; exact Or.inr ⟨rfl, hI⟩
 
-theorem act_hints (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray)
+theorem act_hints (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray)
     (R : ScanRes (List SVal)) (bit : UInt32) (sl : Nat) (u : PanSemStateFiniteExact 64 σ) :
     Stop (evaluateHOLFiniteState u (actCode bit (.hints sl))).1 ∨
       ((evaluateHOLFiniteState u (actCode bit (.hints sl))).1 = none ∧
-        ObjI sp t A b R (evaluateHOLFiniteState u (actCode bit (.hints sl))).2) :=
+        ObjI sp nS t A b R (evaluateHOLFiniteState u (actCode bit (.hints sl))).2) :=
   Or.inl (by simp only [actCode]; exact stop_hang u)
 
 end
@@ -728,13 +753,13 @@ end
 section
 variable {σ : Type}
 
-theorem act_boolDrop (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+theorem act_boolDrop (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
     (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (R : ScanRes (List SVal)) (j v : USize) (seen bit : UInt32)
-    (slots : List SVal) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u)
+    (slots : List SVal) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u) (hn : slots.length = nS)
     (hR : contAfter sp b j v seen bit slots (.boolDrop) = R) :
     Stop (evaluateHOLFiniteState u (actCode bit (.boolDrop))).1 ∨
       ((evaluateHOLFiniteState u (actCode bit (.boolDrop))).1 = none ∧
-        ObjI sp t A b R (evaluateHOLFiniteState u (actCode bit (.boolDrop))).2) := by
+        ObjI sp nS t A b R (evaluateHOLFiniteState u (actCode bit (.boolDrop))).2) := by
   have hL : b.size < 2 ^ 64 := hp.size
   have hroom := hp.room
   have hvb := hk.hv
@@ -763,20 +788,20 @@ theorem act_boolDrop (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitV
   have hR' : objLoop sp b E false (seen ||| bit) slots = R := by
     rw [← hR]; unfold contAfter stepVal; simp only [hsb, applyUpd]
     rw [if_pos (USize.lt_iff_toNat_lt.mpr hjE)]
-  obtain ⟨u3, hu3, hI⟩ := adv_from_ctx sp t A b R u u1 j v E seen bit slots slots hk m1 d1 k1 g1 b1
+  obtain ⟨u3, hu3, hI⟩ := adv_from_ctx sp nS t A b R u u1 j v E seen bit slots slots hk m1 d1 k1 g1 b1
     (fun y _ hy => lo1 y hy) le1
     (fun k hk' => by
       rw [lo1 _ (slotName_fixed k (by have := hk.short; omega) sE2 (by simp [fixedLocals]))]
-      exact hk.slotsOK k hk') rfl (by omega) hR'
+      exact hk.slotsOK k hk') rfl (by omega) hn hR'
   rw [hu3]; exact Or.inr ⟨rfl, hI⟩
 
-theorem act_bool (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+theorem act_bool (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
     (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (R : ScanRes (List SVal)) (j v : USize) (seen bit : UInt32)
-    (slots : List SVal) (sl : Nat) (hsl : sl < slots.length) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u)
+    (slots : List SVal) (sl : Nat) (hsl : sl < slots.length) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u) (hn : slots.length = nS)
     (hR : contAfter sp b j v seen bit slots (.bool sl) = R) :
     Stop (evaluateHOLFiniteState u (actCode bit (.bool sl))).1 ∨
       ((evaluateHOLFiniteState u (actCode bit (.bool sl))).1 = none ∧
-        ObjI sp t A b R (evaluateHOLFiniteState u (actCode bit (.bool sl))).2) := by
+        ObjI sp nS t A b R (evaluateHOLFiniteState u (actCode bit (.bool sl))).2) := by
   have hL : b.size < 2 ^ 64 := hp.size
   have hroom := hp.room
   have hvb := hk.hv
@@ -823,7 +848,7 @@ theorem act_bool (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 6
   simp only [show (116 : BitVec 64) = BitVec.ofNat 64 116 from rfl] at *
   rw [seq_normal _ (ConsLoop.assign_local u2 (slotName sl) _ _ _ hcmp lsl2)]
   let u3 := setVarHOLFinite (slotName sl) (.val (.word (bw ((byteL b.data.toList v.toNat).toNat = 116)))) u2
-  obtain ⟨u4, hu4, hI⟩ := adv_from_ctx sp t A b R u u3 j v E seen bit slots (slots.set sl (.b x)) hk m1 d1 k1 g1 b1
+  obtain ⟨u4, hu4, hI⟩ := adv_from_ctx sp nS t A b R u u3 j v E seen bit slots (slots.set sl (.b x)) hk m1 d1 k1 g1 b1
     (fun y hy hne => by
       show (setVarHOLFinite _ _ (setVarHOLFinite _ _ u1)).locals.lookup y = _
       rw [lookup_setVar_other _ _ (Ne.symm (hfx y hy)), lookup_setVar_other _ _ (Ne.symm (hfx y hy)), lo1 y hne])
@@ -845,16 +870,16 @@ theorem act_bool (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 6
         rw [lookup_setVar_other _ _ hne, lookup_setVar_other _ _ hne, lo1 _ (slotName_fixed k (by have := hk.short; omega) sE2
           (by simp [fixedLocals]))]
         exact hw)
-    (by simp) (by omega) hR'
+    (by simp) (by omega) hn hR'
   rw [hu4]; exact Or.inr ⟨rfl, hI⟩
 
-theorem act_str (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+theorem act_str (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
     (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (R : ScanRes (List SVal)) (j v : USize) (seen bit : UInt32)
-    (slots : List SVal) (sl : Nat) (hsl : sl < slots.length) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u)
+    (slots : List SVal) (sl : Nat) (hsl : sl < slots.length) (u : PanSemStateFiniteExact 64 σ) (hk : KCtx t A b j v seen slots u) (hn : slots.length = nS)
     (hR : contAfter sp b j v seen bit slots (.str sl) = R) :
     Stop (evaluateHOLFiniteState u (actCode bit (.str sl))).1 ∨
       ((evaluateHOLFiniteState u (actCode bit (.str sl))).1 = none ∧
-        ObjI sp t A b R (evaluateHOLFiniteState u (actCode bit (.str sl))).2) := by
+        ObjI sp nS t A b R (evaluateHOLFiniteState u (actCode bit (.str sl))).2) := by
   have hL : b.size < 2 ^ 64 := hp.size
   have hroom := hp.room
   have hvb := hk.hv
@@ -902,7 +927,7 @@ theorem act_str (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64
     rw [lo1' sV (by decide)]; exact hk.lv
   rw [seq_normal _ (ConsLoop.assign_local u1' (slotName sl) (vv sV) _ ws (eval_vv u1' sV _ lv1) lws)]
   let u2 := setVarHOLFinite (slotName sl) (.val (.word (BitVec.ofNat 64 v.toNat))) u1'
-  obtain ⟨u3, hu3, hI⟩ := adv_from_ctx sp t A b R u u2 j v E seen bit slots (slots.set sl (.s str)) hk m1 d1 k1 g1 b1
+  obtain ⟨u3, hu3, hI⟩ := adv_from_ctx sp nS t A b R u u2 j v E seen bit slots (slots.set sl (.s str)) hk m1 d1 k1 g1 b1
     (fun y hy hne => by
       show (setVarHOLFinite _ _ u1').locals.lookup y = _
       rw [lookup_setVar_other _ _ (Ne.symm (hfx y hy)), lo1' y hne])
@@ -923,7 +948,7 @@ theorem act_str (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64
         rw [lookup_setVar_other _ _ hne, lo1' _ (slotName_fixed k (by have := hk.short; omega) sE2
           (by simp [fixedLocals]))]
         exact hw)
-    (by simp) (by omega) hR'
+    (by simp) (by omega) hn hR'
   rw [hu3]; exact Or.inr ⟨rfl, hI⟩
 
 end
@@ -931,23 +956,23 @@ end
 section
 variable {σ : Type}
 
-theorem act_spec (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+theorem act_spec (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
     (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (R : ScanRes (List SVal)) (j v : USize) (seen bit : UInt32)
     (slots : List SVal) (a : VAct) (ha : ActOK slots.length a) (u : PanSemStateFiniteExact 64 σ)
-    (hk : KCtx t A b j v seen slots u) (hR : contAfter sp b j v seen bit slots a = R) :
+    (hk : KCtx t A b j v seen slots u) (hn : slots.length = nS) (hR : contAfter sp b j v seen bit slots a = R) :
     Stop (evaluateHOLFiniteState u (actCode bit a)).1 ∨
       ((evaluateHOLFiniteState u (actCode bit a)).1 = none ∧
-        ObjI sp t A b R (evaluateHOLFiniteState u (actCode bit a)).2) := by
+        ObjI sp nS t A b R (evaluateHOLFiniteState u (actCode bit a)).2) := by
   cases a with
-  | natSet sl => exact act_natSet sp t A b hp hb hc R j v seen bit slots sl u hk ha hR
-  | natDrop => exact act_natDrop sp t A b hp hb hc R j v seen bit slots u hk hR
-  | binder => exact act_binder sp t A b hp hb hc R j v seen bit slots u hk hR
-  | natList sl => exact act_natList sp t A b hp hb hc R j v seen bit slots sl ha u hk hR
-  | natListDrop => exact act_natListDrop sp t A b hp hb hc R j v seen bit slots u hk hR
-  | str sl => exact act_str sp t A b hp hb hc R j v seen bit slots sl ha u hk hR
-  | bool sl => exact act_bool sp t A b hp hb hc R j v seen bit slots sl ha u hk hR
-  | boolDrop => exact act_boolDrop sp t A b hp hb hc R j v seen bit slots u hk hR
-  | hints sl => exact act_hints sp t A b R bit sl u
+  | natSet sl => exact act_natSet sp nS t A b hp hb hc R j v seen bit slots sl u hk hn ha hR
+  | natDrop => exact act_natDrop sp nS t A b hp hb hc R j v seen bit slots u hk hn hR
+  | binder => exact act_binder sp nS t A b hp hb hc R j v seen bit slots u hk hn hR
+  | natList sl => exact act_natList sp nS t A b hp hb hc R j v seen bit slots sl ha u hk hn hR
+  | natListDrop => exact act_natListDrop sp nS t A b hp hb hc R j v seen bit slots u hk hn hR
+  | str sl => exact act_str sp nS t A b hp hb hc R j v seen bit slots sl ha u hk hn hR
+  | bool sl => exact act_bool sp nS t A b hp hb hc R j v seen bit slots sl ha u hk hn hR
+  | boolDrop => exact act_boolDrop sp nS t A b hp hb hc R j v seen bit slots u hk hn hR
+  | hints sl => exact act_hints sp nS t A b R bit sl u
 
 /-- The key branch of con-leche's loop, at the key `K`. -/
 def keyBranch (sp : ObjSpec) (b : ByteArray) (j v : USize) (seen : UInt32) (slots : List SVal) (K : Key)
@@ -957,21 +982,21 @@ def keyBranch (sp : ObjSpec) (b : ByteArray) (j v : USize) (seen : UInt32) (slot
     if (seen &&& bit) != 0 then .err ⟨j.toNat, .duplicateKey⟩ else contAfter sp b j v seen bit slots a
   | none => .err ⟨j.toNat, .unknownKey⟩
 
-theorem dispatch_spec (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+theorem dispatch_spec (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
     (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (R : ScanRes (List SVal)) (j v : USize) (seen : UInt32)
     (slots : List SVal) (K : Key) :
     ∀ (ks : List (Key × UInt32 × VAct)) (u : PanSemStateFiniteExact 64 σ),
-      (∀ e ∈ ks, ActOK slots.length e.2.2) → KCtx t A b j v seen slots u →
+      (∀ e ∈ ks, ActOK slots.length e.2.2) → KCtx t A b j v seen slots u → slots.length = nS →
       u.locals.lookup sKK = some (.val (.word (BitVec.ofNat 64 K.ctorIdx))) →
       keyBranch sp b j v seen slots K ks = R →
       Stop (evaluateHOLFiniteState u (dispatch ks)).1 ∨
         ((evaluateHOLFiniteState u (dispatch ks)).1 = none ∧
-          ObjI sp t A b R (evaluateHOLFiniteState u (dispatch ks)).2) := by
+          ObjI sp nS t A b R (evaluateHOLFiniteState u (dispatch ks)).2) := by
   intro ks
   induction ks with
-  | nil => intro u _ _ _ _; exact Or.inl (stop_hang u)
+  | nil => intro u _ _ _ _ _; exact Or.inl (stop_hang u)
   | cons e r ih =>
-    intro u hks hk lkk hR
+    intro u hks hk hn lkk hR
     obtain ⟨k, bit, a⟩ := e
     unfold dispatch
     have hcmp := eval_eq_c u sKK K.ctorIdx k.ctorIdx (by have := key_ctorIdx_lt K; omega)
@@ -1012,11 +1037,11 @@ theorem dispatch_spec (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : Bit
         have hd' : ((seen &&& bit) != 0) = false := by
           simp only [bne_eq_false_iff_eq]; apply UInt32.toNat_inj.mp; simpa using hd
         rw [hd'] at hR; simp only [Bool.false_eq_true, ↓reduceIte] at hR
-        exact act_spec sp t A b hp hb hc R j v seen bit slots a (hks _ (List.mem_cons_self ..)) u hk hR
+        exact act_spec sp nS t A b hp hb hc R j v seen bit slots a (hks _ (List.mem_cons_self ..)) u hk hn hR
     · simp only [bw, hK, ↓reduceIte, ne_eq, not_true_eq_false]
       have hKk : K ≠ k := fun h => hK (by rw [h])
       simp only [keyBranch, lookupKey, hKk, ↓reduceIte] at hR
-      exact ih u (fun e he => hks e (List.mem_cons_of_mem _ he)) hk lkk (by simp only [keyBranch]; exact hR)
+      exact ih u (fun e he => hks e (List.mem_cons_of_mem _ he)) hk hn lkk (by simp only [keyBranch]; exact hR)
 
 end
 
