@@ -80,15 +80,15 @@ theorem nameP_congr {C C' : Ctx} (h1 : C.HB = C'.HB) (h2 : C.HN = C'.HN) (cs : L
     nameP C cs r = nameP C' cs r := by unfold nameP; rw [stepsP_congr h1 h2]
 
 /-- Intern the names (string components `css`), each handle into cell `b + i` of the block at `vPb`. -/
-def namesP (C : Ctx) : List (List String) → Nat → ProgHOL 64 → ProgHOL 64
+def namesP (C : Ctx) (bv : MlS) : List (List String) → Nat → ProgHOL 64 → ProgHOL 64
   | [], _, rest => rest
-  | cs :: css, i, rest => nameP C cs (.seq (.store (.op .add [vv vPb, .const (BitVec.ofNat 64 (8 * i))]) (vv vPn))
-      (namesP C css (i + 1) rest))
+  | cs :: css, i, rest => nameP C cs (.seq (.store (.op .add [vv bv, .const (BitVec.ofNat 64 (8 * i))]) (vv vPn))
+      (namesP C bv css (i + 1) rest))
 
-theorem namesP_congr {C C' : Ctx} (h1 : C.HB = C'.HB) (h2 : C.HN = C'.HN) :
-    ∀ (css : List (List String)) (i : Nat) (r : ProgHOL 64), namesP C css i r = namesP C' css i r
+theorem namesP_congr {C C' : Ctx} (h1 : C.HB = C'.HB) (h2 : C.HN = C'.HN) (bv : MlS) :
+    ∀ (css : List (List String)) (i : Nat) (r : ProgHOL 64), namesP C bv css i r = namesP C' bv css i r
   | [], _, _ => rfl
-  | cs :: css, i, r => by simp only [namesP]; rw [namesP_congr h1 h2 css (i + 1) r, nameP_congr h1 h2]
+  | cs :: css, i, r => by simp only [namesP]; rw [namesP_congr h1 h2 bv css (i + 1) r, nameP_congr h1 h2]
 
 def NamesOK : List ConLeche.Name → List (List String) → Prop
   | [], [] => True
@@ -99,15 +99,15 @@ set_option maxHeartbeats 2000000 in
 theorem names_spec {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (code : Code)
     (hcN : code.lookup fInternNStr = some ([(pKeyN, .one), (lEn, .one), (lEp, .one), (lHn, .one)], nameStrBody, .one))
     (D : List MlS) (hPn : vPn ∈ D) (hKa : vKa ∈ D) {rest : ProgHOL 64} {R : β → BitVec 64 → AState → PState σ → Prop}
-    (H : List (BitVec 64)) (b : Nat) (hb : 64 ≤ b) :
+    (H : List (BitVec 64)) (b : Nat) (hb : 64 ≤ b) (bv : MlS) (hbv1 : bv ≠ vPn) (hbv2 : bv ≠ vKa) :
     ∀ (ns : List ConLeche.Name) (css : List (List String)) (i : Nat) (EH : List (BitVec 64)) (s : AState) (Γ : Env)
       (M : Mem) (k : List NIdx → AM β), NamesOK ns css → (∀ j, j < 64 → EH[j]? = EH0[j]?) →
-    Γ.get vPb = some (ecell (Cb code H EH) b) → b + i + ns.length ≤ EH.length →
+    Γ.get bv = some (ecell (Cb code H EH) b) → b + i + ns.length ≤ EH.length →
     (∀ hs s' (EH' : List (BitVec 64)) (Γ' : Env), EH'.length = EH.length → (∀ j, j < b + i → EH'[j]? = EH[j]?) →
       (∀ j (hj : j < ns.length), EH'[b + i + j]? = some (Enc.idxW (hs[j]?.getD default))) →
       (∀ y, y ≠ vPn → y ≠ vKa → Γ'.get y = Γ.get y) → internNameList ns s = .ok (hs, s') →
       SpecR (Inv (Cb code H EH') s' Γ' [] D) rest s' (k hs) R) →
-    SpecR (Inv (Cb code H EH) s Γ M D) (namesP (Cb code H EH) css i rest) s (internNameList ns >>= k) R
+    SpecR (Inv (Cb code H EH) s Γ M D) (namesP (Cb code H EH) bv css i rest) s (internNameList ns >>= k) R
   | [], [], i, EH, s, Γ, M, k, _, hEH, hpb, hroom, hk => by
     simp only [namesP, internNameList, pure_bind]
     intro t ht
@@ -127,14 +127,14 @@ theorem names_spec {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (code
       denoteN_ext (boot_ok P0).2.2.1 ht.sr.floor
     refine name_spec ra (Cb code H EH) (ctxOK_Cb code H EH hEH) (frontOK_Cb code H EH) hcN D hPn hKa n cs hcs hcok
       s hst hd Γ M _ (fun h s1 Γ1 hag hpn hr => ?_) t ht
-    have hpb1 : Γ1.get vPb = some (ecell (Cb code H EH) b) := by rw [hag _ (by decide) (by decide)]; exact hpb
-    refine specR_envStoreI (ctxOK_Cb code H EH hEH) (.op .add [vv vPb, .const (BitVec.ofNat 64 (8 * i))]) (vv vPn)
+    have hpb1 : Γ1.get bv = some (ecell (Cb code H EH) b) := by rw [hag _ hbv1 hbv2]; exact hpb
+    refine specR_envStoreI (ctxOK_Cb code H EH hEH) (.op .add [vv bv, .const (BitVec.ofNat 64 (8 * i))]) (vv vPn)
       (b + i) (by rw [Cb_EH]; omega) (Enc.idxW h)
       (by simp only [sev, vv, hpb1, Option.bind_eq_bind, Option.bind_some, Option.pure_def]; rw [ecell_add])
       (by simp [sev, vv, hpn]) ?_
     rw [ctxE_Cb, Cb_EH, namesP_congr (Cb_HB code H EH H (EH.set (b + i) (Enc.idxW h)))
-      (Cb_HN code H EH H (EH.set (b + i) (Enc.idxW h)))]
-    refine names_spec ra code hcN D hPn hKa H b hb ns css (i + 1) _ s1 Γ1 [] _ hrest
+      (Cb_HN code H EH H (EH.set (b + i) (Enc.idxW h))) bv]
+    refine names_spec ra code hcN D hPn hKa H b hb bv hbv1 hbv2 ns css (i + 1) _ s1 Γ1 [] _ hrest
       (fun j hj => by rw [List.getElem?_set, if_neg (by omega)]; exact hEH j hj) (by rw [hpb1]; rfl)
       (by simp only [List.length_set]; omega) (fun hs s2 EH2 Γ2 hl2 h1 h2 hag2 hr2 => ?_)
     refine hk (h :: hs) s2 EH2 Γ2 (by rw [hl2]; simp) (fun j hj => by rw [h1 j (by omega), List.getElem?_set, if_neg (by omega)])
