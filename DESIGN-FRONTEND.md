@@ -371,3 +371,23 @@ Still assumed (not yet established by code):
 3. **The prelude and con-leche's top-level verdict**: the prelude stage needs inductives,
    axioms and quot in the fold.
 4. **The harness and executable**.
+
+### Satisfiability of the code-table assumptions (b610dbc)
+
+Sizing the code table turned up three defects that made `FoldCodes` unsatisfiable. That made
+`fold_verdict` and everything built on it vacuous.
+- `WbCodes.rn`, `UfCodes.cv` and `LdrCodes.rn` named functions outside their namespaces.
+  `autoImplicit` bound them, so each field said every name maps to one body. They now name
+  `WB.fRN` and `UD.fCV`.
+- `Decl.fTh` and `Decl.fKt` were both the string `"checkThm"` with different required bodies.
+  `fTh` is now `"checkThmArm"`.
+
+Tools: `scripts/ScanImplicitFields.lean` lists implicit binders in structure fields (the only
+remaining hit, `ArenaRep.mono`, is intended). `scripts/CodeScan.lean` dumps every
+`lookup f = some …` leaf of `FoldCodes ∧ FrontCodes` (745 leaves, 325 functions).
+`scripts/check_code_names.py` reports a name required with different bodies, or two required
+names with the same string. After the fixes, only list-literal vs `List.map` forms remain, and
+those are definitionally equal.
+
+The definitive check is still to build one concrete code table and prove `FoldCodes` and
+`FrontCodes` for it.
