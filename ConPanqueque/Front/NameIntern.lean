@@ -178,4 +178,115 @@ theorem nameStr_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) 
           exact hm _ (hok.heapOut i (by omega)) (keyne _ ⟨i, by omega, rfl, Or.inl (by omega)⟩)) hd (by rw [hg]; rfl),
       (internNNode_wf ht.sr.twf hv hrun).1, envDen_ext ht.sr.envd (internNNode_wf ht.sr.twf hv hrun).2, Ext.trans ht.sr.floor (internNNode_wf ht.sr.twf hv hrun).2, cachesOK_ext ht.sr.cok (internNNode_wf ht.sr.twf hv hrun).2 rfl⟩
 
+
+def fInternNNum := ofString "internNNum"
+def nameNumBody : ProgHOL 64 :=
+  prologue numScratch (.seq (.assign .local lKb (vv pKeyN)) (nNumWith (rRestE 2 (vv lEn) lFln)))
+
+theorem nameNum_body_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hf : FrontOK C)
+    (s : AState) (p : NIdx) (n : Nat) (o : Nat) (H0 : List (BitVec 64)) (hp0 : H0 <+: C.H) (ho0 : H0.length ≤ o)
+    (hko : o + (Enc.encNum ⟨p, n⟩).length ≤ C.H.length) (hlen : (Enc.encNum ⟨p, n⟩).length < 2 ^ 60)
+    (hkey : ∀ j (hj : j < (Enc.encNum ⟨p, n⟩).length), C.H[o + j]? = some ((Enc.encNum ⟨p, n⟩)[j])) :
+    SpecR (Pre (σ := σ) C s [(pKeyN, cellA C o), (lEn, BitVec.ofNat 64 (Enc.encNum ⟨p, n⟩).length),
+      (lEp, Enc.idxW p), (lNw, (UInt64.ofNat n).toBitVec)])
+      nameNumBody s (internNNode (.num p n)) (PostNm (ctxH C H0)) := by
+  refine specR_prologue (postNm_locals _) (fun x hx => ?_) ?_
+  · simp only [numScratch, List.mem_cons, List.not_mem_nil, or_false] at hx
+    rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> rfl
+  intro t ht
+  have hHN : C.H.length ≤ C.HN := inv_heapLen ht
+  have hlay := hok.heapLay
+  obtain ⟨wk, hwk⟩ := ht.decl lKb (by decide)
+  rw [seq_normal _ (ConsLoop.assign_local t lKb _ (cellA C o) wk (inv_ev ht (by simp +decide [ctxEnv])) hwk)]
+  let t1 := setVarHOLFinite lKb (.val (.word (cellA C o))) t
+  let t2 := t1
+  have L2 : ∀ y, y ≠ lKb → t2.locals.lookup y = t.locals.lookup y := fun y h1 => by
+    simp only [t2, t1]; rw [lookup_setVar_other _ _ h1]
+  have hw : ∀ y, y ∈ numScratch → ∃ w, t2.locals.lookup y = some (.val (.word w)) := by
+    intro y hy
+    obtain ⟨w, hw⟩ := ht.decl y (List.mem_append_right _ hy)
+    have hne : y ≠ lKb := by
+      simp only [numScratch, List.mem_cons, List.not_mem_nil, or_false] at hy
+      rcases hy with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> decide
+    exact ⟨w, by rw [L2 y hne]; exact hw⟩
+  have hW : Words t2 (cellA C o) (Enc.encNum ⟨p, n⟩) := by
+    intro k hk
+    have hk' : o + k < C.H.length := by omega
+    have := heap_cell ht.sr (o + k) hk'
+    have e := hkey k hk
+    rw [List.getElem?_eq_getElem hk'] at e
+    simp only [Option.some.injEq] at e
+    rw [cellA_off]
+    exact ⟨this.1, by rw [← e]; exact this.2⟩
+  have hS : SepK C.L C.FLn C.FLl C.FLs C.FLe (cellA C o) (Enc.encNum ⟨p, n⟩).length 2 := by
+    have S := hf.sepNN
+    refine ⟨S.pow, S.cap, S.dis, S.oth, fun k' tier m h1 h2 h3 => ⟨(S.dsc k' tier m h1 h2 h3).1,
+      (S.dsc k' tier m h1 h2 h3).2.1, fun j hj => ?_⟩, fun F hF => ⟨(S.fls F hF).1, (S.fls F hF).2.1, fun j hj => ?_⟩,
+      fun j k' tier hj h1 h2 => ?_⟩
+    · rw [cellA_off]; exact fun e => hok.dirHeap (o + j) k' tier m (by omega) h1 h2 h3 e.symm
+    · rw [cellA_off]; exact fun e => hok.flHeap (o + j) F (by omega) hF e.symm
+    · rw [cellA_off]; exact fun hr => hok.heapOut (o + j) (by omega) ⟨k', tier, h1, h2, hr⟩
+  rcases nInternNum_spec ra t2 C.L C.FLn C.FLl C.FLs C.FLe (cellA C o) s.store p n
+      (sr_of_eq (u := t2) ht.sr rfl rfl rfl rfl).rep hS hW (by omega) hf.b0NN hf.b1NN
+      (lookup_setVar_same _ _ _)
+      (by rw [L2 _ (by decide)]; exact ht.env _ _ (by simp +decide [ctxEnv, Env.get]))
+      (by rw [L2 _ (by decide)]; exact ht.env _ _ (by simp +decide [ctxEnv, Env.get]))
+      (by rw [L2 _ (by decide)]; exact ht.env _ _ (by simp +decide [ctxEnv, Env.get]))
+      (by rw [L2 _ (by decide)]; exact ht.env _ _ (by simp +decide [ctxEnv, Env.get]))
+      (by rw [L2 _ (by decide)]; exact ht.env _ _ (by simp +decide [ctxEnv, Env.get])) hw with
+    ⟨hs' | ⟨hr, hsr, hc, hg, hd, _, hm⟩, hV⟩
+  · exact Or.inl hs'
+  have hvp := hV.resolve_left (fun hs => stop_ne_returned hs _ hr)
+  have hv : s.store.ns.ViewOK (.num p n) := by
+    intro c hc
+    simp [NNodeView.children] at hc
+    subst hc; exact hvp
+  have hrun := internNNode_ok s (.num p n) (ncap_of _ _
+    (fun _ => Nat.le_trans (tabAt_size_le hsr.n.pn) (hf.sepNN.cap 0 (by decide)))
+    (fun _ => Nat.le_trans (tabAt_size_le hsr.n.sn) (hf.sepNN.cap 1 (by decide))))
+  right
+  have keyne : ∀ c, (∃ i, i < C.HN ∧ c = C.HB + BitVec.ofNat 64 (8 * i) ∧ (i < o ∨ o + (Enc.encNum ⟨p, n⟩).length ≤ i)) →
+      ∀ j, j < (Enc.encNum ⟨p, n⟩).length → c ≠ cellA C o + BitVec.ofNat 64 (8 * j) := by
+    rintro c ⟨i, hi, rfl, hio⟩ j hj
+    rw [cellA_off]
+    exact cellA_ne C i (o + j) hi (by omega) hlay (by omega)
+  refine ⟨_, hr, (s.store.ns.intern (.num p n)).2, { s with store := withN s.store (s.store.ns.intern (.num p n)).1 }, ?_, rfl, ?_⟩
+  · exact hrun
+  · exact ⟨hsr, by rw [hg]; exact ht.sr.gdir, by rw [hg]; exact ht.sr.gfln, by rw [hg]; exact ht.sr.gfll,
+      by rw [hg]; exact ht.sr.gfls, by rw [hg]; exact ht.sr.gfle, by rw [hg]; exact ht.sr.gkb,
+      by rw [hc]; exact ht.sr.code, fun j hj => by rw [hd]; exact ht.sr.kbuf j hj,
+      fun mk => memoAt_frame (ht.sr.memo mk)
+        (fun c hc => hm c (hok.memoOut (.e mk) c hc) (fun j hj e => hok.heapMemo (.e mk) (o + j) (by omega)
+          (by rw [cellA_off] at e; unfold cellA at e; rw [← e]; exact hc)))
+        (fun k hk => hm _ (hok.mdescOut (.e mk) k hk) (fun j hj e => hok.mdescHeap (.e mk) (o + j) k (by omega) hk
+          (by rw [cellA_off] at e; unfold cellA at e; exact e.symm))) hd,
+      fun mk => memoAtN_frame (ht.sr.memoN mk)
+        (fun c hc => hm c (hok.memoOut (.n mk) c hc) (fun j hj e => hok.heapMemo (.n mk) (o + j) (by omega)
+          (by rw [cellA_off] at e; unfold cellA at e; rw [← e]; exact hc)))
+        (fun k hk => hm _ (hok.mdescOut (.n mk) k hk) (fun j hj e => hok.mdescHeap (.n mk) (o + j) k (by omega) hk
+          (by rw [cellA_off] at e; unfold cellA at e; exact e.symm))) hd,
+      fun ck => cacheAt_frame (ht.sr.cache ck)
+        (fun c hc => hm c (hok.memoOut (.c ck) c hc) (fun j hj e => hok.heapMemo (.c ck) (o + j) (by omega)
+          (by rw [cellA_off] at e; unfold cellA at e; rw [← e]; exact hc)))
+        (fun k hk => hm _ (hok.mdescOut (.c ck) k hk) (fun j hj e => hok.mdescHeap (.c ck) (o + j) k (by omega) hk
+          (by rw [cellA_off] at e; unfold cellA at e; exact e.symm))) hd,
+      modeAt_frame ht.sr.mode
+        (fun b ck c hc => hm c (hok.memoOut (.m b ck) c hc) (fun j hj e => hok.heapMemo (.m b ck) (o + j) (by omega)
+          (by rw [cellA_off] at e; unfold cellA at e; rw [← e]; exact hc)))
+        (fun b ck k hk => hm _ (hok.mdescOut (.m b ck) k hk) (fun j hj e => hok.mdescHeap (.m b ck) (o + j) k (by omega) hk
+          (by rw [cellA_off] at e; unfold cellA at e; exact e.symm))) hd (by rw [hg]; rfl),
+      envAt_frame ht.sr.env
+        (fun b c hc => hm c (hok.memoOut (envR b) c hc) (fun j hj e => hok.heapMemo (envR b) (o + j) (by omega)
+          (by rw [cellA_off] at e; unfold cellA at e; rw [← e]; exact hc)))
+        (fun b k hk => hm _ (hok.mdescOut (envR b) k hk) (fun j hj e => hok.mdescHeap (envR b) (o + j) k (by omega) hk
+          (by rw [cellA_off] at e; unfold cellA at e; exact e.symm)))
+        (fun i hi => hm _ (hok.envOut i hi) (fun j hj e => hok.heapEnv (o + j) i (by omega) hi
+          (by rw [cellA_off] at e; unfold cellA at e; exact e.symm))) hd ⟨by rw [hg]; rfl, by rw [hg]; rfl⟩, ht.sr.pins,
+      heapEx_reframe (heapEx_prefix ht.sr.heap hp0)
+        (fun i hi => by
+          have hi' : i < H0.length := hi
+          have := hp0.length_le
+          exact hm _ (hok.heapOut i (by omega)) (keyne _ ⟨i, by omega, rfl, Or.inl (by omega)⟩)) hd (by rw [hg]; rfl),
+      (internNNode_wf ht.sr.twf hv hrun).1, envDen_ext ht.sr.envd (internNNode_wf ht.sr.twf hv hrun).2, Ext.trans ht.sr.floor (internNNode_wf ht.sr.twf hv hrun).2, cachesOK_ext ht.sr.cok (internNNode_wf ht.sr.twf hv hrun).2 rfl⟩
+
 end ConPanqueque.Front
