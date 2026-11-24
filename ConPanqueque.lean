@@ -387,6 +387,7 @@ import ConPanqueque.Scan.LevPair
 import ConPanqueque.Scan.QNat
 import ConPanqueque.Scan.NatNth
 import ConPanqueque.Scan.HintVal
+import ConPanqueque.Scan.Safe
 import ConPanqueque.Scan.ObjFun
 import ConPanqueque.Scan.Line
 import ConPanqueque.Scan.RecFuns
