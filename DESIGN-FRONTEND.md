@@ -114,7 +114,6 @@ tables (`IdTable`). Plan:
   - declarations: `parseCVD`, appending to the record block in the `RecOK` layout.
 
 **Frontend gaps that still reject every real file:**
-- `natVal`;
 - escaped and non-ASCII strings;
 - axioms, quot and inductives (scanner and kernel).
 
@@ -132,3 +131,7 @@ position in the slot: `SlotOK (.h x)` holds when `scanHints b p = ok x _`, or wh
 **max/imax:** `levMax`/`levImax` (Line.lean) are con-leche's branch as record scanners. The
 Pancake record function `lpFun` (`Scan/LevPair.lean`) reads exactly `[a, d]`. `lpFun_sound` walks
 con-leche's `scanNatListLoop` step by step (`nlLoop_ws/digit/comma/close`).
+
+**natVal:** `natValPl` = `srMap (.expr ∘ .natVal) (scanQuotedNat b v)`. The Pancake `qnFun`
+(`Scan/QNat.lean`) returns the end, and the payload slot keeps the position, so interning reads
+the digits again (big values go to the arena limbs).

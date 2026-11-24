@@ -108,6 +108,7 @@ def exprProj (b : ByteArray) (v : USize) : ScanRes LinePayload := srMap .expr (s
 def declDef (b : ByteArray) (v : USize) : ScanRes LinePayload := srMap .decl (scanDefDecl b v)
 def declThm (b : ByteArray) (v : USize) : ScanRes LinePayload := srMap .decl (scanThmDecl b v)
 def declOpaque (b : ByteArray) (v : USize) : ScanRes LinePayload := srMap .decl (scanOpaqueDecl b v)
+def natValPl (b : ByteArray) (v : USize) : ScanRes LinePayload := srMap (fun n => .expr (.natVal n)) (scanQuotedNat b v)
 
 /-- The header's value: a `{`-opened object skipped by bracket depth. -/
 def metaHdr (b : ByteArray) (v : USize) : ScanRes LinePayload :=
@@ -161,7 +162,8 @@ def lineTbl : List (Key × LAct) :=
    (.kConst, .objPl exprConst), (.kProj, .objPl exprProj),
    (.kStrVal, .strPl (fun s => .expr (.strVal s))),
    (.kDef, .objPl declDef), (.kThm, .objPl declThm), (.kOpaque, .objPl declOpaque),
-   (.kMeta, .objPl metaHdr), (.kMax, .objPl levMax), (.kImax, .objPl levImax)]
+   (.kMeta, .objPl metaHdr), (.kMax, .objPl levMax), (.kImax, .objPl levImax),
+   (.kNatVal, .objPl natValPl)]
 
 theorem srMap_ok {α β : Type} {f : α → β} {x : ScanRes α} {y : β} {p : USize} (h : srMap f x = .ok y p) :
     ∃ a, x = .ok a p ∧ y = f a := by
@@ -599,6 +601,23 @@ theorem lineLoopI_sound (b : ByteArray) :
           rcases us with _ | ⟨a, _ | ⟨d, _ | ⟨x, rest⟩⟩⟩ <;> simp only [reduceCtorEq] at hok
           all_goals try (simp at hok; done)
           simp only at hok ⊢
+          split at hok
+          · rename_i hie
+            rw [dif_pos hie]
+            exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
+          · simp at hok
+      case kNatVal =>
+        dsimp only
+        split at hok
+        · simp at hok
+        rename_i hpl
+        rw [if_neg hpl]
+        simp only [natValPl] at hok
+        cases hsc : scanQuotedNat b v with
+        | err er => rw [hsc] at hok; simp [srMap] at hok
+        | ok r0 e =>
+          rw [hsc] at hok
+          simp only [srMap] at hok ⊢
           split at hok
           · rename_i hie
             rw [dif_pos hie]
