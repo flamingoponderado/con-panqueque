@@ -559,4 +559,226 @@ theorem dfP_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       (by simp [HK, kcH_length]; omega) (declsRel_kcH hdr hp0 r (by omega) ws 6) hrec hcapD hRB' hCD' hkR)
       (fun t ht => ht) (fun a w s' t' h => ⟨d, h⟩)
 
+theorem processThm_ok (st : StateD) (cv : CVRec) (vl : Nat) (nmh : NIdx) (tyh vlh : EIdx)
+    (hnm : st.names.get? cv.name = some nmh) (hty : st.exprs.get? cv.type = some tyh)
+    (hvl : st.exprs.get? vl = some vlh) (hlps : ∀ j (hj : j < cv.levelParams.length),
+      (st.names.get? cv.levelParams[j]).isSome) :
+    processLineCoreD st (.thm cv vl) =
+      pure (.inl { st with decls := st.decls.push (.thmDecl
+        ⟨nmh, cv.levelParams.map (fun x => (st.names.get? x).getD default), tyh⟩ vlh) }) := by
+  have hm := mapM_name_ok st cv.levelParams hlps
+  simp [processLineCoreD, parseCVD, StateD.name, getDeclD, StateD.expr, hnm, hty, hvl, hm, pushDecl]
+
+theorem processOpaque_ok (st : StateD) (cv : CVRec) (vl : Nat) (nmh : NIdx) (tyh vlh : EIdx)
+    (hnm : st.names.get? cv.name = some nmh) (hty : st.exprs.get? cv.type = some tyh)
+    (hvl : st.exprs.get? vl = some vlh) (hlps : ∀ j (hj : j < cv.levelParams.length),
+      (st.names.get? cv.levelParams[j]).isSome) :
+    processLineCoreD st (.opaq cv vl false) =
+      pure (.inl { st with decls := st.decls.push (.opaqueDecl
+        ⟨nmh, cv.levelParams.map (fun x => (st.names.get? x).getD default), tyh⟩ vlh) }) := by
+  have hm := mapM_name_ok st cv.levelParams hlps
+  simp [processLineCoreD, parseCVD, StateD.name, getDeclD, StateD.expr, hnm, hty, hvl, hm, pushDecl]
+
+/-- The value declarations' tail: the level-parameter block, a five-cell record of kind `kd`, the
+registry entry. -/
+def vdTail (C : Ctx) (kd : Nat) : ProgHOL 64 :=
+  lstBlkP C fTN (allocP C kR (.const (BitVec.ofNat 64 40))
+    (storesP kR 0 [.const (BitVec.ofNat 64 kd), vv fy, vv kKA0, vv fz, vv kVh] regPushP))
+
+theorem vdTail_spec (C : Ctx) (hok : CtxOK C)
+    (hnc : ∀ t : PState σ, t.code = C.code → NnCodes t)
+    (hcN : C.code.lookup fNth = some ([(sB, .one), (sN, .one), (sI, .one), (sL, .one)], nnFun, .one))
+    (s : AState) (Γ : Env) (M : Mem) (D : List MlS) (hD : ∀ x ∈ [kR, kCnt] ++ lbMods, x ∈ D)
+    (st : StateD) (F rb capD jN jL jE cap bufJ : Nat) (b : ByteArray) (hlay : FrontLay F rb capD jN jL jE cap bufJ b)
+    (hreln : TblRel C.H jN cap st.names) (hcap : 8 * cap < 2 ^ 64)
+    (hcapN : cap ≤ natCap) (hbuf : BufOK C bufJ b) (hdr : DeclsRel C F rb capD C.H st.decls)
+    (hcapD : 8 * (rb + 1 + capD) < 2 ^ 64)
+    (lps : List Nat) (hus : lps.length < 2 ^ 59) (wpos : BitVec 64)
+    (hslot : (∃ (pos e0 : USize), wpos = BitVec.ofNat 64 pos.toNat ∧ scanNatList b pos = .ok lps e0) ∨
+      (lps = [] ∧ wpos = BitVec.ofNat 64 listSentinel))
+    (kd : Nat) (wy wz wv : BitVec 64) (dOf : List NIdx → IDeclaration)
+    (hrec : ∀ (H : List (BitVec 64)) (r o : Nat), F ≤ r → F ≤ o →
+      H[r]? = some (BitVec.ofNat 64 kd) → H[r + 1]? = some wy → H[r + 2]? = some (cellA C o) →
+      H[r + 3]? = some wz → H[r + 4]? = some wv →
+      BlkAt H o ((lps.map (fun x => (st.names.get? x).getD default)).map Enc.idxW) →
+      RecEnc C F H r (dOf (lps.map (fun x => (st.names.get? x).getD default))))
+    {m : AM (StateD ⊕ RecordVerdict)}
+    (hm : (∀ j (hj : j < lps.length), (st.names.get? lps[j]).isSome) →
+      m = pure (.inl { st with decls := st.decls.push (dOf (lps.map (fun x => (st.names.get? x).getD default))) }))
+    (hTN : Γ.get fTN = some (cellA C jN)) (hC : Γ.get fCap = some (BitVec.ofNat 64 cap))
+    (hy : Γ.get fy = some wy) (hz : Γ.get fz = some wz) (hv : Γ.get kVh = some wv)
+    (hV : Γ.get fV2 = some wpos)
+    (hBA : Γ.get kBA = some (cellA C bufJ)) (hBN : Γ.get kBN = some (BitVec.ofNat 64 b.size))
+    (hRB : Γ.get kRB = some (cellA C rb)) (hCD : Γ.get kCapD = some (BitVec.ofNat 64 capD)) :
+    SpecR (Inv (σ := σ) C s Γ M D) (vdTail C kd) s m
+      (fun a w s' t' => ∃ d, DeclPost C F rb capD C.H st d a w s' t') := by
+  have hFH : F ≤ C.H.length := hdr.2.2.2.1
+  unfold vdTail
+  refine lstBlk_spec C hok hnc hcN s Γ M D (fun x hx => hD x (by simp [hx])) fTN (by decide) st.names jN cap hreln hcap
+    hcapN bufJ b hbuf lps (by omega) wpos hslot hTN hC hBA hBN hV _
+    (fun H' o Γ' hp' ho hblk hall hka0 hkeep => ?_)
+  rw [hm hall]
+  let lpsH := lps.map (fun x => (st.names.get? x).getD default)
+  let d := dOf lpsH
+  have hbl1 : o + 1 + lps.length ≤ H'.length := by
+    by_cases h0 : lps.length = 0
+    · have := hblk.1
+      have hl : o < H'.length := by
+        by_cases hl : o < H'.length
+        · exact hl
+        · rw [List.getElem?_eq_none (by omega)] at this; cases this
+      omega
+    · have h1 := hblk.2 (lps.length - 1) (by simp [tWords]; omega)
+      by_cases hl : o + 1 + (lps.length - 1) < H'.length
+      · omega
+      · rw [List.getElem?_eq_none (by omega)] at h1; cases h1
+  change SpecR _ (allocP (ctxH C H') kR _ _) _ _ _
+  refine specR_allocI (C := ctxH C H') kR (.const (BitVec.ofNat 64 40)) 5 (by decide) (hD kR (by simp))
+    (fun v => rfl) (fun H2 wsR hp2 hwl2 hcap2 => ?_)
+  have hH'2 : H'.length ≤ H2.length := hp2.length_le
+  let r := H2.length
+  let ws : List (BitVec 64) := [BitVec.ofNat 64 kd, wy, cellA C o, wz, wv]
+  have hkR : Env.get ((kR, cellA (ctxH C H') r) :: Γ') kR = some (cellA C r) := by simp [Env.get_cons]; rfl
+  have gR : ∀ y, y ≠ kR → Env.get ((kR, cellA (ctxH C H') r) :: Γ') y = Γ'.get y := fun y h => by
+    rw [Env.get_cons, if_neg h]
+  have hlay2 := hok.heapLay
+  have hcap2' : H2.length + 5 ≤ C.HN := hcap2
+  have lfy : Γ'.get fy = some wy := by rw [hkeep fy (by decide)]; exact hy
+  have lfz : Γ'.get fz = some wz := by rw [hkeep fz (by decide)]; exact hz
+  have lvh : Γ'.get kVh = some wv := by rw [hkeep kVh (by decide)]; exact hv
+  refine storesP_spec C hok s _ D kR r hkR ws regPushP [.const (BitVec.ofNat 64 kd), vv fy, vv kKA0, vv fz, vv kVh] 0
+    (H2 ++ wsR) (by simp [ws]) (by simp [ws]; omega) (by simp [ws]; omega) (fun i hi => ?_) ?_
+  · simp only [List.length_cons, List.length_nil] at hi
+    rcases (show i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3 ∨ i = 4 by omega) with rfl | rfl | rfl | rfl | rfl
+    · rfl
+    · simp only [sev, vv, List.getElem_cons_succ, List.getElem_cons_zero]; rw [gR _ (by decide), lfy]; rfl
+    · simp only [sev, vv, List.getElem_cons_succ, List.getElem_cons_zero]; rw [gR _ (by decide), hka0]; rfl
+    · simp only [sev, vv, List.getElem_cons_succ, List.getElem_cons_zero]; rw [gR _ (by decide), lfz]; rfl
+    · simp only [sev, vv, List.getElem_cons_succ, List.getElem_cons_zero]; rw [gR _ (by decide), lvh]; rfl
+  · let HK := kcH (H2 ++ wsR) r ws 5
+    have hp0 : C.H <+: H2 ++ wsR := hp'.trans (hp2.trans (List.prefix_append _ _))
+    have hgK : ∀ c, c < r → HK[c]? = (H2 ++ wsR)[c]? := fun c hc => by
+      simp only [HK]; rw [kcH_get, if_neg (by omega)]
+    have hlR : (H2 ++ wsR).length = H2.length + 5 := by simp [hwl2]
+    have hKr : ∀ i, i < 5 → HK[r + i]? = some (ws.getD i 0) := fun i hi => by
+      simp only [HK]; rw [kcH_get, if_pos ⟨by omega, by omega, by omega⟩, show r + i - r = i by omega]
+    have hRB' : Env.get ((kR, cellA (ctxH C H') r) :: Γ') kRB = some (cellA C rb) := by
+      rw [gR _ (by decide), hkeep kRB (by decide)]; exact hRB
+    have hCD' : Env.get ((kR, cellA (ctxH C H') r) :: Γ') kCapD = some (BitVec.ofNat 64 capD) := by
+      rw [gR _ (by decide), hkeep kCapD (by decide)]; exact hCD
+    have hrecK : RecEnc C F HK r d := by
+      refine hrec HK r o (by show F ≤ H2.length; omega) (by omega) (by simpa [ws] using hKr 0 (by decide))
+        (by simpa [ws] using hKr 1 (by decide)) (by simpa [ws] using hKr 2 (by decide))
+        (by simpa [ws] using hKr 3 (by decide)) (by simpa [ws] using hKr 4 (by decide)) ?_
+      have hb2 : BlkAt (H2 ++ wsR) o (tWords st.names lps) := blkAt_mono hblk (hp2.trans (List.prefix_append _ _))
+      have := blkAt_kcH hb2 r (by simp [tWords]; omega) ws 5
+      have e : lpsH.map Enc.idxW = lps.map (fun x => Enc.idxW ((st.names.get? x).getD default)) := by simp [lpsH]
+      rw [e]; exact this
+    refine specR_mono (regPush_spec C hok s _ D (hD kCnt (by simp)) F rb capD C.H HK st d r
+      (fun c hc hcr => by
+        rw [hgK c (by show c < H2.length; omega)]
+        obtain ⟨rr, hrr⟩ := hp0; rw [← hrr, List.getElem?_append_left (by omega)])
+      (by simp [HK, kcH_length]; omega) (declsRel_kcH hdr hp0 r (by omega) ws 5) hrecK hcapD hRB' hCD' hkR)
+      (fun t ht => ht) (fun a w s' t' h => ⟨d, h⟩)
+
+/-- A value declaration without safety or hints: name, type and value through the tables, then the
+tail with record kind `kd`. -/
+def vdP (C : Ctx) (kd : Nat) : ProgHOL 64 :=
+  tblGetP fy (vv fTN) (vv fCap) (vv fU)
+    (tblGetP fz (vv fTE) (vv fCap) (vv fW3)
+      (tblGetP kVh (vv fTE) (vv fCap) (vv kVl) (vdTail C kd)))
+
+theorem vdP_spec (C : Ctx) (hok : CtxOK C)
+    (hnc : ∀ t : PState σ, t.code = C.code → NnCodes t)
+    (hcN : C.code.lookup fNth = some ([(sB, .one), (sN, .one), (sI, .one), (sL, .one)], nnFun, .one))
+    (s : AState) (Γ : Env) (M : Mem) (D : List MlS)
+    (hD : ∀ x ∈ [fy, fz, kVh, kR, kCnt] ++ lbMods, x ∈ D)
+    (st : StateD) (F rb capD jN jL jE cap bufJ : Nat) (b : ByteArray) (hlay : FrontLay F rb capD jN jL jE cap bufJ b)
+    (hreln : TblRel C.H jN cap st.names) (hrele : TblRel C.H jE cap st.exprs) (hcap : 8 * cap < 2 ^ 64)
+    (hcapN : cap ≤ natCap) (hbuf : BufOK C bufJ b) (hdr : DeclsRel C F rb capD C.H st.decls)
+    (hcapD : 8 * (rb + 1 + capD) < 2 ^ 64)
+    (cv : CVRec) (vl : Nat) (hus : cv.levelParams.length < 2 ^ 59) (wpos : BitVec 64)
+    (hslot : (∃ (pos e0 : USize), wpos = BitVec.ofNat 64 pos.toNat ∧ scanNatList b pos = .ok cv.levelParams e0) ∨
+      (cv.levelParams = [] ∧ wpos = BitVec.ofNat 64 listSentinel))
+    (kd : Nat) (mk : IConstantVal → EIdx → IDeclaration)
+    (hrec : ∀ (cvh : IConstantVal) (vlh : EIdx) (H : List (BitVec 64)) (r : Nat), F ≤ r →
+      H[r]? = some (BitVec.ofNat 64 kd) → CVEnc C F H (r + 1) cvh → H[r + 4]? = some (Enc.idxW vlh) →
+      RecEnc C F H r (mk cvh vlh))
+    {m : AM (StateD ⊕ RecordVerdict)}
+    (hm : ∀ nmh tyh vlh, st.names.get? cv.name = some nmh → st.exprs.get? cv.type = some tyh →
+      st.exprs.get? vl = some vlh → (∀ j (hj : j < cv.levelParams.length), (st.names.get? cv.levelParams[j]).isSome) →
+      m = pure (.inl { st with decls := st.decls.push (mk ⟨nmh, cv.levelParams.map
+        (fun x => (st.names.get? x).getD default), tyh⟩ vlh) }))
+    (hTN : Γ.get fTN = some (cellA C jN)) (hTE : Γ.get fTE = some (cellA C jE))
+    (hC : Γ.get fCap = some (BitVec.ofNat 64 cap))
+    (hU : Γ.get fU = some (BitVec.ofNat 64 (min cv.name natCap)))
+    (hW : Γ.get fW3 = some (BitVec.ofNat 64 (min cv.type natCap)))
+    (hVl : Γ.get kVl = some (BitVec.ofNat 64 (min vl natCap)))
+    (hV : Γ.get fV2 = some wpos)
+    (hBA : Γ.get kBA = some (cellA C bufJ)) (hBN : Γ.get kBN = some (BitVec.ofNat 64 b.size))
+    (hRB : Γ.get kRB = some (cellA C rb)) (hCD : Γ.get kCapD = some (BitVec.ofNat 64 capD)) :
+    SpecR (Inv (σ := σ) C s Γ M D) (vdP C kd) s m
+      (fun a w s' t' => ∃ d, DeclPost C F rb capD C.H st d a w s' t') := by
+  have hNC : min cv.name natCap < 2 ^ 64 := Nat.lt_of_le_of_lt (Nat.min_le_right _ _) (by unfold natCap; decide)
+  have hTC : min cv.type natCap < 2 ^ 64 := Nat.lt_of_le_of_lt (Nat.min_le_right _ _) (by unfold natCap; decide)
+  have hVC : min vl natCap < 2 ^ 64 := Nat.lt_of_le_of_lt (Nat.min_le_right _ _) (by unfold natCap; decide)
+  unfold vdP
+  refine specR_tblGetI fy (hD fy (by simp)) jN cap st.names hreln hcap (vv fTN) (vv fCap) (vv fU)
+    (by simpa [sev, vv] using hTN) (by simpa [sev, vv] using hC) _ hNC (by simpa [sev, vv] using hU)
+    (fun nmh hnm => ?_)
+  have hnm' := get_capped hreln hcapN _ nmh hnm
+  have g1 : ∀ y, y ≠ fy → Env.get ((fy, Enc.idxW nmh) :: (fy, Enc.idxW nmh + 1) :: Γ) y = Env.get Γ y :=
+    fun y h => by simp only [Env.get_cons, if_neg h]
+  refine specR_tblGetI fz (hD fz (by simp)) jE cap st.exprs hrele hcap (vv fTE) (vv fCap) (vv fW3)
+    (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hTE) (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hC)
+    _ hTC (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hW) (fun tyh hty => ?_)
+  have hty' := get_capped hrele hcapN _ tyh hty
+  let Γ2 : Env := (fz, Enc.idxW tyh) :: (fz, Enc.idxW tyh + 1) :: (fy, Enc.idxW nmh) :: (fy, Enc.idxW nmh + 1) :: Γ
+  have g2 : ∀ y, y ≠ fz → y ≠ fy → Env.get Γ2 y = Env.get Γ y := fun y h1 h2 => by
+    simp only [Γ2, Env.get_cons, if_neg h1, if_neg h2]
+  refine specR_tblGetI kVh (hD kVh (by simp)) jE cap st.exprs hrele hcap (vv fTE) (vv fCap) (vv kVl)
+    (by simp only [sev, vv]; rw [g2 _ (by decide) (by decide)]; exact hTE)
+    (by simp only [sev, vv]; rw [g2 _ (by decide) (by decide)]; exact hC) _ hVC
+    (by simp only [sev, vv]; rw [g2 _ (by decide) (by decide)]; exact hVl) (fun vlh hvh => ?_)
+  have hvl' := get_capped hrele hcapN _ vlh hvh
+  let Γ3 : Env := (kVh, Enc.idxW vlh) :: (kVh, Enc.idxW vlh + 1) :: Γ2
+  have g3 : ∀ y, y ≠ kVh → y ≠ fz → y ≠ fy → Env.get Γ3 y = Env.get Γ y := fun y h0 h1 h2 => by
+    simp only [Γ3, Env.get_cons, if_neg h0]; exact g2 y h1 h2
+  refine vdTail_spec C hok hnc hcN s Γ3 M D (fun x hx => hD x (by simp only [List.mem_append, List.mem_cons] at hx ⊢; tauto)) st F rb capD jN jL jE cap bufJ b
+    hlay hreln hcap hcapN hbuf hdr hcapD cv.levelParams hus wpos hslot kd (Enc.idxW nmh) (Enc.idxW tyh) (Enc.idxW vlh)
+    (fun lpsH => mk ⟨nmh, lpsH, tyh⟩ vlh)
+    (fun H r o hr ho h0 h1 h2 h3 h4 hb => hrec _ vlh H r hr h0
+      ⟨o, ho, by simpa using h1, by simpa using h2, by simpa using h3, hb, by simpa using hus⟩ h4)
+    (fun hall => hm nmh tyh vlh hnm' hty' hvl' hall)
+    (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hTN)
+    (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hC)
+    (by simp only [Γ3, Γ2, Env.get_cons, if_neg (show fy ≠ kVh by decide), if_neg (show fy ≠ fz by decide), if_pos])
+    (by simp only [Γ3, Γ2, Env.get_cons, if_neg (show fz ≠ kVh by decide), if_pos]) (by simp [Γ3])
+    (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hV)
+    (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hBA)
+    (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hBN)
+    (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hRB)
+    (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hCD)
+
+theorem thmEnc (C : Ctx) (F : Nat) (cvh : IConstantVal) (vlh : EIdx) (H : List (BitVec 64)) (r : Nat) (hr : F ≤ r)
+    (h0 : H[r]? = some (BitVec.ofNat 64 2)) (h1 : CVEnc C F H (r + 1) cvh) (h4 : H[r + 4]? = some (Enc.idxW vlh)) :
+    RecEnc C F H r (.thmDecl cvh vlh) := ⟨hr, h0, h1, h4⟩
+
+theorem opaqEnc (C : Ctx) (F : Nat) (cvh : IConstantVal) (vlh : EIdx) (H : List (BitVec 64)) (r : Nat) (hr : F ≤ r)
+    (h0 : H[r]? = some (BitVec.ofNat 64 3)) (h1 : CVEnc C F H (r + 1) cvh) (h4 : H[r + 4]? = some (Enc.idxW vlh)) :
+    RecEnc C F H r (.opaqueDecl cvh vlh) := ⟨hr, h0, h1, h4⟩
+
+/-- The `isUnsafe` slot of an opaque record. -/
+def kUs := ofString "kus"
+
+/-- An opaque record: unsafe ones are rejected (the twin only handles safe opaques here). -/
+def opP (C : Ctx) : ProgHOL 64 := .ite (vv kUs) hang (vdP C 3)
+
+theorem opP_ifun (C : Ctx) (s : AState) (Γ : Env) (M : Mem) (D : List MlS) {m : AM (StateD ⊕ RecordVerdict)}
+    {R : StateD ⊕ RecordVerdict → BitVec 64 → AState → PState σ → Prop} (wu : BitVec 64)
+    (hu : Γ.get kUs = some wu) (h : wu = 0 → SpecR (Inv (σ := σ) C s Γ M D) (vdP C 3) s m R) :
+    SpecR (Inv (σ := σ) C s Γ M D) (opP C) s m R := by
+  unfold opP
+  refine specR_ifI _ wu (by simpa [sev, vv] using hu) (fun _ => specR_hangI) h
+
 end ConPanqueque.Front
