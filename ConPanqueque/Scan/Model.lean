@@ -108,4 +108,195 @@ theorem skipDigits_eq {b : ByteArray} (hp : Plat b) :
         have : ¬ i.toNat < b.size := fun h' => h ((hp.lt_iff i).mpr h'); simpa using this
       rw [dif_neg h, dif_neg hl]
 
+/-- The decimal value of the digits in `[i, e)` accumulated onto `acc`: con-leche's `readNat64`
+and `readNat` on a digit run, on a list. -/
+def readL (bs : List UInt8) (i e acc : Nat) : Nat :=
+  if h : i < e ∧ i < bs.length then readL bs (i + 1) e (acc * 10 + (bs[i].toNat - 48)) else acc
+termination_by bs.length - i
+
+theorem readL_step (bs : List UInt8) (i e acc : Nat) (h : i < e) (h' : i < bs.length) :
+    readL bs i e acc = readL bs (i + 1) e (acc * 10 + (bs[i].toNat - 48)) := by
+  rw [readL, dif_pos ⟨h, h'⟩]
+
+theorem readL_end (bs : List UInt8) (i e acc : Nat) (h : ¬ i < e) : readL bs i e acc = acc := by
+  rw [readL, dif_neg (fun h' => h h'.1)]
+
+/-- The saturation bound of the Pancake numeral reader: indices at or above it are no table's. -/
+def natCap : Nat := 2 ^ 62
+
+theorem min_step (x d : Nat) (hd : d ≤ 9) :
+    min (min x natCap * 10 + d) natCap = min (x * 10 + d) natCap := by
+  unfold natCap
+  by_cases hx : x < 2 ^ 62
+  · rw [Nat.min_eq_left (Nat.le_of_lt hx)]
+  · rw [Nat.min_eq_right (by omega)]; omega
+
+theorem digit_sub (c : UInt8) (h : isDigitN c.toNat = true) : (c - 48).toUInt64.toNat = c.toNat - 48 := by
+  simp [isDigitN] at h
+  rw [UInt8.toNat_toUInt64, UInt8.toNat_sub_of_le]
+  · rfl
+  · rw [UInt8.le_iff_toNat_le]; exact h.1
+
+/-- con-leche's `readNat64` on a digit run short enough not to overflow. -/
+theorem readNat64_eq {b : ByteArray} (hp : Plat b) (e : USize) (he : e.toNat ≤ b.size) :
+    ∀ n (i : USize) (acc : UInt64), e.toNat - i.toNat = n →
+      (∀ k (hk : k < b.data.toList.length), i.toNat ≤ k → k < e.toNat →
+        isDigitN b.data.toList[k].toNat = true) →
+      (acc.toNat + 1) * 10 ^ (e.toNat - i.toNat) ≤ 10 ^ 19 →
+      (ConLeche.Frontend.readNat64 b i e acc).toNat = readL b.data.toList i.toNat e.toNat acc.toNat := by
+  intro n
+  induction n with
+  | zero =>
+    intro i acc hn _ _
+    rw [ConLeche.Frontend.readNat64, readL_end _ _ _ _ (by omega)]
+    split
+    · rw [if_neg (by rw [USize.lt_iff_toNat_lt]; omega)]
+    · rfl
+  | succ n ih =>
+    intro i acc hn hd hb
+    have hie : i.toNat < e.toNat := by omega
+    have hl : i.toNat < b.size := by omega
+    have hl' : i.toNat < b.data.toList.length := by simpa using hl
+    have h : i < b.usize := (hp.lt_iff i).mpr hl
+    rw [ConLeche.Frontend.readNat64, dif_pos h, if_pos (USize.lt_iff_toNat_lt.mpr hie),
+      readL_step _ _ _ _ hie hl', uget_eq b i hl h]
+    have hdig := hd i.toNat hl' (Nat.le_refl _) hie
+    have hds := digit_sub _ hdig
+    have hc : b.data.toList[i.toNat].toNat - 48 ≤ 9 := by
+      have := hdig; simp only [isDigitN, Bool.and_eq_true, decide_eq_true_eq] at this; omega
+    obtain ⟨k, hk⟩ : ∃ k, e.toNat - (i.toNat + 1) = k := ⟨_, rfl⟩
+    have hpow : 10 ^ (e.toNat - i.toNat) = 10 ^ k * 10 := by
+      rw [← Nat.pow_succ]; congr 1; omega
+    rw [hpow] at hb
+    have h1 : 1 ≤ 10 ^ k := Nat.one_le_pow _ _ (by decide)
+    have h19 : (10 : Nat) ^ 19 = 10000000000000000000 := rfl
+    have hb' : (acc.toNat + 1) * 10 ≤ 10 ^ 19 := by
+      calc (acc.toNat + 1) * 10 ≤ (acc.toNat + 1) * 10 * 10 ^ k := Nat.le_mul_of_pos_right _ h1
+        _ = (acc.toNat + 1) * (10 ^ k * 10) := by rw [Nat.mul_assoc, Nat.mul_comm 10]
+        _ ≤ 10 ^ 19 := hb
+    have hacc : acc.toNat * 10 + (b.data.toList[i.toNat].toNat - 48) < 2 ^ 64 := by
+      have : (2 : Nat) ^ 64 = 18446744073709551616 := rfl
+      omega
+    have hval : (acc * 10 + (b.data.toList[i.toNat] - 48).toUInt64).toNat =
+        acc.toNat * 10 + (b.data.toList[i.toNat].toNat - 48) := by
+      rw [UInt64.toNat_add, UInt64.toNat_mul, hds]
+      simp only [UInt64.reduceToNat]
+      have : (2 : Nat) ^ 64 = 18446744073709551616 := rfl
+      rw [this] at hacc ⊢; omega
+    have hs := ConLeche.Frontend.usizeStep b i h
+    rw [ih (i + 1) _ (by rw [hs]; omega) (by intro k hk h1 h2; exact hd k hk (by rw [hs] at h1; omega) h2)
+      (by
+        rw [hval, hs, hk]
+        calc (acc.toNat * 10 + (b.data.toList[i.toNat].toNat - 48) + 1) * 10 ^ k
+            ≤ ((acc.toNat + 1) * 10) * 10 ^ k := Nat.mul_le_mul_right _ (by omega)
+          _ = (acc.toNat + 1) * (10 ^ k * 10) := by rw [Nat.mul_assoc, Nat.mul_comm 10]
+          _ ≤ 10 ^ 19 := hb), hval, hs]
+
+theorem skipL_ge (p : Nat → Bool) (bs : List UInt8) :
+    ∀ n i, bs.length - i = n → i ≤ skipL p bs i := by
+  intro n
+  induction n using Nat.strongRecOn with
+  | _ n ih =>
+    intro i hn
+    rw [skipL]
+    split
+    · split
+      · have := ih (bs.length - (i + 1)) (by omega) (i + 1) rfl; omega
+      · exact Nat.le_refl _
+    · exact Nat.le_refl _
+
+theorem skipL_le_length (p : Nat → Bool) (bs : List UInt8) :
+    ∀ n i, bs.length - i = n → i ≤ bs.length → skipL p bs i ≤ bs.length := by
+  intro n
+  induction n using Nat.strongRecOn with
+  | _ n ih =>
+    intro i hn hi
+    rw [skipL]
+    split
+    · split
+      · exact ih (bs.length - (i + 1)) (by omega) (i + 1) rfl (by omega)
+      · exact hi
+    · exact hi
+
+/-- Every byte of `[i, skipL p bs i)` passes `p`. -/
+theorem skipL_all (p : Nat → Bool) (bs : List UInt8) :
+    ∀ n i, bs.length - i = n → ∀ k (hk : k < bs.length), i ≤ k → k < skipL p bs i → p bs[k].toNat = true := by
+  intro n
+  induction n using Nat.strongRecOn with
+  | _ n ih =>
+    intro i hn k hk h1 h2
+    rw [skipL] at h2
+    split at h2
+    · rename_i hi
+      split at h2
+      · rename_i hp
+        by_cases hki : k = i
+        · subst hki; exact hp
+        · exact ih (bs.length - (i + 1)) (by omega) (i + 1) rfl k hk (by omega) h2
+      · omega
+    · omega
+
+/-- con-leche's `readNat`: the value of the whole digit run at `i`. -/
+theorem readNat_eq {b : ByteArray} (hp : Plat b) :
+    ∀ n (i : USize) (acc : Nat), b.size - i.toNat = n →
+      ConLeche.Frontend.readNat b i acc =
+        readL b.data.toList i.toNat (skipDigitsL b.data.toList i.toNat) acc := by
+  intro n
+  induction n using Nat.strongRecOn with
+  | _ n ih =>
+    intro i acc hn
+    rw [ConLeche.Frontend.readNat]
+    by_cases h : i < b.usize
+    · have hl : i.toNat < b.size := (hp.lt_iff i).mp h
+      have hl' : i.toNat < b.data.toList.length := by simpa using hl
+      rw [dif_pos h]
+      simp only
+      rw [uget_eq b i hl h, isDigit_eq]
+      have hsk := skipL_step isDigitN b.data.toList i.toNat hl'
+      split
+      · rename_i hd
+        rw [if_pos hd] at hsk
+        have hs := ConLeche.Frontend.usizeStep b i h
+        have hge := skipL_ge isDigitN b.data.toList _ (i.toNat + 1) rfl
+        rw [ih (b.size - (i + 1).toNat) (by omega) (i + 1) _ rfl, hs, skipDigitsL, hsk,
+          readL_step _ _ _ _ (by omega) hl']
+      · rename_i hd
+        rw [if_neg hd] at hsk
+        rw [skipDigitsL, hsk, readL_end _ _ _ _ (Nat.lt_irrefl _)]
+    · have hl : ¬ i.toNat < b.data.toList.length := by
+        have : ¬ i.toNat < b.size := fun h' => h ((hp.lt_iff i).mpr h'); simpa using this
+      rw [dif_neg h, skipDigitsL, skipL_end _ _ _ hl, readL_end _ _ _ _ (Nat.lt_irrefl _)]
+
+/-- **con-leche's `readNatAt` on a digit run is `readL`**: at the end `e` of the digit run at `i`. -/
+theorem readNatAt_eq {b : ByteArray} (hp : Plat b) (i e : USize)
+    (he : e.toNat = skipDigitsL b.data.toList i.toNat) :
+    ConLeche.Frontend.readNatAt b i e = readL b.data.toList i.toNat e.toNat 0 := by
+  have hge := skipL_ge isDigitN b.data.toList _ i.toNat rfl
+  have hall := skipL_all isDigitN b.data.toList _ i.toNat rfl
+  rw [ConLeche.Frontend.readNatAt]
+  have hsub : (e - i).toNat = e.toNat - i.toNat := by
+    rw [USize.toNat_sub_of_le]; rw [USize.le_iff_toNat_le]; simp only [skipDigitsL] at he; omega
+  split
+  · rename_i hle
+    rw [USize.le_iff_toNat_le, hsub] at hle
+    have hle' : e.toNat - i.toNat ≤ 18 := by simpa using hle
+    by_cases hi : i.toNat ≤ b.size
+    · have hes : e.toNat ≤ b.size := by
+        have := skipL_le_length isDigitN b.data.toList _ i.toNat rfl (by simpa using hi)
+        simp only [skipDigitsL] at he; simp at this; omega
+      rw [readNat64_eq hp e hes _ i 0 rfl
+        (fun k hk h1 h2 => hall k hk h1 (by simp only [skipDigitsL] at he; omega))
+        (by
+          simp only [UInt64.toNat_zero, Nat.zero_add, Nat.one_mul]
+          calc 10 ^ (e.toNat - i.toNat) ≤ 10 ^ 18 := Nat.pow_le_pow_right (by decide) hle'
+            _ ≤ 10 ^ 19 := by decide)]
+      rfl
+    · have hn : ¬ i.toNat < b.data.toList.length := by simp; omega
+      have he' : e.toNat = i.toNat := by
+        rw [he, skipDigitsL, skipL_end _ _ _ hn]
+      rw [ConLeche.Frontend.readNat64, dif_neg (fun h => hn (by simpa using (hp.lt_iff i).mp h)),
+        readL_end _ _ _ _ (by omega)]
+      rfl
+  · rw [readNat_eq hp _ i 0 rfl, ← he]
+
 end ConPanqueque.Scan
