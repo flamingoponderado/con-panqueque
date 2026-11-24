@@ -129,4 +129,56 @@ def lineBody : ProgHOL 64 :=
 
 def lineLoopP : ProgHOL 64 := .while (vv sG) lineBody
 
+/-! ## The invariant -/
+
+/-- How the payload's tag and `s0` stand for con-leche's payload. -/
+def PlEntry (b : ByteArray) (wpl ws0 : BitVec 64) (pl : LinePayload) : LActP → Prop
+  | .idxP _ => False
+  | .natP t _ f => wpl = BitVec.ofNat 64 t ∧ ∃ n, pl = f n ∧ ws0 = BitVec.ofNat 64 (min n natCap)
+  | .strP t _ f => wpl = BitVec.ofNat 64 t ∧ ∃ (v e : USize) (str : String), pl = f str ∧
+      ws0 = BitVec.ofNat 64 v.toNat ∧ scanString b v = .ok str e
+  | .objP t _ _ scan => wpl = BitVec.ofNat 64 t ∧ ∃ (v e : USize), scan b v = .ok pl e ∧
+      ws0 = BitVec.ofNat 64 v.toNat
+
+def PlOK (b : ByteArray) (wpl ws0 : BitVec 64) (pl : LinePayload) : Prop :=
+  (pl = .absent ∧ wpl = 0) ∨ ∃ k a, (k, a) ∈ lineTblP ∧ PlEntry b wpl ws0 pl a
+
+section
+variable {σ : Type}
+
+/-- A record function at its name, with its proved spec. -/
+def RecCode (t : PanSemStateFiniteExact 64 σ) (fn : MlS) (scan : ByteArray → USize → ScanRes LinePayload) : Prop :=
+  ∃ body, t.code.lookup fn = some ([(sB, .one), (sN, .one), (sI, .one)], body, .one) ∧
+    ∀ (u : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (v : USize), Plat b →
+      BytesAt u A b.data.toList → u.code = t.code → v.toNat ≤ b.size →
+      u.locals.lookup sB = some (.val (.word A)) →
+      u.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))) →
+      u.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 v.toNat))) →
+      RetP u body (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧ ∃ r, scan b v = .ok r j)
+
+/-- The code table the line scanner needs. -/
+def LineCodes (t : PanSemStateFiniteExact 64 σ) : Prop :=
+  ScanCodes t ∧ ∀ k tag g fn scan, (k, LActP.objP tag g fn scan) ∈ lineTblP → RecCode t fn scan
+
+def LnI (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (R : ScanRes LineRec)
+    (u : PanSemStateFiniteExact 64 σ) : Prop :=
+  u.memory = t.memory ∧ u.memaddrs = t.memaddrs ∧ u.code = t.code ∧ u.globals = t.globals ∧
+  u.be = t.be ∧
+  u.locals.lookup sB = some (.val (.word A)) ∧
+  u.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))) ∧
+  (∀ x ∈ [sC, sK, sV, sKK, sE2], ∃ w, u.locals.lookup x = some (.val (.word w))) ∧
+  ∃ (j : USize) (wm : Bool) (ik : UInt8) (idx : Nat) (pl : LinePayload) (wpl ws0 : BitVec 64),
+    j.toNat ≤ b.size + 64 ∧
+    u.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 j.toNat))) ∧
+    u.locals.lookup sW = some (.val (.word (bw (wm = true)))) ∧
+    u.locals.lookup sIK = some (.val (.word (BitVec.ofNat 64 ik.toNat))) ∧
+    u.locals.lookup sIdx = some (.val (.word (BitVec.ofNat 64 (min idx natCap)))) ∧
+    u.locals.lookup sPl = some (.val (.word wpl)) ∧
+    u.locals.lookup (slotName 0) = some (.val (.word ws0)) ∧
+    PlOK b wpl ws0 pl ∧
+    ((u.locals.lookup sG = some (.val (.word 1)) ∧ lineLoopI lineTbl b j wm ik idx pl = R) ∨
+     (u.locals.lookup sG = some (.val (.word 0)) ∧ ∃ j0 rec, lineEnd j0 ik idx pl = .ok rec j ∧ R = .ok rec j))
+
+end
+
 end ConPanqueque.Scan
