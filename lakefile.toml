@@ -1,6 +1,6 @@
 name = "con-panqueque"
 version = "0.1.0"
-defaultTargets = ["ConPanqueque"]
+defaultTargets = ["ConPanqueque", "ConPanquequeCode"]
 
 [[require]]
 name = "con-leche"
@@ -12,6 +12,11 @@ path = "deps/flapjack"
 
 [[lean_lib]]
 name = "ConPanqueque"
+
+# The concrete code table and the proofs that it meets every code assumption (slow: ~30 min).
+[[lean_lib]]
+name = "ConPanquequeCode"
+roots = ["ConPanqueque.Code.Top"]
 
 # con-ron's Lean twin of the checker and its Theorem 1 (the twin refines
 # con-leche), built from the `deps/con-ron` submodule. They depend on con-leche

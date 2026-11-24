@@ -29,10 +29,22 @@ partial def collectCodes (ty : Expr) (seen : IO.Ref (Std.HashSet String)) (out :
       let a ← withOptions (fun o => (o.set `pp.deepTerms false).set `pp.fullNames true) do
         pure s!"{← ppExpr nm} ||| {← ppExpr rhs}"
       out.modify (·.push ((a.replace "\n" " ")))
-    else pure ()
+    else
+      match ← unfoldDefinition? ty with
+      | some ty' => collectCodes ty' seen out
+      | none => pure ()
   | .forallE .. =>
-    let str := toString (← ppExpr ty)
-    out.modify (·.push ("∀ " ++ String.ofList (str.toList.take 140)))
+    forallTelescopeReducing ty fun xs b => do
+      let mut pfx := ""
+      for x in xs do
+        pfx := pfx ++ s!"[{(← x.fvarId!.getDecl).userName} : {← ppExpr (← inferType x)}]"
+      let before := (← out.get).size
+      collectCodes b seen out
+      let after := (← out.get).size
+      if after == before then
+        out.modify (·.push ("UNHANDLED " ++ pfx ++ " " ++ toString (← ppExpr b)))
+      else
+        out.modify (fun a => a.mapIdx (fun i e => if i ≥ before then "FAM" ++ pfx ++ " " ++ e else e))
   | _ => pure ()
 
 elab "#codes " t:term : command => liftTermElabM do
@@ -46,4 +58,4 @@ elab "#codes " t:term : command => liftTermElabM do
     (String.intercalate "\n@@\n" a.toList)
 
 open ConPanqueque.T ConPanqueque.T.Decl ConPanqueque.Front in
-#codes ∀ (σ : Type) (C : ConPanqueque.T.Ctx), FoldCodes .verified C ∧ FrontCodes σ C
+#codes ∀ (σ : Type) (C : ConPanqueque.T.Ctx), FoldCodes .verified C ∧ FrontCodes σ C ∧ (∀ t : ConPanqueque.T.PState σ, t.code = C.code → ConPanqueque.Scan.RecTable t)
