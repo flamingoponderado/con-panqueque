@@ -350,3 +350,4 @@ import ConPanqueque.T.Decl.EnsureSort
 import ConPanqueque.T.Decl.ConstsResolve
 import ConPanqueque.T.Decl.ConstsResolveF
 import ConPanqueque.T.Decl.NameNodup
+import ConPanqueque.T.Decl.LevelParams
