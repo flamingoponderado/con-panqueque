@@ -378,3 +378,4 @@ import ConPanqueque.Scan.KeyEnd
 import ConPanqueque.Scan.ValueAt
 import ConPanqueque.Scan.Str
 import ConPanqueque.Scan.Obj
+import ConPanqueque.Scan.ObjInst

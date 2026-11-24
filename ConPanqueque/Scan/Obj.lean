@@ -11,29 +11,84 @@ namespace ConPanqueque.Scan
 
 open ConLeche.Frontend
 
-/-- A slot table: for each key, its bit in the seen-mask and its slot; and the mask of the keys
+/-- A slot value. -/
+inductive SVal where
+  | n (x : Nat)
+  | l (xs : List Nat)
+  | s (x : String)
+  | b (x : Bool)
+  | h (x : HintsRec)
+  deriving Inhabited
+
+/-- What a key's value is and where it goes. -/
+inductive VAct where
+  /-- a JSON number, stored in a slot -/
+  | natSet (sl : Nat)
+  /-- a JSON number, validated and dropped -/
+  | natDrop
+  /-- a binder info, validated and dropped -/
+  | binder
+  | natList (sl : Nat)
+  | natListDrop
+  | str (sl : Nat)
+  | bool (sl : Nat)
+  | boolDrop
+  | hints (sl : Nat)
+
+/-- A slot table: for each key, its bit in the seen-mask and its action; and the mask of the keys
 that must be present. -/
 structure ObjSpec where
-  keys : List (Key × UInt32 × Nat)
+  keys : List (Key × UInt32 × VAct)
   need : UInt32
 
-def lookupKey (k : Key) : List (Key × UInt32 × Nat) → Option (UInt32 × Nat)
+def lookupKey (k : Key) : List (Key × UInt32 × VAct) → Option (UInt32 × VAct)
   | [] => none
-  | (k', bit, sl) :: r => if k = k' then some (bit, sl) else lookupKey k r
+  | (k', bit, a) :: r => if k = k' then some (bit, a) else lookupKey k r
 
-/-- The object loop, nat slots: con-leche's loops with the key dispatch read off the table. -/
-def objLoopN (sp : ObjSpec) (b : ByteArray) (i : USize) (wantMember : Bool) (seen : UInt32)
-    (slots : List Nat) : ScanRes (List Nat) :=
+/-- One value: its scan, and the slot update. -/
+def stepVal (b : ByteArray) (i v : USize) : VAct → ScanRes (Option (Nat × SVal))
+  | .natSet sl => let e := numEnd b v
+      if e == v then .err ⟨v.toNat, .expectedNat⟩ else .ok (some (sl, .n (readNatAt b v e))) e
+  | .natDrop => let e := numEnd b v
+      if e == v then .err ⟨v.toNat, .expectedNat⟩ else .ok none e
+  | .binder => let e := scanBinderInfo b v
+      if e == 0 then .err ⟨v.toNat, .badBinderInfo⟩ else .ok none e
+  | .natList sl => match scanNatList b v with
+      | .err er => .err er
+      | .ok x e => .ok (some (sl, .l x)) e
+  | .natListDrop => match scanNatList b v with
+      | .err er => .err er
+      | .ok _ e => .ok none e
+  | .str sl => match scanString b v with
+      | .err er => .err er
+      | .ok x e => .ok (some (sl, .s x)) e
+  | .bool sl => match scanBool b v with
+      | .err er => .err er
+      | .ok x e => .ok (some (sl, .b x)) e
+  | .boolDrop => match scanBool b v with
+      | .err er => .err er
+      | .ok _ e => .ok none e
+  | .hints sl => match scanHints b v with
+      | .err er => .err er
+      | .ok x e => .ok (some (sl, .h x)) e
+
+def applyUpd (slots : List SVal) : Option (Nat × SVal) → List SVal
+  | none => slots
+  | some (sl, x) => slots.set sl x
+
+/-- The object loop: con-leche's loops with the key dispatch and the value read off the table. -/
+def objLoop (sp : ObjSpec) (b : ByteArray) (i : USize) (wantMember : Bool) (seen : UInt32)
+    (slots : List SVal) : ScanRes (List SVal) :=
   if h : i < b.usize then
     let c := b.uget i (usizeInBounds b i h)
-    if isWs c then objLoopN sp b (i + 1) wantMember seen slots
+    if isWs c then objLoop sp b (i + 1) wantMember seen slots
     else if c == 125 then
       if wantMember && seen != 0 then .err ⟨i.toNat, .expectedKey⟩
       else if (seen &&& sp.need) != sp.need then .err ⟨i.toNat, .missingKey⟩
       else .ok slots (i + 1)
     else if c == 44 then
       if wantMember then .err ⟨i.toNat, .expectedKey⟩
-      else objLoopN sp b (i + 1) true seen slots
+      else objLoop sp b (i + 1) true seen slots
     else if c == 34 then
       if !wantMember then .err ⟨i.toNat, .expectedComma⟩
       else
@@ -43,14 +98,14 @@ def objLoopN (sp : ObjSpec) (b : ByteArray) (i : USize) (wantMember : Bool) (see
         else if v == i then .err ⟨i.toNat, .expectedColon⟩
         else
         match lookupKey (keyAt b i (ke - (i + 1))) sp.keys with
-        | some (bit, sl) =>
+        | some (bit, a) =>
           if (seen &&& bit) != 0 then .err ⟨i.toNat, .duplicateKey⟩
           else
-            let e := numEnd b v
-            if e == v then .err ⟨v.toNat, .expectedNat⟩
-            else if _hj : i < e then
-              objLoopN sp b e false (seen ||| bit) (slots.set sl (readNatAt b v e))
-            else .err ⟨i.toNat, .noProgress⟩
+            match stepVal b i v a with
+            | .err er => .err er
+            | .ok upd e =>
+              if _hj : i < e then objLoop sp b e false (seen ||| bit) (applyUpd slots upd)
+              else .err ⟨i.toNat, .noProgress⟩
         | none => .err ⟨i.toNat, .unknownKey⟩
     else .err ⟨i.toNat, .expectedComma⟩
   else .err ⟨i.toNat, .expectedComma⟩
@@ -65,17 +120,37 @@ def srMap {α β : Type} (f : α → β) : ScanRes α → ScanRes β
   | .ok a p => .ok (f a) p
   | .err e => .err e
 
-def appSpec : ObjSpec := ⟨[(.kArg, 1, 0), (.kFn, 2, 1)], 3⟩
+def SVal.nat : SVal → Nat
+  | .n x => x
+  | _ => 0
+
+def SVal.list : SVal → List Nat
+  | .l x => x
+  | _ => []
+
+def SVal.str : SVal → String
+  | .s x => x
+  | _ => ""
+
+def SVal.bool : SVal → Bool
+  | .b x => x
+  | _ => false
+
+def SVal.hint : SVal → HintsRec
+  | .h x => x
+  | _ => .opaque
+
+def appSpec : ObjSpec := ⟨[(.kArg, 1, .natSet 0), (.kFn, 2, .natSet 1)], 3⟩
 
 theorem scanAppExprLoop_eq (b : ByteArray) :
     ∀ n (i : USize) (wm : Bool) (seen : UInt32) (arg fn : Nat), b.size - i.toNat = n →
       scanAppExprLoop b i wm seen arg fn =
-        srMap (fun sl => ExprRec.app (sl.getD 1 0) (sl.getD 0 0)) (objLoopN appSpec b i wm seen [arg, fn]) := by
+        srMap (fun sl => ExprRec.app (sl.getD 1 default).nat (sl.getD 0 default).nat) (objLoop appSpec b i wm seen [.n arg, .n fn]) := by
   intro n
   induction n using Nat.strongRecOn with
   | _ n ih =>
     intro i wm seen arg fn hn
-    rw [scanAppExprLoop, objLoopN]
+    rw [scanAppExprLoop, objLoop]
     by_cases h : i < b.usize
     · rw [dif_pos h, dif_pos h]
       have hs := usizeStep b i h
@@ -90,7 +165,7 @@ theorem scanAppExprLoop_eq (b : ByteArray) :
         by_cases h1 : (wm && seen != 0) = true
         · simp [h1, srMap]
         · simp only [h1, Bool.false_eq_true, ↓reduceIte, appSpec]
-          by_cases h2 : (seen &&& 3 != 3) = true <;> simp [h2, srMap]
+          by_cases h2 : (seen &&& 3 != 3) = true <;> simp [h2, srMap, SVal.nat]
       have n125 : (c == 125) = false := beq_eq_false_iff_ne.mpr h125
       simp only [n125, Bool.false_eq_true, ↓reduceIte]
       by_cases h44 : c = 44
@@ -120,6 +195,7 @@ theorem scanAppExprLoop_eq (b : ByteArray) :
         all_goals
           split
           · rename_i hd; simp [hd, srMap]
+          simp only [stepVal]
           generalize numEnd b v = e
           by_cases he : (e == v) = true
           · simp [he, srMap]
@@ -128,7 +204,7 @@ theorem scanAppExprLoop_eq (b : ByteArray) :
           · rw [dif_pos hie, dif_pos hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ rfl]
-            simp only [List.set]; rfl
+            simp only [applyUpd, List.set]; rfl
           · rw [dif_neg hie, dif_neg hie]; rfl
       have n34 : (c == 34) = false := beq_eq_false_iff_ne.mpr h34
       simp [n34, srMap]
