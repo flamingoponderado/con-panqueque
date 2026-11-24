@@ -735,4 +735,45 @@ theorem lact_str (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArr
     exact Or.inl (stop_hang u)
 end
 
+section
+variable {σ : Type}
+
+theorem lineDispatch_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+    (hb : BytesAt t A b.data.toList) (hc : LineCodes t) (R : ScanRes LineRec) (j v : USize) (ik : UInt8)
+    (idx : Nat) (pl : LinePayload) (K : Key) :
+    ∀ (ks : List (Key × LActP)) (u : PanSemStateFiniteExact 64 σ), (∀ e ∈ ks, e ∈ lineTblP) →
+      LCtx t A b j v ik idx pl u →
+      u.locals.lookup sKK = some (.val (.word (BitVec.ofNat 64 K.ctorIdx))) →
+      lineCont lineTbl b j v ik idx pl (lookupL K (ks.map (fun e => (e.1, e.2.toLAct)))) = R →
+      Stop (evaluateHOLFiniteState u (lineDispatch ks)).1 ∨
+        ((evaluateHOLFiniteState u (lineDispatch ks)).1 = none ∧
+          LnI t A b R (evaluateHOLFiniteState u (lineDispatch ks)).2) := by
+  intro ks
+  induction ks with
+  | nil => intro u _ _ _ _; exact Or.inl (stop_hang u)
+  | cons e r ih =>
+    intro u hks hk lkk hR
+    obtain ⟨k, a⟩ := e
+    unfold lineDispatch
+    have hcmp := eval_eq_c u sKK K.ctorIdx k.ctorIdx (by have := key_ctorIdx_lt K; omega)
+      (by have := key_ctorIdx_lt k; omega) lkk
+    rw [ite_word u _ _ _ _ hcmp]
+    by_cases hK : K.ctorIdx = k.ctorIdx
+    · simp only [bw, hK, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
+      have hKk : K = k := key_ctorIdx_inj hK
+      subst hKk
+      simp only [List.map_cons, lookupL, ↓reduceIte] at hR
+      have hmem := hks _ (List.mem_cons_self ..)
+      cases a with
+      | idxP kind => exact lact_idx t A b hp hb hc R j v ik idx pl kind u hk hR
+      | natP tag g f => exact lact_nat t A b hp hb hc R j v ik idx pl K tag g f hmem u hk hR
+      | strP tag g f => exact lact_str t A b hp hb hc R j v ik idx pl K tag g f hmem u hk hR
+      | objP tag g fn scan => exact lact_obj t A b hp hb hc R j v ik idx pl K tag g fn scan hmem u hk hR
+    · simp only [bw, hK, ↓reduceIte, ne_eq, not_true_eq_false]
+      have hKk : K ≠ k := fun h => hK (by rw [h])
+      simp only [List.map_cons, lookupL, hKk, ↓reduceIte] at hR
+      exact ih u (fun e he => hks e (List.mem_cons_of_mem _ he)) hk lkk hR
+
+end
+
 end ConPanqueque.Scan
