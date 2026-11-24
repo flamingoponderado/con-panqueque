@@ -402,3 +402,4 @@ import ConPanqueque.Front.NameIntern
 import ConPanqueque.Front.KeyCopy
 import ConPanqueque.Front.Name
 import ConPanqueque.Front.Steps
+import ConPanqueque.Front.Const
