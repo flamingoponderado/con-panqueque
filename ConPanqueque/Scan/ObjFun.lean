@@ -928,4 +928,96 @@ theorem act_str (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64
 
 end
 
+section
+variable {σ : Type}
+
+theorem act_spec (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+    (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (R : ScanRes (List SVal)) (j v : USize) (seen bit : UInt32)
+    (slots : List SVal) (a : VAct) (ha : ActOK slots.length a) (u : PanSemStateFiniteExact 64 σ)
+    (hk : KCtx t A b j v seen slots u) (hR : contAfter sp b j v seen bit slots a = R) :
+    Stop (evaluateHOLFiniteState u (actCode bit a)).1 ∨
+      ((evaluateHOLFiniteState u (actCode bit a)).1 = none ∧
+        ObjI sp t A b R (evaluateHOLFiniteState u (actCode bit a)).2) := by
+  cases a with
+  | natSet sl => exact act_natSet sp t A b hp hb hc R j v seen bit slots sl u hk ha hR
+  | natDrop => exact act_natDrop sp t A b hp hb hc R j v seen bit slots u hk hR
+  | binder => exact act_binder sp t A b hp hb hc R j v seen bit slots u hk hR
+  | natList sl => exact act_natList sp t A b hp hb hc R j v seen bit slots sl ha u hk hR
+  | natListDrop => exact act_natListDrop sp t A b hp hb hc R j v seen bit slots u hk hR
+  | str sl => exact act_str sp t A b hp hb hc R j v seen bit slots sl ha u hk hR
+  | bool sl => exact act_bool sp t A b hp hb hc R j v seen bit slots sl ha u hk hR
+  | boolDrop => exact act_boolDrop sp t A b hp hb hc R j v seen bit slots u hk hR
+  | hints sl => exact act_hints sp t A b R bit sl u
+
+/-- The key branch of con-leche's loop, at the key `K`. -/
+def keyBranch (sp : ObjSpec) (b : ByteArray) (j v : USize) (seen : UInt32) (slots : List SVal) (K : Key)
+    (ks : List (Key × UInt32 × VAct)) : ScanRes (List SVal) :=
+  match lookupKey K ks with
+  | some (bit, a) =>
+    if (seen &&& bit) != 0 then .err ⟨j.toNat, .duplicateKey⟩ else contAfter sp b j v seen bit slots a
+  | none => .err ⟨j.toNat, .unknownKey⟩
+
+theorem dispatch_spec (sp : ObjSpec) (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+    (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (R : ScanRes (List SVal)) (j v : USize) (seen : UInt32)
+    (slots : List SVal) (K : Key) :
+    ∀ (ks : List (Key × UInt32 × VAct)) (u : PanSemStateFiniteExact 64 σ),
+      (∀ e ∈ ks, ActOK slots.length e.2.2) → KCtx t A b j v seen slots u →
+      u.locals.lookup sKK = some (.val (.word (BitVec.ofNat 64 K.ctorIdx))) →
+      keyBranch sp b j v seen slots K ks = R →
+      Stop (evaluateHOLFiniteState u (dispatch ks)).1 ∨
+        ((evaluateHOLFiniteState u (dispatch ks)).1 = none ∧
+          ObjI sp t A b R (evaluateHOLFiniteState u (dispatch ks)).2) := by
+  intro ks
+  induction ks with
+  | nil => intro u _ _ _ _; exact Or.inl (stop_hang u)
+  | cons e r ih =>
+    intro u hks hk lkk hR
+    obtain ⟨k, bit, a⟩ := e
+    unfold dispatch
+    have hcmp := eval_eq_c u sKK K.ctorIdx k.ctorIdx (by have := key_ctorIdx_lt K; omega)
+      (by have := key_ctorIdx_lt k; omega) lkk
+    rw [ite_word u _ _ _ _ hcmp]
+    by_cases hK : K.ctorIdx = k.ctorIdx
+    · simp only [bw, hK, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
+      have hKk : K = k := key_ctorIdx_inj hK
+      subst hKk
+      simp only [keyBranch, lookupKey, ↓reduceIte] at hR
+      have hand : @evalHOLExact 64 σ _ u.toExact (fun a => Classical.propDecidable (u.memaddrs a))
+          (.cmp .notEqual (.op .and [vv sS, .const (BitVec.ofNat 64 bit.toNat)]) (.const 0)) =
+          some (.val (.word (bw ((seen &&& bit).toNat ≠ 0)))) := by
+        have hx : @evalHOLExact 64 σ _ u.toExact (fun a => Classical.propDecidable (u.memaddrs a))
+            (.op .and [vv sS, .const (BitVec.ofNat 64 bit.toNat)]) =
+            some (.val (.word (BitVec.ofNat 64 (seen &&& bit).toNat))) := by
+          rw [← word_and_u32]
+          simp [vv, evalHOLExact, evalListHOLExact, hk.ls, wordOpHOL, wordOp, valueIsWord, valueWord]
+          change _ &&& (_ &&& BitVec.allOnes 64) = _
+          rw [BitVec.and_allOnes]
+        rw [ConsLoop.eval_cmp_of u .notEqual _ _ _ (BitVec.ofNat 64 0) hx (by simp [evalHOLExact])]
+        have hlt : (seen &&& bit).toNat < 2 ^ 64 := by have := (seen &&& bit).toNat_lt; omega
+        by_cases h0 : (seen &&& bit).toNat = 0
+        · have e0 : (BitVec.ofNat 64 (seen &&& bit).toNat == BitVec.ofNat 64 0) = true := by rw [h0]; rfl
+          simp only [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, e0, Bool.not_true, Bool.false_eq_true,
+            ↓reduceIte, bw, h0, ne_eq, not_true_eq_false]
+          rfl
+        · have : ¬ BitVec.ofNat 64 (seen &&& bit).toNat = BitVec.ofNat 64 0 :=
+            fun e => h0 ((ofNat_inj _ 0 hlt (by decide)).mp e)
+          have e0 : (BitVec.ofNat 64 (seen &&& bit).toNat == BitVec.ofNat 64 0) = false := beq_eq_false_iff_ne.mpr this
+          simp only [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, e0, Bool.not_false, ↓reduceIte, bw, h0, ne_eq,
+            not_false_eq_true]
+      rw [ite_word u _ _ _ _ hand]
+      by_cases hd : (seen &&& bit).toNat ≠ 0
+      · simp only [bw, hd, ne_eq, not_false_eq_true, ↓reduceIte, show ¬ (1 : BitVec 64) = 0 from by decide]
+        exact Or.inl (stop_hang u)
+      · simp only [bw, hd, ↓reduceIte, ne_eq, not_true_eq_false]
+        have hd' : ((seen &&& bit) != 0) = false := by
+          simp only [bne_eq_false_iff_eq]; apply UInt32.toNat_inj.mp; simpa using hd
+        rw [hd'] at hR; simp only [Bool.false_eq_true, ↓reduceIte] at hR
+        exact act_spec sp t A b hp hb hc R j v seen bit slots a (hks _ (List.mem_cons_self ..)) u hk hR
+    · simp only [bw, hK, ↓reduceIte, ne_eq, not_true_eq_false]
+      have hKk : K ≠ k := fun h => hK (by rw [h])
+      simp only [keyBranch, lookupKey, hKk, ↓reduceIte] at hR
+      exact ih u (fun e he => hks e (List.mem_cons_of_mem _ he)) hk lkk (by simp only [keyBranch]; exact hR)
+
+end
+
 end ConPanqueque.Scan
