@@ -399,3 +399,4 @@ import ConPanqueque.Front.Expr
 import ConPanqueque.Front.NameTwin
 import ConPanqueque.Front.NameIntern
 import ConPanqueque.Front.KeyCopy
+import ConPanqueque.Front.Name
