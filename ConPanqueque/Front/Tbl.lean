@@ -50,18 +50,19 @@ theorem shl3 (i : Nat) (hi : 8 * i < 2 ^ 64) : BitVec.ofNat 64 i <<< (3 : Nat) =
   rw [Nat.mod_eq_of_lt this]; omega
 
 /-- The cell address of index `ei` in the table at `A`. -/
-def tblAddr (A : BitVec 64) (ei : ExpHOL 64) : ExpHOL 64 := .op .add [.const A, .shift .lsl ei (.const 3)]
+def tblAddr (eA ei : ExpHOL 64) : ExpHOL 64 := .op .add [eA, .shift .lsl ei (.const 3)]
 
-theorem sev_tblAddr (Γ : Env) (C : Ctx) (j i : Nat) (ei : ExpHOL 64) (hei : sev Γ ei = some (BitVec.ofNat 64 i))
-    (hi : 8 * i < 2 ^ 64) : sev Γ (tblAddr (cellA C j) ei) = some (cellA C (j + i)) := by
-  simp only [tblAddr, sev, hei, Option.bind_eq_bind, Option.bind_some, Option.pure_def, Option.map_some,
+theorem sev_tblAddr (Γ : Env) (C : Ctx) (j i : Nat) (eA ei : ExpHOL 64) (heA : sev Γ eA = some (cellA C j))
+    (hei : sev Γ ei = some (BitVec.ofNat 64 i))
+    (hi : 8 * i < 2 ^ 64) : sev Γ (tblAddr eA ei) = some (cellA C (j + i)) := by
+  simp only [tblAddr, sev, heA, hei, Option.bind_eq_bind, Option.bind_some, Option.pure_def, Option.map_some,
     show (3 : BitVec 64).toNat = 3 from rfl, show (3 : Nat) < 64 by decide, if_true]
   rw [shl3 i hi, cellA_add]
 
-theorem sev_lower (Γ : Env) (ei : ExpHOL 64) (i cap : Nat) (hei : sev Γ ei = some (BitVec.ofNat 64 i))
-    (hi : i < 2 ^ 64) (hc : cap < 2 ^ 64) :
-    sev Γ (.cmp .lower ei (.const (BitVec.ofNat 64 cap))) = some (bw (i < cap)) := by
-  simp only [sev, hei, Option.bind_eq_bind, Option.bind_some, Option.pure_def]
+theorem sev_lower (Γ : Env) (ei ec : ExpHOL 64) (i cap : Nat) (hei : sev Γ ei = some (BitVec.ofNat 64 i))
+    (hec : sev Γ ec = some (BitVec.ofNat 64 cap)) (hi : i < 2 ^ 64) (hc : cap < 2 ^ 64) :
+    sev Γ (.cmp .lower ei ec) = some (bw (i < cap)) := by
+  simp only [sev, hei, hec, Option.bind_eq_bind, Option.bind_some, Option.pure_def]
   congr 1
   simp only [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, bw, BitVec.ult, BitVec.toNat_ofNat,
     Nat.mod_eq_of_lt hi, Nat.mod_eq_of_lt hc]
@@ -78,9 +79,9 @@ theorem Env.get_cons_self (Γ : Env) (x : MlS) (v : BitVec 64) : Env.get ((x, v)
   simp [Env.get]
 
 /-- `x := table[ei]`, rejecting an index that is unbound or past the capacity. -/
-def tblGetP (x : MlS) (A : BitVec 64) (cap : Nat) (ei : ExpHOL 64) (rest : ProgHOL 64) : ProgHOL 64 :=
-  .ite (.cmp .lower ei (.const (BitVec.ofNat 64 cap)))
-    (.seq (.assign .local x (.load .one (tblAddr A ei)))
+def tblGetP (x : MlS) (eA ec ei : ExpHOL 64) (rest : ProgHOL 64) : ProgHOL 64 :=
+  .ite (.cmp .lower ei ec)
+    (.seq (.assign .local x (.load .one (tblAddr eA ei)))
       (.ite (.cmp .equal (.var .local x) (.const 0)) hang
         (.seq (.assign .local x (.op .sub [.var .local x, .const 1])) rest)))
     hang
@@ -88,13 +89,14 @@ def tblGetP (x : MlS) (A : BitVec 64) (cap : Nat) (ei : ExpHOL 64) (rest : ProgH
 theorem specR_tblGetI {α : Type} {k : IdxKind} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS}
     {rest : ProgHOL 64} {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop}
     (x : MlS) (hx : x ∈ D) (j cap : Nat) (tbl : IdTable (Idx k)) (hrel : TblRel C.H j cap tbl)
-    (hcap : 8 * cap < 2 ^ 64) (ei : ExpHOL 64) (i : Nat) (hi : i < 2 ^ 64)
+    (hcap : 8 * cap < 2 ^ 64) (eA ec ei : ExpHOL 64) (heA : sev Γ eA = some (cellA C j))
+    (hec : sev Γ ec = some (BitVec.ofNat 64 cap)) (i : Nat) (hi : i < 2 ^ 64)
     (hei : sev Γ ei = some (BitVec.ofNat 64 i))
     (hk : ∀ h, tbl.get? i = some h →
       SpecR (Inv C s ((x, Enc.idxW h) :: (x, Enc.idxW h + 1) :: Γ) M D) rest s m R) :
-    SpecR (Inv C s Γ M D) (tblGetP x (cellA C j) cap ei rest) s m R := by
+    SpecR (Inv C s Γ M D) (tblGetP x eA ec ei rest) s m R := by
   unfold tblGetP
-  refine specR_ifI _ _ (sev_lower Γ ei i cap hei hi (by omega)) (fun hw => ?_) (fun _ => specR_hangI)
+  refine specR_ifI _ _ (sev_lower Γ ei ec i cap hei hec hi (by omega)) (fun hw => ?_) (fun _ => specR_hangI)
   have hic : i < cap := by
     by_cases h : i < cap
     · exact h
@@ -106,7 +108,7 @@ theorem specR_tblGetI {α : Type} {k : IdxKind} {C : Ctx} {s : AState} {Γ : Env
     · rw [List.getElem?_eq_none (by omega)] at hcell; cases hcell
   have hHi : C.H[j + i] = tblW (tbl.get? i) := by
     rw [List.getElem?_eq_getElem hlen] at hcell; exact Option.some.inj hcell
-  refine specR_heapLoadI x _ (j + i) hlen hx (sev_tblAddr Γ C j i ei hei (by omega)) ?_
+  refine specR_heapLoadI x _ (j + i) hlen hx (sev_tblAddr Γ C j i eA ei heA hei (by omega)) ?_
   rw [hHi]
   cases hg : tbl.get? i with
   | none =>
@@ -119,21 +121,22 @@ theorem specR_tblGetI {α : Type} {k : IdxKind} {C : Ctx} {s : AState} {Γ : Env
       simp [sev, Env.get_cons_self, tblW, BitVec.add_sub_cancel]
 
 /-- Insist that index `ei` is unbound (and below the capacity). -/
-def tblFreshP (x : MlS) (A : BitVec 64) (cap : Nat) (ei : ExpHOL 64) (rest : ProgHOL 64) : ProgHOL 64 :=
-  .ite (.cmp .lower ei (.const (BitVec.ofNat 64 cap)))
-    (.seq (.assign .local x (.load .one (tblAddr A ei)))
+def tblFreshP (x : MlS) (eA ec ei : ExpHOL 64) (rest : ProgHOL 64) : ProgHOL 64 :=
+  .ite (.cmp .lower ei ec)
+    (.seq (.assign .local x (.load .one (tblAddr eA ei)))
       (.ite (.cmp .equal (.var .local x) (.const 0)) rest hang))
     hang
 
 theorem specR_tblFreshI {α : Type} {k : IdxKind} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS}
     {rest : ProgHOL 64} {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop}
     (x : MlS) (hx : x ∈ D) (j cap : Nat) (tbl : IdTable (Idx k)) (hrel : TblRel C.H j cap tbl)
-    (hcap : 8 * cap < 2 ^ 64) (ei : ExpHOL 64) (i : Nat) (hi : i < 2 ^ 64)
+    (hcap : 8 * cap < 2 ^ 64) (eA ec ei : ExpHOL 64) (heA : sev Γ eA = some (cellA C j))
+    (hec : sev Γ ec = some (BitVec.ofNat 64 cap)) (i : Nat) (hi : i < 2 ^ 64)
     (hei : sev Γ ei = some (BitVec.ofNat 64 i))
     (hk : i < cap → tbl.get? i = none → SpecR (Inv C s ((x, 0) :: Γ) M D) rest s m R) :
-    SpecR (Inv C s Γ M D) (tblFreshP x (cellA C j) cap ei rest) s m R := by
+    SpecR (Inv C s Γ M D) (tblFreshP x eA ec ei rest) s m R := by
   unfold tblFreshP
-  refine specR_ifI _ _ (sev_lower Γ ei i cap hei hi (by omega)) (fun hw => ?_) (fun _ => specR_hangI)
+  refine specR_ifI _ _ (sev_lower Γ ei ec i cap hei hec hi (by omega)) (fun hw => ?_) (fun _ => specR_hangI)
   have hic : i < cap := by
     by_cases h : i < cap
     · exact h
@@ -145,7 +148,7 @@ theorem specR_tblFreshI {α : Type} {k : IdxKind} {C : Ctx} {s : AState} {Γ : E
     · rw [List.getElem?_eq_none (by omega)] at hcell; cases hcell
   have hHi : C.H[j + i] = tblW (tbl.get? i) := by
     rw [List.getElem?_eq_getElem hlen] at hcell; exact Option.some.inj hcell
-  refine specR_heapLoadI x _ (j + i) hlen hx (sev_tblAddr Γ C j i ei hei (by omega)) ?_
+  refine specR_heapLoadI x _ (j + i) hlen hx (sev_tblAddr Γ C j i eA ei heA hei (by omega)) ?_
   rw [hHi]
   cases hg : tbl.get? i with
   | none =>
@@ -182,23 +185,23 @@ theorem tblRel_set_other {k : IdxKind} {H : List (BitVec 64)} {j cap : Nat} {tbl
   rw [List.getElem?_set, if_neg (by omega)]; exact hrel.1 i hi
 
 /-- Bind index `ei` to the handle in `eh` (`*cell := eh + 1`). -/
-def tblSetP (A : BitVec 64) (ei eh : ExpHOL 64) (rest : ProgHOL 64) : ProgHOL 64 :=
-  .seq (.store (tblAddr A ei) (.op .add [eh, .const 1])) rest
+def tblSetP (eA ei eh : ExpHOL 64) (rest : ProgHOL 64) : ProgHOL 64 :=
+  .seq (.store (tblAddr eA ei) (.op .add [eh, .const 1])) rest
 
 theorem specR_tblSetI {α : Type} {k : IdxKind} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env} {M : Mem}
     {D : List MlS} {rest : ProgHOL 64} {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop}
     (j cap : Nat) (tbl : IdTable (Idx k)) (hrel : TblRel C.H j cap tbl) (hcap : 8 * cap < 2 ^ 64)
-    (ei eh : ExpHOL 64) (i : Nat) (hic : i < cap) (h : Idx k)
+    (eA ei eh : ExpHOL 64) (heA : sev Γ eA = some (cellA C j)) (i : Nat) (hic : i < cap) (h : Idx k)
     (hei : sev Γ ei = some (BitVec.ofNat 64 i)) (heh : sev Γ eh = some (Enc.idxW h))
     (hk : TblRel (C.H.set (j + i) (Enc.idxW h + 1)) j cap (tbl.insert i h) →
       SpecR (Inv (ctxH C (C.H.set (j + i) (Enc.idxW h + 1))) s Γ [] D) rest s m R) :
-    SpecR (Inv C s Γ M D) (tblSetP (cellA C j) ei eh rest) s m R := by
+    SpecR (Inv C s Γ M D) (tblSetP eA ei eh rest) s m R := by
   have hcell := hrel.1 i hic
   have hlen : j + i < C.H.length := by
     by_cases hl : j + i < C.H.length
     · exact hl
     · rw [List.getElem?_eq_none (by omega)] at hcell; cases hcell
-  exact specR_heapStoreI hok _ _ (j + i) hlen _ (sev_tblAddr Γ C j i ei hei (by omega))
+  exact specR_heapStoreI hok _ _ (j + i) hlen _ (sev_tblAddr Γ C j i eA ei heA hei (by omega))
     (by simp [sev, heh]) (hk (tblRel_insert hrel i hic h))
 
 end ConPanqueque.Front
