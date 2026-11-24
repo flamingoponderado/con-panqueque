@@ -830,4 +830,31 @@ theorem endCheck_spec (u : PanSemStateFiniteExact 64 σ) (t : Nat) (ht : t < 2 ^
 
 end
 
+theorem tagGroups_bounds : ∀ e ∈ tagGroups, e.1 < 2 ^ 32 ∧ e.2 < 4 := by decide
+
+/-- A present payload: its tag's group, and con-leche's line end at that index kind. -/
+theorem plOK_end {b : ByteArray} {wpl ws0 : BitVec 64} {pl : LinePayload} (h : PlOK b wpl ws0 pl)
+    (hab : pl.isAbsent = false) (j : USize) (ik : UInt8) (idx : Nat) :
+    ∃ t g, wpl = BitVec.ofNat 64 t ∧ t < 2 ^ 32 ∧ tagLookup t tagGroups = some g ∧
+      (ik.toNat = g → ∃ rec, lineEnd j ik idx pl = .ok rec (j + 1)) := by
+  rcases h with ⟨rfl, -⟩ | ⟨k, a, hm, he⟩
+  · simp [LinePayload.isAbsent] at hab
+  simp only [lineTblP, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false] at hm
+  have hik : ∀ n : Nat, n < 4 → ik.toNat = n → ik = UInt8.ofNat n := fun n hn h => by
+    apply UInt8.toNat_inj.mp; rw [h, UInt8.toNat_ofNat']; omega
+  rcases hm with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ |
+    ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ |
+    ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;> simp only [PlEntry] at he
+  all_goals first
+    | exact he.elim
+    | (obtain ⟨rfl, n, rfl, -⟩ := he
+       exact ⟨_, _, rfl, by decide, rfl, fun hg => by rw [hik _ (by decide) hg]; simp [lineEnd]⟩)
+    | (obtain ⟨rfl, v, e, hsc, -⟩ := he
+       simp only [nameStr, nameNum, exprApp, exprLam, exprForall, exprLet, exprConst, exprProj, declDef,
+         declThm, declOpaque] at hsc
+       obtain ⟨r, -, rfl⟩ := srMap_ok hsc
+       exact ⟨_, _, rfl, by decide, rfl, fun hg => by rw [hik _ (by decide) hg]; simp [lineEnd]⟩)
+    | (obtain ⟨rfl, v, e, str, rfl, -, -⟩ := he
+       exact ⟨_, _, rfl, by decide, rfl, fun hg => by rw [hik _ (by decide) hg]; simp [lineEnd]⟩)
+
 end ConPanqueque.Scan
