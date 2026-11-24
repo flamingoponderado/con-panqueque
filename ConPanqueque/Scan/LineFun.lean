@@ -1642,3 +1642,69 @@ theorem lineFun_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : Byt
 end
 
 end ConPanqueque.Scan
+
+/-! # The record functions in the code table -/
+
+namespace ConPanqueque.Scan
+
+open ConLeche.Frontend
+open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
+open ConPanqueque.Logic ConPanqueque.V
+
+section
+variable {σ : Type}
+
+/-- The record functions at their names. -/
+def RecTable (t : PanSemStateFiniteExact 64 σ) : Prop :=
+  t.code.lookup fRecStr = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanStrNameSpec [0, BitVec.ofNat 64 listSentinel] (vv sI), .one) ∧
+  t.code.lookup fRecNum = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanNumNameSpec [0, 0] (vv sI), .one) ∧
+  t.code.lookup fRecApp = some ([(sB, .one), (sN, .one), (sI, .one)], recFun appSpec [0, 0] (vv sI), .one) ∧
+  t.code.lookup fRecLam = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanLamExprSpec [0, 0] (vv sI), .one) ∧
+  t.code.lookup fRecForall = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanForallExprSpec [0, 0] (vv sI), .one) ∧
+  t.code.lookup fRecLet = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanLetExprSpec [0, 0, 0] (vv sI), .one) ∧
+  t.code.lookup fRecConst = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanConstExprSpec [0, BitVec.ofNat 64 listSentinel] (vv sI), .one) ∧
+  t.code.lookup fRecProj = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanProjExprSpec [0, 0, 0] (vv sI), .one) ∧
+  t.code.lookup fRecDef = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanDefDeclSpec [0, BitVec.ofNat 64 listSentinel, 0, BitVec.ofNat 64 listSentinel, 0, 0] (vv sI), .one) ∧
+  t.code.lookup fRecThm = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanThmDeclSpec [BitVec.ofNat 64 listSentinel, 0, 0, 0] (vv sI), .one) ∧
+  t.code.lookup fRecOpaque = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanOpaqueDeclSpec [0, BitVec.ofNat 64 listSentinel, 0, 0, 0] (vv sI), .one)
+
+theorem recCode_of {α : Type} (t : PanSemStateFiniteExact 64 σ) (hc : ScanCodes t) (fn : MlS) (body : ProgHOL 64)
+    (scanX : ByteArray → USize → ScanRes α) (wrap : α → LinePayload)
+    (hcode : t.code.lookup fn = some ([(sB, .one), (sN, .one), (sI, .one)], body, .one))
+    (hspec : ∀ (u : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray), Plat b →
+      BytesAt u A b.data.toList → ScanCodes u → ∀ (v : USize), v.toNat ≤ b.size →
+      u.locals.lookup sB = some (.val (.word A)) →
+      u.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))) →
+      u.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 v.toNat))) →
+      RetP u body (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧ j.toNat ≤ b.size + 64 ∧
+        ∃ r, scanX b v = .ok r j)) :
+    RecCode t fn (fun b v => srMap wrap (scanX b v)) := by
+  refine ⟨body, hcode, fun u A b v hp hb hcu hv lb ln li => ?_⟩
+  refine retP_mono (hspec u A b hp hb (hc.congr hcu) v hv lb ln li) ?_
+  rintro w ⟨j, hw, hj, r, hr⟩
+  exact ⟨j, hw, hj, wrap r, by simp [hr, srMap]⟩
+
+/-- **The line scanner's code table**: the scanners and the record functions. -/
+theorem lineCodes_of (t : PanSemStateFiniteExact 64 σ) (hc : ScanCodes t) (hr : RecTable t) : LineCodes t := by
+  refine ⟨hc, ?_⟩
+  intro k tag g fn scan hm
+  obtain ⟨r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10⟩ := hr
+  simp only [lineTblP, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false, reduceCtorEq, false_and,
+    LActP.objP.injEq] at hm
+  simp only [and_false, false_or, or_false] at hm
+  rcases hm with ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩
+  · exact recCode_of t hc _ _ _ .name r0 (fun u A b hp hb hcu v hv lb ln li => strnameEnd_sound u A b hp hb hcu v hv lb ln li)
+  · exact recCode_of t hc _ _ _ .name r1 (fun u A b hp hb hcu v hv lb ln li => numnameEnd_sound u A b hp hb hcu v hv lb ln li)
+  · exact recCode_of t hc _ _ _ .expr r2 (fun u A b hp hb hcu v hv lb ln li => appEnd_sound u A b hp hb hcu v hv lb ln li)
+  · exact recCode_of t hc _ _ _ .expr r3 (fun u A b hp hb hcu v hv lb ln li => lamexprEnd_sound u A b hp hb hcu v hv lb ln li)
+  · exact recCode_of t hc _ _ _ .expr r4 (fun u A b hp hb hcu v hv lb ln li => forallexprEnd_sound u A b hp hb hcu v hv lb ln li)
+  · exact recCode_of t hc _ _ _ .expr r5 (fun u A b hp hb hcu v hv lb ln li => letexprEnd_sound u A b hp hb hcu v hv lb ln li)
+  · exact recCode_of t hc _ _ _ .expr r6 (fun u A b hp hb hcu v hv lb ln li => constexprEnd_sound u A b hp hb hcu v hv lb ln li)
+  · exact recCode_of t hc _ _ _ .expr r7 (fun u A b hp hb hcu v hv lb ln li => projexprEnd_sound u A b hp hb hcu v hv lb ln li)
+  · exact recCode_of t hc _ _ _ .decl r8 (fun u A b hp hb hcu v hv lb ln li => defdeclEnd_sound u A b hp hb hcu v hv lb ln li)
+  · exact recCode_of t hc _ _ _ .decl r9 (fun u A b hp hb hcu v hv lb ln li => thmdeclEnd_sound u A b hp hb hcu v hv lb ln li)
+  · exact recCode_of t hc _ _ _ .decl r10 (fun u A b hp hb hcu v hv lb ln li => opaquedeclEnd_sound u A b hp hb hcu v hv lb ln li)
+
+end
+
+end ConPanqueque.Scan
