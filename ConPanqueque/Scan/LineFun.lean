@@ -1280,7 +1280,7 @@ def lineStmt : ProgHOL 64 :=
   .seq (callTo sE2 fSkipWs [vv sB, vv sN, vv sI])
     (.seq (bAt sC (vv sE2))
       (.ite (.cmp .equal (vv sC) (.const 10))
-        (.seq (.assign .local sLK (.const 0)) (.assign .local sI (.op .add [vv sE2, .const 1])))
+        (.assign .local sI (.op .add [vv sE2, .const 1]))
         (.ite (.cmp .lower (vv sE2) (vv sN))
           (.ite (.cmp .equal (vv sC) (.const 123))
             (.seq (.assign .local sI (.op .add [vv sE2, .const 1]))
@@ -1288,11 +1288,10 @@ def lineStmt : ProgHOL 64 :=
                 (.seq (callTo sE2 fSkipWs [vv sB, vv sN, vv sI])
                   (.seq (bAt sC (vv sE2))
                     (.ite (.cmp .equal (vv sC) (.const 10))
-                      (.seq (.assign .local sLK (.const 1)) (.assign .local sI (.op .add [vv sE2, .const 1])))
-                      (.ite (.cmp .lower (vv sE2) (vv sN)) hang
-                        (.seq (.assign .local sLK (.const 1)) (.assign .local sI (.const 0)))))))))
+                      (.assign .local sI (.op .add [vv sE2, .const 1]))
+                      (.ite (.cmp .lower (vv sE2) (vv sN)) hang (.assign .local sI (.const 0))))))))
             hang)
-          (.seq (.assign .local sLK (.const 0)) (.assign .local sI (.const 0))))))
+          (.assign .local sI (.const 0)))))
 
 section
 variable {σ : Type}
@@ -1301,9 +1300,8 @@ variable {σ : Type}
 def LineOut (b : ByteArray) (i : USize) (u : PanSemStateFiniteExact 64 σ) : Prop :=
   ∃ (rec : LineRec) (next : USize), scanLineFwd b i = .ok rec next ∧
     u.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 next.toNat))) ∧
-    ((rec = .blank ∧ u.locals.lookup sLK = some (.val (.word 0))) ∨
-     (u.locals.lookup sLK = some (.val (.word 1)) ∧
-      ∃ (ik : UInt8) (idx : Nat) (pl : LinePayload) (wpl ws0 : BitVec 64) (j0 j' : USize),
+    ((rec = .blank ∧ u.locals.lookup sPl = some (.val (.word 0))) ∨
+     (∃ (ik : UInt8) (idx : Nat) (pl : LinePayload) (wpl ws0 : BitVec 64) (j0 j' : USize),
         u.locals.lookup sIK = some (.val (.word (BitVec.ofNat 64 ik.toNat))) ∧
         u.locals.lookup sIdx = some (.val (.word (BitVec.ofNat 64 (min idx natCap)))) ∧
         u.locals.lookup sPl = some (.val (.word wpl)) ∧
@@ -1324,7 +1322,6 @@ theorem lineStmt_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : By
     (lidx : u.locals.lookup sIdx = some (.val (.word 0)))
     (lpl : u.locals.lookup sPl = some (.val (.word 0)))
     (ls0 : ∃ w, u.locals.lookup (slotName 0) = some (.val (.word w)))
-    (llk : ∃ w, u.locals.lookup sLK = some (.val (.word w)))
     (scr : ∀ x ∈ [sC, sK, sV, sKK, sE2], ∃ w, u.locals.lookup x = some (.val (.word w))) :
     Stop (evaluateHOLFiniteState u lineStmt).1 ∨ ((evaluateHOLFiniteState u lineStmt).1 = none ∧
       LineOut b i (evaluateHOLFiniteState u lineStmt).2 ∧
@@ -1333,7 +1330,218 @@ theorem lineStmt_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : By
       (evaluateHOLFiniteState u lineStmt).2.globals = t.globals ∧
       (evaluateHOLFiniteState u lineStmt).2.code = t.code ∧
       (evaluateHOLFiniteState u lineStmt).2.be = t.be) := by
-  sorry
+  have hL : b.size < 2 ^ 64 := hp.size
+  have hroom := hp.room
+  have hcu : ScanCodes u := hc.1.congr c0
+  obtain ⟨e0, le0⟩ := scr sE2 (by simp)
+  unfold lineStmt
+  simp only [callTo]
+  -- skip the leading whitespace
+  have hcall := call3_ret u sE2 fSkipWs sB sN sI (skFun wsTest) (vv sB) (vv sN) (vv sI) A
+    (BitVec.ofNat 64 b.size) (BitVec.ofNat 64 i.toNat) (BitVec.ofNat 64 (skipWs b i).toNat) e0
+    (by decide) (by decide) (by decide) hcu.1 (eval_vv u sB _ lb) (eval_vv u sN _ ln) (eval_vv u sI _ li) le0
+    (fun callee h1 h2 h3 => skipWs_refines (callEntryStateHOLFinite u callee) A b hp
+      (bytesAt_congr hb (by exact m0) (by exact d0) (by exact b0)) i hi h1 h2 h3)
+  rcases hcall with hs | ⟨u1, hu1, m1, d1, g1, k1, b1, le1, lo1⟩
+  · exact Or.inl (seq_stop u _ _ hs)
+  rw [seq_normal _ hu1]
+  obtain ⟨S, hS⟩ : ∃ S, S = skipWs b i := ⟨_, rfl⟩
+  rw [← hS] at le1
+  have hSL := skipWs_eq hp _ i rfl
+  rw [← hS] at hSL
+  have hSb : S.toNat ≤ b.size := by
+    have := skipL_le_length isWsN b.data.toList _ i.toNat rfl (by simpa using hi)
+    rw [hSL]; simpa [skipWsL] using this
+  obtain ⟨wc, lc⟩ := scr sC (by simp)
+  have e1 := bAt_spec u1 A b.data.toList sC (vv sE2) S.toNat
+    (bytesAt_congr hb (m1.trans m0) (d1.trans d0) (b1.trans b0)) (by omega) wc
+    (by rw [lo1 sC (by decide)]; exact lc) (by rw [lo1 sB (by decide)]; exact lb)
+    (by rw [lo1 sN (by decide)]; simpa using ln) (eval_vv u1 sE2 _ le1)
+  rw [seq_normal _ e1]
+  let u2 := setVarHOLFinite sC (.val (.word (BitVec.ofNat 64 (byteL b.data.toList S.toNat).toNat))) u1
+  have lc2 : u2.locals.lookup sC = some (.val (.word (BitVec.ofNat 64 (byteL b.data.toList S.toNat).toNat))) := by
+    lk [u2]
+  have hbyte : (byteL b.data.toList S.toNat).toNat < 256 := UInt8.toNat_lt _
+  have hbA := byteAt_eq hp S
+  have hfwd := (ConLeche.Frontend.scanLineFwd.eq_1 b i)
+  simp only [← hS, hbA] at hfwd
+  change scanLineFwd b i = if (byteL b.data.toList S.toNat == 10) = true then _ else _ at hfwd
+  have hframe : ∀ (w : PanSemStateFiniteExact 64 σ), w.memory = u2.memory → w.memaddrs = u2.memaddrs →
+      w.globals = u2.globals → w.code = u2.code → w.be = u2.be →
+      w.memory = t.memory ∧ w.memaddrs = t.memaddrs ∧ w.globals = t.globals ∧ w.code = t.code ∧ w.be = t.be :=
+    fun w a1 a2 a3 a4 a5 => ⟨a1.trans (m1.trans m0), a2.trans (d1.trans d0), a3.trans (g1.trans g0),
+      a4.trans (k1.trans c0), a5.trans (b1.trans b0)⟩
+  have hc10 := eval_eq_c u2 sC _ 10 (by omega) (by decide) lc2
+  simp only [show (10 : BitVec 64) = BitVec.ofNat 64 10 from rfl] at *
+  rw [ite_word u2 _ _ _ _ hc10]
+  have li2 : ∃ w, u2.locals.lookup sI = some (.val (.word w)) :=
+    ⟨_, by lk [u2]; rw [lo1 sI (by decide)]; exact li⟩
+  obtain ⟨wi, li2⟩ := li2
+  by_cases h10 : (byteL b.data.toList S.toNat).toNat = 10
+  · simp only [bw, h10, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
+    have hSl : S.toNat < b.size := by
+      by_cases h : S.toNat < b.size
+      · exact h
+      · simp [byteL, List.getElem?_eq_none (by simp; omega : b.data.toList.length ≤ S.toNat)] at h10
+    have hS1 : (S + 1).toNat = S.toNat + 1 := ConLeche.Frontend.usizeStep b S ((hp.lt_iff S).mpr hSl)
+    have h10' : (byteL b.data.toList S.toNat == 10) = true := by
+      rw [show (10 : UInt8) = UInt8.ofNat 10 from rfl, beq_ofNat _ 10 (by decide)]; simp [h10]
+    rw [h10'] at hfwd; simp only [↓reduceIte] at hfwd
+    rw [ConsLoop.assign_local u2 sI _ (BitVec.ofNat 64 (S + 1).toNat) wi (by
+      rw [eval_add_c u2 sE2 _ _ (by lk [u2]; exact le1), hS1]; congr 3; apply BitVec.eq_of_toNat_eq
+      simp [BitVec.toNat_add]; try omega) li2]
+    obtain ⟨f1, f2, f3, f4, f5⟩ := hframe (setVarHOLFinite sI _ u2) rfl rfl rfl rfl rfl
+    exact Or.inr ⟨rfl, ⟨.blank, S + 1, hfwd, by lk, Or.inl ⟨rfl, by lk [u2]; rw [lo1 sPl (by decide)]; exact lpl⟩⟩,
+      f1, f2, f3, f4, f5⟩
+  simp only [bw, h10, ↓reduceIte, ne_eq, not_true_eq_false]
+  have h10' : (byteL b.data.toList S.toNat == 10) = false := by
+    rw [show (10 : UInt8) = UInt8.ofNat 10 from rfl, beq_ofNat _ 10 (by decide)]; simp [h10]
+  rw [h10'] at hfwd; simp only [Bool.false_eq_true, ↓reduceIte] at hfwd
+  have ln2 : u2.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))) := by
+    lk [u2]; rw [lo1 sN (by decide)]; exact ln
+  rw [ite_word u2 _ _ _ _ (eval_lower u2 (vv sE2) (vv sN) S.toNat b.size (by omega) hL
+    (eval_vv u2 sE2 _ (by lk [u2]; exact le1)) (eval_vv u2 sN _ ln2))]
+  by_cases hSl0 : ¬ S.toNat < b.size
+  · simp only [bw, hSl0, ↓reduceIte, ne_eq, not_true_eq_false]
+    have hle : b.usize ≤ S := by
+      rw [USize.le_iff_toNat_le, hp.usize_toNat]; omega
+    rw [if_pos hle] at hfwd
+    rw [ConsLoop.assign_local u2 sI (.const 0) 0 wi (by simp [evalHOLExact]) li2]
+    obtain ⟨f1, f2, f3, f4, f5⟩ := hframe (setVarHOLFinite sI _ u2) rfl rfl rfl rfl rfl
+    exact Or.inr ⟨rfl, ⟨.blank, 0, hfwd, by lk; rfl, Or.inl ⟨rfl, by lk [u2]; rw [lo1 sPl (by decide)]; exact lpl⟩⟩,
+      f1, f2, f3, f4, f5⟩
+  have hSl : S.toNat < b.size := by omega
+  simp only [bw, hSl, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
+  have hle : ¬ b.usize ≤ S := by rw [USize.le_iff_toNat_le, hp.usize_toNat]; omega
+  rw [if_neg hle] at hfwd
+  have hc123 := eval_eq_c u2 sC _ 123 (by omega) (by decide) lc2
+  simp only [show (123 : BitVec 64) = BitVec.ofNat 64 123 from rfl] at *
+  rw [ite_word u2 _ _ _ _ hc123]
+  by_cases h123 : ¬ (byteL b.data.toList S.toNat).toNat = 123
+  · simp only [bw, h123, ↓reduceIte, ne_eq, not_true_eq_false]; exact Or.inl (stop_hang u2)
+  have h123' : (byteL b.data.toList S.toNat).toNat = 123 := by omega
+  simp only [bw, h123', ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
+  have h123b : (b.data.toList[S.toNat]?.getD 0 != 123) = false := by
+    show (byteL b.data.toList S.toNat != 123) = false
+    simp only [bne, Bool.not_eq_false']
+    rw [show (123 : UInt8) = UInt8.ofNat 123 from rfl, beq_ofNat _ 123 (by decide)]; simp [h123']
+  rw [h123b] at hfwd; simp only [Bool.false_eq_true, ↓reduceIte] at hfwd
+  have hS1 : (S + 1).toNat = S.toNat + 1 := ConLeche.Frontend.usizeStep b S ((hp.lt_iff S).mpr hSl)
+  rw [seq_normal _ (ConsLoop.assign_local u2 sI _ (BitVec.ofNat 64 (S + 1).toNat) wi (by
+    rw [eval_add_c u2 sE2 _ _ (by lk [u2]; exact le1), hS1]; congr 3; apply BitVec.eq_of_toNat_eq
+    simp [BitVec.toNat_add]; try omega) li2)]
+  let u3 := setVarHOLFinite sI (.val (.word (BitVec.ofNat 64 (S + 1).toNat))) u2
+  have lo3 : ∀ y, y ≠ sI → y ≠ sC → y ≠ sE2 → u3.locals.lookup y = u.locals.lookup y := fun y h1 h2 h3 => by
+    show (setVarHOLFinite _ _ (setVarHOLFinite _ _ u1)).locals.lookup y = _
+    rw [lookup_setVar_other _ _ h1, lookup_setVar_other _ _ h2, lo1 y h3]
+  obtain ⟨ws0, ls0⟩ := ls0
+  have h0 : LnI t A b (lineLoopI lineTbl b (S + 1) true 0 0 .absent) u3 := by
+    refine ⟨m1.trans m0, d1.trans d0, k1.trans c0, g1.trans g0, b1.trans b0,
+      by rw [lo3 sB (by decide) (by decide) (by decide)]; exact lb,
+      by rw [lo3 sN (by decide) (by decide) (by decide)]; exact ln, ?_,
+      S + 1, true, 0, 0, .absent, 0, ws0, by omega, by lk [u3],
+      by rw [lo3 sW (by decide) (by decide) (by decide)]; exact lw,
+      by rw [lo3 sIK (by decide) (by decide) (by decide)]; exact lik,
+      by rw [lo3 sIdx (by decide) (by decide) (by decide)]; exact lidx,
+      by rw [lo3 sPl (by decide) (by decide) (by decide)]; exact lpl,
+      by rw [lo3 _ (by decide) (by decide) (by decide)]; exact ls0, Or.inl ⟨rfl, rfl⟩,
+      Or.inl ⟨by rw [lo3 sG (by decide) (by decide) (by decide)]; exact lg, rfl⟩⟩
+    intro x hx
+    simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hx
+    rcases hx with rfl | rfl | rfl | rfl | rfl
+    · exact ⟨BitVec.ofNat 64 (byteL b.data.toList S.toNat).toNat, by lk [u3, u2]⟩
+    · obtain ⟨w, hw⟩ := scr sK (by simp); exact ⟨w, by rw [lo3 sK (by decide) (by decide) (by decide)]; exact hw⟩
+    · obtain ⟨w, hw⟩ := scr sV (by simp); exact ⟨w, by rw [lo3 sV (by decide) (by decide) (by decide)]; exact hw⟩
+    · obtain ⟨w, hw⟩ := scr sKK (by simp); exact ⟨w, by rw [lo3 sKK (by decide) (by decide) (by decide)]; exact hw⟩
+    · exact ⟨_, by lk [u3, u2]; exact le1⟩
+  rcases lineLoopP_spec t A b hp hb hc _ u3 h0 with hs | ⟨hn, hI, hgo⟩
+  · exact Or.inl (seq_stop u3 _ _ hs)
+  generalize hu4 : evaluateHOLFiniteState u3 lineLoopP = r4 at hn hI hgo
+  obtain ⟨r1, u4⟩ := r4
+  simp only at hn hI hgo
+  subst hn
+  rw [seq_normal _ hu4]
+  obtain ⟨m4, d4, c4, g4, b4, lb4, ln4, scr4, J, wm4, ik4, idx4, pl4, wpl4, ws04, hJ, lJ, lw4, lik4, lidx4,
+    lpl4, ls04, hpl4, br4⟩ := hI
+  obtain ⟨-, hJb, j0, rec, hend, hRrec⟩ := br4.resolve_left (fun ⟨h1, _⟩ => by rw [hgo] at h1; cases h1)
+  have hscan := lineLoopI_sound b _ (S + 1) true 0 0 .absent rec J rfl hRrec
+  rw [hscan] at hfwd; simp only at hfwd
+  -- the whitespace after the record
+  have hcu4 : ScanCodes u4 := hc.1.congr c4
+  obtain ⟨we4, le4⟩ := scr4 sE2 (by simp)
+  have hcall2 := call3_ret u4 sE2 fSkipWs sB sN sI (skFun wsTest) (vv sB) (vv sN) (vv sI) A
+    (BitVec.ofNat 64 b.size) (BitVec.ofNat 64 J.toNat) (BitVec.ofNat 64 (skipWs b J).toNat) we4
+    (by decide) (by decide) (by decide) hcu4.1 (eval_vv u4 sB _ lb4) (eval_vv u4 sN _ ln4) (eval_vv u4 sI _ lJ) le4
+    (fun callee h1 h2 h3 => skipWs_refines (callEntryStateHOLFinite u4 callee) A b hp
+      (bytesAt_congr hb (by exact m4) (by exact d4) (by exact b4)) J hJb h1 h2 h3)
+  rcases hcall2 with hs | ⟨u5, hu5, m5, d5, g5, k5, b5, le5, lo5⟩
+  · exact Or.inl (seq_stop u4 _ _ hs)
+  rw [seq_normal _ hu5]
+  obtain ⟨P, hP⟩ : ∃ P, P = skipWs b J := ⟨_, rfl⟩
+  rw [← hP] at le5 hfwd
+  have hPL := skipWs_eq hp _ J rfl
+  rw [← hP] at hPL
+  have hPb : P.toNat ≤ b.size := by
+    have := skipL_le_length isWsN b.data.toList _ J.toNat rfl (by simpa using hJb)
+    rw [hPL]; simpa [skipWsL] using this
+  obtain ⟨wc4, lc4⟩ := scr4 sC (by simp)
+  have e2 := bAt_spec u5 A b.data.toList sC (vv sE2) P.toNat
+    (bytesAt_congr hb (m5.trans m4) (d5.trans d4) (b5.trans b4)) (by omega) wc4
+    (by rw [lo5 sC (by decide)]; exact lc4) (by rw [lo5 sB (by decide)]; exact lb4)
+    (by rw [lo5 sN (by decide)]; simpa using ln4) (eval_vv u5 sE2 _ le5)
+  rw [seq_normal _ e2]
+  let u6 := setVarHOLFinite sC (.val (.word (BitVec.ofNat 64 (byteL b.data.toList P.toNat).toNat))) u5
+  have lc6 : u6.locals.lookup sC = some (.val (.word (BitVec.ofNat 64 (byteL b.data.toList P.toNat).toNat))) := by
+    lk [u6]
+  have lo6 : ∀ y, y ≠ sC → y ≠ sE2 → u6.locals.lookup y = u4.locals.lookup y := fun y h1 h2 => by
+    show (setVarHOLFinite _ _ u5).locals.lookup y = _; rw [lookup_setVar_other _ _ h1, lo5 y h2]
+  have li6 : u6.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 J.toNat))) := by
+    rw [lo6 sI (by decide) (by decide)]; exact lJ
+  have hrec_out : ∀ (w : PanSemStateFiniteExact 64 σ) (nx : USize),
+      (∀ y, y ≠ sI → w.locals.lookup y = u6.locals.lookup y) →
+      w.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 nx.toNat))) →
+      scanLineFwd b i = .ok rec nx → LineOut b i w := by
+    intro w nx hlo hli hsc
+    refine ⟨rec, nx, hsc, hli, Or.inr ⟨ik4, idx4, pl4, wpl4, ws04, j0, J, ?_, ?_, ?_, ?_, hpl4, hend⟩⟩
+    · rw [hlo sIK (by decide), lo6 sIK (by decide) (by decide)]; exact lik4
+    · rw [hlo sIdx (by decide), lo6 sIdx (by decide) (by decide)]; exact lidx4
+    · rw [hlo sPl (by decide), lo6 sPl (by decide) (by decide)]; exact lpl4
+    · rw [hlo _ (by decide), lo6 _ (by decide) (by decide)]; exact ls04
+  have hbyte6 : (byteL b.data.toList P.toNat).toNat < 256 := UInt8.toNat_lt _
+  rw [ite_word u6 _ _ _ _ (eval_eq_c u6 sC _ 10 (by omega) (by decide) lc6)]
+  have hbA6 := byteAt_eq hp P
+  by_cases hn10 : (byteL b.data.toList P.toNat).toNat = 10
+  · simp only [bw, hn10, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
+    have hPl : P.toNat < b.size := by
+      by_cases h : P.toNat < b.size
+      · exact h
+      · simp [byteL, List.getElem?_eq_none (by simp; omega : b.data.toList.length ≤ P.toNat)] at hn10
+    have hP1 : (P + 1).toNat = P.toNat + 1 := ConLeche.Frontend.usizeStep b P ((hp.lt_iff P).mpr hPl)
+    have hn10' : (ConLeche.Frontend.byteAt b P == 10) = true := by
+      rw [hbA6, show (10 : UInt8) = UInt8.ofNat 10 from rfl, beq_ofNat _ 10 (by decide)]; simpa [byteL] using hn10
+    rw [hn10'] at hfwd; simp only [↓reduceIte] at hfwd
+    rw [ConsLoop.assign_local u6 sI _ (BitVec.ofNat 64 (P + 1).toNat) _ (by
+      rw [eval_add_c u6 sE2 _ _ (by lk [u6]; exact le5), hP1]; congr 3; apply BitVec.eq_of_toNat_eq
+      simp [BitVec.toNat_add]; try omega) li6]
+    refine Or.inr ⟨rfl, hrec_out _ (P + 1) (fun y h1 => lookup_setVar_other _ _ h1) (by lk) hfwd,
+      m5.trans m4, d5.trans d4, g5.trans g4, k5.trans c4, b5.trans b4⟩
+  simp only [bw, hn10, ↓reduceIte, ne_eq, not_true_eq_false]
+  have hn10' : (ConLeche.Frontend.byteAt b P == 10) = false := by
+    rw [hbA6, show (10 : UInt8) = UInt8.ofNat 10 from rfl, beq_ofNat _ 10 (by decide)]; simpa [byteL] using hn10
+  rw [hn10'] at hfwd; simp only [Bool.false_eq_true, ↓reduceIte] at hfwd
+  have ln6 : u6.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))) := by
+    rw [lo6 sN (by decide) (by decide)]; exact ln4
+  rw [ite_word u6 _ _ _ _ (eval_lower u6 (vv sE2) (vv sN) P.toNat b.size (by omega) hL
+    (eval_vv u6 sE2 _ (by lk [u6]; exact le5)) (eval_vv u6 sN _ ln6))]
+  by_cases hPl : P.toNat < b.size
+  · simp only [bw, hPl, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
+    exact Or.inl (stop_hang u6)
+  simp only [bw, hPl, ↓reduceIte, ne_eq, not_true_eq_false]
+  have hle : b.usize ≤ P := by rw [USize.le_iff_toNat_le, hp.usize_toNat]; omega
+  rw [if_pos hle] at hfwd
+  rw [ConsLoop.assign_local u6 sI (.const 0) 0 _ (by simp [evalHOLExact]) li6]
+  refine Or.inr ⟨rfl, hrec_out _ 0 (fun y h1 => lookup_setVar_other _ _ h1) (by lk; rfl) hfwd,
+    m5.trans m4, d5.trans d4, g5.trans g4, k5.trans c4, b5.trans b4⟩
 
 end
 
