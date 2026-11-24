@@ -97,4 +97,39 @@ theorem basisUnres_run {C : Ctx} (hok : CtxOK C) {s : AState} (hp : s.pins = C.p
   simp [basisNameUnreserved, reservedBasisNames, pinReserved, pinsReady_of hok hp, hp, get, getThe,
     MonadStateOf.get, StateT.get, bind, StateT.bind, pure, StateT.pure, Except.bind, Except.pure]
 
+
+/-- A front door that passed saw a fresh name. -/
+theorem ccv_fresh {mode : ConLeche.CheckMode} {fe : IFEnv} {cv : IConstantVal} {aO aR aS : Bool} {s s' : AState}
+    {r : Unit} (h : checkConstantVal mode fe cv aO aR aS s = .ok (r, s')) : fe.find? cv.name = none := by
+  cases hf : fe.find? cv.name with
+  | none => rfl
+  | some ci =>
+    exfalso
+    unfold checkConstantVal at h
+    simp only [hf, Option.isSome_some, if_true] at h
+    simp [fail, throw, throwThe, MonadExceptOf.throw, bind, StateT.bind, Except.bind, StateT.lift,
+      ExceptT.lift] at h
+
+theorem ok_of_bind_pure {α β : Type} {A : AM α} {r : β} {s s' : AState} {ci : β}
+    (h : (A >>= fun _ => pure r) s = .ok (ci, s')) : ci = r := by
+  simp only [bind, StateT.bind, Except.bind] at h
+  cases hA : A s with
+  | error e => rw [hA] at h; simp at h
+  | ok p => rw [hA] at h; simp [pure, StateT.pure, Except.pure] at h; exact h.1.symm
+
+/-- A definition's value check returns the definition. -/
+theorem checkDefnVal_ci {mode : ConLeche.CheckMode} {fe : IFEnv} {cv : IConstantVal} {v : EIdx}
+    {hint : ConLeche.ReducibilityHint} {s s' : AState} {ci : IConstantInfo}
+    (h : checkDefnVal mode fe cv v hint s = .ok (ci, s')) : ci = .defnInfo cv v hint := by
+  have e : checkDefnVal mode fe cv v hint = (do
+      valueGuards fe cv v
+      let vtype ← inferTypeCore mode fe checkFuel 0 v
+      unless ← isDefEqCore mode fe checkFuel 0 vtype cv.type do
+        fail (.invalid "type mismatch in definition")) >>= fun _ => pure (.defnInfo cv v hint) := by
+    unfold checkDefnVal; simp only [bind_assoc]
+    congr 1; funext _; congr 1; funext _; congr 1; funext x
+    split <;> simp
+  rw [e] at h
+  exact ok_of_bind_pure h
+
 end ConPanqueque.T.Decl
