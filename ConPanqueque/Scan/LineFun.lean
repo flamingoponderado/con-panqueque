@@ -1300,7 +1300,8 @@ variable {σ : Type}
 def LineOut (b : ByteArray) (i : USize) (u : PanSemStateFiniteExact 64 σ) : Prop :=
   ∃ (rec : LineRec) (next : USize), scanLineFwd b i = .ok rec next ∧
     u.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 next.toNat))) ∧
-    ((rec = .blank ∧ u.locals.lookup sPl = some (.val (.word 0))) ∨
+    ((rec = .blank ∧ u.locals.lookup sPl = some (.val (.word 0)) ∧
+      ∀ y ∈ [sIK, sIdx, slotName 0], ∃ w, u.locals.lookup y = some (.val (.word w))) ∨
      (∃ (ik : UInt8) (idx : Nat) (pl : LinePayload) (wpl ws0 : BitVec 64) (j0 j' : USize),
         u.locals.lookup sIK = some (.val (.word (BitVec.ofNat 64 ik.toNat))) ∧
         u.locals.lookup sIdx = some (.val (.word (BitVec.ofNat 64 (min idx natCap)))) ∧
@@ -1391,7 +1392,13 @@ theorem lineStmt_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : By
       rw [eval_add_c u2 sE2 _ _ (by lk [u2]; exact le1), hS1]; congr 3; apply BitVec.eq_of_toNat_eq
       simp [BitVec.toNat_add]; try omega) li2]
     obtain ⟨f1, f2, f3, f4, f5⟩ := hframe (setVarHOLFinite sI _ u2) rfl rfl rfl rfl rfl
-    exact Or.inr ⟨rfl, ⟨.blank, S + 1, hfwd, by lk, Or.inl ⟨rfl, by lk [u2]; rw [lo1 sPl (by decide)]; exact lpl⟩⟩,
+    exact Or.inr ⟨rfl, ⟨.blank, S + 1, hfwd, by lk, Or.inl ⟨rfl, by lk [u2]; rw [lo1 sPl (by decide)]; exact lpl,
+        fun y hy => by
+          simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hy
+          rcases hy with rfl | rfl | rfl
+          · exact ⟨_, by lk [u2]; rw [lo1 sIK (by decide)]; exact lik⟩
+          · exact ⟨_, by lk [u2]; rw [lo1 sIdx (by decide)]; exact lidx⟩
+          · obtain ⟨w0, h0⟩ := ls0; exact ⟨w0, by lk [u2]; rw [lo1 _ (by decide)]; exact h0⟩⟩⟩,
       f1, f2, f3, f4, f5⟩
   simp only [bw, h10, ↓reduceIte, ne_eq, not_true_eq_false]
   have h10' : (byteL b.data.toList S.toNat == 10) = false := by
@@ -1408,7 +1415,13 @@ theorem lineStmt_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : By
     rw [if_pos hle] at hfwd
     rw [ConsLoop.assign_local u2 sI (.const 0) 0 wi (by simp [evalHOLExact]) li2]
     obtain ⟨f1, f2, f3, f4, f5⟩ := hframe (setVarHOLFinite sI _ u2) rfl rfl rfl rfl rfl
-    exact Or.inr ⟨rfl, ⟨.blank, 0, hfwd, by lk; rfl, Or.inl ⟨rfl, by lk [u2]; rw [lo1 sPl (by decide)]; exact lpl⟩⟩,
+    exact Or.inr ⟨rfl, ⟨.blank, 0, hfwd, by lk; rfl, Or.inl ⟨rfl, by lk [u2]; rw [lo1 sPl (by decide)]; exact lpl,
+        fun y hy => by
+          simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hy
+          rcases hy with rfl | rfl | rfl
+          · exact ⟨_, by lk [u2]; rw [lo1 sIK (by decide)]; exact lik⟩
+          · exact ⟨_, by lk [u2]; rw [lo1 sIdx (by decide)]; exact lidx⟩
+          · obtain ⟨w0, h0⟩ := ls0; exact ⟨w0, by lk [u2]; rw [lo1 _ (by decide)]; exact h0⟩⟩⟩,
       f1, f2, f3, f4, f5⟩
   have hSl : S.toNat < b.size := by omega
   simp only [bw, hSl, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
@@ -1542,6 +1555,89 @@ theorem lineStmt_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : By
   rw [ConsLoop.assign_local u6 sI (.const 0) 0 _ (by simp [evalHOLExact]) li6]
   refine Or.inr ⟨rfl, hrec_out _ 0 (fun y h1 => lookup_setVar_other _ _ h1) (by lk; rfl) hfwd,
     m5.trans m4, d5.trans d4, g5.trans g4, k5.trans c4, b5.trans b4⟩
+
+end
+
+end ConPanqueque.Scan
+
+namespace ConPanqueque.Scan
+
+open ConLeche.Frontend
+open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
+open ConPanqueque.Logic ConPanqueque.V
+
+/-- The line function's locals. -/
+def lineFunLocals : List (MlS × BitVec 64) :=
+  [(sG, 1), (sW, 1), (sIK, 0), (sIdx, 0), (sPl, 0), (slotName 0, 0), (sC, 0), (sK, 0), (sV, 0), (sKK, 0), (sE2, 0)]
+
+/-- `line(b, n, i)`: scan the line at `i`, return the local `x` (the next position `i`, the payload
+tag `pl`, the index kind `ik`, the index `idx`, or the payload's value/position `s0`). -/
+def lineFun (x : MlS) : ProgHOL 64 := decsOf lineFunLocals (.seq lineStmt (.return (vv x)))
+
+section
+variable {σ : Type}
+
+theorem lineFun_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray)
+    (hp : Plat b) (hb : BytesAt t A b.data.toList) (hc : LineCodes t) (i : USize) (hi : i.toNat ≤ b.size)
+    (x : MlS) (hx : x ∈ [sI, sPl, sIK, sIdx, slotName 0])
+    (lb : t.locals.lookup sB = some (.val (.word A)))
+    (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
+    (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
+    RetP t (lineFun x) (fun w => ∃ u' : PanSemStateFiniteExact 64 σ, LineOut b i u' ∧
+      u'.locals.lookup x = some (.val (.word w))) := by
+  unfold lineFun
+  apply retP_decsOf
+  have hlk := fun y => lookup_foldl_setVar (σ := σ) y lineFunLocals t
+  let u0 := lineFunLocals.foldl (fun s (x, w) => setVarHOLFinite x (.val (.word w)) s) t
+  have L : ∀ y, u0.locals.lookup y = _ := hlk
+  have e := lineStmt_spec t A b hp hb hc i hi u0 rfl rfl rfl rfl rfl
+    (by rw [L]; simp (config := {decide := true}) [lineFunLocals, slotName, slotNames, sB, sN, sI, sG, sW, sIK, sIdx,
+      sPl, sC, sK, sV, sKK, sE2]; exact lb)
+    (by rw [L]; simp (config := {decide := true}) [lineFunLocals, slotName, slotNames, sB, sN, sI, sG, sW, sIK, sIdx,
+      sPl, sC, sK, sV, sKK, sE2]; exact ln)
+    (by rw [L]; simp (config := {decide := true}) [lineFunLocals, slotName, slotNames, sB, sN, sI, sG, sW, sIK, sIdx,
+      sPl, sC, sK, sV, sKK, sE2]; exact li)
+    (by rw [L]; simp (config := {decide := true}) [lineFunLocals, slotName, slotNames, sB, sN, sI, sG, sW, sIK, sIdx,
+      sPl, sC, sK, sV, sKK, sE2])
+    (by rw [L]; simp (config := {decide := true}) [lineFunLocals, slotName, slotNames, sB, sN, sI, sG, sW, sIK, sIdx,
+      sPl, sC, sK, sV, sKK, sE2])
+    (by rw [L]; simp (config := {decide := true}) [lineFunLocals, slotName, slotNames, sB, sN, sI, sG, sW, sIK, sIdx,
+      sPl, sC, sK, sV, sKK, sE2])
+    (by rw [L]; simp (config := {decide := true}) [lineFunLocals, slotName, slotNames, sB, sN, sI, sG, sW, sIK, sIdx,
+      sPl, sC, sK, sV, sKK, sE2])
+    (by rw [L]; simp (config := {decide := true}) [lineFunLocals, slotName, slotNames, sB, sN, sI, sG, sW, sIK, sIdx,
+      sPl, sC, sK, sV, sKK, sE2])
+    ⟨0, by rw [L]; simp (config := {decide := true}) [lineFunLocals, slotName, slotNames, sB, sN, sI, sG, sW, sIK,
+      sIdx, sPl, sC, sK, sV, sKK, sE2]⟩
+    (by intro y hy; simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hy
+        rcases hy with rfl | rfl | rfl | rfl | rfl <;>
+          exact ⟨0, by rw [L]; simp (config := {decide := true}) [lineFunLocals, slotName, slotNames, sB, sN, sI, sG,
+            sW, sIK, sIdx, sPl, sC, sK, sV, sKK, sE2]⟩)
+  rcases e with hs | ⟨hn, hout, f1, f2, f3, f4, f5⟩
+  · exact Or.inl (seq_stop u0 _ _ hs)
+  generalize he : evaluateHOLFiniteState u0 lineStmt = r at hn hout f1 f2 f3 f4 f5
+  obtain ⟨r1, u1⟩ := r
+  simp only at hn hout f1 f2 f3 f4 f5
+  subst hn
+  refine retP_seq he ?_ f1 f2 f3 f4 f5
+  -- every returned local holds a word
+  have hw : ∃ w, u1.locals.lookup x = some (.val (.word w)) := by
+    obtain ⟨rec, next, -, hli, hk⟩ := hout
+    simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hx
+    rcases hx with rfl | rfl | rfl | rfl | rfl
+    · exact ⟨_, hli⟩
+    all_goals rcases hk with ⟨-, hpl, hrest⟩ | ⟨ik, idx, pl, wpl, ws0, j0, j', lik, lidx, lpl, ls0, -⟩
+    · exact ⟨_, hpl⟩
+    · exact ⟨_, lpl⟩
+    · exact hrest sIK (by simp)
+    · exact ⟨_, lik⟩
+    · exact hrest sIdx (by simp)
+    · exact ⟨_, lidx⟩
+    · exact hrest _ (by simp)
+    · exact ⟨_, ls0⟩
+  obtain ⟨w, lw⟩ := hw
+  obtain ⟨q1, q2, q3, q4, q5, q6⟩ := return_vv u1 x w lw
+  exact Or.inr ⟨w, q1, ⟨u1, hout, lw⟩, q2, q3, q4, q5, q6⟩
 
 end
 
