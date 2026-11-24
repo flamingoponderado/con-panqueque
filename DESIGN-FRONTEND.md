@@ -94,3 +94,29 @@ and sets a slot. Error payloads are not modelled: an `.err` is a rejection. Plan
 
 Capped numbers (`natCap`) are sound because any index at or above `2^62` misses every table, so
 both sides reject.
+
+## Status at be8464b: the line scanner is done; interning is next
+
+Proved (no `sorry`): each Pancake scanner refines or is sound for con-leche's, up to
+`scanLineFwd` (`lineStmt_spec`). `lineFun x` returns one output of a line: the next position, the
+payload tag, the index kind, the index, or the payload's value or position. The code assumptions
+reduce to concrete table entries (`ScanCodes`, `RecTable`, `lineCodes_of`).
+
+**Interning (`applyLine`).** The twin threads a pure `StateD` holding three stream-indexed handle
+tables (`IdTable`). Plan:
+- The tables are fixed-capacity word arrays in the value heap `H` (`ctxH`, `sr_heapStore`),
+  sized from the input length. An index past the capacity is rejected, which is sound.
+- `TblRel C st` relates the arrays to `StateD`.
+- Each record kind is a SpecR procedure:
+  - names: `internNNode` (the string component is read again from the buffer by its position);
+  - levels: `internLNode`;
+  - expressions: `internE`, and `internLsNode` for `const`;
+  - declarations: `parseCVD`, appending to the record block in the `RecOK` layout.
+
+**Frontend gaps that still reject every real file:**
+- the header line (`kMeta` plus `skipBraced`; `applyLine` requires it first);
+- `hints` (every definition);
+- `max`/`imax` (two-element lists);
+- `natVal`;
+- escaped and non-ASCII strings;
+- axioms, quot and inductives (scanner and kernel).
