@@ -11,6 +11,12 @@ B       = build
 
 all: $(B)/count
 
+# The checker: ../scripts/Emit.lean prints the verified program to checker.pnk.
+checker.pnk:
+	cd .. && lake env lean scripts/Emit.lean
+
+checker: $(B)/checker
+
 $(B):
 	mkdir -p $(B)
 

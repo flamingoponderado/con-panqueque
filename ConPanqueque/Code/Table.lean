@@ -6,7 +6,7 @@ open Flapjack Flapjack.Pancake.PanLang
 
 namespace ConPanqueque.Code
 
-noncomputable def codeEntries (C : ConPanqueque.T.Ctx) : List (MlS × (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL)) := [
+def codeEntries (C : ConPanqueque.T.Ctx) : List (MlS × (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL)) := [
   (ConPanqueque.T.fMemoGet, ([(ConPanqueque.T.pG, Flapjack.Pancake.PanLang.ShapeHOL.one), (ConPanqueque.T.pLen, Flapjack.Pancake.PanLang.ShapeHOL.one)], ConPanqueque.T.memoGetBody, Flapjack.Pancake.PanLang.ShapeHOL.one)),
   (ConPanqueque.T.fMemoProbe, ([(ConPanqueque.T.pG, Flapjack.Pancake.PanLang.ShapeHOL.one), (ConPanqueque.T.pLen, Flapjack.Pancake.PanLang.ShapeHOL.one)], ConPanqueque.T.memoProbeBody, Flapjack.Pancake.PanLang.ShapeHOL.one)),
   (ConPanqueque.T.fMemoSet, ([(ConPanqueque.T.pG, Flapjack.Pancake.PanLang.ShapeHOL.one), (ConPanqueque.T.pLen, Flapjack.Pancake.PanLang.ShapeHOL.one), (ConPanqueque.T.pVal, Flapjack.Pancake.PanLang.ShapeHOL.one)], ConPanqueque.T.memoSetBody, Flapjack.Pancake.PanLang.ShapeHOL.one)),

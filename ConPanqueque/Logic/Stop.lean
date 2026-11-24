@@ -6,20 +6,24 @@ namespace ConPanqueque.Logic
 /-- Results that end the whole program without a verdict: out of clock, or a final FFI event. -/
 def Stop (r : Option (PanSemResultExact 64)) : Prop := r = some .timeOut ∨ ∃ ev, r = some (.finalFfi ev)
 
-/-- What the program does when it cannot go on (e.g. out of arena space). -/
-def hang : ProgHOL 64 := .while (.const 1) .skip
+/-- The endless loop. -/
+def hangLoop : ProgHOL 64 := .while (.const 1) .skip
 
-theorem hang_spec {σ : Type} : ∀ (n : Nat) (s : PanSemStateFiniteExact 64 σ), s.clock = n →
-    (evaluateHOLFiniteState s hang).1 = some .timeOut := by
+/-- What the program does when it cannot go on (e.g. out of arena space): loop forever. The
+unreachable `return` satisfies `cake --pancake`'s check that every branch returns. -/
+def hang : ProgHOL 64 := .seq hangLoop (.return (.const 0))
+
+theorem hangLoop_spec {σ : Type} : ∀ (n : Nat) (s : PanSemStateFiniteExact 64 σ), s.clock = n →
+    (evaluateHOLFiniteState s hangLoop).1 = some .timeOut := by
   intro n
   induction n with
   | zero =>
     intro s hs
-    unfold hang; rw [evaluateHOLFiniteState_eq_evaluate_def]
+    unfold hangLoop; rw [evaluateHOLFiniteState_eq_evaluate_def]
     simp [evalHOLExact, hs]
   | succ n ih =>
     intro s hs
-    unfold hang; rw [evaluateHOLFiniteState_eq_evaluate_def]
+    unfold hangLoop; rw [evaluateHOLFiniteState_eq_evaluate_def]
     simp [evalHOLExact, hs]
     exact ih _ (by simp [decClockHOLFinite, hs])
 
@@ -35,6 +39,15 @@ theorem seq_stop {σ : Type} (s : PanSemStateFiniteExact 64 σ) (p q : ProgHOL 6
   generalize hr : evaluateHOLFiniteState s p = r at h
   obtain ⟨r1, r2⟩ := r
   rcases h with h | ⟨ev, h⟩ <;> (simp only at h; subst h; simp [hr]) <;> first | exact Or.inl rfl | exact Or.inr ⟨ev, rfl⟩
+
+theorem hang_spec {σ : Type} (n : Nat) (s : PanSemStateFiniteExact 64 σ) (hs : s.clock = n) :
+    (evaluateHOLFiniteState s hang).1 = some .timeOut := by
+  unfold hang
+  rw [evaluateHOLFiniteState_eq_evaluate_def]
+  generalize hr : evaluateHOLFiniteState s hangLoop = r
+  obtain ⟨r1, r2⟩ := r
+  have h := hangLoop_spec n s hs
+  rw [hr] at h; simp only at h; subst h; simp [hr]
 
 theorem dec_stop {σ : Type} (s : PanSemStateFiniteExact 64 σ) (x : MlS) (e : ExpHOL 64) (v : BitVec 64)
     (body : ProgHOL 64)
