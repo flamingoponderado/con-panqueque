@@ -83,4 +83,12 @@ theorem usz_lt (x : USize) : x.toNat < 2 ^ 64 :=
   Nat.lt_of_lt_of_le (USize.toNat_lt_two_pow_numBits x)
     (Nat.pow_le_pow_right (by decide) (by rcases System.Platform.numBits_eq with h | h <;> omega))
 
+theorem numEndL_skip (bs : List UInt8) (i : Nat) (h : numEndL bs i ≠ i) : numEndL bs i = skipDigitsL bs i := by
+  unfold numEndL at *; simp only at *
+  split at h
+  · exact absurd rfl h
+  · rename_i h1; rw [if_neg h1]; split at h
+    · exact absurd rfl h
+    · rename_i h2; rw [if_neg h2]
+
 end ConPanqueque.Scan

@@ -184,14 +184,6 @@ theorem scanBool_facts {b : ByteArray} (hp : Plat b) (v : USize) (hv : v.toNat �
 
 /-! ## One key's value -/
 
-theorem numEndL_skip (bs : List UInt8) (i : Nat) (h : numEndL bs i ≠ i) : numEndL bs i = skipDigitsL bs i := by
-  unfold numEndL at *; simp only at *
-  split at h
-  · exact absurd rfl h
-  · rename_i h1; rw [if_neg h1]; split at h
-    · exact absurd rfl h
-    · rename_i h2; rw [if_neg h2]
-
 section
 variable {σ : Type}
 
