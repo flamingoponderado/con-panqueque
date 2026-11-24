@@ -279,3 +279,25 @@ Line loop plan:
   (`j = 0` stops after applying). A pure lemma: `feedAll st b 0 0 = ok st'` implies con-ron's
   `parseBytes b` ends with `st'.decls` (`feedChunk` then `applyFinalLine` apply the same records
   in the same order).
+
+### The line loop is done (a9451e4)
+
+`Front/Feed`: `feedAll`, the twin, and `feedAll_tail` (it agrees with con-ron's
+`feedChunk` + `applyFinalLine`). `Front/FeedFn`: the recursive `feed` function. `feedCore_spec`,
+by induction on `b.size - i`, shows it refines `feedAll` and ends at `FrontSt` of some image
+(`FeedPost`). The frontend now refines `parseBytes`'s line processing for the value-declaration
+fragment, given `FrontSt` at the start.
+
+Remaining for the frontend:
+1. **Init.** Zero the three tables (a store loop), set the registry count to 0, and intern
+   `Name.anonymous` and `Level.zero` at index 0, as `StateD.init` does. The result is `FrontSt`
+   for `StateD.init`'s state.
+2. **Input.** One FFI read of the whole input into the buffer cells (`Packed`, `BufOK`), with the
+   size guard.
+3. **Prelude and pins**: con-ron's `builtinPreludeE` is `parseBytes` of a static text, so the
+   same code runs on a buffer the harness fills with that text. Then `preparePrelude` and
+   `internAllPins`.
+4. **Code table**: concrete `FrontCodes` entries (each `fLine t` body, the field readers, the
+   scanners).
+5. **Top theorem**: from an accepting exit, con-ron's stages run on the input. This needs a
+   `parseBytes` variant of `Bridge/Stages.lean`, then `fold_verdict`.
