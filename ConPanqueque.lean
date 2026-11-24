@@ -428,3 +428,4 @@ import ConPanqueque.Front.Init
 import ConPanqueque.Front.InitTwin
 import ConPanqueque.Front.InitProg
 import ConPanqueque.Front.ParseTwin
+import ConPanqueque.Front.ParseTop
