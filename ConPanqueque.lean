@@ -366,3 +366,4 @@ import ConPanqueque.T.Decl.StepDefn
 import ConPanqueque.T.Decl.Step
 import ConPanqueque.T.Decl.Fold
 import ConPanqueque.T.Decl.Start
+import ConPanqueque.Bridge.SeqFold
