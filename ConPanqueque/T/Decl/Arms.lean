@@ -63,7 +63,7 @@ def thU := ofString "th_u"
 def thZ := ofString "th_z"
 def thE := ofString "th_e"
 def thR := ofString "th_r"
-def fTh := ofString "checkThm"
+def fTh := ofString "checkThmArm"
 def thParams : List MlS := [thQ, thV]
 def thLocals : List MlS := [thT, thX, thU, thZ, thE, thR]
 

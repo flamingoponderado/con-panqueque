@@ -1,4 +1,4 @@
-import ConPanqueque.Front.Top
+import ConPanqueque
 import Lean
 
 open Lean Meta Elab Command
@@ -22,8 +22,13 @@ partial def collectCodes (ty : Expr) (seen : IO.Ref (Std.HashSet String)) (out :
           let xt ← inferType x
           collectCodes xt seen out
     else if n == ``Eq then
-      let str := toString (← ppExpr ty)
-      out.modify (·.push (String.ofList (str.toList.take 160)))
+      let args := ty.getAppArgs
+      let lhs := args[1]!
+      let rhs := args[2]!
+      let nm := if lhs.getAppNumArgs > 0 then lhs.appArg! else lhs
+      let a ← withOptions (fun o => (o.set `pp.deepTerms false).set `pp.fullNames true) do
+        pure s!"{← ppExpr nm} ||| {← ppExpr rhs}"
+      out.modify (·.push ((a.replace "\n" " ")))
     else pure ()
   | .forallE .. =>
     let str := toString (← ppExpr ty)
@@ -38,7 +43,7 @@ elab "#codes " t:term : command => liftTermElabM do
   let a ← out.get
   logInfo m!"{a.size} leaves, {(← seen.get).size} structures"
   IO.FS.writeFile "/tmp/claude-1004/-home-yoichi-bkp-con-pastel/4cbdfdc2-04da-472a-a83e-82678a176a82/scratchpad/codes.txt"
-    (String.intercalate "\n" a.toList)
+    (String.intercalate "\n@@\n" a.toList)
 
 open ConPanqueque.T ConPanqueque.T.Decl ConPanqueque.Front in
-#codes ∀ C : ConPanqueque.T.Ctx, FoldCodes .verified C
+#codes ∀ (σ : Type) (C : ConPanqueque.T.Ctx), FoldCodes .verified C ∧ FrontCodes σ C
