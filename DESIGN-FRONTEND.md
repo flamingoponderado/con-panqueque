@@ -253,3 +253,29 @@ Dispatcher plan (`Front/Dispatch`, next):
 - One lemma per branch: PlOK with that tag → `tag_t` → payload → `lineEnd` gives the record →
   `applyLine st rec lineNo` (placed, since `lineNo ≠ 0`) becomes `parseXEntryD … >>= pure ∘ .inl`
   → `specR_xLineCall` with the core. The scanner's start `v < b.size` comes from its `{` check.
+
+### The dispatcher is done (ff41ea2). The line loop comes next.
+
+`Front/PlTag`: `plOK_tag_eq` shows the tag word is a function of the payload, and `lineEnd_pl`
+shows the payload is a function of the record. `Front/ScanPhase`: `specR_scanPhase` makes four
+`lineFun` calls; because `scanLineFwd` is a function, their words fit together (`ScanOut`).
+`Front/Apply`: `FrontCodes σ C` bundles the whole code table. `dispatch_spec` and `applyLine_spec`
+show that one line refines con-ron's `applyLine`. The continuation runs at `FrontSt` of the new
+image, with `kNx` holding the next position.
+
+Line loop plan:
+- **The whole input is one buffer.** con-leche's `parseChunks_eq_parseBytes` gives
+  `parseChunks cs = parseBytes (concat cs)`, and con-ron's `parseBytes_run` relates its
+  `parseBytes` to con-leche's. The stage theorem (`Bridge/Stages.lean`) gets a `parseBytes`
+  variant.
+- **The loop is a self-recursive function `feed`.** Its parameters are the line-function ones
+  plus `kLI` (the line's start) and `kLn` (the line count). Its core:
+  `if kLI < kBN then applyLineP (if kNx = 0 then return 0 else if kLI < kNx then
+  (kR1 := feed(…, kNx, kLn+1); return kR1) else hang) else return 0`.
+  `specR_whileT` needs `Step` bodies, while the line spec is continuation-style, so recursion
+  through `specR_protoCall` fits better. The spec is proved by induction on `b.size - i`, and the
+  call depth is bounded by a resource-limit halt.
+- **A twin `feedAll st b i n`** applies every line, the last one without a newline included
+  (`j = 0` stops after applying). A pure lemma: `feedAll st b 0 0 = ok st'` implies con-ron's
+  `parseBytes b` ends with `st'.decls` (`feedChunk` then `applyFinalLine` apply the same records
+  in the same order).
