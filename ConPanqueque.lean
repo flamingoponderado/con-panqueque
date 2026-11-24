@@ -352,3 +352,5 @@ import ConPanqueque.T.Decl.ConstsResolveF
 import ConPanqueque.T.Decl.NameNodup
 import ConPanqueque.T.Decl.LevelParams
 import ConPanqueque.T.Decl.AllLevelParams
+import ConPanqueque.T.Decl.PinNames
+import ConPanqueque.T.Decl.CheckConst

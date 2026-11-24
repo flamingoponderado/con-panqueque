@@ -45,10 +45,9 @@ theorem ens_none (C : Ctx) (vals : List (BitVec 64)) :
 /-- **`ensureSort`** over the knot: the port's head normalization and sort read refine the twin's. -/
 theorem ens_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     (hcw : C.code.lookup fW = some (pmap kParams, whnfE C fWB, .one))
-    (hW : ∀ (H : List (BitVec 64)) s1, C.H <+: H → ∀ e', Callee (σ := σ) (ctxH C H) kParams
-      [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e'] (whnfE C fWB) s1 ((knot mode C n).whnf d e')
-      (PostK (ctxH C H)))
-    (s : AState) (e : EIdx) :
+    (s : AState) (e : EIdx)
+    (hW : Callee (σ := σ) C kParams [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (whnfE C fWB) s
+      ((knot mode C n).whnf d e) (PostK C)) :
     SpecR (σ := σ) (Pre C s (kParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e])) ensBody s
       (ensureSort (knot mode C n) C.fe d e) (PostLH C) := by
   refine specR_prologue (postLH_locals C) (ens_none C _) ?_
@@ -56,7 +55,7 @@ theorem ens_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
   refine Big.specR_callKC ensH fW kParams [vv kFu, vv kD, vv kE] (whnfE C fWB)
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e] (by decide) rfl (by decide) hcw
     ⟨by simp +decide [Env.get, kParams, ctxEnv], by simp +decide [Env.get, kParams, ctxEnv],
-      by simp +decide [Env.get, kParams, ctxEnv], trivial⟩ (hW C.H s (List.prefix_refl _) e)
+      by simp +decide [Env.get, kParams, ctxEnv], trivial⟩ hW
     (fun hh s1 H1 hp1 _ => ?_)
   refine Knot.specR_tagIteV ensH hh 2 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
   · rw [if_pos (show (hh.tag == ETag.sort) = true by simp [htg, ETag.sort])]
