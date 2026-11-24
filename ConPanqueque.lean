@@ -369,3 +369,4 @@ import ConPanqueque.T.Decl.Fold
 import ConPanqueque.T.Decl.Start
 import ConPanqueque.Bridge.SeqFold
 import ConPanqueque.T.Decl.FoldVerdict
+import ConPanqueque.Scan.SkipWs
