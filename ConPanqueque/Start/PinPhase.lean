@@ -92,7 +92,7 @@ theorem pins_spec {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (code 
     {R : β → BitVec 64 → AState → PState σ → Prop} (H : List (BitVec 64)) (s : AState) (Γ : Env) (M : Mem)
     (k : Unit → AM β)
     (hk : ∀ sP (EH' : List (BitVec 64)) (Γ' : Env), internReservedPins s = .ok ((), sP) → PinBlock EH' sP.pins →
-      (∀ y, y ∉ [vPn, vKa, vPb, vRs] → Γ'.get y = Γ.get y) →
+      sP.pins.zeroLevel = default → (∀ y, y ∉ [vPn, vKa, vPb, vRs] → Γ'.get y = Γ.get y) →
       SpecR (Inv (C1 code H EH' sP.pins) sP Γ' [] D) rest sP (k ()) R) :
     SpecR (Inv (Cb code H EH0) s Γ M D) (pinsP (Cb code H EH0) rest) s (internReservedPins >>= k) R := by
   have hPn := hD vPn (by simp); have hKa := hD vKa (by simp); have hPb := hD vPb (by simp)
@@ -275,6 +275,6 @@ theorem pins_spec {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (code 
     simp only [Γ10, Γ8, Γ6, T.Env.get_cons, if_neg hy.1, if_neg hy.2.1]
     rw [hag4 y hy.1 hy.2.1, hag3 y hy.1 hy.2.1]
     simp only [Γ2, T.Env.get_cons, if_neg hy.2.2.2, if_neg hy.2.2.1]
-  exact hk sP EH10 Γ10 hrun hb hag t ⟨sr_switch P ht.sr hz, ht.env, ht.mem, ht.decl⟩
+  exact hk sP EH10 Γ10 hrun hb rfl hag t ⟨sr_switch P ht.sr hz, ht.env, ht.mem, ht.decl⟩
 
 end ConPanqueque.Start
