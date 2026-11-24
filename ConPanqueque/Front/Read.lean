@@ -113,4 +113,68 @@ theorem specR_readI {α : Type} {m : AM α} {R : α → BitVec 64 → AState →
       (fun a => Classical.propDecidable (t.memaddrs a)) t.be) = _
     rw [hbe]
 
+/-- The read as a step, with the FFI event it records. -/
+theorem read_step
+    (C : Ctx) (hok : CtxOK C) (s : AState) (Γ : Env) (M : Mem) (D : List MlS) (j0 Lw : Nat) (f : MlS)
+    (hal : (cellA C j0).toNat % 8 = 0) (hcells : j0 + Lw ≤ C.H.length) (hov : (cellA C j0).toNat + 8 * Lw < 2 ^ 64)
+    (hRA : Γ.get kRA = some (cellA C j0)) (hRL : Γ.get kRL = some (BitVec.ofNat 64 (8 * Lw)))
+    (hf : f ≠ MlString.implode []) (t : PState σ) (ht : Inv C s Γ M D t) (hbe : t.be = false) :
+    Stop (evaluateHOLFiniteState t (.extCall f (.const 0) (.const 0) (vv kRA) (vv kRL))).1 ∨
+      ((evaluateHOLFiniteState t (.extCall f (.const 0) (.const 0) (vv kRA) (vv kRL))).1 = none ∧
+        ∃ (nb bs : List (BitVec 8)), nb.length = 8 * Lw ∧
+          (evaluateHOLFiniteState t (.extCall f (.const 0) (.const 0) (vv kRA) (vv kRL))).2.ffi.ioEvents =
+            t.ffi.ioEvents ++ [⟨.extCall f, [], bs.zip nb⟩] ∧
+          Inv (ctxH C (writeH C.H (cellA C j0) j0 0 nb)) s Γ [] D
+            (evaluateHOLFiniteState t (.extCall f (.const 0) (.const 0) (vv kRA) (vv kRL))).2) := by
+  rw [evaluateHOLFiniteState_extCall_source]
+  have e1 : @evalHOLFinite 64 σ _ t (fun a => Classical.propDecidable (t.memaddrs a)) (.const 0) =
+      some (.val (.word 0)) := by simp only [evalHOLFinite]; exact inv_ev ht rfl
+  have e3 : @evalHOLFinite 64 σ _ t (fun a => Classical.propDecidable (t.memaddrs a)) (vv kRA) =
+      some (.val (.word (cellA C j0))) := by simp only [evalHOLFinite]; exact inv_ev ht (by simpa [sev, vv] using hRA)
+  have e4 : @evalHOLFinite 64 σ _ t (fun a => Classical.propDecidable (t.memaddrs a)) (vv kRL) =
+      some (.val (.word (BitVec.ofNat 64 (8 * Lw)))) := by
+    simp only [evalHOLFinite]; exact inv_ev ht (by simpa [sev, vv] using hRL)
+  rw [e1, e3, e4]
+  simp only
+  have hL : (BitVec.ofNat 64 (8 * Lw)).toNat = 8 * Lw := by
+    rw [BitVec.toNat_ofNat, Nat.mod_eq_of_lt (by omega)]
+  have hload : ∀ i, i < 8 * Lw → (@panMemLoadByteWord8HOL 64 _ t.memory t.memaddrs
+      (fun a => Classical.propDecidable (t.memaddrs a)) t.be (cellA C j0 + BitVec.ofNat 64 i)).isSome := by
+    intro i hi
+    have hc := heap_cell ht.sr (j0 + i / 8) (by omega)
+    have hal' : panByteAlignHOL (cellA C j0 + BitVec.ofNat 64 i) = cellA C (j0 + i / 8) := by
+      rw [align_cell _ _ hal (by omega), cellA_add]
+    unfold panMemLoadByteWord8HOL
+    simp only [hal', hc.2]
+    rw [if_pos (by rw [hal']; exact hc.1)]; rfl
+  obtain ⟨bs2, hbs2⟩ := Option.isSome_iff_exists.mp
+    (readBA_isSome _ (8 * Lw) (cellA C j0) hload)
+  have hbl := readBA_length _ _ _ _ hbs2
+  have h0 : ∀ g, readBytearrayWordHOL (byteWidth := 8) (0 : BitVec 64) (BitVec.toNat (0 : BitVec 64)) g = some [] :=
+    fun g => rfl
+  rw [hL, hbs2, h0]
+  simp only
+  cases hffi : callFFIHOL t.ffi (.extCall f) [] bs2 with
+  | final ev => simp only; exact Or.inl (Or.inr ⟨ev, rfl⟩)
+  | ret ffi' nb =>
+    simp only
+    have hnl : nb.length = 8 * Lw := by rw [callFFI_ret_length hffi, hbl]
+    refine Or.inr ⟨trivial, nb, bs2, hnl, ?_, ?_, fun x v hx => ht.env x v hx, fun _ _ h => absurd h (by simp),
+      fun x hx => ht.decl x hx⟩
+    · show ffi'.ioEvents = _
+      unfold callFFIHOL at hffi
+      rw [if_neg (by intro h; exact hf (HolFfiName.extCall.inj h))] at hffi
+      split at hffi
+      · split at hffi
+        · simp only [HolFfiResult.ret.injEq] at hffi; rw [← hffi.1, ← hffi.2]
+        · cases hffi
+      · cases hffi
+    have hw := sr_write (σ := σ) hok j0 hal nb 0 t (inst := fun a => Classical.propDecidable (t.memaddrs a)) ht.sr
+      (by omega) (by omega)
+    rw [BitVec.add_zero] at hw
+    refine sr_of_eq hw ?_ rfl rfl rfl
+    show (@panWriteBytearrayWord8HOL 64 _ (cellA C j0) nb t.memory t.memaddrs
+      (fun a => Classical.propDecidable (t.memaddrs a)) t.be) = _
+    rw [hbe]
+
 end ConPanqueque.Front
