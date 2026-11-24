@@ -1592,7 +1592,7 @@ theorem recBody_spec (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ
     (hsl : ∀ k (hk : k < slots.length), ∃ w, u.locals.lookup (slotName k) = some (.val (.word w)) ∧
       SlotOK b w slots[k]) :
     RetP u (.seq (objStmt sp) (.return (vv x))) (fun w => ∃ j slots', RecOut sp b i slots j slots' ∧
-      (x = sI → w = BitVec.ofNat 64 j.toNat) ∧
+      j.toNat ≤ b.size + 64 ∧ (x = sI → w = BitVec.ofNat 64 j.toNat) ∧
       (∀ k (hk : k < slots'.length), x = slotName k → SlotOK b w slots'[k])) := by
   rcases objStmt_spec sp nS t A b hp hb hc hks hn10 i hi slots hlen u m0 d0 c0 g0 b0 lb ln li lg lw ls scr hsl with
     hs | ⟨hn, j, slots', hR, hI, hg⟩
@@ -1609,11 +1609,11 @@ theorem recBody_spec (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ
     (b'.trans b0.symm)
   rcases hx with rfl | ⟨k, hk, rfl⟩
   · obtain ⟨q1, q2, q3, q4, q5, q6⟩ := return_vv r2 sI _ li'
-    exact Or.inr ⟨_, q1, ⟨j, slots', hR, fun _ => rfl, fun k hk h => absurd h (Ne.symm (slotName_fixed k
+    exact Or.inr ⟨_, q1, ⟨j, slots', hR, hj', fun _ => rfl, fun k hk h => absurd h (Ne.symm (slotName_fixed k
       (by omega) sI (by simp [fixedLocals])))⟩, q2, q3, q4, q5, q6⟩
   · obtain ⟨w, hw, hok⟩ := hsl2 k (by omega)
     obtain ⟨q1, q2, q3, q4, q5, q6⟩ := return_vv r2 (slotName k) _ hw
-    refine Or.inr ⟨_, q1, ⟨j, slots', hR, fun h => absurd h (slotName_fixed k (by omega) sI (by simp [fixedLocals])),
+    refine Or.inr ⟨_, q1, ⟨j, slots', hR, hj', fun h => absurd h (slotName_fixed k (by omega) sI (by simp [fixedLocals])),
       fun k' hk' h => ?_⟩, q2, q3, q4, q5, q6⟩
     have : k' = k := by
       by_cases hkk : k' = k

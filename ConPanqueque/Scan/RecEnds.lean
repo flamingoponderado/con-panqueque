@@ -17,7 +17,7 @@ theorem strnameEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
     (lb : t.locals.lookup sB = some (.val (.word A)))
     (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
     (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
-    RetP t (recFun scanStrNameSpec [0, BitVec.ofNat 64 listSentinel] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧
+    RetP t (recFun scanStrNameSpec [0, BitVec.ofNat 64 listSentinel] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧ j.toNat ≤ b.size + 64 ∧
       ∃ r : NameRec, scanStrName b i = .ok r j) := by
   unfold recFun
   apply retP_decsOf
@@ -38,8 +38,8 @@ theorem strnameEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
         · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
         · exact ⟨BitVec.ofNat 64 listSentinel, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩)
   refine retP_mono e ?_
-  rintro w ⟨j, slots', hro, hw, -⟩
-  refine ⟨j, hw rfl, ?_⟩
+  rintro w ⟨j, slots', hro, hjb, hw, -⟩
+  refine ⟨j, hw rfl, hjb, ?_⟩
   unfold RecOut at hro
   rw [scanStrName, scanStrNameLoop_eq b _ (i + 1) true 0 0 "" rfl]
   split at hro
@@ -51,7 +51,7 @@ theorem numnameEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
     (lb : t.locals.lookup sB = some (.val (.word A)))
     (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
     (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
-    RetP t (recFun scanNumNameSpec [0, 0] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧
+    RetP t (recFun scanNumNameSpec [0, 0] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧ j.toNat ≤ b.size + 64 ∧
       ∃ r : NameRec, scanNumName b i = .ok r j) := by
   unfold recFun
   apply retP_decsOf
@@ -72,8 +72,8 @@ theorem numnameEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
         · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
         · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩)
   refine retP_mono e ?_
-  rintro w ⟨j, slots', hro, hw, -⟩
-  refine ⟨j, hw rfl, ?_⟩
+  rintro w ⟨j, slots', hro, hjb, hw, -⟩
+  refine ⟨j, hw rfl, hjb, ?_⟩
   unfold RecOut at hro
   rw [scanNumName, scanNumNameLoop_eq b _ (i + 1) true 0 0 0 rfl]
   split at hro
@@ -85,7 +85,7 @@ theorem lamexprEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
     (lb : t.locals.lookup sB = some (.val (.word A)))
     (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
     (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
-    RetP t (recFun scanLamExprSpec [0, 0] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧
+    RetP t (recFun scanLamExprSpec [0, 0] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧ j.toNat ≤ b.size + 64 ∧
       ∃ r : ExprRec, scanLamExpr b i = .ok r j) := by
   unfold recFun
   apply retP_decsOf
@@ -106,8 +106,8 @@ theorem lamexprEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
         · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
         · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩)
   refine retP_mono e ?_
-  rintro w ⟨j, slots', hro, hw, -⟩
-  refine ⟨j, hw rfl, ?_⟩
+  rintro w ⟨j, slots', hro, hjb, hw, -⟩
+  refine ⟨j, hw rfl, hjb, ?_⟩
   unfold RecOut at hro
   rw [scanLamExpr, scanLamExprLoop_eq b _ (i + 1) true 0 0 0 rfl]
   split at hro
@@ -119,7 +119,7 @@ theorem forallexprEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (
     (lb : t.locals.lookup sB = some (.val (.word A)))
     (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
     (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
-    RetP t (recFun scanForallExprSpec [0, 0] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧
+    RetP t (recFun scanForallExprSpec [0, 0] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧ j.toNat ≤ b.size + 64 ∧
       ∃ r : ExprRec, scanForallExpr b i = .ok r j) := by
   unfold recFun
   apply retP_decsOf
@@ -140,8 +140,8 @@ theorem forallexprEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (
         · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
         · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩)
   refine retP_mono e ?_
-  rintro w ⟨j, slots', hro, hw, -⟩
-  refine ⟨j, hw rfl, ?_⟩
+  rintro w ⟨j, slots', hro, hjb, hw, -⟩
+  refine ⟨j, hw rfl, hjb, ?_⟩
   unfold RecOut at hro
   rw [scanForallExpr, scanForallExprLoop_eq b _ (i + 1) true 0 0 0 rfl]
   split at hro
@@ -153,7 +153,7 @@ theorem letexprEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
     (lb : t.locals.lookup sB = some (.val (.word A)))
     (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
     (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
-    RetP t (recFun scanLetExprSpec [0, 0, 0] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧
+    RetP t (recFun scanLetExprSpec [0, 0, 0] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧ j.toNat ≤ b.size + 64 ∧
       ∃ r : ExprRec, scanLetExpr b i = .ok r j) := by
   unfold recFun
   apply retP_decsOf
@@ -175,8 +175,8 @@ theorem letexprEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
         · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
         · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩)
   refine retP_mono e ?_
-  rintro w ⟨j, slots', hro, hw, -⟩
-  refine ⟨j, hw rfl, ?_⟩
+  rintro w ⟨j, slots', hro, hjb, hw, -⟩
+  refine ⟨j, hw rfl, hjb, ?_⟩
   unfold RecOut at hro
   rw [scanLetExpr, scanLetExprLoop_eq b _ (i + 1) true 0 0 0 0 rfl]
   split at hro
@@ -188,7 +188,7 @@ theorem constexprEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b
     (lb : t.locals.lookup sB = some (.val (.word A)))
     (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
     (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
-    RetP t (recFun scanConstExprSpec [0, BitVec.ofNat 64 listSentinel] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧
+    RetP t (recFun scanConstExprSpec [0, BitVec.ofNat 64 listSentinel] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧ j.toNat ≤ b.size + 64 ∧
       ∃ r : ExprRec, scanConstExpr b i = .ok r j) := by
   unfold recFun
   apply retP_decsOf
@@ -209,8 +209,8 @@ theorem constexprEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b
         · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
         · exact ⟨BitVec.ofNat 64 listSentinel, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩)
   refine retP_mono e ?_
-  rintro w ⟨j, slots', hro, hw, -⟩
-  refine ⟨j, hw rfl, ?_⟩
+  rintro w ⟨j, slots', hro, hjb, hw, -⟩
+  refine ⟨j, hw rfl, hjb, ?_⟩
   unfold RecOut at hro
   rw [scanConstExpr, scanConstExprLoop_eq b _ (i + 1) true 0 0 [] rfl]
   split at hro
@@ -222,7 +222,7 @@ theorem projexprEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b 
     (lb : t.locals.lookup sB = some (.val (.word A)))
     (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
     (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
-    RetP t (recFun scanProjExprSpec [0, 0, 0] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧
+    RetP t (recFun scanProjExprSpec [0, 0, 0] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧ j.toNat ≤ b.size + 64 ∧
       ∃ r : ExprRec, scanProjExpr b i = .ok r j) := by
   unfold recFun
   apply retP_decsOf
@@ -244,8 +244,8 @@ theorem projexprEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b 
         · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
         · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩)
   refine retP_mono e ?_
-  rintro w ⟨j, slots', hro, hw, -⟩
-  refine ⟨j, hw rfl, ?_⟩
+  rintro w ⟨j, slots', hro, hjb, hw, -⟩
+  refine ⟨j, hw rfl, hjb, ?_⟩
   unfold RecOut at hro
   rw [scanProjExpr, scanProjExprLoop_eq b _ (i + 1) true 0 0 0 0 rfl]
   split at hro
@@ -257,7 +257,7 @@ theorem defdeclEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
     (lb : t.locals.lookup sB = some (.val (.word A)))
     (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
     (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
-    RetP t (recFun scanDefDeclSpec [0, BitVec.ofNat 64 listSentinel, 0, BitVec.ofNat 64 listSentinel, 0, 0] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧
+    RetP t (recFun scanDefDeclSpec [0, BitVec.ofNat 64 listSentinel, 0, BitVec.ofNat 64 listSentinel, 0, 0] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧ j.toNat ≤ b.size + 64 ∧
       ∃ r : DeclRec, scanDefDecl b i = .ok r j) := by
   unfold recFun
   apply retP_decsOf
@@ -282,8 +282,8 @@ theorem defdeclEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
         · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
         · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩)
   refine retP_mono e ?_
-  rintro w ⟨j, slots', hro, hw, -⟩
-  refine ⟨j, hw rfl, ?_⟩
+  rintro w ⟨j, slots', hro, hjb, hw, -⟩
+  refine ⟨j, hw rfl, hjb, ?_⟩
   unfold RecOut at hro
   rw [scanDefDecl, scanDefDeclLoop_eq b _ (i + 1) true 0 (.regular 0) [] 0 "" 0 0 rfl]
   split at hro
@@ -295,7 +295,7 @@ theorem thmdeclEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
     (lb : t.locals.lookup sB = some (.val (.word A)))
     (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
     (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
-    RetP t (recFun scanThmDeclSpec [BitVec.ofNat 64 listSentinel, 0, 0, 0] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧
+    RetP t (recFun scanThmDeclSpec [BitVec.ofNat 64 listSentinel, 0, 0, 0] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧ j.toNat ≤ b.size + 64 ∧
       ∃ r : DeclRec, scanThmDecl b i = .ok r j) := by
   unfold recFun
   apply retP_decsOf
@@ -318,8 +318,8 @@ theorem thmdeclEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
         · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
         · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩)
   refine retP_mono e ?_
-  rintro w ⟨j, slots', hro, hw, -⟩
-  refine ⟨j, hw rfl, ?_⟩
+  rintro w ⟨j, slots', hro, hjb, hw, -⟩
+  refine ⟨j, hw rfl, hjb, ?_⟩
   unfold RecOut at hro
   rw [scanThmDecl, scanThmDeclLoop_eq b _ (i + 1) true 0 [] 0 0 0 rfl]
   split at hro
@@ -331,7 +331,7 @@ theorem opaquedeclEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (
     (lb : t.locals.lookup sB = some (.val (.word A)))
     (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
     (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
-    RetP t (recFun scanOpaqueDeclSpec [0, BitVec.ofNat 64 listSentinel, 0, 0, 0] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧
+    RetP t (recFun scanOpaqueDeclSpec [0, BitVec.ofNat 64 listSentinel, 0, 0, 0] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧ j.toNat ≤ b.size + 64 ∧
       ∃ r : DeclRec, scanOpaqueDecl b i = .ok r j) := by
   unfold recFun
   apply retP_decsOf
@@ -355,8 +355,8 @@ theorem opaquedeclEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (
         · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
         · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩)
   refine retP_mono e ?_
-  rintro w ⟨j, slots', hro, hw, -⟩
-  refine ⟨j, hw rfl, ?_⟩
+  rintro w ⟨j, slots', hro, hjb, hw, -⟩
+  refine ⟨j, hw rfl, hjb, ?_⟩
   unfold RecOut at hro
   rw [scanOpaqueDecl, scanOpaqueDeclLoop_eq b _ (i + 1) true 0 false [] 0 0 0 rfl]
   split at hro

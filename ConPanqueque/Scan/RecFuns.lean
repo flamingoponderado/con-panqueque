@@ -36,8 +36,8 @@ theorem appEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : Byt
     (lb : t.locals.lookup sB = some (.val (.word A)))
     (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
     (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
-    RetP t (recFun appSpec [0, 0] (vv sI)) (fun w => ∃ (j : USize) (r : ExprRec), w = BitVec.ofNat 64 j.toNat ∧
-      scanAppExpr b i = .ok r j) := by
+    RetP t (recFun appSpec [0, 0] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧ j.toNat ≤ b.size + 64 ∧
+      ∃ r : ExprRec, scanAppExpr b i = .ok r j) := by
   unfold recFun
   apply retP_decsOf
   have hlk := recEntry_lookup [0, 0] t
@@ -59,8 +59,8 @@ theorem appEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : Byt
         · rw [hlk]; rcases (show k = 0 ∨ k = 1 by omega) with rfl | rfl <;> simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]
         · rcases (show k = 0 ∨ k = 1 by omega) with rfl | rfl <;> simp [SlotOK, natCap])
   refine retP_mono e ?_
-  rintro w ⟨j, slots', hro, hw, -⟩
-  refine ⟨j, ExprRec.app (slots'.getD 1 default).nat (slots'.getD 0 default).nat, hw rfl, ?_⟩
+  rintro w ⟨j, slots', hro, hjb, hw, -⟩
+  refine ⟨j, hw rfl, hjb, ExprRec.app (slots'.getD 1 default).nat (slots'.getD 0 default).nat, ?_⟩
   unfold RecOut at hro
   rw [scanAppExpr, scanAppExprLoop_eq b _ (i + 1) true 0 0 0 rfl]
   split at hro

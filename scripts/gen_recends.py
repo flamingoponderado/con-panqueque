@@ -36,7 +36,7 @@ for scan,loop,rty,args in kinds:
     (lb : t.locals.lookup sB = some (.val (.word A)))
     (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
     (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
-    RetP t (recFun {spec} [{", ".join(words)}] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧
+    RetP t (recFun {spec} [{", ".join(words)}] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧ j.toNat ≤ b.size + 64 ∧
       ∃ r : {rty}, {scan} b i = .ok r j) := by
   unfold recFun
   apply retP_decsOf
@@ -56,8 +56,8 @@ for scan,loop,rty,args in kinds:
         rcases (show {ks} by omega) with {cases}
 {slotbullets})
   refine retP_mono e ?_
-  rintro w ⟨j, slots', hro, hw, -⟩
-  refine ⟨j, hw rfl, ?_⟩
+  rintro w ⟨j, slots', hro, hjb, hw, -⟩
+  refine ⟨j, hw rfl, hjb, ?_⟩
   unfold RecOut at hro
   rw [{scan}, {loop}_eq b _ (i + 1) true 0 {" ".join(initargs)} rfl]
   split at hro
