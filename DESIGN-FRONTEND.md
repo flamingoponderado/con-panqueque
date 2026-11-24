@@ -301,3 +301,10 @@ Remaining for the frontend:
    scanners).
 5. **Top theorem**: from an accepting exit, con-ron's stages run on the input. This needs a
    `parseBytes` variant of `Bridge/Stages.lean`, then `fold_verdict`.
+
+Init detail: con-ron's `PinsOK` (after `internReservedPins`) says the zero name handle decodes
+to `.anonymous`, and `pins.zeroLevel` decodes to `.zero`. So `StateD.init` only probes
+(`find?` hits) and leaves the `AState` unchanged. Its tables are `singleton anonH` and
+`singleton zeroL`, both handle words the program knows (the zero name handle, and the
+`Ctx.pins` zero level). The program's init is therefore stores only: zero the tables, write
+`anonH+1` at `jN`, `zeroL+1` at `jL` and count 0 at `rb`. No interning call is needed.
