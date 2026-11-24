@@ -39,7 +39,14 @@ void ffiaccept(unsigned char *c, long clen, unsigned char *a, long alen) {
   exit(0);
 }
 
-void cml_exit(int arg) { fflush(stdout); exit(arg ? arg : 1); }
+/* The runtime calls cml_exit(0) when `main` returns: the program's accepting exit (the
+   proofs' `main_verdict` is about a returning `main`).  Any other code is a runtime failure. */
+void cml_exit(int arg) {
+  fflush(stdout);
+  if (arg == 0) { printf("accept\n"); fflush(stdout); exit(0); }
+  fprintf(stderr, "cml_exit(%d)\n", arg);
+  exit(arg);
+}
 void cml_err(int arg) { cml_exit(arg); }
 void cml_clear(void) { __builtin___clear_cache(&cake_codebuffer_begin, &cake_codebuffer_end); }
 
