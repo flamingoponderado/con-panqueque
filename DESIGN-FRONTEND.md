@@ -347,3 +347,27 @@ Not yet done:
   need inductives and axioms in the fold.
 - A concrete code table (`FrontCodes`/`FoldCodes` instances).
 - The C harness and executable.
+
+### Input read and the top theorem (b9a6f96)
+
+- `Front/ByteSet`: `byteW_setByte` (a byte store sets one byte of its word).
+- `Front/ReadMem`: the `writeH` image, `sr_write` (`write_bytearray` into heap cells keeps `SR`)
+  and `writeH_byte` (reading back).
+- `Front/Read`: `read_step`. The `extCall` either ends in an FFI event or returns `8·Lw` bytes
+  `nb` from the oracle, writes them into the buffer cells, and appends the event
+  `⟨read, [], bs.zip nb⟩` to the trace.
+- `Front/ReadBuf`: `inputOf nb n` and `bufOK_of_read`.
+- `Front/Top`: `topP` (read, then the length from the header cell, guarded, then `mainP`) and
+  `top_verdict`. From a pinned start, if `topP` returns, then the trace records the read of `nb`,
+  `ConLeche.Frontend.parseBytes (inputOf nb (leNat (nb.take 8))) = .ok rc`, and
+  `ConLeche.checkDeclsPure` accepts `rc.decls`.
+  The harness convention is: header cell = input length (little-endian), bytes from the next cell.
+
+Still assumed (not yet established by code):
+1. **The start state.** `Inv`/`SR` for the arena, `StateOK`/`PinsOK`/`PersPins` (the pin phase),
+   the table/registry/buffer layout, and `be = false`.
+2. **The code table**: `FrontCodes σ C`, `FoldCodes .verified C` and `fFeed`, for one concrete
+   function list.
+3. **The prelude and con-leche's top-level verdict**: the prelude stage needs inductives,
+   axioms and quot in the fold.
+4. **The harness and executable**.
