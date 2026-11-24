@@ -650,6 +650,38 @@ theorem crf_spec (C : Ctx) (hok : CtxOK C) (hc : CrfCodes C) : ∀ n, n < 2 ^ 64
       refine specR_crfProjK (D := ctxLocals ++ crfLocals) hok hc ih' h sub pn pm memo ⟨by decide, by decide, by decide, by decide, by decide, by decide⟩
         hp (List.prefix_refl _) hrep ?_ ?_ ?_ ?_ ?_ ?_
       all_goals (simp +decide [Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, crfParams, ctxEnv]) <;> try rfl
+
+def crffE := ofString "crff_e"
+def crffK := ofString "crff_k"
+def crffR := ofString "crff_r"
+
+/-- `constsResolveFFast`: the walk from an empty memo, its answer read off the pair block. -/
+def crffBody : ProgHOL 64 := prologue [crffK, crffR]
+  (.seq (.call (some (some (.local, crffK), none)) fCrf [.const (BitVec.ofNat 64 coreWalkFuel), vv crffE, .const 0])
+  (.seq (.assign .local crffR (.load .one (vv crffK))) (.return (vv crffR))))
+
+theorem crff_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ [crffK, crffR] → (ctxEnv C ++ [crffE].zip vals).get x = none :=
+  Knot.params_none C [crffK, crffR] [crffE] vals (by decide) (by decide)
+
+/-- **`constsResolveFFast`**. -/
+theorem crff_spec (C : Ctx) (hok : CtxOK C) (hc : CrfCodes C) (s : AState) (e : EIdx) :
+    SpecR (σ := σ) (Pre C s ([crffE].zip [Enc.idxW e])) crffBody s (constsResolveFFast C.fe e) (PostB C) := by
+  refine specR_prologue (postB_locals C) (crff_none C _) ?_
+  unfold constsResolveFFast
+  refine specR_callNIH (C := C) crffK fCrf crfParams [.const (BitVec.ofNat 64 coreWalkFuel), vv crffE, .const 0]
+    (crfBody C) [BitVec.ofNat 64 coreWalkFuel, Enc.idxW e, 0] (by decide) rfl (by decide) hc.self
+    ⟨rfl, by simp +decide [Env.get, ctxEnv], rfl, trivial⟩ (PostCr C)
+    (fun rm w _ H' => ∃ o, w = cellA C o ∧ H'[o]? = some (boolW rm.1))
+    (fun rm w s' st ⟨H', o, pm, hp', hw, h0, _, _, hsr⟩ => ⟨H', hp', ⟨o, hw, h0⟩, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu crfParams _ rfl hlk)
+      (crf_spec C hok hc coreWalkFuel CV.coreWalkFuel_lt e ∅ C.H s 0 (List.prefix_refl _) (crRep_empty C C.H)))
+    (fun rm w s1 H1 hp1 ⟨o, hw, h0⟩ => ?_)
+  subst hw
+  refine UD.specR_heapLoadI' (C := ctxH C H1) crffR (vv crffK) o (boolW rm.1) h0 (by decide) (by simp [Env.get]; rfl) ?_
+  exact specR_returnI _ (boolW rm.1) (by simp +decide [Env.get])
+    (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
 end
 
 end ConPanqueque.T.Decl
