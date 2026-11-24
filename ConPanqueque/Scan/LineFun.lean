@@ -1,5 +1,6 @@
 import ConPanqueque.Scan.RecEnds
 import ConPanqueque.Scan.Line
+import ConPanqueque.Scan.Braced
 
 /-! # The line loop in Pancake
 
@@ -38,8 +39,10 @@ def fRecProj := ofString "recProj"
 def fRecDef := ofString "recDef"
 def fRecThm := ofString "recThm"
 def fRecOpaque := ofString "recOpaque"
+def fRecMeta := ofString "recMeta"
 
-/-- The port's line table, Pancake side.  Groups: 1 names, 2 levels, 3 expressions, 0 declarations. -/
+/-- The port's line table, Pancake side.  Groups: 1 names, 2 levels, 3 expressions, 0 declarations
+and the header. -/
 def lineTblP : List (Key × LActP) :=
   [(.kIn, .idxP 1), (.kIl, .idxP 2), (.kIe, .idxP 3),
    (.kBvar, .natP 1 3 (fun n => .expr (.bvar n))), (.kSort, .natP 2 3 (fun n => .expr (.sort n))),
@@ -49,7 +52,8 @@ def lineTblP : List (Key × LActP) :=
    (.kForallE, .objP 9 3 fRecForall exprForall), (.kLetE, .objP 10 3 fRecLet exprLet),
    (.kConst, .objP 11 3 fRecConst exprConst), (.kProj, .objP 12 3 fRecProj exprProj),
    (.kStrVal, .strP 13 3 (fun s => .expr (.strVal s))),
-   (.kDef, .objP 14 0 fRecDef declDef), (.kThm, .objP 15 0 fRecThm declThm), (.kOpaque, .objP 16 0 fRecOpaque declOpaque)]
+   (.kDef, .objP 14 0 fRecDef declDef), (.kThm, .objP 15 0 fRecThm declThm), (.kOpaque, .objP 16 0 fRecOpaque declOpaque),
+   (.kMeta, .objP 17 0 fRecMeta metaHdr)]
 
 theorem lineTblP_toLAct : lineTblP.map (fun e => (e.1, e.2.toLAct)) = lineTbl := rfl
 
@@ -223,7 +227,7 @@ theorem plOK_tag {b : ByteArray} {wpl ws0 : BitVec 64} {pl : LinePayload} (h : P
   · simp only [lineTblP, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false] at hm
     rcases hm with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ |
       ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ |
-      ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;>
+      ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;>
       simp only [PlEntry] at he
     all_goals first
       | exact he.elim
@@ -232,6 +236,9 @@ theorem plOK_tag {b : ByteArray} {wpl ws0 : BitVec 64} {pl : LinePayload} (h : P
          simp only [nameStr, nameNum, exprApp, exprLam, exprForall, exprLet, exprConst, exprProj, declDef,
            declThm, declOpaque] at hsc
          obtain ⟨r, -, rfl⟩ := srMap_ok hsc
+         simp [LinePayload.isAbsent]; done)
+      | (obtain ⟨rfl, v, e, hsc, -⟩ := he
+         obtain rfl := metaHdr_ok hsc
          simp [LinePayload.isAbsent]; done)
       | (obtain ⟨rfl, v, e, str, rfl, -, -⟩ := he; simp [LinePayload.isAbsent]; done)
 
@@ -845,7 +852,7 @@ theorem plOK_end {b : ByteArray} {wpl ws0 : BitVec 64} {pl : LinePayload} (h : P
     apply UInt8.toNat_inj.mp; rw [h, UInt8.toNat_ofNat']; omega
   rcases hm with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ |
     ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ |
-    ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;> simp only [PlEntry] at he
+    ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;> simp only [PlEntry] at he
   all_goals first
     | exact he.elim
     | (obtain ⟨rfl, n, rfl, -⟩ := he
@@ -854,6 +861,9 @@ theorem plOK_end {b : ByteArray} {wpl ws0 : BitVec 64} {pl : LinePayload} (h : P
        simp only [nameStr, nameNum, exprApp, exprLam, exprForall, exprLet, exprConst, exprProj, declDef,
          declThm, declOpaque] at hsc
        obtain ⟨r, -, rfl⟩ := srMap_ok hsc
+       exact ⟨_, _, rfl, by decide, rfl, fun hg => by rw [hik _ (by decide) hg]; simp [lineEnd]⟩)
+    | (obtain ⟨rfl, v, e, hsc, -⟩ := he
+       obtain rfl := metaHdr_ok hsc
        exact ⟨_, _, rfl, by decide, rfl, fun hg => by rw [hik _ (by decide) hg]; simp [lineEnd]⟩)
     | (obtain ⟨rfl, v, e, str, rfl, -, -⟩ := he
        exact ⟨_, _, rfl, by decide, rfl, fun hg => by rw [hik _ (by decide) hg]; simp [lineEnd]⟩)
@@ -1662,7 +1672,9 @@ def RecTable (t : PanSemStateFiniteExact 64 σ) : Prop :=
   t.code.lookup fRecProj = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanProjExprSpec [0, 0, 0] (vv sI), .one) ∧
   t.code.lookup fRecDef = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanDefDeclSpec [0, BitVec.ofNat 64 listSentinel, 0, BitVec.ofNat 64 listSentinel, 0, 0] (vv sI), .one) ∧
   t.code.lookup fRecThm = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanThmDeclSpec [BitVec.ofNat 64 listSentinel, 0, 0, 0] (vv sI), .one) ∧
-  t.code.lookup fRecOpaque = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanOpaqueDeclSpec [0, BitVec.ofNat 64 listSentinel, 0, 0, 0] (vv sI), .one)
+  t.code.lookup fRecOpaque = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanOpaqueDeclSpec [0, BitVec.ofNat 64 listSentinel, 0, 0, 0] (vv sI), .one) ∧
+  t.code.lookup fRecMeta = some ([(sB, .one), (sN, .one), (sI, .one)], hdrFun, .one) ∧
+  BracedCode t
 
 theorem recCode_of {α : Type} (t : PanSemStateFiniteExact 64 σ) (hc : ScanCodes t) (fn : MlS) (body : ProgHOL 64)
     (scanX : ByteArray → USize → ScanRes α) (wrap : α → LinePayload)
@@ -1684,11 +1696,11 @@ theorem recCode_of {α : Type} (t : PanSemStateFiniteExact 64 σ) (hc : ScanCode
 theorem lineCodes_of (t : PanSemStateFiniteExact 64 σ) (hc : ScanCodes t) (hr : RecTable t) : LineCodes t := by
   refine ⟨hc, ?_⟩
   intro k tag g fn scan hm
-  obtain ⟨r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10⟩ := hr
+  obtain ⟨r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12⟩ := hr
   simp only [lineTblP, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false, reduceCtorEq, false_and,
     LActP.objP.injEq] at hm
   simp only [and_false, false_or, or_false] at hm
-  rcases hm with ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩
+  rcases hm with ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl, rfl⟩
   · exact recCode_of t hc _ _ _ .name r0 (fun u A b hp hb hcu v hv lb ln li => strnameEnd_sound u A b hp hb hcu v hv lb ln li)
   · exact recCode_of t hc _ _ _ .name r1 (fun u A b hp hb hcu v hv lb ln li => numnameEnd_sound u A b hp hb hcu v hv lb ln li)
   · exact recCode_of t hc _ _ _ .expr r2 (fun u A b hp hb hcu v hv lb ln li => appEnd_sound u A b hp hb hcu v hv lb ln li)
@@ -1700,6 +1712,9 @@ theorem lineCodes_of (t : PanSemStateFiniteExact 64 σ) (hc : ScanCodes t) (hr :
   · exact recCode_of t hc _ _ _ .decl r8 (fun u A b hp hb hcu v hv lb ln li => defdeclEnd_sound u A b hp hb hcu v hv lb ln li)
   · exact recCode_of t hc _ _ _ .decl r9 (fun u A b hp hb hcu v hv lb ln li => thmdeclEnd_sound u A b hp hb hcu v hv lb ln li)
   · exact recCode_of t hc _ _ _ .decl r10 (fun u A b hp hb hcu v hv lb ln li => opaquedeclEnd_sound u A b hp hb hcu v hv lb ln li)
+  · refine ⟨_, r11, fun u A b v hp hb hcu hv lb ln li => ?_⟩
+    have hbr : BracedCode u := by unfold BracedCode; rw [hcu]; exact r12
+    exact hdrEnd_sound u A b hp hb (hc.congr hcu).2.2.2.1 hbr v hv lb ln li
 
 end
 

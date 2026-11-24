@@ -109,6 +109,13 @@ def declDef (b : ByteArray) (v : USize) : ScanRes LinePayload := srMap .decl (sc
 def declThm (b : ByteArray) (v : USize) : ScanRes LinePayload := srMap .decl (scanThmDecl b v)
 def declOpaque (b : ByteArray) (v : USize) : ScanRes LinePayload := srMap .decl (scanOpaqueDecl b v)
 
+/-- The header's value: a `{`-opened object skipped by bracket depth. -/
+def metaHdr (b : ByteArray) (v : USize) : ScanRes LinePayload :=
+  if byteAt b v != 123 then .err ⟨v.toNat, .expectedObject⟩
+  else
+    let e := skipBraced b (v + 1) 0
+    if e == 0 then .err ⟨v.toNat, .expectedObject⟩ else .ok .header e
+
 /-- The port's line table. -/
 def lineTbl : List (Key × LAct) :=
   [(.kIn, .idx 1), (.kIl, .idx 2), (.kIe, .idx 3),
@@ -118,7 +125,8 @@ def lineTbl : List (Key × LAct) :=
    (.kApp, .objPl exprApp), (.kLam, .objPl exprLam), (.kForallE, .objPl exprForall), (.kLetE, .objPl exprLet),
    (.kConst, .objPl exprConst), (.kProj, .objPl exprProj),
    (.kStrVal, .strPl (fun s => .expr (.strVal s))),
-   (.kDef, .objPl declDef), (.kThm, .objPl declThm), (.kOpaque, .objPl declOpaque)]
+   (.kDef, .objPl declDef), (.kThm, .objPl declThm), (.kOpaque, .objPl declOpaque),
+   (.kMeta, .objPl metaHdr)]
 
 theorem srMap_ok {α β : Type} {f : α → β} {x : ScanRes α} {y : β} {p : USize} (h : srMap f x = .ok y p) :
     ∃ a, x = .ok a p ∧ y = f a := by
@@ -503,6 +511,24 @@ theorem lineLoopI_sound (b : ByteArray) :
             rw [dif_pos hie]
             exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
           · simp at hok
+      case kMeta =>
+        dsimp only
+        split at hok
+        · simp at hok
+        rename_i hpl
+        rw [if_neg hpl]
+        simp only [metaHdr] at hok
+        by_cases hb1 : (byteAt b v != 123) = true
+        · simp only [hb1, ↓reduceIte] at hok; simp at hok
+        simp only [hb1, Bool.false_eq_true, ↓reduceIte] at hok ⊢
+        by_cases he0 : (skipBraced b (v + 1) 0 == 0) = true
+        · simp only [he0, ↓reduceIte] at hok; simp at hok
+        simp only [he0, Bool.false_eq_true, ↓reduceIte] at hok ⊢
+        split at hok
+        · rename_i hie
+          rw [dif_pos hie]
+          exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
+        · simp at hok
     have n34 : (c == 34) = false := beq_eq_false_iff_ne.mpr h34
     simp [n34] at hok
 

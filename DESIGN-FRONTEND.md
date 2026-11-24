@@ -114,9 +114,13 @@ tables (`IdTable`). Plan:
   - declarations: `parseCVD`, appending to the record block in the `RecOK` layout.
 
 **Frontend gaps that still reject every real file:**
-- the header line (`kMeta` plus `skipBraced`; `applyLine` requires it first);
 - `hints` (every definition);
 - `max`/`imax` (two-element lists);
 - `natVal`;
 - escaped and non-ASCII strings;
 - axioms, quot and inductives (scanner and kernel).
+
+**Header (9957d6d and after):** `kMeta` is the line table's `.objP 17 0 fRecMeta metaHdr` entry.
+`metaHdr` is con-leche's `kMeta` branch as a record scanner. `brFun_sound` (`Scan/Braced.lean`)
+skips the braced value, and `hdrEnd_sound` is the record function's soundness. A string inside
+the header must be plain, as elsewhere.

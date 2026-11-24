@@ -1,4 +1,5 @@
 import ConPanqueque.Scan.ObjFun
+import ConPanqueque.Scan.Line
 
 /-! # `skipBraced` in Pancake (the header's value)
 
@@ -332,6 +333,92 @@ theorem brFun_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : Byte
     · simp [eval_vv r2 sI _ hres, shapeOfHOLExact, Flapjack.Pancake.PanLang.sizeOfShapeWithContextHOL]
     · simp [eval_vv r2 sI _ hres, shapeOfHOLExact, Flapjack.Pancake.PanLang.sizeOfShapeWithContextHOL,
         emptyLocalsHOLFinite, m0, d0, c0, g0, b0] <;> exact ⟨rfl, rfl, rfl, rfl, rfl⟩
+
+
+end
+
+/-! ## The header record's value (`metaHdr`) -/
+
+open ConLeche.Frontend
+
+def fBraced := ofString "skipBraced"
+
+/-- `metaHdr(b, n, v)`: the end of the header's `{`-object at `v`; anything else is rejected. -/
+def hdrFun : ProgHOL 64 :=
+  .dec sC .one (.const 0) (.dec sE2 .one (.const 0)
+    (.seq (bAt sC (vv sI))
+      (.ite (.cmp .equal (vv sC) (.const (BitVec.ofNat 64 123)))
+        (.seq (.call (some (some (.local, sE2), none)) fBraced [vv sB, vv sN, .op .add [vv sI, .const 1]])
+          (.ite (.cmp .equal (vv sE2) (.const (BitVec.ofNat 64 0))) hang (.return (vv sE2))))
+        hang)))
+
+section
+variable {σ : Type}
+
+def BracedCode (t : PanSemStateFiniteExact 64 σ) : Prop :=
+  t.code.lookup fBraced = some ([(sB, .one), (sN, .one), (sI, .one)], brFun, .one)
+
+theorem metaHdr_ok {b : ByteArray} {v e : USize} {r : LinePayload} (h : metaHdr b v = .ok r e) :
+    r = .header := by
+  unfold metaHdr at h
+  split at h
+  · simp at h
+  · simp only at h; split at h
+    · simp at h
+    · simp only [ScanRes.ok.injEq] at h; exact h.1.symm
+
+/-- **The header's value scanner is sound for con-leche's** (the `kMeta` branch). -/
+theorem hdrEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+    (hb : BytesAt t A b.data.toList) (hc : SkipPlainCode t) (hbr : BracedCode t) (v : USize)
+    (hv : v.toNat ≤ b.size)
+    (lb : t.locals.lookup sB = some (.val (.word A)))
+    (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
+    (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 v.toNat)))) :
+    RetP t hdrFun (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧ j.toNat ≤ b.size + 64 ∧
+      ∃ r, metaHdr b v = .ok r j) := by
+  have hL : b.size < 2 ^ 64 := hp.size
+  have hroom := hp.room
+  unfold hdrFun
+  refine retP_dec (w := 0) (by simp [evalHOLExact]) ?_
+  refine retP_dec (w := 0) (by simp [evalHOLExact]) ?_
+  let t2 := setVarHOLFinite sE2 (.val (.word 0)) (setVarHOLFinite sC (.val (.word 0)) t)
+  have e1 := bAt_spec t2 A b.data.toList sC (vv sI) v.toNat (bytesAt_congr hb rfl rfl rfl) (by omega) 0
+    (by lk [t2]) (by lk [t2]; exact lb) (by lk [t2]; simpa using ln) (eval_vv t2 sI _ (by lk [t2]; exact li))
+  refine retP_seq e1 ?_ rfl rfl rfl rfl rfl
+  let t3 := setVarHOLFinite sC (.val (.word (BitVec.ofNat 64 (byteL b.data.toList v.toNat).toNat))) t2
+  have hcmp := eval_eq_c t3 sC (byteL b.data.toList v.toNat).toNat 123
+    (by have := UInt8.toNat_lt (byteL b.data.toList v.toNat); omega) (by decide) (by lk [t3])
+  refine retP_ite hcmp (fun hw => ?_) (fun _ => retP_hang _ _)
+  have hq : (byteL b.data.toList v.toNat).toNat = 123 := by
+    cases hh : decide ((byteL b.data.toList v.toNat).toNat = 123) <;> simp_all [bw]
+  have hvl : v.toNat < b.size := by
+    by_cases h : v.toNat < b.size
+    · exact h
+    · simp [byteL, List.getElem?_eq_none (by simp; omega : b.data.toList.length ≤ v.toNat)] at hq
+  have hvu : v < b.usize := (hp.lt_iff v).mpr hvl
+  have hv1 : (v + 1).toNat = v.toNat + 1 := ConLeche.Frontend.usizeStep b v hvu
+  have hcall := call3_retP t3 sE2 fBraced sB sN sI brFun (vv sB) (vv sN) (.op .add [vv sI, .const 1])
+    A (BitVec.ofNat 64 b.size) (BitVec.ofNat 64 (v + 1).toNat) 0
+    (fun w => ∃ e : USize, w = BitVec.ofNat 64 e.toNat ∧ e.toNat ≤ b.size ∧
+      ConLeche.Frontend.skipBraced b (v + 1) 0 = e)
+    (by decide) (by decide) (by decide) hbr (eval_vv t3 sB _ (by lk [t3, t2]; exact lb))
+    (eval_vv t3 sN _ (by lk [t3, t2]; exact ln))
+    (by rw [eval_add_c t3 sI _ _ (by lk [t3, t2]; exact li), hv1]; congr 3; apply BitVec.eq_of_toNat_eq
+        simp [BitVec.toNat_add]; try omega) (by lk [t3, t2])
+    (fun callee h1 h2 h3 => brFun_sound (callEntryStateHOLFinite t3 callee) A b hp (bytesAt_congr hb rfl rfl rfl) hc (v + 1) (by omega) h1 h2 h3)
+  rcases hcall with hs | ⟨w, u, ⟨e, rfl, he, hbe⟩, hu, m1, d1, g1, c1, b1, le1, -⟩
+  · left; exact seq_stop t3 _ _ hs
+  refine retP_seq hu ?_ m1 d1 g1 c1 b1
+  have hcmp2 := eval_eq_c u sE2 e.toNat 0 (by omega) (by decide) le1
+  refine retP_ite hcmp2 (fun _ => retP_hang _ _) (fun hw2 => ?_)
+  have he0 : e.toNat ≠ 0 := by
+    intro h; simp [bw, h] at hw2
+  obtain ⟨r1, r2, r3, r4, r5, r6⟩ := return_vv u sE2 _ le1
+  refine Or.inr ⟨_, r1, ⟨e, rfl, by omega, .header, ?_⟩, r2, r3, r4, r5, r6⟩
+  have hbyte : ConLeche.Frontend.byteAt b v = 123 := by
+    rw [byteAt_eq hp v]; apply UInt8.toNat_inj.mp; simpa [byteL] using hq
+  have hne : (e == 0) = false := beq_eq_false_iff_ne.mpr (fun h => he0 (by rw [h]; rfl))
+  simp [metaHdr, hbyte, hbe, hne]
 
 end
 
