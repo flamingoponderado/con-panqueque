@@ -186,6 +186,136 @@ theorem crf_none (C : Ctx) (vals : List (BitVec 64)) :
     ∀ x, x ∈ crfLocals → (ctxEnv C ++ crfParams.zip vals).get x = none :=
   Knot.params_none C crfLocals crfParams vals (by decide) (by decide)
 
+
+structure CrfCodes (C : Ctx) : Prop where
+  ml : C.code.lookup fMl = some (mlParams.map (fun p => (p, ShapeHOL.one)), mlBody, .one)
+  self : C.code.lookup fCrf = some (crfParams.map (fun p => (p, ShapeHOL.one)), crfBody C, .one)
+  leaf : C.code.lookup fCrl = some ([crH].map (fun p => (p, ShapeHOL.one)), crLeafBody C, .one)
+  mg : C.code.lookup fMemoGet = some ([(pG, .one), (pLen, .one)], memoGetBody, .one)
+  mp : C.code.lookup fMemoProbe = some ([(pG, .one), (pLen, .one)], memoProbeBody, .one)
+
+/-- The walk's spec at fuel `n`, for every argument. -/
+def CrfRec (C : Ctx) (n : Nat) : Prop :=
+  ∀ (h : EIdx) (memo : Std.HashMap EIdx Bool) (H : List (BitVec 64)) (s : AState) (pm : BitVec 64),
+    C.H <+: H → CrRep C H pm memo →
+    SpecR (σ := σ) (Pre (ctxH C H) s (crfParams.zip [BitVec.ofNat 64 n, Enc.idxW h, pm]))
+      (crfBody C) s (constsResolveFGo C.fe memo n h) (PostCr (ctxH C H))
+
+/-- One recursive call, then the pair block read back. -/
+theorem specR_crfCallI {α : Type} {C : Ctx} (hc : CrfCodes C) {n : Nat} (ih : CrfRec (σ := σ) C n)
+    {H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64}
+    {k : Bool × Std.HashMap EIdx Bool → AM α} {R : α → BitVec 64 → AState → PState σ → Prop}
+    (x : MlS) (eH eM : ExpHOL 64) (h : EIdx) (pm : BitVec 64) (memo : Std.HashMap EIdx Bool)
+    (hx : x ∈ D ∧ crfR ∈ D ∧ crfM2 ∈ D) (hxn : x ≠ crfR ∧ crfM2 ≠ x) (hp : C.H <+: H) (hrep : CrRep C H pm memo)
+    (hF : Γ.get crfF = some (BitVec.ofNat 64 (n + 1)))
+    (heH : sev Γ eH = some (Enc.idxW h)) (heM : sev Γ eM = some pm)
+    (hk : ∀ (rm : Bool × Std.HashMap EIdx Bool) H' pm' w s', H <+: H' → CrRep C H' pm' rm.2 →
+      SpecR (Inv (ctxH C H') s' ((crfM2, pm') :: (crfR, boolW rm.1) :: (x, w) :: Γ) [] D) rest s' (k rm) R) :
+    SpecR (Inv (ctxH C H) s Γ M D) (crfCall x eH eM rest) s (constsResolveFGo C.fe memo n h >>= k) R := by
+  unfold crfCall
+  refine specR_callNIH (C := ctxH C H) x fCrf crfParams [.op .sub [vv crfF, .const 1], eH, eM] (crfBody C)
+    [BitVec.ofNat 64 n, Enc.idxW h, pm] (by decide) rfl hx.1 hc.self
+    ⟨by simp [sev, hF]; exact Ex.ofNat_succ_sub_one _, heH, heM, trivial⟩
+    (PostCr (ctxH C H))
+    (fun rm w s' H' => ∃ o pm', w = cellA C o ∧ H'[o]? = some (boolW rm.1) ∧ H'[o + 1]? = some pm' ∧
+      CrRep C H' pm' rm.2)
+    (fun rm w s' st ⟨H', o, pm', hp', hw, h0, h1', hrep', hsr⟩ =>
+      ⟨H', hp', ⟨o, pm', hw, h0, h1', crRep_ofH hrep'⟩, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu crfParams _ rfl hlk) (ih h memo H s pm hp hrep))
+    (fun rm w s' H' hp' ⟨o, pm', hw, h0, h1', hrep'⟩ => ?_)
+  subst hw
+  refine UD.specR_heapLoadI' (C := ctxH C H') crfR (vv x) o (boolW rm.1) h0 hx.2.1 (by simp [Env.get]; rfl) ?_
+  refine UD.specR_heapLoadI' (C := ctxH C H') crfM2 (.op .add [vv x, .const 8]) (o + 1) pm' h1' hx.2.2
+    (by simp [sev, Env.get, hxn.1]; exact (cellA_add8 C o : _)) ?_
+  exact hk rm H' pm' (cellA C o) s' hp' hrep'
+
+
+theorem boolW_and (a b : Bool) : boolW a &&& boolW b = boolW (a && b) := by cases a <;> cases b <;> decide
+
+theorem specR_crfArm2I {C : Ctx} (hok : CtxOK C) (hc : CrfCodes C) {n : Nat} (ih : CrfRec (σ := σ) C n)
+    {H0 H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} (h : EIdx)
+    (c1 c2 : EIdx) (pm : BitVec 64) (memo : Std.HashMap EIdx Bool)
+    (hD : crfK1 ∈ D ∧ crfK2 ∈ D ∧ crfR ∈ D ∧ crfR2 ∈ D ∧ crfM2 ∈ D ∧ crfN ∈ D ∧ crfO ∈ D) (hp : C.H <+: H)
+    (h0 : H0 <+: H) (hrep : CrRep C H pm memo) (hF : Γ.get crfF = some (BitVec.ofNat 64 (n + 1)))
+    (hH : Γ.get crfH = some (Enc.idxW h)) (hM : Γ.get crfM = some pm)
+    (hC1 : Γ.get crfC1 = some (Enc.idxW c1)) (hC2 : Γ.get crfC2 = some (Enc.idxW c2)) :
+    SpecR (σ := σ) (Inv (ctxH C H) s Γ M D) (crfArm2 C) s
+      ((constsResolveFGo C.fe memo n c1 >>= fun x => match x with
+        | (b₁, m) => constsResolveFGo C.fe m n c2 >>= fun y => match y with
+          | (b₂, m2) => pure (b₁ && b₂, m2)) >>= fun p => pure (p.1, p.2.insert h p.1)) (PostCr (ctxH C H0)) := by
+  unfold crfArm2
+  rw [bind_assoc]
+  refine specR_crfCallI hc ih crfK1 (vv crfC1) (vv crfM) c1 pm memo ⟨hD.1, hD.2.2.1, hD.2.2.2.2.1⟩
+    ⟨by decide, by decide⟩ hp hrep hF (by simp +decide [hC1]) (by simp +decide [hM]) (fun rm H1 pm1 w1 s1 hp1 hrep1 => ?_)
+  obtain ⟨b1, m1⟩ := rm
+  dsimp only
+  refine specR_assignI crfR2 (vv crfR) (boolW b1) hD.2.2.2.1 (by simp +decide [Env.get]) ?_
+  rw [bind_assoc]
+  refine specR_crfCallI hc ih crfK2 (vv crfC2) (vv crfM2) c2 pm1 m1 ⟨hD.2.1, hD.2.2.1, hD.2.2.2.2.1⟩
+    ⟨by decide, by decide⟩ (hp.trans hp1) hrep1 (by simp +decide [Env.get, hF]) (by simp +decide [Env.get, hC2])
+    (by simp +decide [Env.get]) (fun rm H2 pm2 w2 s2 hp2 hrep2 => ?_)
+  obtain ⟨b2, m2⟩ := rm
+  dsimp only
+  refine specR_assignI crfR (.op .and [vv crfR2, vv crfR]) (boolW (b1 && b2)) hD.2.2.1
+    (by simp +decide [sev, Env.get, boolW_and]) ?_
+  simp only [pure_bind]
+  exact specR_crfInsI hok h (b1 && b2) pm2 m2 ⟨hD.2.2.2.2.2.1, hD.2.2.2.2.2.2⟩ (by simp +decide [Env.get, hH])
+    (by simp +decide [Env.get]) (by simp +decide [Env.get]) hrep2 (h0.trans (hp1.trans hp2))
+
+
+theorem specR_crfArm3I {C : Ctx} (hok : CtxOK C) (hc : CrfCodes C) {n : Nat} (ih : CrfRec (σ := σ) C n)
+    {H0 H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} (h : EIdx)
+    (c1 c2 c3 : EIdx) (pm : BitVec 64) (memo : Std.HashMap EIdx Bool)
+    (hD : crfK1 ∈ D ∧ crfK2 ∈ D ∧ crfK3 ∈ D ∧ crfR ∈ D ∧ crfR2 ∈ D ∧ crfM2 ∈ D ∧ crfN ∈ D ∧ crfO ∈ D)
+    (hp : C.H <+: H) (h0 : H0 <+: H) (hrep : CrRep C H pm memo) (hF : Γ.get crfF = some (BitVec.ofNat 64 (n + 1)))
+    (hH : Γ.get crfH = some (Enc.idxW h)) (hM : Γ.get crfM = some pm)
+    (hC1 : Γ.get crfC1 = some (Enc.idxW c1)) (hC2 : Γ.get crfC2 = some (Enc.idxW c2))
+    (hC3 : Γ.get crfC3 = some (Enc.idxW c3)) :
+    SpecR (σ := σ) (Inv (ctxH C H) s Γ M D) (crfArm3 C) s
+      ((constsResolveFGo C.fe memo n c1 >>= fun x => match x with
+        | (b₁, m) => constsResolveFGo C.fe m n c2 >>= fun y => match y with
+          | (b₂, m2) => constsResolveFGo C.fe m2 n c3 >>= fun z => match z with
+            | (b₃, m3) => pure (b₁ && b₂ && b₃, m3)) >>= fun p => pure (p.1, p.2.insert h p.1))
+      (PostCr (ctxH C H0)) := by
+  unfold crfArm3
+  rw [bind_assoc]
+  refine specR_crfCallI hc ih crfK1 (vv crfC1) (vv crfM) c1 pm memo ⟨hD.1, hD.2.2.2.1, hD.2.2.2.2.2.1⟩
+    ⟨by decide, by decide⟩ hp hrep hF (by simp +decide [hC1]) (by simp +decide [hM]) (fun rm H1 pm1 w1 s1 hp1 hrep1 => ?_)
+  obtain ⟨b1, m1⟩ := rm
+  dsimp only
+  refine specR_assignI crfR2 (vv crfR) (boolW b1) hD.2.2.2.2.1 (by simp +decide [Env.get]) ?_
+  rw [bind_assoc]
+  refine specR_crfCallI hc ih crfK2 (vv crfC2) (vv crfM2) c2 pm1 m1 ⟨hD.2.1, hD.2.2.2.1, hD.2.2.2.2.2.1⟩
+    ⟨by decide, by decide⟩ (hp.trans hp1) hrep1 (by simp +decide [Env.get, hF]) (by simp +decide [Env.get, hC2])
+    (by simp +decide [Env.get]) (fun rm H2 pm2 w2 s2 hp2 hrep2 => ?_)
+  obtain ⟨b2, m2⟩ := rm
+  dsimp only
+  refine specR_assignI crfR2 (.op .and [vv crfR2, vv crfR]) (boolW (b1 && b2)) hD.2.2.2.2.1
+    (by simp +decide [sev, Env.get, boolW_and]) ?_
+  rw [bind_assoc]
+  refine specR_crfCallI hc ih crfK3 (vv crfC3) (vv crfM2) c3 pm2 m2 ⟨hD.2.2.1, hD.2.2.2.1, hD.2.2.2.2.2.1⟩
+    ⟨by decide, by decide⟩ ((hp.trans hp1).trans hp2) hrep2 (by simp +decide [Env.get, hF])
+    (by simp +decide [Env.get, hC3]) (by simp +decide [Env.get]) (fun rm H3 pm3 w3 s3 hp3 hrep3 => ?_)
+  obtain ⟨b3, m3⟩ := rm
+  dsimp only
+  refine specR_assignI crfR (.op .and [vv crfR2, vv crfR]) (boolW (b1 && b2 && b3)) hD.2.2.2.1
+    (by simp +decide [sev, Env.get, boolW_and, Bool.and_assoc]) ?_
+  simp only [pure_bind]
+  exact specR_crfInsI hok h (b1 && b2 && b3) pm3 m3 ⟨hD.2.2.2.2.2.2.1, hD.2.2.2.2.2.2.2⟩ (by simp +decide [Env.get, hH])
+    (by simp +decide [Env.get]) (by simp +decide [Env.get]) hrep3 (h0.trans (hp1.trans (hp2.trans hp3)))
+
+theorem specR_crfArm1I {C : Ctx} (hok : CtxOK C) (hc : CrfCodes C) {n : Nat} (ih : CrfRec (σ := σ) C n)
+    {H0 H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} (h c1 : EIdx) (pm : BitVec 64)
+    (memo : Std.HashMap EIdx Bool) (hD : crfK1 ∈ D ∧ crfR ∈ D ∧ crfM2 ∈ D ∧ crfN ∈ D ∧ crfO ∈ D) (hp : C.H <+: H)
+    (h0 : H0 <+: H) (hrep : CrRep C H pm memo) (hF : Γ.get crfF = some (BitVec.ofNat 64 (n + 1)))
+    (hH : Γ.get crfH = some (Enc.idxW h)) (hM : Γ.get crfM = some pm) (hC1 : Γ.get crfC1 = some (Enc.idxW c1)) :
+    SpecR (σ := σ) (Inv (ctxH C H) s Γ M D) (crfCall crfK1 (vv crfC1) (vv crfM) (crfIns C)) s
+      (constsResolveFGo C.fe memo n c1 >>= fun p => pure (p.1, p.2.insert h p.1)) (PostCr (ctxH C H0)) := by
+  refine specR_crfCallI hc ih crfK1 (vv crfC1) (vv crfM) c1 pm memo ⟨hD.1, hD.2.1, hD.2.2.1⟩
+    ⟨by decide, by decide⟩ hp hrep hF (by simp +decide [hC1]) (by simp +decide [hM]) (fun rm H1 pm1 w1 s1 hp1 hrep1 => ?_)
+  exact specR_crfInsI hok h rm.1 pm1 rm.2 ⟨hD.2.2.2.1, hD.2.2.2.2⟩ (by simp +decide [Env.get, hH])
+    (by simp +decide [Env.get]) (by simp +decide [Env.get]) hrep1 (h0.trans hp1)
+
 end
 
 end ConPanqueque.T.Decl
