@@ -299,4 +299,58 @@ theorem readNatAt_eq {b : ByteArray} (hp : Plat b) (i e : USize)
       rfl
   · rw [readNat_eq hp _ i 0 rfl, ← he]
 
+/-- `numEnd`, on a list: the end of the digit run at `i`, unless there is none or it is a
+leading `0` followed by more digits. -/
+def numEndL (bs : List UInt8) (i : Nat) : Nat :=
+  let e := skipDigitsL bs i
+  if e = i then i
+  else if (bs[i]?.getD 0).toNat = 48 ∧ e ≠ i + 1 then i
+  else e
+
+theorem byteAt_eq {b : ByteArray} (hp : Plat b) (i : USize) :
+    ConLeche.Frontend.byteAt b i = b.data.toList[i.toNat]?.getD 0 := by
+  rw [ConLeche.Frontend.byteAt]
+  split
+  · rename_i h
+    have hl : i.toNat < b.size := (hp.lt_iff i).mp h
+    rw [uget_eq b i hl h, List.getElem?_eq_getElem (by simpa using hl)]; rfl
+  · rename_i h
+    have : ¬ i.toNat < b.data.toList.length := by
+      have : ¬ i.toNat < b.size := fun h' => h ((hp.lt_iff i).mpr h'); simpa using this
+    rw [List.getElem?_eq_none (by omega)]; rfl
+
+theorem numEnd_eq {b : ByteArray} (hp : Plat b) (i : USize) (hi : i.toNat ≤ b.size) :
+    (ConLeche.Frontend.numEnd b i).toNat = numEndL b.data.toList i.toNat := by
+  have hs := skipDigits_eq hp _ i rfl
+  have hle := skipL_le_length isDigitN b.data.toList _ i.toNat rfl (by simpa using hi)
+  have hge := skipL_ge isDigitN b.data.toList _ i.toNat rfl
+  have hb64 : b.size < 2 ^ 64 := hp.size
+  simp only [ConLeche.Frontend.numEnd, numEndL]
+  have heq : (ConLeche.Frontend.skipDigits b i == i) = decide (skipDigitsL b.data.toList i.toNat = i.toNat) := by
+    rw [← hs]
+    by_cases h : ConLeche.Frontend.skipDigits b i = i
+    · simp [h]
+    · have : ¬ (ConLeche.Frontend.skipDigits b i).toNat = i.toNat := fun h' => h (USize.toNat_inj.mp h')
+      simp [h, this]
+  rw [heq]
+  by_cases h : skipDigitsL b.data.toList i.toNat = i.toNat
+  · simp [h]
+  · simp only [h, decide_false, Bool.false_eq_true, ↓reduceIte]
+    simp only [skipDigitsL] at h hs
+    have hlt : i.toNat < b.size := by simp at hle; omega
+    have hsucc : (i + 1).toNat = i.toNat + 1 := ConLeche.Frontend.usizeStep b i ((hp.lt_iff i).mpr hlt)
+    have hne : (ConLeche.Frontend.skipDigits b i != i + 1) =
+        decide (skipL isDigitN b.data.toList i.toNat ≠ i.toNat + 1) := by
+      by_cases h' : ConLeche.Frontend.skipDigits b i = i + 1
+      · have : skipL isDigitN b.data.toList i.toNat = i.toNat + 1 := by rw [← hs, h', hsucc]
+        simp [h', this]
+      · have : ¬ skipL isDigitN b.data.toList i.toNat = i.toNat + 1 := by
+          rw [← hs, ← hsucc]; exact fun h'' => h' (USize.toNat_inj.mp h'')
+        simp [h', this]
+    rw [hne, byteAt_eq hp, show (48 : UInt8) = UInt8.ofNat 48 from rfl, beq_ofNat _ 48 (by decide)]
+    generalize (b.data.toList[i.toNat]?.getD 0) = g
+    unfold skipDigitsL
+    by_cases hz : g.toNat = 48 <;>
+      by_cases hn : skipL isDigitN b.data.toList i.toNat = i.toNat + 1 <;> simp [hz, hn, hs]
+
 end ConPanqueque.Scan

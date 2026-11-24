@@ -371,3 +371,4 @@ import ConPanqueque.Bridge.SeqFold
 import ConPanqueque.T.Decl.FoldVerdict
 import ConPanqueque.Scan.SkipWs
 import ConPanqueque.Scan.ReadNat
+import ConPanqueque.Scan.NumEnd
