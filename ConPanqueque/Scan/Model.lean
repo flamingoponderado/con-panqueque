@@ -13,6 +13,8 @@ namespace ConPanqueque.Scan
 structure Plat (b : ByteArray) : Prop where
   bits : System.Platform.numBits = 64
   size : b.size < 2 ^ 64
+  /-- room past the end for the scanners' fixed lookahead -/
+  room : b.size + 64 < 2 ^ 64
 
 theorem Plat.usize_toNat {b : ByteArray} (h : Plat b) : b.usize.toNat = b.size := by
   simp only [ByteArray.usize, Nat.toUSize]

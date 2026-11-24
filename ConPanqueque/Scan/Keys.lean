@@ -234,7 +234,7 @@ theorem matchLit_L {b : ByteArray} (hp : Plat b) (lit : ByteArray) (hl : lit.siz
     (hz : ∀ x ∈ lit.data.toList, x ≠ 0) :
     ∀ n (i k : USize), lit.size - k.toNat = n → i.toNat + (lit.size - k.toNat) < 2 ^ 64 → k.toNat ≤ lit.size →
       ConLeche.Frontend.matchLit b i lit k = litsL b.data.toList i.toNat (lit.data.toList.drop k.toNat) 0 := by
-  have hpl : Plat lit := ⟨hp.bits, by omega⟩
+  have hpl : Plat lit := ⟨hp.bits, by omega, by omega⟩
   intro n
   induction n with
   | zero =>

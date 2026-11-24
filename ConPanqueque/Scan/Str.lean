@@ -309,6 +309,44 @@ theorem ssFun_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : Byte
       (fun k hk h1 h2 => hpl k hk h1 (by rw [heU] at h2; exact h2))
     exact ⟨s, h1, h2⟩
 
+/-- `x = f(a1, a2, a3)` at a callee specified in the soundness form. -/
+theorem call3_retP (s : PanSemStateFiniteExact 64 σ) (x f x1 x2 x3 : MlS) (body : ProgHOL 64)
+    (a1 a2 a3 : ExpHOL 64) (v1 v2 v3 w0 : BitVec 64) (P : BitVec 64 → Prop)
+    (h12 : x1 ≠ x2) (h13 : x1 ≠ x3) (h23 : x2 ≠ x3)
+    (hcode : s.code.lookup f = some ([(x1, .one), (x2, .one), (x3, .one)], body, .one))
+    (ha1 : @evalHOLExact 64 σ _ s.toExact (fun a => Classical.propDecidable (s.memaddrs a)) a1 =
+      some (.val (.word v1)))
+    (ha2 : @evalHOLExact 64 σ _ s.toExact (fun a => Classical.propDecidable (s.memaddrs a)) a2 =
+      some (.val (.word v2)))
+    (ha3 : @evalHOLExact 64 σ _ s.toExact (fun a => Classical.propDecidable (s.memaddrs a)) a3 =
+      some (.val (.word v3)))
+    (hx : s.locals.lookup x = some (.val (.word w0)))
+    (hbody : ∀ callee : HolFiniteMapExact MlS (ValueHOL 64),
+      callee.lookup x1 = some (.val (.word v1)) → callee.lookup x2 = some (.val (.word v2)) →
+      callee.lookup x3 = some (.val (.word v3)) → RetP (callEntryStateHOLFinite s callee) body P) :
+    Stop (evaluateHOLFiniteState s (.call (some (some (.local, x), none)) f [a1, a2, a3])).1 ∨
+      ∃ w u, P w ∧ evaluateHOLFiniteState s (.call (some (some (.local, x), none)) f [a1, a2, a3]) = (none, u) ∧
+        SetsLocal s x w u := by
+  obtain ⟨callee, hlk, hx1, hx2, hx3⟩ := lookupCode3 s f x1 x2 x3 body v1 v2 v3 h12 h13 h23 hcode
+  rcases hbody callee hx1 hx2 hx3 with hs | ⟨w, r1, hp, r2⟩
+  · have := call_ret s x f [a1, a2, a3] _ body callee 0 w0
+      (by simp [evalListHOLFinite, evalListHOLExact, ha1, ha2, ha3]) hlk (Or.inl hs) hx
+    rcases this with h | ⟨u, hu, -⟩
+    · exact Or.inl h
+    · exfalso
+      rw [evaluateHOLFiniteState_call] at hu
+      simp only [evalListHOLFinite] at hu
+      have hcl : s.clock ≠ 0 := by
+        intro h0; simp [evalListHOLExact, ha1, ha2, ha3, hlk, h0] at hu
+      generalize he : evaluateHOLFiniteState (callEntryStateHOLFinite s callee) body = r at hs
+      obtain ⟨r1', r2'⟩ := r
+      simp only at hs
+      rcases hs with e | ⟨ev, e⟩ <;> subst e <;> simp [evalListHOLExact, ha1, ha2, ha3, hlk, hcl, he] at hu
+  · rcases call_ret s x f [a1, a2, a3] _ body callee w w0
+      (by simp [evalListHOLFinite, evalListHOLExact, ha1, ha2, ha3]) hlk (Or.inr ⟨r1, r2⟩) hx with h | ⟨u, hu, hs⟩
+    · exact Or.inl h
+    · exact Or.inr ⟨w, u, hp, hu, hs⟩
+
 end
 
 end ConPanqueque.Scan
