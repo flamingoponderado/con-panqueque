@@ -354,3 +354,4 @@ import ConPanqueque.T.Decl.LevelParams
 import ConPanqueque.T.Decl.AllLevelParams
 import ConPanqueque.T.Decl.PinNames
 import ConPanqueque.T.Decl.CheckConst
+import ConPanqueque.T.Decl.LitShape
