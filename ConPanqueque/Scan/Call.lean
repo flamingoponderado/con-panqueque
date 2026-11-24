@@ -100,6 +100,48 @@ theorem call3_ret (s : PanSemStateFiniteExact 64 σ) (x f x1 x2 x3 : MlS) (body 
   exact call_ret s x f [a1, a2, a3] _ body callee v w0
     (by simp [evalListHOLFinite, evalListHOLExact, ha1, ha2, ha3]) hlk (hbody callee hx1 hx2 hx3) hx
 
+theorem lookupCode4 (s : PanSemStateFiniteExact 64 σ) (f x1 x2 x3 x4 : MlS) (body : ProgHOL 64)
+    (v1 v2 v3 v4 : BitVec 64) (hnd : [x1, x2, x3, x4].Nodup)
+    (hcode : s.code.lookup f = some ([(x1, .one), (x2, .one), (x3, .one), (x4, .one)], body, .one)) :
+    ∃ callee, lookupCodeHOLFinite s.code.lookup f
+        [.val (.word v1), .val (.word v2), .val (.word v3), .val (.word v4)] = some (body, callee, .one) ∧
+      callee.lookup x1 = some (.val (.word v1)) ∧ callee.lookup x2 = some (.val (.word v2)) ∧
+      callee.lookup x3 = some (.val (.word v3)) ∧ callee.lookup x4 = some (.val (.word v4)) := by
+  simp only [List.nodup_cons, List.mem_cons, List.mem_singleton, not_or, List.not_mem_nil] at hnd
+  obtain ⟨⟨h12, h13, h14⟩, ⟨h23, h24⟩, h34, -⟩ := hnd
+  unfold lookupCodeHOLFinite
+  split
+  · rename_i hh; simp [lookupCodeHOLExact, hcode, shapeOfHOLExact, shapeEqHOL] at hh
+    exact absurd hh (by simp [h12, h13, h14, h23, h24, h34])
+  · rename_i b cl rs hh
+    simp [lookupCodeHOLExact, hcode, shapeOfHOLExact, shapeEqHOL] at hh
+    obtain ⟨_, rfl, rfl, rfl⟩ := hh
+    exact ⟨_, rfl, by simp [h12, h13, h14], by simp [h23, h24], by simp [h34], by simp⟩
+
+/-- `x = f(a1, a2, a3, a4)` at a four-parameter pure scanner function. -/
+theorem call4_ret (s : PanSemStateFiniteExact 64 σ) (x f x1 x2 x3 x4 : MlS) (body : ProgHOL 64)
+    (a1 a2 a3 a4 : ExpHOL 64) (v1 v2 v3 v4 v w0 : BitVec 64) (hnd : [x1, x2, x3, x4].Nodup)
+    (hcode : s.code.lookup f = some ([(x1, .one), (x2, .one), (x3, .one), (x4, .one)], body, .one))
+    (ha1 : @evalHOLExact 64 σ _ s.toExact (fun a => Classical.propDecidable (s.memaddrs a)) a1 =
+      some (.val (.word v1)))
+    (ha2 : @evalHOLExact 64 σ _ s.toExact (fun a => Classical.propDecidable (s.memaddrs a)) a2 =
+      some (.val (.word v2)))
+    (ha3 : @evalHOLExact 64 σ _ s.toExact (fun a => Classical.propDecidable (s.memaddrs a)) a3 =
+      some (.val (.word v3)))
+    (ha4 : @evalHOLExact 64 σ _ s.toExact (fun a => Classical.propDecidable (s.memaddrs a)) a4 =
+      some (.val (.word v4)))
+    (hx : s.locals.lookup x = some (.val (.word w0)))
+    (hbody : ∀ callee : HolFiniteMapExact MlS (ValueHOL 64),
+      callee.lookup x1 = some (.val (.word v1)) → callee.lookup x2 = some (.val (.word v2)) →
+      callee.lookup x3 = some (.val (.word v3)) → callee.lookup x4 = some (.val (.word v4)) →
+      RetSpec (callEntryStateHOLFinite s callee) body v) :
+    Stop (evaluateHOLFiniteState s (.call (some (some (.local, x), none)) f [a1, a2, a3, a4])).1 ∨
+      ∃ u, evaluateHOLFiniteState s (.call (some (some (.local, x), none)) f [a1, a2, a3, a4]) = (none, u) ∧
+        SetsLocal s x v u := by
+  obtain ⟨callee, hlk, hx1, hx2, hx3, hx4⟩ := lookupCode4 s f x1 x2 x3 x4 body v1 v2 v3 v4 hnd hcode
+  exact call_ret s x f [a1, a2, a3, a4] _ body callee v w0
+    (by simp [evalListHOLFinite, evalListHOLExact, ha1, ha2, ha3, ha4]) hlk (hbody callee hx1 hx2 hx3 hx4) hx
+
 end
 
 end ConPanqueque.Scan
