@@ -369,4 +369,255 @@ theorem cpy_spec (C : Ctx) (hok : CtxOK C)
 
 end
 
+
+/-- `envRel_push` for any environment answering as the push (e.g. the push with the old literal flags). -/
+theorem envRel_ins {C : Ctx} (h : EnvRel C) {ci : IConstantInfo} {o : Nat} {EH : List (BitVec 64)} {fe : IFEnv}
+    (hp : C.EH <+: EH) (hcie : CIE C.EB EH o ci)
+    (hf : ∀ n, fe.find? n = if (ci.name == n) = true then some ci else C.fe.find? n)
+    (ht : ∀ n, fe.findTable? n = C.fe.findTable? n) :
+    EnvRel (ctxIns C fe EH (C.envM.insert ci.name (ecell C o))) := by
+  refine ⟨fun n => ?_, fun n => ?_⟩
+  · show match fe.find? n with
+      | none => (C.envM.insert ci.name (ecell C o))[n]? = none
+      | some ci' => ∃ o', (C.envM.insert ci.name (ecell C o))[n]? = some (ecell C o') ∧ CIE C.EB EH o' ci'
+    rw [hf, Std.HashMap.getElem?_insert]
+    by_cases e : (ci.name == n) = true
+    · simp only [e, if_true]; exact ⟨o, rfl, hcie⟩
+    · have ef : (ci.name == n) = false := by simpa using e
+      simp only [ef, Bool.false_eq_true, if_false]
+      have := h.1 n
+      revert this
+      cases C.fe.find? n with
+      | none => exact id
+      | some ci' => exact fun ⟨o', hm, hc⟩ => ⟨o', hm, cie_mono hp hc⟩
+  · show match fe.findTable? n with
+      | none => C.tblM[n]? = none
+      | some tb => ∃ o', C.tblM[n]? = some (ecell C o') ∧ TblE C.EB EH o' tb
+    rw [ht]
+    have := h.2 n
+    revert this
+    cases C.fe.findTable? n with
+    | none => exact id
+    | some tb => exact fun ⟨o', hm, hc⟩ => ⟨o', hm, tblE_mono hp hc⟩
+
+theorem ctxOK_ins {C : Ctx} (hok : CtxOK C) {ci : IConstantInfo} {o : Nat} {EH : List (BitVec 64)} {fe : IFEnv}
+    (hp : C.EH <+: EH) (hcie : CIE C.EB EH o ci)
+    (hf : ∀ n, fe.find? n = if (ci.name == n) = true then some ci else C.fe.find? n)
+    (ht : ∀ n, fe.findTable? n = C.fe.findTable? n) :
+    CtxOK (ctxIns C fe EH (C.envM.insert ci.name (ecell C o))) := by
+  have h1 := envRel_ins hok.envRel hp hcie hf ht
+  have h2 : PinsE (ctxIns C fe EH (C.envM.insert ci.name (ecell C o))) := pinsE_E hok.pinsRel hp
+  cases hok; constructor <;> first | assumption | exact h1 | exact h2
+
+/-- The push with the old literal flags answers as the push. -/
+theorem pushOld_find (fe : IFEnv) (ci : IConstantInfo) (n : NIdx) :
+    ((fe.push ci).setFlags fe.natLit fe.strLit).find? n = if (ci.name == n) = true then some ci else fe.find? n := by
+  rw [IFEnv.setFlags_find?, IFEnv.find?_push]
+
+theorem pushOld_findTable {fe : IFEnv} (hg : TblGate fe) (ci : IConstantInfo) (hnew : fe.find? ci.name = none)
+    (n : NIdx) : ((fe.push ci).setFlags fe.natLit fe.strLit).findTable? n = fe.findTable? n := by
+  rw [← push_findTable hg ci hnew n]
+  unfold IFEnv.findTable?
+  rw [IFEnv.setFlags_find?, IFEnv.setFlags_rawTable?]
+
+
+def inT := ofString "in_t"
+def inQ := ofString "in_q"
+def inV := ofString "in_v"
+def inHn := ofString "in_h"
+def inN := ofString "in_n"
+def inL := ofString "in_l"
+def inTy := ofString "in_ty"
+def inLn := ofString "in_ln"
+def inB := ofString "in_b"
+def inX := ofString "in_x"
+def inR := ofString "in_r"
+def fInst := ofString "installConst"
+def inParams : List MlS := [inT, inQ, inV, inHn]
+def inLocals : List MlS := [inN, inL, inTy, inLn, inB, inX, inR]
+
+/-- Install: the level-parameter block and a six-word constant block `[tag, name, lps, type, value, hint]` in
+fresh environment cells, then the name into the constant table. -/
+def instBody (C : Ctx) : ProgHOL 64 := prologue inLocals
+  (.seq (.assign .local inN (.load .one (vv inQ)))
+  (.seq (.assign .local inL (.load .one (.op .add [vv inQ, .const 8])))
+  (.seq (.assign .local inTy (.load .one (.op .add [vv inQ, .const 16])))
+  (.seq (.assign .local inLn (.load .one (vv inL)))
+  (envAllocP C inB (.op .add [.panop .mul [vv inLn, .const 8], .const 8])
+  (.seq (.store (vv inB) (vv inLn))
+  (.seq (.call (some (some (.local, inR), none)) fCpy [vv inL, vv inB, .const 0, vv inLn])
+  (envAllocP C inX (.const 48)
+  (.seq (.store (vv inX) (vv inT))
+  (.seq (.store (.op .add [vv inX, .const 8]) (vv inN))
+  (.seq (.store (.op .add [vv inX, .const 16]) (vv inB))
+  (.seq (.store (.op .add [vv inX, .const 24]) (vv inTy))
+  (.seq (.store (.op .add [vv inX, .const 32]) (vv inV))
+  (.seq (.store (.op .add [vv inX, .const 40]) (vv inHn))
+  (.seq (.store (.op .add [vv lKb, .const (BitVec.ofNat 64 (8 * 0))]) (vv inN))
+  (.seq (.call (some (some (.local, inR), none)) fMemoSet [.const (C.mG .env), .const 1, vv inX])
+  (.return (vv inX))))))))))))))))))
+
+/-- The six words of an installed constant block, and its level-parameter block. -/
+def Lay6 (C : Ctx) (EH : List (BitVec 64)) (ox b : Nat) (tW vW hW : BitVec 64) (ci : IConstantInfo) : Prop :=
+  EH[ox]? = some tW ∧ EH[ox + 1]? = some (Enc.idxW ci.name) ∧ EH[ox + 2]? = some (ecell C b) ∧
+    EH[ox + 3]? = some (Enc.idxW ci.toConstantVal.type) ∧ EH[ox + 4]? = some vW ∧ EH[ox + 5]? = some hW ∧
+    EBlk EH b (ci.toConstantVal.levelParams.map Enc.idxW)
+
+section
+variable {σ : Type}
+
+theorem in_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ inLocals → (ctxEnv C ++ inParams.zip vals).get x = none :=
+  Knot.params_none C inLocals inParams vals (by decide) (by decide)
+
+/-- After installing: the constant's block is laid out, and the context holds the push (old flags). -/
+def PostInst (C : Ctx) (ci : IConstantInfo) (_ : IFEnv) (_ : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
+  ∃ EH ox, C.EH <+: EH ∧ CIE C.EB EH ox ci ∧
+    SR (ctxIns C ((C.fe.push ci).setFlags C.fe.natLit C.fe.strLit) EH (C.envM.insert ci.name (ecell C ox))) s' st
+
+theorem postInst_locals (C : Ctx) (ci : IConstantInfo) : ∀ a w s' (st : PState σ)
+    (L : HolFiniteMapExact MlS (ValueHOL 64)), PostInst C ci a w s' st → PostInst C ci a w s' { st with locals := L } :=
+  fun _ _ _ _ _ ⟨EH, ox, h1, h2, h3⟩ => ⟨EH, ox, h1, h2, sr_of_eq h3 rfl rfl rfl rfl⟩
+
+theorem ecell_addk (C : Ctx) (o k : Nat) : ecell C o + BitVec.ofNat 64 (8 * k) = ecell C (o + k) := by
+  unfold ecell; rw [BitVec.add_assoc, BitVec.ofNat_add_ofNat]; congr 2; omega
+
+theorem ecell_lit (C : Ctx) (o k : Nat) (w : BitVec 64) (hw : w = BitVec.ofNat 64 (8 * k)) :
+    ecell C o + w = ecell C (o + k) := by rw [hw]; exact ecell_addk C o k
+
+theorem len8_eq (n : Nat) : BitVec.ofNat 64 n * 8#64 + 8#64 = BitVec.ofNat 64 (8 * (n + 1)) := by
+  apply BitVec.eq_of_toNat_eq; simp [BitVec.toNat_add, BitVec.toNat_mul]; omega
+
+/-- **Install** a constant (not a recursor) whose name is fresh. -/
+theorem inst_spec (C : Ctx) (hok : CtxOK C)
+    (hcp : C.code.lookup fCpy = some (cpParams.map (fun p => (p, ShapeHOL.one)), cpyBody, .one))
+    (hcS : C.code.lookup fMemoSet = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoSetBody, .one))
+    (hcI : C.code.lookup fMemoIns = some ([(pG, .one), (pLen, .one), (pVal, .one)], memoInsBody, .one))
+    (s : AState) (ci : IConstantInfo) (q o : Nat)
+    (hn : C.H[q]? = some (Enc.idxW ci.name)) (hl : C.H[q + 1]? = some (cellA C o))
+    (ht : C.H[q + 2]? = some (Enc.idxW ci.toConstantVal.type))
+    (hb : BlkAt C.H o (ci.toConstantVal.levelParams.map Enc.idxW)) (hlen : ci.toConstantVal.levelParams.length < 2 ^ 60)
+    (tW vW hW : BitVec 64) (hcie : ∀ EH ox b, Lay6 C EH ox b tW vW hW ci → CIE C.EB EH ox ci)
+    (hg : TblGate C.fe) (hnew : C.fe.find? ci.name = none) (hden : NewDen ci s.store)
+    (hrec : ∀ cv mI rP isK rules, ci ≠ .recInfo cv mI rP isK rules) :
+    SpecR (σ := σ) (Pre C s (inParams.zip [tW, cellA C q, vW, hW])) (instBody C) s (pure (C.fe.push ci))
+      (PostInst C ci) := by
+  refine specR_prologue (postInst_locals C ci) (in_none C _) ?_
+  set lps := ci.toConstantVal.levelParams with hlps
+  refine UD.specR_heapLoadI' (C := C) inN _ q _ hn (by decide) (by simp +decide [Env.get, inParams, ctxEnv]) ?_
+  refine UD.specR_heapLoadI' (C := C) inL _ (q + 1) _ hl (by decide)
+    (by simp +decide [sev, Env.get, inParams, ctxEnv]; exact cellA_add8 C q) ?_
+  refine UD.specR_heapLoadI' (C := C) inTy _ (q + 2) _ ht (by decide)
+    (by simp +decide [sev, Env.get, inParams, ctxEnv]; exact cellA_add_ofNat C q 2) ?_
+  have hb1 : C.H[o]? = some (BitVec.ofNat 64 lps.length) := by simpa using hb.1
+  refine UD.specR_heapLoadI' (C := C) inLn _ o _ hb1 (by decide) (by simp +decide [Env.get]) ?_
+  -- the level-parameter block
+  refine specR_envAllocI inB _ (lps.length + 1) (by omega) (by decide)
+    (fun v => by simp +decide [sev, Env.get]; exact len8_eq lps.length) (fun ws1 hws1 hroom1 => ?_)
+  have hp1 : C.EH <+: C.EH ++ ws1 := List.prefix_append _ _
+  have hj1 : C.EH.length < (ctxE C (C.EH ++ ws1)).EH.length := by show _ < (C.EH ++ ws1).length; simp; omega
+  refine specR_envStoreI (ctxOK_E hok hp1) (vv inB) (vv inLn) C.EH.length hj1 (BitVec.ofNat 64 lps.length)
+    (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get]) ?_
+  have hp2 : C.EH <+: (C.EH ++ ws1).set C.EH.length (BitVec.ofNat 64 lps.length) :=
+    prefix_set_ge hp1 C.EH.length (le_refl _) _
+  have hE2len : ((C.EH ++ ws1).set C.EH.length (BitVec.ofNat 64 lps.length)).length = C.EH.length + (lps.length + 1) := by
+    simp [hws1]
+  -- copy the names
+  set E2 := (C.EH ++ ws1).set C.EH.length (BitVec.ofNat 64 lps.length) with hE2
+  refine specR_congr (m' := (pure () : AM Unit) >>= fun _ => pure (C.fe.push ci)) rfl ?_
+  refine specR_callNC (C := ctxE C E2) (D := ctxLocals ++ inLocals) inR fCpy cpParams
+    [vv inL, vv inB, .const 0, vv inLn] cpyBody
+    [cellA C o, ecell C C.EH.length, BitVec.ofNat 64 0, BitVec.ofNat 64 (lps.map Enc.idxW).length]
+    (by decide) rfl (by decide) hcp ?_ (fun a w s' st => PostCp C C.EH.length (lps.map Enc.idxW) 0 E2 a w s' st ∧ s' = s)
+    (fun _ w s' C' => s' = s ∧ ∃ EH', C' = ctxE C EH' ∧ EH'.length = E2.length ∧
+      (∀ p, p < C.EH.length + 1 + 0 → EH'[p]? = E2[p]?) ∧
+      (∀ j (hj : j < (lps.map Enc.idxW).length), 0 ≤ j → EH'[C.EH.length + 1 + j]? = some (lps.map Enc.idxW)[j]))
+    (fun a w s' st ⟨⟨EH', h1, h2, h3, h4⟩, hs⟩ => ⟨ctxE C EH', ⟨hs, EH', rfl, h1, h2, h3⟩, h4⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cpParams _ rfl hlk)
+      (specR_pureState (cpy_spec C hok hcp o C.EH.length (lps.map Enc.idxW) hb (le_refl _) (by simp; omega) s _ 0 E2
+        hp2 (by simp [hE2len]; omega) rfl (Nat.zero_le _))))
+    (fun _ w s3 C3 ⟨hs3, E3, eC, h1, h2, h3⟩ => ?_)
+  · exact ⟨by simp +decide [Env.get, inParams, ctxEnv] <;> rfl, by simp +decide [Env.get], rfl,
+      by simp +decide [Env.get], trivial⟩
+  subst eC hs3
+  have hp3 : C.EH <+: E3 := by
+    refine List.prefix_iff_eq_take.mpr ?_
+    apply List.ext_getElem?
+    intro p
+    by_cases hpl : p < C.EH.length
+    · rw [List.getElem?_take, if_pos hpl, h2 p (by omega), List.getElem?_eq_getElem hpl,
+        get_prefix (List.getElem?_eq_getElem hpl) hp2]
+    · rw [List.getElem?_take, if_neg hpl, List.getElem?_eq_none (by omega)]
+  -- the constant block
+  refine specR_envAllocI inX (.const 48) 6 (by omega) (by decide) (fun v => rfl) (fun ws2 hws2 hroom2 => ?_)
+  have hp4 : C.EH <+: E3 ++ ws2 := hp3.trans (List.prefix_append _ _)
+  have hE3l : E3.length = C.EH.length + (lps.length + 1) := by rw [h1, hE2len]
+  refine specR_envStoreI (ctxOK_E hok hp4) (vv inX) (vv inT) (E3.length + 0)
+    (by show _ < ((E3 ++ ws2)).length; simp [hws2]) tW (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, inParams, ctxEnv]) ?_
+  have hpS0 : C.EH <+: ((E3 ++ ws2).set (E3.length + 0) tW) := prefix_set_ge hp4 (E3.length + 0) (by have := hp3.length_le; omega) _
+  refine specR_envStoreI (ctxOK_E hok hpS0) (.op .add [vv inX, .const 8]) (vv inN) (E3.length + 1)
+    (by show _ < (((E3 ++ ws2).set (E3.length + 0) tW)).length; simp [hws2]) (Enc.idxW ci.name) (by simp +decide [sev, Env.get]; exact ecell_lit C E3.length 1 _ rfl) (by simp +decide [Env.get]) ?_
+  have hpS1 : C.EH <+: (((E3 ++ ws2).set (E3.length + 0) tW).set (E3.length + 1) (Enc.idxW ci.name)) := prefix_set_ge hpS0 (E3.length + 1) (by have := hp3.length_le; omega) _
+  refine specR_envStoreI (ctxOK_E hok hpS1) (.op .add [vv inX, .const 16]) (vv inB) (E3.length + 2)
+    (by show _ < ((((E3 ++ ws2).set (E3.length + 0) tW).set (E3.length + 1) (Enc.idxW ci.name))).length; simp [hws2]) (ecell C C.EH.length) (by simp +decide [sev, Env.get]; exact ecell_lit C E3.length 2 _ rfl) (by simp +decide [Env.get] <;> rfl) ?_
+  have hpS2 : C.EH <+: ((((E3 ++ ws2).set (E3.length + 0) tW).set (E3.length + 1) (Enc.idxW ci.name)).set (E3.length + 2) (ecell C C.EH.length)) := prefix_set_ge hpS1 (E3.length + 2) (by have := hp3.length_le; omega) _
+  refine specR_envStoreI (ctxOK_E hok hpS2) (.op .add [vv inX, .const 24]) (vv inTy) (E3.length + 3)
+    (by show _ < (((((E3 ++ ws2).set (E3.length + 0) tW).set (E3.length + 1) (Enc.idxW ci.name)).set (E3.length + 2) (ecell C C.EH.length))).length; simp [hws2]) (Enc.idxW ci.toConstantVal.type) (by simp +decide [sev, Env.get]; exact ecell_lit C E3.length 3 _ rfl) (by simp +decide [Env.get]) ?_
+  have hpS3 : C.EH <+: (((((E3 ++ ws2).set (E3.length + 0) tW).set (E3.length + 1) (Enc.idxW ci.name)).set (E3.length + 2) (ecell C C.EH.length)).set (E3.length + 3) (Enc.idxW ci.toConstantVal.type)) := prefix_set_ge hpS2 (E3.length + 3) (by have := hp3.length_le; omega) _
+  refine specR_envStoreI (ctxOK_E hok hpS3) (.op .add [vv inX, .const 32]) (vv inV) (E3.length + 4)
+    (by show _ < ((((((E3 ++ ws2).set (E3.length + 0) tW).set (E3.length + 1) (Enc.idxW ci.name)).set (E3.length + 2) (ecell C C.EH.length)).set (E3.length + 3) (Enc.idxW ci.toConstantVal.type))).length; simp [hws2]) vW (by simp +decide [sev, Env.get]; exact ecell_lit C E3.length 4 _ rfl) (by simp +decide [Env.get, inParams, ctxEnv]) ?_
+  have hpS4 : C.EH <+: ((((((E3 ++ ws2).set (E3.length + 0) tW).set (E3.length + 1) (Enc.idxW ci.name)).set (E3.length + 2) (ecell C C.EH.length)).set (E3.length + 3) (Enc.idxW ci.toConstantVal.type)).set (E3.length + 4) vW) := prefix_set_ge hpS3 (E3.length + 4) (by have := hp3.length_le; omega) _
+  refine specR_envStoreI (ctxOK_E hok hpS4) (.op .add [vv inX, .const 40]) (vv inHn) (E3.length + 5)
+    (by show _ < (((((((E3 ++ ws2).set (E3.length + 0) tW).set (E3.length + 1) (Enc.idxW ci.name)).set (E3.length + 2) (ecell C C.EH.length)).set (E3.length + 3) (Enc.idxW ci.toConstantVal.type)).set (E3.length + 4) vW)).length; simp [hws2]) hW (by simp +decide [sev, Env.get]; exact ecell_lit C E3.length 5 _ rfl) (by simp +decide [Env.get, inParams, ctxEnv]) ?_
+  have hpS5 : C.EH <+: (((((((E3 ++ ws2).set (E3.length + 0) tW).set (E3.length + 1) (Enc.idxW ci.name)).set (E3.length + 2) (ecell C C.EH.length)).set (E3.length + 3) (Enc.idxW ci.toConstantVal.type)).set (E3.length + 4) vW).set (E3.length + 5) hW) := prefix_set_ge hpS4 (E3.length + 5) (by have := hp3.length_le; omega) _
+  set E4 := (((((((E3 ++ ws2).set (E3.length + 0) tW).set (E3.length + 1) (Enc.idxW ci.name)).set (E3.length + 2) (ecell C C.EH.length)).set (E3.length + 3) (Enc.idxW ci.toConstantVal.type)).set (E3.length + 4) vW).set (E3.length + 5) hW) with hE4
+  have hE4l : E4.length = E3.length + 6 := by simp [hE4, hws2]
+  have hE4lo : ∀ p, p < E3.length → E4[p]? = E3[p]? := by
+    intro p hp
+    simp only [hE4, List.getElem?_set]
+    simp [show ¬ E3.length + 5 = p by omega, show ¬ E3.length + 4 = p by omega, show ¬ E3.length + 3 = p by omega,
+      show ¬ E3.length + 2 = p by omega, show ¬ E3.length + 1 = p by omega, show ¬ E3.length + 0 = p by omega,
+      show ¬ E3.length = p by omega, List.getElem?_append_left hp]
+  have hlay : Lay6 C E4 E3.length C.EH.length tW vW hW ci := by
+    refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+    · simp [hE4, List.getElem?_set, hws2]
+    · simp [hE4, List.getElem?_set, hws2]
+    · simp [hE4, List.getElem?_set, hws2]
+    · simp [hE4, List.getElem?_set, hws2]
+    · simp [hE4, List.getElem?_set, hws2]
+    · simp [hE4, List.getElem?_set, hws2]
+    · refine ⟨?_, fun j hj => ?_⟩
+      · rw [hE4lo _ (by omega), h2 _ (by omega), hE2]
+        simp [List.getElem?_set_self, hws1, hlps]
+      · rw [hE4lo _ (by have h1' := hE3l; simp only [hlps] at h1' hj ⊢; simp only [List.length_map] at hj; omega)]
+        exact h3 j hj (Nat.zero_le _)
+  have hcie' := hcie E4 E3.length C.EH.length hlay
+  have hpE : C.EH <+: E4 := hpS5
+  -- the key, then the table
+  refine specR_storeKBI (ctxOK_E hok hpE) 0 (by decide) (vv inN) (Enc.idxW ci.name) (by simp +decide [Env.get])
+    (by simp +decide [Env.get, inParams, ctxEnv] <;> rfl) ?_
+  set fe' := (C.fe.push ci).setFlags C.fe.natLit C.fe.strLit with hfe'
+  refine specR_congr (m' := (pure () : AM Unit) >>= fun _ => pure (C.fe.push ci)) rfl ?_
+  refine specR_memoSetGIC (C := ctxE C E4) (C' := ctxIns C fe' E4 (C.envM.insert ci.name (ecell C E3.length)))
+    (D := ctxLocals ++ inLocals)
+    (K := NIdx) (V := BitVec 64) encNI_inj (C.mG .env) (C.mg .env) C.envM ci.name (ecell C E3.length) (pure ()) rfl
+    (fun u hu => hu.env.2.1) (fun i hi => hok.kbMemo .env i (by simp [encNI] at hi; omega))
+    (fun j hj => hok.mdescMemo .env .env j hj)
+    (fun u u' hsr hmem hfr hd hg' hc => sr_envIns (ctxOK_E hok hpE) hsr hfr hd hg' hc hmem rfl
+      (envDen_push (pushOld_find C.fe ci) (pushOld_findTable hg ci hnew) hsr.envd hden hrec))
+    hcS hcI inR (.const (C.mG .env)) (.const 1) (vv inX) (by decide) ?_ ?_ ?_
+    (by simp [encNI]) (fun u hM j hj => by
+      have e : j = 0 := by simp [encNI] at hj; omega
+      subst e; exact hM _ (Enc.idxW ci.name) (by simp)) (fun w => ?_)
+  · rfl
+  · rfl
+  · simp +decide [Env.get] <;> rfl
+  try simp only [pure_bind]
+  exact specR_returnI _ (ecell C E3.length) (by simp +decide [Env.get] <;> rfl)
+    (fun t ht => ⟨E4, E3.length, hpE, hcie', sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+
+
+end
+
 end ConPanqueque.T.Decl
