@@ -778,3 +778,31 @@ theorem kt_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ctx)
 end
 
 end ConPanqueque.T.Decl
+
+namespace ConPanqueque.T.Decl
+open ConPanqueque.T ConPanqueque.T.Knot
+
+theorem kBodies_new (C : Ctx) (fe : IFEnv) (EH : List (BitVec 64)) (envM : Std.HashMap NIdx (BitVec 64))
+    (H : List (BitVec 64)) :
+    Comp.kBodies.wc (ctxNew C fe EH envM H) = Comp.kBodies.wc C ∧ Comp.kBodies.w (ctxNew C fe EH envM H) = Comp.kBodies.w C ∧
+    Comp.kBodies.i (ctxNew C fe EH envM H) = Comp.kBodies.i C ∧ Comp.kBodies.d (ctxNew C fe EH envM H) = Comp.kBodies.d C ∧
+    Comp.kBodies.io (ctxNew C fe EH envM H) = Comp.kBodies.io C := ⟨rfl, rfl, rfl, rfl, rfl⟩
+
+theorem kcodes_new {C : Ctx} (hc : KCodes C Comp.kBodies) (fe : IFEnv) (EH : List (BitVec 64))
+    (envM : Std.HashMap NIdx (BitVec 64)) (H : List (BitVec 64)) : KCodes (ctxNew C fe EH envM H) Comp.kBodies :=
+  ⟨hc.g, hc.p, hc.s, hc.i, hc.ewc, hc.ew, hc.ei, hc.ed, hc.ede, hc.eio, hc.bwc, hc.bw, hc.bi, hc.bd, hc.bio⟩
+
+theorem allCodes_new {mode : ConLeche.CheckMode} {C : Ctx} (hac : Comp.AllCodes mode C) (fe : IFEnv)
+    (EH : List (BitVec 64)) (envM : Std.HashMap NIdx (BitVec 64)) (H : List (BitVec 64)) :
+    Comp.AllCodes mode (ctxNew C fe EH envM H) := by ctx_tr hac
+
+end ConPanqueque.T.Decl
+
+namespace ConPanqueque.T.Decl
+open ConPanqueque.T ConPanqueque.T.Knot
+
+theorem declCodes_new {mode : ConLeche.CheckMode} {C : Ctx} (hc : DeclCodes mode C) (fe : IFEnv)
+    (EH : List (BitVec 64)) (envM : Std.HashMap NIdx (BitVec 64)) (H : List (BitVec 64)) :
+    DeclCodes mode (ctxNew C fe EH envM H) := by ctx_tr hc
+
+end ConPanqueque.T.Decl
