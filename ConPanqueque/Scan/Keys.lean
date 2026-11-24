@@ -222,4 +222,49 @@ theorem keyAt_L {b : ByteArray} (hp : Plat b) (i kl : USize) (hi : i.toNat + 18 
   rw [evalBytes_L hp _ kl _ (by omega) keyTbl keyTbl_short, h2, byteAt_eq hp, h1]
   rfl
 
+theorem litsL_shift (bs : List UInt8) (j : Nat) :
+    ∀ (cs : List UInt8) (k : Nat), litsL bs j cs (k + 1) = litsL bs (j + 1) cs k := by
+  intro cs
+  induction cs with
+  | nil => intro k; rfl
+  | cons c cs ih => intro k; simp only [litsL]; rw [ih (k + 1), show j + (k + 1) = j + 1 + k by omega]
+
+/-- con-leche's `matchLit` against a literal with no `0` byte: the list check `litsL`. -/
+theorem matchLit_L {b : ByteArray} (hp : Plat b) (lit : ByteArray) (hl : lit.size < 2 ^ 32)
+    (hz : ∀ x ∈ lit.data.toList, x ≠ 0) :
+    ∀ n (i k : USize), lit.size - k.toNat = n → i.toNat + (lit.size - k.toNat) < 2 ^ 64 → k.toNat ≤ lit.size →
+      ConLeche.Frontend.matchLit b i lit k = litsL b.data.toList i.toNat (lit.data.toList.drop k.toNat) 0 := by
+  have hpl : Plat lit := ⟨hp.bits, by omega⟩
+  intro n
+  induction n with
+  | zero =>
+    intro i k hn hi hk
+    rw [ConLeche.Frontend.matchLit, dif_neg (fun h => by have := (hpl.lt_iff k).mp h; omega)]
+    rw [List.drop_eq_nil_of_le (by simp; omega)]; rfl
+  | succ n ih =>
+    intro i k hn hi hk
+    have hkl : k.toNat < lit.size := by omega
+    have hkl' : k.toNat < lit.data.toList.length := by simpa using hkl
+    rw [ConLeche.Frontend.matchLit, dif_pos ((hpl.lt_iff k).mpr hkl), List.drop_eq_getElem_cons hkl']
+    simp only [litsL]
+    have hk1 : (k + 1).toNat = k.toNat + 1 := ConLeche.Frontend.usizeStep lit k ((hpl.lt_iff k).mpr hkl)
+    have hc : lit.data.toList[k.toNat] ≠ 0 := hz _ (List.getElem_mem _)
+    rw [litsL_shift]
+    split
+    · rename_i h
+      have hil : i.toNat < b.size := (hp.lt_iff i).mp h
+      have hi1 : (i + 1).toNat = i.toNat + 1 := ConLeche.Frontend.usizeStep b i h
+      rw [uget_eq b i hil h, ih (i + 1) (k + 1) (by omega) (by omega) (by omega), hi1, hk1]
+      have : byteL b.data.toList (i.toNat + 0) = b.data.toList[i.toNat]'(by simpa using hil) := by
+        simp [byteL, List.getElem?_eq_getElem (by simpa using hil : i.toNat < b.data.toList.length)]
+      rw [this, uget_eq lit k hkl ((hpl.lt_iff k).mpr hkl)]
+    · rename_i h
+      have hil : ¬ i.toNat < b.data.toList.length := by
+        have : ¬ i.toNat < b.size := fun h' => h ((hp.lt_iff i).mpr h'); simpa using this
+      have : byteL b.data.toList (i.toNat + 0) = 0 := by
+        simp [byteL, List.getElem?_eq_none (by omega : b.data.toList.length ≤ i.toNat)]
+      rw [this]
+      have : (0 == lit.data.toList[k.toNat]) = false := beq_eq_false_iff_ne.mpr (Ne.symm hc)
+      simp only [this, Bool.false_and]
+
 end ConPanqueque.Scan
