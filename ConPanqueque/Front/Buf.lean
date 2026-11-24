@@ -28,9 +28,9 @@ theorem cellA_add (C : Ctx) (j k : Nat) : cellA C (j + k) = cellA C j + BitVec.o
 
 /-- **The buffer is read off the heap image.** -/
 theorem bytesAt_of_heap {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) (j0 : Nat) (bs : List UInt8)
-    (hpk : Packed C.H j0 bs) (hbe : t.be = false) (hal : (cellA C j0).toNat % 8 = 0)
+    (hpk : Packed C.H j0 bs) (hal : (cellA C j0).toNat % 8 = 0)
     (hroom : (cellA C j0).toNat + bs.length < 2 ^ 64) : BytesAt t (cellA C j0) bs := by
-  refine ⟨hbe, hal, hroom, fun i hi => ?_⟩
+  refine ⟨trivial, hal, hroom, fun i hi => ?_⟩
   obtain ⟨w, hw, hb⟩ := hpk i hi
   have hj : j0 + i / 8 < C.H.length := by
     by_cases hl : j0 + i / 8 < C.H.length

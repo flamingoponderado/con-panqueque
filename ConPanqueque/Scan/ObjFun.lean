@@ -60,7 +60,7 @@ def keyPart (ks : List (Key × UInt32 × VAct)) : ProgHOL 64 :=
 
 def objBody (sp : ObjSpec) : ProgHOL 64 :=
   .ite (.cmp .lower (vv sI) (vv sN))
-    (.seq (.assign .local sC (.loadByte (.op .add [vv sB, vv sI])))
+    (.seq (.assign .local sC (byteE (.op .add [vv sB, vv sI])))
       (.ite wsTest incI
         (.ite (.cmp .equal (vv sC) (.const 125))
           (.ite (.op .and [vv sW, .cmp .notEqual (vv sS) (.const 0)]) hang
@@ -1070,7 +1070,7 @@ theorem obj_step (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) (A
   obtain ⟨wc, lc⟩ := scr sC (by simp)
   obtain ⟨c, hcx⟩ : ∃ c, c = b.data.toList[j.toNat] := ⟨_, rfl⟩
   rw [seq_normal _ (ConsLoop.assign_local v0 sC _ (BitVec.ofNat 64 c.toNat) wc
-    (by rw [hcx]; exact eval_loadByte_bytes v0 _ A b.data.toList j.toNat hbv hjl' haddr) (by lk [v0]; exact lc))]
+    (by rw [hcx]; exact eval_byteE_bytes v0 _ A b.data.toList j.toNat hbv hjl' haddr) (by lk [v0]; exact lc))]
   let v1 := setVarHOLFinite sC (.val (.word (BitVec.ofNat 64 c.toNat))) v0
   have lc1 : v1.locals.lookup sC = some (.val (.word (BitVec.ofNat 64 c.toNat))) := by lk [v1]
   have li1 : v1.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 j.toNat))) := by lk [v1, v0]; exact li

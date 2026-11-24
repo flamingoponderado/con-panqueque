@@ -21,7 +21,7 @@ def neFun : ProgHOL 64 :=
   .dec sE2 .one (.const 0)
     (.seq (.call (some (some (.local, sE2), none)) fSkipDigits [vv sB, vv sN, vv sI])
       (.ite (.cmp .equal (vv sE2) (vv sI)) (.return (vv sI))
-        (.dec sC .one (.loadByte (.op .add [vv sB, vv sI]))
+        (.dec sC .one (byteE (.op .add [vv sB, vv sI]))
           (.ite (.op .and [.cmp .equal (vv sC) (.const 48),
                 .cmp .notEqual (vv sE2) (.op .add [vv sI, .const 1])])
             (.return (vv sI)) (.return (vv sE2))))))
@@ -94,7 +94,7 @@ theorem neFun_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (bs : List
     have haddr : @evalHOLExact 64 σ _ u.toExact (fun a => Classical.propDecidable (u.memaddrs a))
         (.op .add [vv sB, vv sI]) = some (.val (.word (A + BitVec.ofNat 64 i0))) := by
       simp [vv, evalHOLExact, evalListHOLExact, lb1, li1, wordOpHOL, wordOp, valueIsWord, valueWord]
-    rw [dec_word_eq u sC _ _ _ (eval_loadByte_bytes u _ A bs i0 hbu hlt haddr)]
+    rw [dec_word_eq u sC _ _ _ (eval_byteE_bytes u _ A bs i0 hbu hlt haddr)]
     let u2 := setVarHOLFinite sC (.val (.word (BitVec.ofNat 64 bs[i0].toNat))) u
     have lc2 : u2.locals.lookup sC = some (.val (.word (BitVec.ofNat 64 bs[i0].toNat))) := by lk [u2]
     have le2 : u2.locals.lookup sE2 = some (.val (.word (BitVec.ofNat 64 (skipDigitsL bs i0)))) := by

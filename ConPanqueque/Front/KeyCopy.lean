@@ -58,15 +58,6 @@ theorem step_heapStoreI {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env} {M : M
   exact Or.inr ⟨rfl, sr_heapStore hok ht.sr j hj w, fun y v hy => ht.env y v hy, fun _ _ h => absurd h (by simp),
     ht.decl⟩
 
-theorem byte_extract (w : BitVec 64) (k : Nat) (hk : k < 8) :
-    (w >>> (8 * k)) &&& 255 = BitVec.ofNat 64 (Logic.byteW w k) := by
-  apply BitVec.eq_of_toNat_eq
-  simp only [BitVec.toNat_and, BitVec.toNat_ushiftRight, Logic.byteW, BitVec.toNat_ofNat]
-  rw [show (255 : BitVec 64).toNat = 2 ^ 8 - 1 from rfl, Nat.and_two_pow_sub_one_eq_mod, Nat.shiftRight_eq_div_pow]
-  rw [show 2 ^ (8 * k) = 256 ^ k by rw [Nat.pow_mul]]
-  have : (w.toNat / 256 ^ k) % 256 < 2 ^ 64 := by have := Nat.mod_lt (w.toNat / 256 ^ k) (by decide : 256 > 0); omega
-  rw [Nat.mod_eq_of_lt this]
-
 /-- The key cells after `i` copies. -/
 def kcH (H : List (BitVec 64)) (o : Nat) (ws : List (BitVec 64)) : Nat → List (BitVec 64)
   | 0 => H
@@ -124,21 +115,6 @@ theorem kcG_k (Γ0 : Env) (H : List (BitVec 64)) (bufJ o q : Nat) (ws : List (Bi
     (h0 : Env.get Γ0 kK = some 0) : ∀ i, Env.get (kcG Γ0 H bufJ o q ws i) kK = some (BitVec.ofNat 64 i)
   | 0 => h0
   | i + 1 => by simp [kcG, Env.get_cons]
-
-theorem shr3shl3 (j : Nat) (hj : j < 2 ^ 64) :
-    (BitVec.ofNat 64 j >>> (3 : Nat)) <<< (3 : Nat) = BitVec.ofNat 64 (8 * (j / 8)) := by
-  apply BitVec.eq_of_toNat_eq
-  simp only [BitVec.toNat_shiftLeft, BitVec.toNat_ushiftRight, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hj]
-  rw [Nat.shiftLeft_eq, Nat.shiftRight_eq_div_pow]
-  have : j / 2 ^ 3 * 2 ^ 3 < 2 ^ 64 := by have := Nat.div_mul_le_self j (2 ^ 3); omega
-  rw [Nat.mod_eq_of_lt this]; omega
-
-theorem and7shl3 (j : Nat) (hj : j < 2 ^ 64) :
-    ((BitVec.ofNat 64 j &&& 7) <<< (3 : Nat)).toNat = 8 * (j % 8) := by
-  simp only [BitVec.toNat_shiftLeft, BitVec.toNat_and, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hj]
-  rw [show (7 : BitVec 64).toNat = 2 ^ 3 - 1 from rfl, Nat.and_two_pow_sub_one_eq_mod, Nat.shiftLeft_eq]
-  have : j % 2 ^ 3 * 2 ^ 3 < 2 ^ 64 := by have := Nat.mod_lt j (by decide : 2 ^ 3 > 0); omega
-  rw [Nat.mod_eq_of_lt this]; omega
 
 theorem ctxH_self (C : Ctx) : ctxH C C.H = C := by cases C; rfl
 

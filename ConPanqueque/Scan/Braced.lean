@@ -16,7 +16,7 @@ def sD := ofString "depth"
 
 def brBody : ProgHOL 64 :=
   .ite (.cmp .lower (vv sI) (vv sN))
-    (.seq (.assign .local sC (.loadByte (.op .add [vv sB, vv sI])))
+    (.seq (.assign .local sC (byteE (.op .add [vv sB, vv sI])))
       (.ite (.cmp .equal (vv sC) (.const 34))
         (.seq (callTo sE2 fSkipPlain [vv sB, vv sN, .op .add [vv sI, .const 1]])
           (.seq (bAt sC (vv sE2))
@@ -88,7 +88,7 @@ theorem br_step (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArra
     simp [vv, evalHOLExact, evalListHOLExact, lb', li', wordOpHOL, wordOp, valueIsWord, valueWord]
   obtain ⟨c, hcx⟩ : ∃ c, c = b.data.toList[j.toNat] := ⟨_, rfl⟩
   rw [seq_normal _ (ConsLoop.assign_local v0 sC _ (BitVec.ofNat 64 c.toNat) wc
-    (by rw [hcx]; exact eval_loadByte_bytes v0 _ A b.data.toList j.toNat hbv hjl' haddr) (by lk [v0]; exact lc))]
+    (by rw [hcx]; exact eval_byteE_bytes v0 _ A b.data.toList j.toNat hbv hjl' haddr) (by lk [v0]; exact lc))]
   let v1 := setVarHOLFinite sC (.val (.word (BitVec.ofNat 64 c.toNat))) v0
   have lc1 : v1.locals.lookup sC = some (.val (.word (BitVec.ofNat 64 c.toNat))) := by lk [v1]
   have li1 : v1.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 j.toNat))) := by lk [v1, v0]; exact li

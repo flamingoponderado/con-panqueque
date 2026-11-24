@@ -21,7 +21,7 @@ def sJ := ofString "j"
 
 /-- `dst = byteAt(pos)`: the byte, or `0` past the end. -/
 def bAt (dst : MlS) (pos : ExpHOL 64) : ProgHOL 64 :=
-  .ite (.cmp .lower pos (vv sN)) (.assign .local dst (.loadByte (.op .add [vv sB, pos])))
+  .ite (.cmp .lower pos (vv sN)) (.assign .local dst (byteE (.op .add [vv sB, pos])))
     (.assign .local dst (.const 0))
 
 def posE (k : Nat) : ExpHOL 64 := .op .add [vv sJ, .const (BitVec.ofNat 64 k)]
@@ -83,7 +83,7 @@ theorem bAt_spec (u : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (bs : List U
     have haddr : @evalHOLExact 64 σ _ u.toExact (fun a => Classical.propDecidable (u.memaddrs a))
         (.op .add [vv sB, pos]) = some (.val (.word (A + BitVec.ofNat 64 p))) := by
       simp [vv, evalHOLExact, evalListHOLExact, lb, hpos, wordOpHOL, wordOp, valueIsWord, valueWord]
-    rw [ConsLoop.assign_local u dst _ _ w0 (eval_loadByte_bytes u _ A bs p hb hlt haddr) hd]
+    rw [ConsLoop.assign_local u dst _ _ w0 (eval_byteE_bytes u _ A bs p hb hlt haddr) hd]
     simp [byteL, List.getElem?_eq_getElem hlt]
   · have : Flapjack.Compiler.Encoders.Asm.wordCmpHOL .lower (BitVec.ofNat 64 p) (BitVec.ofNat 64 bs.length) = false := by
       simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, ofNat_lt_iff p bs.length hp hL, hlt]

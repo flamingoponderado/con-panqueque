@@ -29,7 +29,7 @@ def TestOK (p : Nat → Bool) (T : ExpHOL 64) : Prop :=
 
 def skBody (T : ExpHOL 64) : ProgHOL 64 :=
   .ite (.cmp .lower (vv sI) (vv sN))
-    (.seq (.assign .local sC (.loadByte (.op .add [vv sB, vv sI])))
+    (.seq (.assign .local sC (byteE (.op .add [vv sB, vv sI])))
       (.ite T (.assign .local sI (.op .add [vv sI, .const 1])) (.assign .local sG (.const 0))))
     (.assign .local sG (.const 0))
 
@@ -46,7 +46,7 @@ theorem bytesAt_congr {t u : PanSemStateFiniteExact 64 σ} {a : BitVec 64} {bs :
     (h : BytesAt t a bs) (hm : u.memory = t.memory) (hd : u.memaddrs = t.memaddrs) (hb : u.be = t.be) :
     BytesAt u a bs := by
   obtain ⟨h1, h2, h3, h4⟩ := h
-  exact ⟨by rw [hb]; exact h1, h2, h3, fun i hi => by rw [hm, hd]; exact h4 i hi⟩
+  exact ⟨h1, h2, h3, fun i hi => by rw [hm, hd]; exact h4 i hi⟩
 
 /-- The loop's invariant: the frame, the buffer's address and length, and the position `j`, from
 which skipping gives the same answer as from `i0`, or which is that answer once `go` is `0`. -/
@@ -89,7 +89,7 @@ theorem sk_step (p : Nat → Bool) (T : ExpHOL 64) (hT : TestOK p T) (t : PanSem
       have li' : v.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 j))) := by lk [v]; exact li
       simp [vv, evalHOLExact, evalListHOLExact, lb', li', wordOpHOL, wordOp, valueIsWord, valueWord]
     rw [seq_normal _ (ConsLoop.assign_local v sC _ (BitVec.ofNat 64 bs[j].toNat) c
-      (eval_loadByte_bytes v _ A bs j hbv hjl haddr) (by lk [v]; exact lc))]
+      (eval_byteE_bytes v _ A bs j hbv hjl haddr) (by lk [v]; exact lc))]
     let v1 := setVarHOLFinite sC (.val (.word (BitVec.ofNat 64 bs[j].toNat))) v
     have hws := hT v1 bs[j].toNat (UInt8.toNat_lt _) (by lk [v1])
     rw [ite_word v1 _ _ _ _ hws]

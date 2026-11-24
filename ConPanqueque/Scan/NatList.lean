@@ -23,7 +23,7 @@ def incI : ProgHOL 64 := .assign .local sI (.op .add [vv sI, .const 1])
 
 def nlBody : ProgHOL 64 :=
   .ite (.cmp .lower (vv sI) (vv sN))
-    (.seq (.assign .local sC (.loadByte (.op .add [vv sB, vv sI])))
+    (.seq (.assign .local sC (byteE (.op .add [vv sB, vv sI])))
       (.ite wsTest incI
         (.ite (.cmp .equal (vv sC) (.const 93))
           (.ite (.op .and [vv sW, vv sNe]) hang (.seq incI (.assign .local sG (.const 0))))
@@ -135,7 +135,7 @@ theorem nl_step (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArra
     simp [vv, evalHOLExact, evalListHOLExact, lb', li', wordOpHOL, wordOp, valueIsWord, valueWord]
   obtain ⟨c, hcx⟩ : ∃ c, c = b.data.toList[j.toNat] := ⟨_, rfl⟩
   rw [seq_normal _ (ConsLoop.assign_local v sC _ (BitVec.ofNat 64 c.toNat) wc
-    (by rw [hcx]; exact eval_loadByte_bytes v _ A b.data.toList j.toNat hbv hjl' haddr) (by lk [v]; exact lc))]
+    (by rw [hcx]; exact eval_byteE_bytes v _ A b.data.toList j.toNat hbv hjl' haddr) (by lk [v]; exact lc))]
   let v1 := setVarHOLFinite sC (.val (.word (BitVec.ofNat 64 c.toNat))) v
   have lc1 : v1.locals.lookup sC = some (.val (.word (BitVec.ofNat 64 c.toNat))) := by lk [v1]
   have li1 : v1.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 j.toNat))) := by lk [v1, v]; exact li
