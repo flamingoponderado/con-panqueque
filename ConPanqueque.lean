@@ -412,3 +412,4 @@ import ConPanqueque.Front.DeclRel
 import ConPanqueque.Front.Decl
 import ConPanqueque.Front.DeclLine
 import ConPanqueque.Front.ExprLine
+import ConPanqueque.Front.NameLine
