@@ -898,10 +898,6 @@ theorem lineBranch_eq (tbl : List (Key × LAct)) (b : ByteArray) (j v : USize) (
 section
 variable {σ : Type}
 
-theorem bw_or (p q : Prop) [Decidable p] [Decidable q] :
-    wordOpHOL .or [bw p, bw q] = some (bw (p ∨ q)) := by
-  by_cases hp : p <;> by_cases hq : q <;> simp [hp, hq, bw, wordOpHOL, wordOp] <;> decide
-
 theorem eval_ne0 (u : PanSemStateFiniteExact 64 σ) (x : MlS) (w : BitVec 64)
     (h : u.locals.lookup x = some (.val (.word w))) :
     @evalHOLExact 64 σ _ u.toExact (fun a => Classical.propDecidable (u.memaddrs a))
