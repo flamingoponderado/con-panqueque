@@ -353,4 +353,58 @@ theorem numEnd_eq {b : ByteArray} (hp : Plat b) (i : USize) (hi : i.toNat ≤ b.
     by_cases hz : g.toNat = 48 <;>
       by_cases hn : skipL isDigitN b.data.toList i.toNat = i.toNat + 1 <;> simp [hz, hn, hs]
 
+/-- A byte inside a key: not the closing quote, not a control byte, not a backslash. -/
+def isKeyN (c : Nat) : Bool := !(c == 34) && !(decide (c < 32) || c == 92)
+
+/-- `keyEnd`, on a list: the closing quote of the key whose contents start at `j`, or `0`. -/
+def keyEndL (bs : List UInt8) (j : Nat) : Nat :=
+  let k := skipL isKeyN bs j
+  if (bs[k]?.getD 0).toNat = 34 then k else 0
+
+theorem keyEnd_eq {b : ByteArray} (hp : Plat b) :
+    ∀ n (j : USize), b.size - j.toNat = n →
+      (ConLeche.Frontend.keyEnd b j).toNat = keyEndL b.data.toList j.toNat := by
+  intro n
+  induction n using Nat.strongRecOn with
+  | _ n ih =>
+    intro j hn
+    rw [ConLeche.Frontend.keyEnd, keyEndL, skipL]
+    by_cases h : j < b.usize
+    · have hl : j.toNat < b.size := (hp.lt_iff j).mp h
+      have hl' : j.toNat < b.data.toList.length := by simpa using hl
+      rw [dif_pos h, dif_pos hl']
+      simp only
+      rw [uget_eq b j hl h]
+      generalize hc : b.data.toList[j.toNat] = c
+      have e34 := beq_ofNat c 34 (by decide)
+      have e92 := beq_ofNat c 92 (by decide)
+      have e32 : (c < 32) = (c.toNat < 32) := by
+        simp [UInt8.lt_iff_toNat_lt]
+      rw [show (34 : UInt8) = UInt8.ofNat 34 from rfl, show (92 : UInt8) = UInt8.ofNat 92 from rfl,
+        show (32 : UInt8) = UInt8.ofNat 32 from rfl, e34, e92]
+      by_cases q : c.toNat = 34
+      · have : isKeyN c.toNat = false := by simp [isKeyN, q]
+        simp [q, this, List.getElem?_eq_getElem hl', hc, show isKeyN 34 = false from rfl]
+      · by_cases bad : c.toNat < 32 ∨ c.toNat = 92
+        · have : isKeyN c.toNat = false := by simp [isKeyN, q]; omega
+          have hlt : (c < UInt8.ofNat 32) = decide (c.toNat < 32) := by
+            simp [UInt8.lt_iff_toNat_lt]
+          simp only [q, this, hlt, beq_iff_eq, ↓reduceIte, Bool.false_eq_true, decide_eq_true_eq]
+          have hb' : (decide (c.toNat < 32) || c.toNat == 92) = true := by
+            rcases bad with h | h <;> simp [h]
+          rw [if_pos hb', List.getElem?_eq_getElem hl', hc]
+          simp [q]
+        · have : isKeyN c.toNat = true := by simp [isKeyN, q]; omega
+          have hlt : (c < UInt8.ofNat 32) = decide (c.toNat < 32) := by
+            simp [UInt8.lt_iff_toNat_lt]
+          have hs := ConLeche.Frontend.usizeStep b j h
+          simp only [q, this, hlt, beq_iff_eq, decide_eq_true_eq, ↓reduceIte, Bool.not_eq_true',
+            Bool.false_eq_true, Bool.or_eq_true, decide_eq_false_iff_not]
+          rw [if_neg (by omega), ih (b.size - (j + 1).toNat) (by omega) (j + 1) rfl, hs]
+          rfl
+    · have hl : ¬ j.toNat < b.data.toList.length := by
+        have : ¬ j.toNat < b.size := fun h' => h ((hp.lt_iff j).mpr h'); simpa using this
+      rw [dif_neg h, dif_neg hl, List.getElem?_eq_none (by omega)]
+      simp
+
 end ConPanqueque.Scan

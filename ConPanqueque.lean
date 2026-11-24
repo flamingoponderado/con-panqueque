@@ -374,3 +374,4 @@ import ConPanqueque.Scan.ReadNat
 import ConPanqueque.Scan.NumEnd
 import ConPanqueque.Scan.Keys
 import ConPanqueque.Scan.KeyFun
+import ConPanqueque.Scan.KeyEnd
