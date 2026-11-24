@@ -161,3 +161,23 @@ of the frontend runs in the SpecR/Inv world of the declaration layer:
 6. Then `feedChunk`/`parseChunks`, `StateD.init`, the prelude (static text, parsed by the same
    code), pins, the code table and the C harness, and finally the top theorem: from the oracle's
    chunks and an accepting exit, con-ron's stage runs, then `stages_frame`/`fold_verdict`.
+
+### Interning status (2026-11-24, 8b1a17c)
+
+Done, each a SpecR rule against the twin's entry function at the table relation (`Front/`):
+- `Buf`: `bytesAt_of_heap`. `Tbl`: `TblRel` and get/fresh/set. `RetCall`: `specR_retP3`.
+- `Level`: succ, param, max, imax (`parseLevelEntryD`).
+- `Expr`: bvar, sort, app, lam, forallE, letE, proj (`parseExprEntryD`).
+- `lineFunPk` returns the tag and payload position from one scan. The index, kind and nat value
+  come from the record, so separate calls agree on them.
+
+Next:
+- **Names.** The key (`Enc.encStr` = prefix handle, then one word per byte) is copied from the
+  buffer into heap scratch above the frontend's data, as `internLs` does for level lists. Body specs
+  `nameStr_body_spec`/`nameNum_body_spec` wrap `nInternStr_spec`/`nInternNum_spec` with that
+  heap key. Their separation facts go in a frontend `FrontOK C`, not `CtxOK`, to avoid rebuilding
+  the kernel. The twin's order is the prefix lookup first, then the freshness test.
+  A name number is rejected at `natCap`, since the capped value would be wrong.
+- `const` (the level list key, `internLs`), `natVal` (limbs from the digits), `strVal`.
+- Declarations (`parseCVD`, `pushDecl` into the `RecOK` block), `applyLine` with placement,
+  `feedChunk`, the chunk reads, the prelude, pins, the code table, the harness, the top theorem.
