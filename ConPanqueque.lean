@@ -435,3 +435,4 @@ import ConPanqueque.Front.Main
 import ConPanqueque.Front.ByteSet
 import ConPanqueque.Front.ReadMem
 import ConPanqueque.Front.Read
+import ConPanqueque.Front.ReadBuf
