@@ -407,3 +407,21 @@ They are in the separate default target `ConPanquequeCode`.
 
 Still assumed: the start state (pins, arena/heap layout, `be = false`, the `Ctx` layout
 facts `CtxOK`/`FrontOK`). Missing: the prelude/top-level verdict and the harness.
+
+### Path to an executable (plan, 2026-11-24)
+
+The toolchain is in place: `pancake/` with `cake --pancake` v3479 and the `ffi.c` harness. Flapjack
+has a Pancake parser (`Flapjack.Parser.parseTopDecs`) but no printer. Steps:
+1. **Printer** `ProgHOL 64 → String` in Pancake concrete syntax, for every `codeEntries` body
+   plus `main`. Check it by round-tripping through `parseTopDecs` and the `Exp`/`ProgHOL`
+   codecs, as an executable check (and as a theorem where feasible).
+2. **Layout constants.** Several bodies take `C` (e.g. `stepBody C`) and read its static layout
+   fields (`L`, `FL*`, `KB`, `mG`/`mg`, `HB`, `EB`, `PO`, `EO`). Fix one concrete layout,
+   prove `CtxOK`/`FrontOK` for it, and emit bodies at that layout.
+3. **`main`**: set the globals and the arena, run the pin phase (con-ron's
+   `internReservedPins`, needing a Pancake port with `PinsOK` as its post), then `topP`. This
+   establishes the start-state hypotheses of `top_verdict_table`.
+4. **Harness**: `ffi.c` implements `read` (header = length, then the file bytes) and the
+   verdict output.
+5. **Prelude** (needed before real files are accepted): inductives, axioms and quot in the
+   fold, then con-ron's stage composition up to the top-level verdict.
