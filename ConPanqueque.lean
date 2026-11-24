@@ -384,3 +384,4 @@ import ConPanqueque.Scan.NatList
 import ConPanqueque.Scan.ObjFun
 import ConPanqueque.Scan.Line
 import ConPanqueque.Scan.RecFuns
+import ConPanqueque.Scan.RecEnds
