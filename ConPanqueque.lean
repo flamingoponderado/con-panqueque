@@ -373,3 +373,4 @@ import ConPanqueque.Scan.SkipWs
 import ConPanqueque.Scan.ReadNat
 import ConPanqueque.Scan.NumEnd
 import ConPanqueque.Scan.Keys
+import ConPanqueque.Scan.KeyFun

@@ -127,4 +127,99 @@ theorem keyAt_eq (b : ByteArray) (i kl : USize) : keyAt b i kl = evalK b i kl ke
   generalize i + 1 + 1 = j
   split <;> simp only [keyTbl, evalBytes, evalLens, firstLit, litsAt_0, litsAt_1, litsAt_2, litsAt_3,
     litsAt_4, litsAt_5, litsAt_6, litsAt_7, litsAt_8, litsAt_9, litsAt_10, ↓reduceIte] <;> simp_all
+/-! ## On a list -/
+
+def byteL (bs : List UInt8) (p : Nat) : UInt8 := bs[p]?.getD 0
+
+def litsL (bs : List UInt8) (j : Nat) : List UInt8 → Nat → Bool
+  | [], _ => true
+  | c :: cs, k => byteL bs (j + k) == c && litsL bs j cs (k + 1)
+
+def firstL (bs : List UInt8) (j : Nat) : List (List UInt8 × Key) → Key
+  | [] => .kUnknown
+  | (cs, k) :: r => if litsL bs j cs 0 then k else firstL bs j r
+
+def lensL (bs : List UInt8) (j kl : Nat) : List (USize × List (List UInt8 × Key)) → Key
+  | [] => .kUnknown
+  | (l, cs) :: r => if kl = l.toNat then firstL bs j cs else lensL bs j kl r
+
+def bytesL (bs : List UInt8) (j kl : Nat) (x : UInt8) : KeyTbl → Key
+  | [] => .kUnknown
+  | (y, lens) :: r => if x = y then lensL bs j kl lens else bytesL bs j kl x r
+
+def evalKL (bs : List UInt8) (i kl : Nat) : Key := bytesL bs (i + 2) kl (byteL bs (i + 1)) keyTbl
+
+theorem usize_add_toNat (h64 : System.Platform.numBits = 64) (a : USize) (k : Nat) (h : a.toNat + k < 2 ^ 64) :
+    (a + USize.ofNat k).toNat = a.toNat + k := by
+  rw [USize.toNat_add, USize.toNat_ofNat']
+  simp only [USize.size_eq_two_pow, h64]
+  rw [Nat.mod_eq_of_lt (by omega : k < 2 ^ 64)]; exact Nat.mod_eq_of_lt h
+
+theorem litsAt_L {b : ByteArray} (hp : Plat b) (j : USize) :
+    ∀ (cs : List UInt8) (k : Nat), j.toNat + k + cs.length < 2 ^ 64 →
+      litsAt b j cs k = litsL b.data.toList j.toNat cs k := by
+  intro cs
+  induction cs with
+  | nil => intro k _; rfl
+  | cons c cs ih =>
+    intro k hk
+    simp only [litsAt, litsL, List.length_cons] at hk ⊢
+    rw [ih (k + 1) (by omega), byteAt_eq hp, usize_add_toNat hp.bits j k (by omega)]
+    rfl
+
+theorem firstLit_L {b : ByteArray} (hp : Plat b) (j : USize) (hj : j.toNat + 16 < 2 ^ 64) :
+    ∀ (cands : List (List UInt8 × Key)), (∀ c ∈ cands, c.1.length ≤ 16) →
+      firstLit b j cands = firstL b.data.toList j.toNat cands := by
+  intro cands
+  induction cands with
+  | nil => intro _; rfl
+  | cons c r ih =>
+    intro hl
+    obtain ⟨cs, k⟩ := c
+    have h1 := hl (cs, k) (List.mem_cons_self ..)
+    simp only [firstLit, firstL]
+    rw [litsAt_L hp j cs 0 (by simp at h1; omega), ih (fun c hc => hl c (List.mem_cons_of_mem _ hc))]
+
+theorem evalLens_L {b : ByteArray} (hp : Plat b) (j kl : USize) (hj : j.toNat + 16 < 2 ^ 64) :
+    ∀ (lens : List (USize × List (List UInt8 × Key))), (∀ l ∈ lens, ∀ c ∈ l.2, c.1.length ≤ 16) →
+      evalLens b j kl lens = lensL b.data.toList j.toNat kl.toNat lens := by
+  intro lens
+  induction lens with
+  | nil => intro _; rfl
+  | cons l r ih =>
+    intro hl
+    obtain ⟨len, cs⟩ := l
+    simp only [evalLens, lensL]
+    have hq : (kl == len) = decide (kl.toNat = len.toNat) := by
+      by_cases h : kl = len
+      · simp [h]
+      · have : ¬ kl.toNat = len.toNat := fun h' => h (USize.toNat_inj.mp h')
+        simp [h, this]
+    rw [hq, firstLit_L hp j hj cs (hl _ (List.mem_cons_self ..)), ih (fun l hl' => hl l (List.mem_cons_of_mem _ hl'))]
+    simp
+
+theorem keyTbl_short : ∀ e ∈ keyTbl, ∀ l ∈ e.2, ∀ c ∈ l.2, c.1.length ≤ 16 := by decide
+
+theorem evalBytes_L {b : ByteArray} (hp : Plat b) (j kl : USize) (x : UInt8) (hj : j.toNat + 16 < 2 ^ 64) :
+    ∀ (t : KeyTbl), (∀ e ∈ t, ∀ l ∈ e.2, ∀ c ∈ l.2, c.1.length ≤ 16) →
+      evalBytes b j kl x t = bytesL b.data.toList j.toNat kl.toNat x t := by
+  intro t
+  induction t with
+  | nil => intro _; rfl
+  | cons e r ih =>
+    intro hl
+    obtain ⟨y, lens⟩ := e
+    simp only [evalBytes, bytesL]
+    rw [evalLens_L hp j kl hj lens (hl _ (List.mem_cons_self ..)), ih (fun e he => hl e (List.mem_cons_of_mem _ he))]
+
+/-- **`keyAt` on a list**: away from the top of the address space. -/
+theorem keyAt_L {b : ByteArray} (hp : Plat b) (i kl : USize) (hi : i.toNat + 18 < 2 ^ 64) :
+    keyAt b i kl = evalKL b.data.toList i.toNat kl.toNat := by
+  rw [keyAt_eq, evalK, evalKL]
+  have h1 : (i + 1).toNat = i.toNat + 1 := usize_add_toNat hp.bits i 1 (by omega)
+  have h2 : (i + 1 + 1).toNat = i.toNat + 2 := by
+    rw [show (i + 1 + 1) = (i + 1) + USize.ofNat 1 from rfl, usize_add_toNat hp.bits _ 1 (by omega), h1]
+  rw [evalBytes_L hp _ kl _ (by omega) keyTbl keyTbl_short, h2, byteAt_eq hp, h1]
+  rfl
+
 end ConPanqueque.Scan
