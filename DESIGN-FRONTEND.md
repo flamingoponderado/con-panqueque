@@ -446,3 +446,52 @@ Next, the start state:
    con-ron's `internReservedPins` and the environment start. Proved: `SR`/`StateOK`/`PinsOK`
    for the twin's state after the pin phase.
 3. Then `topP`, and `@accept` on return.
+
+### The start state and the whole program (d5c00a9 … 9f7d8c0)
+
+The start-state hypotheses of `top_verdict_table` are now established by code, in `ConPanqueque/Start`:
+
+- **Bootstrap.** `SR` needs the pinned zero level to denote (`PinDen`), so it cannot hold of the empty
+  store. The program therefore starts from a memory image that already holds the anonymous-name and
+  level-zero rows. `Start/Boot` computes that twin state (`boot_run`) and its `StateOK`. The
+  placeholder pin table `P0` has every handle at word 0.
+- **The initial image.** `Start/Image` defines `initL`, ~700 (address, word) stores: every table's
+  descriptor and top word, the two rows, and `P0`'s environment block. The list is sorted (kernel
+  `decide`). From a zeroed region (`InitMem`), `Start/InitMem` and `Start/InitSR` give every table's
+  `DescV`, its empty or one-row contents, and `SRep`. `Start/InitCtx` then gives `SR`, `CtxOK` and
+  `FrontOK` of the bootstrap context `C0` (`sr_init`).
+- **The pin phase.** `pinsP` refines con-ron's `internReservedPins` (`pins_spec`, `Start/PinPhase`).
+  It allocates two environment blocks and interns the 52 pinned and 16 reserved static names
+  (`Start/PinName`: key constants into fresh heap cells, then `internNStr`). It then interns the
+  empty level list, level zero (a hit), its successor and `Sort 1`, and stores each into the block.
+  The twin's install of the pins switches the invariant to `C1` with the real pin table
+  (`sr_switch`, `ctxOK_C1`). `StateOK`/`PinsOK`/`PersPins` come from con-ron's
+  `internReservedPins_run`.
+- **The whole program.** `mainBody` (`Start/Main`): declare the locals, store the image, read,
+  run the pin phase, set the frontend's locals, then `restP` (`Start/Rest`: `top_verdict`'s
+  post-read half). `main_verdict`: from `InitMem`, `InitGlobals` (the globals as the program
+  declares them) and little-endian, if `mainBody` returns, the trace records the read of `nb`,
+  `parseBytes (inputOf nb …) = .ok rc`, and `checkDeclsPure .verified … [] rc.decls` accepts.
+  `main_model` (`Start/Model`): then, by con-leche's model theorems, the stream's environment has a
+  set-theoretic model and stores no constant of type `False`.
+- **Code table.** `codeT := codeMap (codeEntries Cg)` at the concrete layout. `codeEntries` does not
+  depend on the context's non-layout fields (`rfl`), so `C1.code = codeMap (codeEntries C1)` holds
+  for every heap and pin table.
+- **Executable.** `scripts/Emit.lean` prints the globals with `InitGlobals`' values, `main`
+  (`mainBody`) and the table at the layout. All 394 functions round-trip through flapjack's
+  parser. `make -C pancake checker` builds it with `cake --pancake` v3479. The harness prints
+  `accept` when `main` returns (the runtime's `cml_exit(0)`). On con-leche's `wide_ok` fixture
+  (579 KB) it accepts in 0.8 s.
+
+Still assumed (outside the Lean proofs):
+- the harness's start: the region zeroed and addressable (`InitMem`), the globals as declared
+  (`InitGlobals`; flapjack has no semantics of top-level declarations here), little-endian;
+- `cake --pancake` compiles `checker.pnk` correctly, and the printed text is the program
+  (the round trip is an executable check, not a theorem);
+- `RuntimeAssumptions` (Lean's runtime hashes are their reference models), and a 64-bit platform for
+  con-leche;
+- the verdict is con-leche's pure checker on the stream alone (no prelude, no Nat-op pin sets),
+  not con-leche's full pipeline (built-in prelude, `preparePrelude`, `internAllPins`). Inductives,
+  axioms and quotients are rejected, so real Lean exports (which start with the prelude) are
+  rejected;
+- rejection is the `hang` loop (no reject exit).
