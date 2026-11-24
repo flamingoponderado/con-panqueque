@@ -41,12 +41,32 @@ theorem isWs_eq (c : UInt8) : ConLeche.Frontend.isWs c = isWsN c.toNat := by
     show (13 : UInt8) = UInt8.ofNat 13 from rfl, beq_ofNat c 32 (by decide), beq_ofNat c 9 (by decide),
     beq_ofNat c 13 (by decide)]
 
-/-- `skipWs`, on a list. -/
-def skipWsL (bs : List UInt8) (i : Nat) : Nat :=
+/-- Skipping the bytes that pass `p`, on a list. -/
+def skipL (p : Nat → Bool) (bs : List UInt8) (i : Nat) : Nat :=
   if h : i < bs.length then
-    if isWsN bs[i].toNat then skipWsL bs (i + 1) else i
+    if p bs[i].toNat then skipL p bs (i + 1) else i
   else i
 termination_by bs.length - i
+
+theorem skipL_step (p : Nat → Bool) (bs : List UInt8) (j : Nat) (hj : j < bs.length) :
+    skipL p bs j = if p bs[j].toNat then skipL p bs (j + 1) else j := by
+  rw [skipL, dif_pos hj]
+
+theorem skipL_end (p : Nat → Bool) (bs : List UInt8) (j : Nat) (hj : ¬ j < bs.length) :
+    skipL p bs j = j := by
+  rw [skipL, dif_neg hj]
+
+/-- `skipWs`, on a list. -/
+abbrev skipWsL := skipL isWsN
+
+def isDigitN (c : Nat) : Bool := decide (48 ≤ c) && decide (c ≤ 57)
+
+theorem isDigit_eq (c : UInt8) : ConLeche.Frontend.isDigit c = isDigitN c.toNat := by
+  simp only [ConLeche.Frontend.isDigit, isDigitN, UInt8.le_iff_toNat_le]
+  rfl
+
+/-- `skipDigits`, on a list. -/
+abbrev skipDigitsL := skipL isDigitN
 
 theorem skipWs_eq {b : ByteArray} (hp : Plat b) :
     ∀ n (i : USize), b.size - i.toNat = n →
@@ -55,11 +75,31 @@ theorem skipWs_eq {b : ByteArray} (hp : Plat b) :
   induction n using Nat.strongRecOn with
   | _ n ih =>
     intro i hn
-    rw [ConLeche.Frontend.skipWs, skipWsL]
+    rw [ConLeche.Frontend.skipWs, skipWsL, skipL]
     by_cases h : i < b.usize
     · have hl : i.toNat < b.size := (hp.lt_iff i).mp h
       have hl' : i.toNat < b.data.toList.length := by simpa using hl
       rw [dif_pos h, dif_pos hl', uget_eq b i hl h, isWs_eq]
+      split
+      · have hs := ConLeche.Frontend.usizeStep b i h
+        rw [ih (b.size - (i + 1).toNat) (by omega) (i + 1) rfl, hs]
+      · rfl
+    · have hl : ¬ i.toNat < b.data.toList.length := by
+        have : ¬ i.toNat < b.size := fun h' => h ((hp.lt_iff i).mpr h'); simpa using this
+      rw [dif_neg h, dif_neg hl]
+
+theorem skipDigits_eq {b : ByteArray} (hp : Plat b) :
+    ∀ n (i : USize), b.size - i.toNat = n →
+      (ConLeche.Frontend.skipDigits b i).toNat = skipDigitsL b.data.toList i.toNat := by
+  intro n
+  induction n using Nat.strongRecOn with
+  | _ n ih =>
+    intro i hn
+    rw [ConLeche.Frontend.skipDigits, skipDigitsL, skipL]
+    by_cases h : i < b.usize
+    · have hl : i.toNat < b.size := (hp.lt_iff i).mp h
+      have hl' : i.toNat < b.data.toList.length := by simpa using hl
+      rw [dif_pos h, dif_pos hl', uget_eq b i hl h, isDigit_eq]
       split
       · have hs := ConLeche.Frontend.usizeStep b i h
         rw [ih (b.size - (i + 1).toNat) (by omega) (i + 1) rfl, hs]
