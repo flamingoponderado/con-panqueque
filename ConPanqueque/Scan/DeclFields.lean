@@ -173,6 +173,402 @@ theorem opaqueSlot_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
       fun hk' => hsl k hk' rfl⟩
   · simp at hro'
 
+theorem strNameSlot_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+    (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (i : USize) (hi : i.toNat ≤ b.size)
+    (lb : t.locals.lookup sB = some (.val (.word A)))
+    (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
+    (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat))))
+    (k : Nat) (hk : k < 2) (d : NameRec) (e0 : USize) (hd : scanStrName b i = .ok d e0) :
+    RetP t (recFun scanStrNameSpec [0, BitVec.ofNat 64 listSentinel] (vv (slotName k))) (fun w => ∃ slots', KindsOK [0, 2] slots' ∧ d = (fun sl => (NameRec.str (sl.getD 0 default).nat (sl.getD 1 default).str)) slots' ∧
+      ∀ hk' : k < slots'.length, SlotOK b w slots'[k]) := by
+  unfold recFun
+  apply retP_decsOf
+  have hlk := recEntry_lookup [0, BitVec.ofNat 64 listSentinel] t
+  have hks : ∀ e ∈ scanStrNameSpec.keys, ActOK 2 e.2.2 := by simp [scanStrNameSpec, ActOK]
+  have e := recBody_spec (σ := σ) scanStrNameSpec 2 t A b hp hb hc hks (by decide) i hi [.n 0, .s ""] rfl (slotName k) (Or.inr ⟨k, hk, rfl⟩)
+    ((recLocals [0, BitVec.ofNat 64 listSentinel]).foldl (fun s (x, w) => setVarHOLFinite x (.val (.word w)) s) t) rfl rfl rfl rfl rfl
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact lb)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact ln)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact li)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by intro x hx; simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hx
+        rcases hx with rfl | rfl | rfl | rfl | rfl <;> exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]⟩)
+    (by intro k hk; simp only [List.length_cons, List.length_nil] at hk
+        rcases (show k = 0 ∨ k = 1 by omega) with rfl | rfl
+        · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
+        · exact ⟨BitVec.ofNat 64 listSentinel, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩)
+  refine retP_mono e ?_
+  rintro w ⟨j, slots', hro, -, -, hsl⟩
+  have hro' := hro
+  unfold RecOut at hro'
+  split at hro'
+  · rename_i hbyte
+    have hs : scanStrName b i = .ok ((fun sl => (NameRec.str (sl.getD 0 default).nat (sl.getD 1 default).str)) slots') j := by
+      rw [scanStrName, scanStrNameLoop_eq b _ (i + 1) true 0 0 "" rfl, if_pos hbyte, hro']; rfl
+    rw [hd] at hs
+    simp only [ScanRes.ok.injEq] at hs
+    have hsp : SpecKinds scanStrNameSpec [0, 2] := by
+      intro e he sl kd hw
+      simp only [scanStrNameSpec, List.mem_cons, List.not_mem_nil, or_false] at he
+      rcases he with rfl | rfl <;> simp only [VAct.wr, Option.some.injEq, Prod.mk.injEq, reduceCtorEq] at hw <;>
+        obtain ⟨rfl, rfl⟩ := hw <;> rfl
+    have hK0 : KindsOK [0, 2] [.n 0, .s ""] := by
+      refine ⟨rfl, fun k hk => ?_⟩
+      simp only [List.length_cons, List.length_nil] at hk
+      rcases (show k = 0 ∨ k = 1 by omega) with rfl | rfl <;> rfl
+    exact ⟨slots', objLoop_kinds scanStrNameSpec [0, 2] hsp b _ (i + 1) true 0 [.n 0, .s ""] rfl hK0 slots' j hro', hs.1,
+      fun hk' => hsl k hk' rfl⟩
+  · simp at hro'
+
+theorem numNameSlot_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+    (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (i : USize) (hi : i.toNat ≤ b.size)
+    (lb : t.locals.lookup sB = some (.val (.word A)))
+    (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
+    (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat))))
+    (k : Nat) (hk : k < 2) (d : NameRec) (e0 : USize) (hd : scanNumName b i = .ok d e0) :
+    RetP t (recFun scanNumNameSpec [0, 0] (vv (slotName k))) (fun w => ∃ slots', KindsOK [0, 0] slots' ∧ d = (fun sl => (NameRec.num (sl.getD 1 default).nat (sl.getD 0 default).nat)) slots' ∧
+      ∀ hk' : k < slots'.length, SlotOK b w slots'[k]) := by
+  unfold recFun
+  apply retP_decsOf
+  have hlk := recEntry_lookup [0, 0] t
+  have hks : ∀ e ∈ scanNumNameSpec.keys, ActOK 2 e.2.2 := by simp [scanNumNameSpec, ActOK]
+  have e := recBody_spec (σ := σ) scanNumNameSpec 2 t A b hp hb hc hks (by decide) i hi [.n 0, .n 0] rfl (slotName k) (Or.inr ⟨k, hk, rfl⟩)
+    ((recLocals [0, 0]).foldl (fun s (x, w) => setVarHOLFinite x (.val (.word w)) s) t) rfl rfl rfl rfl rfl
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact lb)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact ln)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact li)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by intro x hx; simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hx
+        rcases hx with rfl | rfl | rfl | rfl | rfl <;> exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]⟩)
+    (by intro k hk; simp only [List.length_cons, List.length_nil] at hk
+        rcases (show k = 0 ∨ k = 1 by omega) with rfl | rfl
+        · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
+        · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩)
+  refine retP_mono e ?_
+  rintro w ⟨j, slots', hro, -, -, hsl⟩
+  have hro' := hro
+  unfold RecOut at hro'
+  split at hro'
+  · rename_i hbyte
+    have hs : scanNumName b i = .ok ((fun sl => (NameRec.num (sl.getD 1 default).nat (sl.getD 0 default).nat)) slots') j := by
+      rw [scanNumName, scanNumNameLoop_eq b _ (i + 1) true 0 0 0 rfl, if_pos hbyte, hro']; rfl
+    rw [hd] at hs
+    simp only [ScanRes.ok.injEq] at hs
+    have hsp : SpecKinds scanNumNameSpec [0, 0] := by
+      intro e he sl kd hw
+      simp only [scanNumNameSpec, List.mem_cons, List.not_mem_nil, or_false] at he
+      rcases he with rfl | rfl <;> simp only [VAct.wr, Option.some.injEq, Prod.mk.injEq, reduceCtorEq] at hw <;>
+        obtain ⟨rfl, rfl⟩ := hw <;> rfl
+    have hK0 : KindsOK [0, 0] [.n 0, .n 0] := by
+      refine ⟨rfl, fun k hk => ?_⟩
+      simp only [List.length_cons, List.length_nil] at hk
+      rcases (show k = 0 ∨ k = 1 by omega) with rfl | rfl <;> rfl
+    exact ⟨slots', objLoop_kinds scanNumNameSpec [0, 0] hsp b _ (i + 1) true 0 [.n 0, .n 0] rfl hK0 slots' j hro', hs.1,
+      fun hk' => hsl k hk' rfl⟩
+  · simp at hro'
+
+theorem appSlot_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+    (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (i : USize) (hi : i.toNat ≤ b.size)
+    (lb : t.locals.lookup sB = some (.val (.word A)))
+    (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
+    (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat))))
+    (k : Nat) (hk : k < 2) (d : ExprRec) (e0 : USize) (hd : scanAppExpr b i = .ok d e0) :
+    RetP t (recFun appSpec [0, 0] (vv (slotName k))) (fun w => ∃ slots', KindsOK [0, 0] slots' ∧ d = (fun sl => ExprRec.app (sl.getD 1 default).nat (sl.getD 0 default).nat) slots' ∧
+      ∀ hk' : k < slots'.length, SlotOK b w slots'[k]) := by
+  unfold recFun
+  apply retP_decsOf
+  have hlk := recEntry_lookup [0, 0] t
+  have hks : ∀ e ∈ appSpec.keys, ActOK 2 e.2.2 := by
+    intro e he; simp only [appSpec, List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at he
+    rcases he with rfl | rfl <;> simp [ActOK]
+  have e := recBody_spec (σ := σ) appSpec 2 t A b hp hb hc hks (by decide) i hi [.n 0, .n 0] rfl (slotName k) (Or.inr ⟨k, hk, rfl⟩)
+    ((recLocals [0, 0]).foldl (fun s (x, w) => setVarHOLFinite x (.val (.word w)) s) t) rfl rfl rfl rfl rfl
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact lb)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact ln)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact li)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by intro x hx; simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hx
+        rcases hx with rfl | rfl | rfl | rfl | rfl <;> exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]⟩)
+    (by intro k hk; simp only [List.length_cons, List.length_nil] at hk
+        refine ⟨0, ?_, ?_⟩
+        · rw [hlk]; rcases (show k = 0 ∨ k = 1 by omega) with rfl | rfl <;> simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]
+        · rcases (show k = 0 ∨ k = 1 by omega) with rfl | rfl <;> simp [SlotOK, natCap])
+  refine retP_mono e ?_
+  rintro w ⟨j, slots', hro, -, -, hsl⟩
+  have hro' := hro
+  unfold RecOut at hro'
+  split at hro'
+  · rename_i hbyte
+    have hs : scanAppExpr b i = .ok ((fun sl => ExprRec.app (sl.getD 1 default).nat (sl.getD 0 default).nat) slots') j := by
+      rw [scanAppExpr, scanAppExprLoop_eq b _ (i + 1) true 0 0 0 rfl, if_pos hbyte, hro']; rfl
+    rw [hd] at hs
+    simp only [ScanRes.ok.injEq] at hs
+    have hsp : SpecKinds appSpec [0, 0] := by
+      intro e he sl kd hw
+      simp only [appSpec, List.mem_cons, List.not_mem_nil, or_false] at he
+      rcases he with rfl | rfl <;> simp only [VAct.wr, Option.some.injEq, Prod.mk.injEq, reduceCtorEq] at hw <;>
+        obtain ⟨rfl, rfl⟩ := hw <;> rfl
+    have hK0 : KindsOK [0, 0] [.n 0, .n 0] := by
+      refine ⟨rfl, fun k hk => ?_⟩
+      simp only [List.length_cons, List.length_nil] at hk
+      rcases (show k = 0 ∨ k = 1 by omega) with rfl | rfl <;> rfl
+    exact ⟨slots', objLoop_kinds appSpec [0, 0] hsp b _ (i + 1) true 0 [.n 0, .n 0] rfl hK0 slots' j hro', hs.1,
+      fun hk' => hsl k hk' rfl⟩
+  · simp at hro'
+
+theorem lamSlot_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+    (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (i : USize) (hi : i.toNat ≤ b.size)
+    (lb : t.locals.lookup sB = some (.val (.word A)))
+    (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
+    (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat))))
+    (k : Nat) (hk : k < 2) (d : ExprRec) (e0 : USize) (hd : scanLamExpr b i = .ok d e0) :
+    RetP t (recFun scanLamExprSpec [0, 0] (vv (slotName k))) (fun w => ∃ slots', KindsOK [0, 0] slots' ∧ d = (fun sl => (ExprRec.lam (sl.getD 1 default).nat (sl.getD 0 default).nat)) slots' ∧
+      ∀ hk' : k < slots'.length, SlotOK b w slots'[k]) := by
+  unfold recFun
+  apply retP_decsOf
+  have hlk := recEntry_lookup [0, 0] t
+  have hks : ∀ e ∈ scanLamExprSpec.keys, ActOK 2 e.2.2 := by simp [scanLamExprSpec, ActOK]
+  have e := recBody_spec (σ := σ) scanLamExprSpec 2 t A b hp hb hc hks (by decide) i hi [.n 0, .n 0] rfl (slotName k) (Or.inr ⟨k, hk, rfl⟩)
+    ((recLocals [0, 0]).foldl (fun s (x, w) => setVarHOLFinite x (.val (.word w)) s) t) rfl rfl rfl rfl rfl
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact lb)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact ln)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact li)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by intro x hx; simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hx
+        rcases hx with rfl | rfl | rfl | rfl | rfl <;> exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]⟩)
+    (by intro k hk; simp only [List.length_cons, List.length_nil] at hk
+        rcases (show k = 0 ∨ k = 1 by omega) with rfl | rfl
+        · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
+        · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩)
+  refine retP_mono e ?_
+  rintro w ⟨j, slots', hro, -, -, hsl⟩
+  have hro' := hro
+  unfold RecOut at hro'
+  split at hro'
+  · rename_i hbyte
+    have hs : scanLamExpr b i = .ok ((fun sl => (ExprRec.lam (sl.getD 1 default).nat (sl.getD 0 default).nat)) slots') j := by
+      rw [scanLamExpr, scanLamExprLoop_eq b _ (i + 1) true 0 0 0 rfl, if_pos hbyte, hro']; rfl
+    rw [hd] at hs
+    simp only [ScanRes.ok.injEq] at hs
+    have hsp : SpecKinds scanLamExprSpec [0, 0] := by
+      intro e he sl kd hw
+      simp only [scanLamExprSpec, List.mem_cons, List.not_mem_nil, or_false] at he
+      rcases he with rfl | rfl | rfl | rfl <;> simp only [VAct.wr, Option.some.injEq, Prod.mk.injEq, reduceCtorEq] at hw <;>
+        obtain ⟨rfl, rfl⟩ := hw <;> rfl
+    have hK0 : KindsOK [0, 0] [.n 0, .n 0] := by
+      refine ⟨rfl, fun k hk => ?_⟩
+      simp only [List.length_cons, List.length_nil] at hk
+      rcases (show k = 0 ∨ k = 1 by omega) with rfl | rfl <;> rfl
+    exact ⟨slots', objLoop_kinds scanLamExprSpec [0, 0] hsp b _ (i + 1) true 0 [.n 0, .n 0] rfl hK0 slots' j hro', hs.1,
+      fun hk' => hsl k hk' rfl⟩
+  · simp at hro'
+
+theorem forallSlot_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+    (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (i : USize) (hi : i.toNat ≤ b.size)
+    (lb : t.locals.lookup sB = some (.val (.word A)))
+    (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
+    (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat))))
+    (k : Nat) (hk : k < 2) (d : ExprRec) (e0 : USize) (hd : scanForallExpr b i = .ok d e0) :
+    RetP t (recFun scanForallExprSpec [0, 0] (vv (slotName k))) (fun w => ∃ slots', KindsOK [0, 0] slots' ∧ d = (fun sl => (ExprRec.forallE (sl.getD 1 default).nat (sl.getD 0 default).nat)) slots' ∧
+      ∀ hk' : k < slots'.length, SlotOK b w slots'[k]) := by
+  unfold recFun
+  apply retP_decsOf
+  have hlk := recEntry_lookup [0, 0] t
+  have hks : ∀ e ∈ scanForallExprSpec.keys, ActOK 2 e.2.2 := by simp [scanForallExprSpec, ActOK]
+  have e := recBody_spec (σ := σ) scanForallExprSpec 2 t A b hp hb hc hks (by decide) i hi [.n 0, .n 0] rfl (slotName k) (Or.inr ⟨k, hk, rfl⟩)
+    ((recLocals [0, 0]).foldl (fun s (x, w) => setVarHOLFinite x (.val (.word w)) s) t) rfl rfl rfl rfl rfl
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact lb)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact ln)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact li)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by intro x hx; simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hx
+        rcases hx with rfl | rfl | rfl | rfl | rfl <;> exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]⟩)
+    (by intro k hk; simp only [List.length_cons, List.length_nil] at hk
+        rcases (show k = 0 ∨ k = 1 by omega) with rfl | rfl
+        · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
+        · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩)
+  refine retP_mono e ?_
+  rintro w ⟨j, slots', hro, -, -, hsl⟩
+  have hro' := hro
+  unfold RecOut at hro'
+  split at hro'
+  · rename_i hbyte
+    have hs : scanForallExpr b i = .ok ((fun sl => (ExprRec.forallE (sl.getD 1 default).nat (sl.getD 0 default).nat)) slots') j := by
+      rw [scanForallExpr, scanForallExprLoop_eq b _ (i + 1) true 0 0 0 rfl, if_pos hbyte, hro']; rfl
+    rw [hd] at hs
+    simp only [ScanRes.ok.injEq] at hs
+    have hsp : SpecKinds scanForallExprSpec [0, 0] := by
+      intro e he sl kd hw
+      simp only [scanForallExprSpec, List.mem_cons, List.not_mem_nil, or_false] at he
+      rcases he with rfl | rfl | rfl | rfl <;> simp only [VAct.wr, Option.some.injEq, Prod.mk.injEq, reduceCtorEq] at hw <;>
+        obtain ⟨rfl, rfl⟩ := hw <;> rfl
+    have hK0 : KindsOK [0, 0] [.n 0, .n 0] := by
+      refine ⟨rfl, fun k hk => ?_⟩
+      simp only [List.length_cons, List.length_nil] at hk
+      rcases (show k = 0 ∨ k = 1 by omega) with rfl | rfl <;> rfl
+    exact ⟨slots', objLoop_kinds scanForallExprSpec [0, 0] hsp b _ (i + 1) true 0 [.n 0, .n 0] rfl hK0 slots' j hro', hs.1,
+      fun hk' => hsl k hk' rfl⟩
+  · simp at hro'
+
+theorem letSlot_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+    (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (i : USize) (hi : i.toNat ≤ b.size)
+    (lb : t.locals.lookup sB = some (.val (.word A)))
+    (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
+    (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat))))
+    (k : Nat) (hk : k < 3) (d : ExprRec) (e0 : USize) (hd : scanLetExpr b i = .ok d e0) :
+    RetP t (recFun scanLetExprSpec [0, 0, 0] (vv (slotName k))) (fun w => ∃ slots', KindsOK [0, 0, 0] slots' ∧ d = (fun sl => (ExprRec.letE (sl.getD 1 default).nat (sl.getD 2 default).nat (sl.getD 0 default).nat)) slots' ∧
+      ∀ hk' : k < slots'.length, SlotOK b w slots'[k]) := by
+  unfold recFun
+  apply retP_decsOf
+  have hlk := recEntry_lookup [0, 0, 0] t
+  have hks : ∀ e ∈ scanLetExprSpec.keys, ActOK 3 e.2.2 := by simp [scanLetExprSpec, ActOK]
+  have e := recBody_spec (σ := σ) scanLetExprSpec 3 t A b hp hb hc hks (by decide) i hi [.n 0, .n 0, .n 0] rfl (slotName k) (Or.inr ⟨k, hk, rfl⟩)
+    ((recLocals [0, 0, 0]).foldl (fun s (x, w) => setVarHOLFinite x (.val (.word w)) s) t) rfl rfl rfl rfl rfl
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact lb)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact ln)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact li)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by intro x hx; simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hx
+        rcases hx with rfl | rfl | rfl | rfl | rfl <;> exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]⟩)
+    (by intro k hk; simp only [List.length_cons, List.length_nil] at hk
+        rcases (show k = 0 ∨ k = 1 ∨ k = 2 by omega) with rfl | rfl | rfl
+        · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
+        · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
+        · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩)
+  refine retP_mono e ?_
+  rintro w ⟨j, slots', hro, -, -, hsl⟩
+  have hro' := hro
+  unfold RecOut at hro'
+  split at hro'
+  · rename_i hbyte
+    have hs : scanLetExpr b i = .ok ((fun sl => (ExprRec.letE (sl.getD 1 default).nat (sl.getD 2 default).nat (sl.getD 0 default).nat)) slots') j := by
+      rw [scanLetExpr, scanLetExprLoop_eq b _ (i + 1) true 0 0 0 0 rfl, if_pos hbyte, hro']; rfl
+    rw [hd] at hs
+    simp only [ScanRes.ok.injEq] at hs
+    have hsp : SpecKinds scanLetExprSpec [0, 0, 0] := by
+      intro e he sl kd hw
+      simp only [scanLetExprSpec, List.mem_cons, List.not_mem_nil, or_false] at he
+      rcases he with rfl | rfl | rfl | rfl | rfl <;> simp only [VAct.wr, Option.some.injEq, Prod.mk.injEq, reduceCtorEq] at hw <;>
+        obtain ⟨rfl, rfl⟩ := hw <;> rfl
+    have hK0 : KindsOK [0, 0, 0] [.n 0, .n 0, .n 0] := by
+      refine ⟨rfl, fun k hk => ?_⟩
+      simp only [List.length_cons, List.length_nil] at hk
+      rcases (show k = 0 ∨ k = 1 ∨ k = 2 by omega) with rfl | rfl | rfl <;> rfl
+    exact ⟨slots', objLoop_kinds scanLetExprSpec [0, 0, 0] hsp b _ (i + 1) true 0 [.n 0, .n 0, .n 0] rfl hK0 slots' j hro', hs.1,
+      fun hk' => hsl k hk' rfl⟩
+  · simp at hro'
+
+theorem constSlot_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+    (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (i : USize) (hi : i.toNat ≤ b.size)
+    (lb : t.locals.lookup sB = some (.val (.word A)))
+    (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
+    (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat))))
+    (k : Nat) (hk : k < 2) (d : ExprRec) (e0 : USize) (hd : scanConstExpr b i = .ok d e0) :
+    RetP t (recFun scanConstExprSpec [0, BitVec.ofNat 64 listSentinel] (vv (slotName k))) (fun w => ∃ slots', KindsOK [0, 1] slots' ∧ d = (fun sl => (ExprRec.const (sl.getD 0 default).nat (sl.getD 1 default).list)) slots' ∧
+      ∀ hk' : k < slots'.length, SlotOK b w slots'[k]) := by
+  unfold recFun
+  apply retP_decsOf
+  have hlk := recEntry_lookup [0, BitVec.ofNat 64 listSentinel] t
+  have hks : ∀ e ∈ scanConstExprSpec.keys, ActOK 2 e.2.2 := by simp [scanConstExprSpec, ActOK]
+  have e := recBody_spec (σ := σ) scanConstExprSpec 2 t A b hp hb hc hks (by decide) i hi [.n 0, .l []] rfl (slotName k) (Or.inr ⟨k, hk, rfl⟩)
+    ((recLocals [0, BitVec.ofNat 64 listSentinel]).foldl (fun s (x, w) => setVarHOLFinite x (.val (.word w)) s) t) rfl rfl rfl rfl rfl
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact lb)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact ln)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact li)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by intro x hx; simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hx
+        rcases hx with rfl | rfl | rfl | rfl | rfl <;> exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]⟩)
+    (by intro k hk; simp only [List.length_cons, List.length_nil] at hk
+        rcases (show k = 0 ∨ k = 1 by omega) with rfl | rfl
+        · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
+        · exact ⟨BitVec.ofNat 64 listSentinel, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩)
+  refine retP_mono e ?_
+  rintro w ⟨j, slots', hro, -, -, hsl⟩
+  have hro' := hro
+  unfold RecOut at hro'
+  split at hro'
+  · rename_i hbyte
+    have hs : scanConstExpr b i = .ok ((fun sl => (ExprRec.const (sl.getD 0 default).nat (sl.getD 1 default).list)) slots') j := by
+      rw [scanConstExpr, scanConstExprLoop_eq b _ (i + 1) true 0 0 [] rfl, if_pos hbyte, hro']; rfl
+    rw [hd] at hs
+    simp only [ScanRes.ok.injEq] at hs
+    have hsp : SpecKinds scanConstExprSpec [0, 1] := by
+      intro e he sl kd hw
+      simp only [scanConstExprSpec, List.mem_cons, List.not_mem_nil, or_false] at he
+      rcases he with rfl | rfl <;> simp only [VAct.wr, Option.some.injEq, Prod.mk.injEq, reduceCtorEq] at hw <;>
+        obtain ⟨rfl, rfl⟩ := hw <;> rfl
+    have hK0 : KindsOK [0, 1] [.n 0, .l []] := by
+      refine ⟨rfl, fun k hk => ?_⟩
+      simp only [List.length_cons, List.length_nil] at hk
+      rcases (show k = 0 ∨ k = 1 by omega) with rfl | rfl <;> rfl
+    exact ⟨slots', objLoop_kinds scanConstExprSpec [0, 1] hsp b _ (i + 1) true 0 [.n 0, .l []] rfl hK0 slots' j hro', hs.1,
+      fun hk' => hsl k hk' rfl⟩
+  · simp at hro'
+
+theorem projSlot_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+    (hb : BytesAt t A b.data.toList) (hc : ScanCodes t) (i : USize) (hi : i.toNat ≤ b.size)
+    (lb : t.locals.lookup sB = some (.val (.word A)))
+    (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
+    (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat))))
+    (k : Nat) (hk : k < 3) (d : ExprRec) (e0 : USize) (hd : scanProjExpr b i = .ok d e0) :
+    RetP t (recFun scanProjExprSpec [0, 0, 0] (vv (slotName k))) (fun w => ∃ slots', KindsOK [0, 0, 0] slots' ∧ d = (fun sl => (ExprRec.proj (sl.getD 2 default).nat (sl.getD 0 default).nat (sl.getD 1 default).nat)) slots' ∧
+      ∀ hk' : k < slots'.length, SlotOK b w slots'[k]) := by
+  unfold recFun
+  apply retP_decsOf
+  have hlk := recEntry_lookup [0, 0, 0] t
+  have hks : ∀ e ∈ scanProjExprSpec.keys, ActOK 3 e.2.2 := by simp [scanProjExprSpec, ActOK]
+  have e := recBody_spec (σ := σ) scanProjExprSpec 3 t A b hp hb hc hks (by decide) i hi [.n 0, .n 0, .n 0] rfl (slotName k) (Or.inr ⟨k, hk, rfl⟩)
+    ((recLocals [0, 0, 0]).foldl (fun s (x, w) => setVarHOLFinite x (.val (.word w)) s) t) rfl rfl rfl rfl rfl
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact lb)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact ln)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact li)
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2])
+    (by intro x hx; simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hx
+        rcases hx with rfl | rfl | rfl | rfl | rfl <;> exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]⟩)
+    (by intro k hk; simp only [List.length_cons, List.length_nil] at hk
+        rcases (show k = 0 ∨ k = 1 ∨ k = 2 by omega) with rfl | rfl | rfl
+        · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
+        · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
+        · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩)
+  refine retP_mono e ?_
+  rintro w ⟨j, slots', hro, -, -, hsl⟩
+  have hro' := hro
+  unfold RecOut at hro'
+  split at hro'
+  · rename_i hbyte
+    have hs : scanProjExpr b i = .ok ((fun sl => (ExprRec.proj (sl.getD 2 default).nat (sl.getD 0 default).nat (sl.getD 1 default).nat)) slots') j := by
+      rw [scanProjExpr, scanProjExprLoop_eq b _ (i + 1) true 0 0 0 0 rfl, if_pos hbyte, hro']; rfl
+    rw [hd] at hs
+    simp only [ScanRes.ok.injEq] at hs
+    have hsp : SpecKinds scanProjExprSpec [0, 0, 0] := by
+      intro e he sl kd hw
+      simp only [scanProjExprSpec, List.mem_cons, List.not_mem_nil, or_false] at he
+      rcases he with rfl | rfl | rfl <;> simp only [VAct.wr, Option.some.injEq, Prod.mk.injEq, reduceCtorEq] at hw <;>
+        obtain ⟨rfl, rfl⟩ := hw <;> rfl
+    have hK0 : KindsOK [0, 0, 0] [.n 0, .n 0, .n 0] := by
+      refine ⟨rfl, fun k hk => ?_⟩
+      simp only [List.length_cons, List.length_nil] at hk
+      rcases (show k = 0 ∨ k = 1 ∨ k = 2 by omega) with rfl | rfl | rfl <;> rfl
+    exact ⟨slots', objLoop_kinds scanProjExprSpec [0, 0, 0] hsp b _ (i + 1) true 0 [.n 0, .n 0, .n 0] rfl hK0 slots' j hro', hs.1,
+      fun hk' => hsl k hk' rfl⟩
+  · simp at hro'
+
 
 end
 

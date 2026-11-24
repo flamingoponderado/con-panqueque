@@ -1,5 +1,5 @@
 import re
-src=open('ConPanqueque/Scan/RecEnds.lean').read()
+src=open('ConPanqueque/Scan/RecEnds.lean').read()+open('ConPanqueque/Scan/RecFuns.lean').read()
 def thm_text(name):
     a=src.index('theorem '+name)
     b=src.find('\ntheorem ',a+1)
@@ -24,6 +24,22 @@ specs=[
   '(fun sl => (DeclRec.thm ⟨(sl.getD 1 default).nat, (sl.getD 0 default).list, (sl.getD 2 default).nat⟩ (sl.getD 3 default).nat))', '[.l [], .n 0, .n 0, .n 0]'),
  ('opaquedeclEnd_sound','opaqueSlot_sound','scanOpaqueDecl','scanOpaqueDeclSpec',5,'[3, 1, 0, 0, 0]',6,
   '(fun sl => (DeclRec.opaq ⟨(sl.getD 2 default).nat, (sl.getD 1 default).list, (sl.getD 3 default).nat⟩ (sl.getD 4 default).nat (sl.getD 0 default).bool))', '[.b false, .l [], .n 0, .n 0, .n 0]'),
+ ('strnameEnd_sound','strNameSlot_sound','scanStrName','scanStrNameSpec',2,'[0, 2]',2,
+  '(fun sl => (NameRec.str (sl.getD 0 default).nat (sl.getD 1 default).str))', '[.n 0, .s ""]', 'NameRec'),
+ ('numnameEnd_sound','numNameSlot_sound','scanNumName','scanNumNameSpec',2,'[0, 0]',2,
+  '(fun sl => (NameRec.num (sl.getD 1 default).nat (sl.getD 0 default).nat))', '[.n 0, .n 0]', 'NameRec'),
+ ('appEnd_sound','appSlot_sound','scanAppExpr','appSpec',2,'[0, 0]',2,
+  '(fun sl => ExprRec.app (sl.getD 1 default).nat (sl.getD 0 default).nat)', '[.n 0, .n 0]', 'ExprRec'),
+ ('lamexprEnd_sound','lamSlot_sound','scanLamExpr','scanLamExprSpec',2,'[0, 0]',4,
+  '(fun sl => (ExprRec.lam (sl.getD 1 default).nat (sl.getD 0 default).nat))', '[.n 0, .n 0]', 'ExprRec'),
+ ('forallexprEnd_sound','forallSlot_sound','scanForallExpr','scanForallExprSpec',2,'[0, 0]',4,
+  '(fun sl => (ExprRec.forallE (sl.getD 1 default).nat (sl.getD 0 default).nat))', '[.n 0, .n 0]', 'ExprRec'),
+ ('letexprEnd_sound','letSlot_sound','scanLetExpr','scanLetExprSpec',3,'[0, 0, 0]',5,
+  '(fun sl => (ExprRec.letE (sl.getD 1 default).nat (sl.getD 2 default).nat (sl.getD 0 default).nat))', '[.n 0, .n 0, .n 0]', 'ExprRec'),
+ ('constexprEnd_sound','constSlot_sound','scanConstExpr','scanConstExprSpec',2,'[0, 1]',2,
+  '(fun sl => (ExprRec.const (sl.getD 0 default).nat (sl.getD 1 default).list))', '[.n 0, .l []]', 'ExprRec'),
+ ('projexprEnd_sound','projSlot_sound','scanProjExpr','scanProjExprSpec',3,'[0, 0, 0]',3,
+  '(fun sl => (ExprRec.proj (sl.getD 2 default).nat (sl.getD 0 default).nat (sl.getD 1 default).nat))', '[.n 0, .n 0, .n 0]', 'ExprRec'),
 ]
 out=['''import ConPanqueque.Scan.RecEnds
 import ConPanqueque.Scan.SlotKinds
@@ -44,11 +60,12 @@ open ConLeche.Frontend
 section
 variable {σ : Type}
 ''']
-for (old,new,scan,spec,n,ks,nkeys,build,slots) in specs:
+for (old,new,scan,spec,n,ks,nkeys,build,slots,*rt) in specs:
+    rtype = rt[0] if rt else 'DeclRec'
     t=thm_text(old)
     t=t.replace('theorem '+old,'theorem '+new,1)
     t=t.replace('(li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :',
-      '(li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat))))\n    (k : Nat) (hk : k < %d) (d : DeclRec) (e0 : USize) (hd : %s b i = .ok d e0) :'%(n,scan),1)
+      '(li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat))))\n    (k : Nat) (hk : k < %d) (d : %s) (e0 : USize) (hd : %s b i = .ok d e0) :'%(n,rtype,scan),1)
     a=t.index('RetP t (recFun'); bb=t.index(':= by',a)
     head=t[a:bb]
     rf=head[:head.index('(vv sI)')]
