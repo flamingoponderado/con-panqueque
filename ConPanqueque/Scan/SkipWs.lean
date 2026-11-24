@@ -1,4 +1,4 @@
-import ConPanqueque.Scan.Skip
+import ConPanqueque.Scan.Call
 
 /-! # `skipWs` and `skipDigits` in Pancake: instances of the skip loop. -/
 
@@ -67,13 +67,7 @@ theorem skipWs_refines (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : B
     (lb : t.locals.lookup sB = some (.val (.word A)))
     (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
     (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
-    Stop (evaluateHOLFiniteState t (skFun wsTest)).1 ∨
-      ((evaluateHOLFiniteState t (skFun wsTest)).1 =
-          some (.returned (.val (.word (BitVec.ofNat 64 (ConLeche.Frontend.skipWs b i).toNat)))) ∧
-        (evaluateHOLFiniteState t (skFun wsTest)).2.memory = t.memory ∧
-        (evaluateHOLFiniteState t (skFun wsTest)).2.memaddrs = t.memaddrs ∧
-        (evaluateHOLFiniteState t (skFun wsTest)).2.globals = t.globals ∧
-        (evaluateHOLFiniteState t (skFun wsTest)).2.code = t.code) := by
+    RetSpec t (skFun wsTest) (BitVec.ofNat 64 (ConLeche.Frontend.skipWs b i).toNat) := by
   rw [skipWs_eq hp _ i rfl]
   exact skFun_spec isWsN wsTest wsTest_ok t A b.data.toList i.toNat hb (by simpa using hi) lb
     (by simpa using ln) li
@@ -84,13 +78,7 @@ theorem skipDigits_refines (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b
     (lb : t.locals.lookup sB = some (.val (.word A)))
     (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
     (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
-    Stop (evaluateHOLFiniteState t (skFun digitTest)).1 ∨
-      ((evaluateHOLFiniteState t (skFun digitTest)).1 =
-          some (.returned (.val (.word (BitVec.ofNat 64 (ConLeche.Frontend.skipDigits b i).toNat)))) ∧
-        (evaluateHOLFiniteState t (skFun digitTest)).2.memory = t.memory ∧
-        (evaluateHOLFiniteState t (skFun digitTest)).2.memaddrs = t.memaddrs ∧
-        (evaluateHOLFiniteState t (skFun digitTest)).2.globals = t.globals ∧
-        (evaluateHOLFiniteState t (skFun digitTest)).2.code = t.code) := by
+    RetSpec t (skFun digitTest) (BitVec.ofNat 64 (ConLeche.Frontend.skipDigits b i).toNat) := by
   rw [skipDigits_eq hp _ i rfl]
   exact skFun_spec isDigitN digitTest digitTest_ok t A b.data.toList i.toNat hb (by simpa using hi) lb
     (by simpa using ln) li

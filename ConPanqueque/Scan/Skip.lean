@@ -148,7 +148,8 @@ theorem skFun_spec (p : Nat → Bool) (T : ExpHOL 64) (hT : TestOK p T) (t : Pan
         (evaluateHOLFiniteState t (skFun T)).2.memory = t.memory ∧
         (evaluateHOLFiniteState t (skFun T)).2.memaddrs = t.memaddrs ∧
         (evaluateHOLFiniteState t (skFun T)).2.globals = t.globals ∧
-        (evaluateHOLFiniteState t (skFun T)).2.code = t.code) := by
+        (evaluateHOLFiniteState t (skFun T)).2.code = t.code ∧
+        (evaluateHOLFiniteState t (skFun T)).2.be = t.be) := by
   unfold skFun
   rw [dec_word_eq t sG _ 1 _ (by simp [evalHOLExact])]
   let t1 := setVarHOLFinite sG (.val (.word 1)) t
@@ -159,14 +160,14 @@ theorem skFun_spec (p : Nat → Bool) (T : ExpHOL 64) (hT : TestOK p T) (t : Pan
   rcases skLoop_spec p T hT t A bs i0 hb t2 h0 with hs | ⟨hn, hI, hres⟩
   · exact Or.inl (seq_stop t2 (skLoop T) _ hs)
   · right
-    obtain ⟨m0, d0, c0, g0, -, -⟩ := hI
-    generalize hu : evaluateHOLFiniteState t2 (skLoop T) = r at hn hres m0 d0 c0 g0
+    obtain ⟨m0, d0, c0, g0, b0, -⟩ := hI
+    generalize hu : evaluateHOLFiniteState t2 (skLoop T) = r at hn hres m0 d0 c0 g0 b0
     obtain ⟨r1, r2⟩ := r
-    simp only at hn hres m0 d0 c0 g0
+    simp only at hn hres m0 d0 c0 g0 b0
     subst hn
     rw [seq_normal _ hu, evaluateHOLFiniteState_eq_evaluate_def r2 (.return _)]
     simp [eval_vv r2 sI _ hres, shapeOfHOLExact, Flapjack.Pancake.PanLang.sizeOfShapeWithContextHOL,
-      emptyLocalsHOLFinite, m0, d0, c0, g0]
+      emptyLocalsHOLFinite, m0, d0, c0, g0, b0]
 
 end
 

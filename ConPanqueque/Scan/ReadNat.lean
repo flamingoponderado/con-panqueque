@@ -1,4 +1,4 @@
-import ConPanqueque.Scan.Skip
+import ConPanqueque.Scan.Call
 
 /-! # Reading a digit run, saturated
 
@@ -214,7 +214,8 @@ theorem rnFun_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (bs : List
         (evaluateHOLFiniteState t rnFun).2.memory = t.memory ∧
         (evaluateHOLFiniteState t rnFun).2.memaddrs = t.memaddrs ∧
         (evaluateHOLFiniteState t rnFun).2.globals = t.globals ∧
-        (evaluateHOLFiniteState t rnFun).2.code = t.code) := by
+        (evaluateHOLFiniteState t rnFun).2.code = t.code ∧
+        (evaluateHOLFiniteState t rnFun).2.be = t.be) := by
   unfold rnFun
   rw [dec_word_eq t sG _ 1 _ (by simp [evalHOLExact])]
   let t1 := setVarHOLFinite sG (.val (.word 1)) t
@@ -228,14 +229,14 @@ theorem rnFun_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (bs : List
   rcases rnLoop_spec t A bs i0 e hb he hd t3 h0 with hs | ⟨hn, hI, hres⟩
   · exact Or.inl (seq_stop t3 rnLoop _ hs)
   · right
-    obtain ⟨m0, d0, c0, g0, -, -⟩ := hI
-    generalize hu : evaluateHOLFiniteState t3 rnLoop = r at hn hres m0 d0 c0 g0
+    obtain ⟨m0, d0, c0, g0, b0, -⟩ := hI
+    generalize hu : evaluateHOLFiniteState t3 rnLoop = r at hn hres m0 d0 c0 g0 b0
     obtain ⟨r1, r2⟩ := r
-    simp only at hn hres m0 d0 c0 g0
+    simp only at hn hres m0 d0 c0 g0 b0
     subst hn
     rw [seq_normal _ hu, evaluateHOLFiniteState_eq_evaluate_def r2 (.return _)]
     simp [eval_vv r2 sA _ hres, shapeOfHOLExact, Flapjack.Pancake.PanLang.sizeOfShapeWithContextHOL,
-      emptyLocalsHOLFinite, m0, d0, c0, g0]
+      emptyLocalsHOLFinite, m0, d0, c0, g0, b0]
 
 /-- **`readNatSat` in Pancake is con-leche's `readNatAt`, capped at `natCap`**, on the digit run at
 `i` (ending at `e`). -/
@@ -245,13 +246,7 @@ theorem rnFun_refines (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : By
     (lb : t.locals.lookup sB = some (.val (.word A)))
     (le : t.locals.lookup sE = some (.val (.word (BitVec.ofNat 64 e.toNat))))
     (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
-    Stop (evaluateHOLFiniteState t rnFun).1 ∨
-      ((evaluateHOLFiniteState t rnFun).1 = some (.returned (.val (.word
-          (BitVec.ofNat 64 (min (ConLeche.Frontend.readNatAt b i e) natCap))))) ∧
-        (evaluateHOLFiniteState t rnFun).2.memory = t.memory ∧
-        (evaluateHOLFiniteState t rnFun).2.memaddrs = t.memaddrs ∧
-        (evaluateHOLFiniteState t rnFun).2.globals = t.globals ∧
-        (evaluateHOLFiniteState t rnFun).2.code = t.code) := by
+    RetSpec t rnFun (BitVec.ofNat 64 (min (ConLeche.Frontend.readNatAt b i e) natCap)) := by
   have hge := skipL_ge isDigitN b.data.toList _ i.toNat rfl
   have hle := skipL_le_length isDigitN b.data.toList _ i.toNat rfl (by simpa using hi)
   have hall := skipL_all isDigitN b.data.toList _ i.toNat rfl
