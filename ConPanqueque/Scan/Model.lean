@@ -407,4 +407,33 @@ theorem keyEnd_eq {b : ByteArray} (hp : Plat b) :
       rw [dif_neg h, dif_neg hl, List.getElem?_eq_none (by omega)]
       simp
 
+/-- `valueAt`, on a list: past the colon after the key's closing quote `ke`, whitespace skipped on
+both sides; `i` when the colon is missing. -/
+def valueAtL (bs : List UInt8) (i ke : Nat) : Nat :=
+  let p := skipWsL bs (ke + 1)
+  if (bs[p]?.getD 0).toNat = 58 then skipWsL bs (p + 1) else i
+
+theorem valueAt_eq {b : ByteArray} (hp : Plat b) (i ke : USize) (hke : ke.toNat < b.size) :
+    (ConLeche.Frontend.valueAt b i ke).toNat = valueAtL b.data.toList i.toNat ke.toNat := by
+  have hk1 : (ke + 1).toNat = ke.toNat + 1 := ConLeche.Frontend.usizeStep b ke ((hp.lt_iff ke).mpr hke)
+  simp only [ConLeche.Frontend.valueAt, valueAtL]
+  have hs1 := skipWs_eq hp _ (ke + 1) rfl
+  rw [hk1] at hs1
+  have hle := skipL_le_length isWsN b.data.toList _ (ke.toNat + 1) rfl (by simp; omega)
+  rw [byteAt_eq hp, show (58 : UInt8) = UInt8.ofNat 58 from rfl, beq_ofNat _ 58 (by decide)]
+  generalize hP : ConLeche.Frontend.skipWs b (ke + 1) = P at hs1
+  rw [hs1]
+  by_cases hc : (b.data.toList[skipWsL b.data.toList (ke.toNat + 1)]?.getD 0).toNat = 58
+  · have hlt : skipWsL b.data.toList (ke.toNat + 1) < b.data.toList.length := by
+      by_cases h : skipWsL b.data.toList (ke.toNat + 1) < b.data.toList.length
+      · exact h
+      · rw [List.getElem?_eq_none (by omega)] at hc; simp at hc
+    have hPl : P.toNat < b.size := by rw [hs1]; simpa using hlt
+    have hP1 : (P + 1).toNat = P.toNat + 1 := ConLeche.Frontend.usizeStep b P ((hp.lt_iff P).mpr hPl)
+    simp only [hc, beq_self_eq_true, ↓reduceIte]
+    rw [skipWs_eq hp _ (P + 1) rfl, hP1, hs1]
+  · have : ((b.data.toList[skipWsL b.data.toList (ke.toNat + 1)]?.getD 0).toNat == 58) = false :=
+      beq_eq_false_iff_ne.mpr hc
+    simp only [this, Bool.false_eq_true, ↓reduceIte, hc]
+
 end ConPanqueque.Scan
