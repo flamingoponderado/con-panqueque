@@ -116,6 +116,41 @@ def metaHdr (b : ByteArray) (v : USize) : ScanRes LinePayload :=
     let e := skipBraced b (v + 1) 0
     if e == 0 then .err ⟨v.toNat, .expectedObject⟩ else .ok .header e
 
+/-- `max`/`imax`: a two-element number list. -/
+def levMax (b : ByteArray) (v : USize) : ScanRes LinePayload :=
+  match scanNatList b v with
+  | .err er => .err er
+  | .ok us e => match us with
+    | [a, d] => .ok (.level (.max a d)) e
+    | _ => .err ⟨v.toNat, .expectedList⟩
+
+def levImax (b : ByteArray) (v : USize) : ScanRes LinePayload :=
+  match scanNatList b v with
+  | .err er => .err er
+  | .ok us e => match us with
+    | [a, d] => .ok (.level (.imax a d)) e
+    | _ => .err ⟨v.toNat, .expectedList⟩
+
+theorem levMax_ok {b : ByteArray} {v e : USize} {r : LinePayload} (h : levMax b v = .ok r e) :
+    ∃ a d, r = .level (.max a d) ∧ scanNatList b v = .ok [a, d] e := by
+  unfold levMax at h
+  split at h
+  · simp at h
+  · rename_i us e' hsc
+    rcases us with _ | ⟨a, _ | ⟨d, _ | ⟨x, rest⟩⟩⟩ <;> simp only [ScanRes.ok.injEq, reduceCtorEq] at h
+    obtain ⟨rfl, rfl⟩ := h
+    exact ⟨a, d, rfl, hsc⟩
+
+theorem levImax_ok {b : ByteArray} {v e : USize} {r : LinePayload} (h : levImax b v = .ok r e) :
+    ∃ a d, r = .level (.imax a d) ∧ scanNatList b v = .ok [a, d] e := by
+  unfold levImax at h
+  split at h
+  · simp at h
+  · rename_i us e' hsc
+    rcases us with _ | ⟨a, _ | ⟨d, _ | ⟨x, rest⟩⟩⟩ <;> simp only [ScanRes.ok.injEq, reduceCtorEq] at h
+    obtain ⟨rfl, rfl⟩ := h
+    exact ⟨a, d, rfl, hsc⟩
+
 /-- The port's line table. -/
 def lineTbl : List (Key × LAct) :=
   [(.kIn, .idx 1), (.kIl, .idx 2), (.kIe, .idx 3),
@@ -126,7 +161,7 @@ def lineTbl : List (Key × LAct) :=
    (.kConst, .objPl exprConst), (.kProj, .objPl exprProj),
    (.kStrVal, .strPl (fun s => .expr (.strVal s))),
    (.kDef, .objPl declDef), (.kThm, .objPl declThm), (.kOpaque, .objPl declOpaque),
-   (.kMeta, .objPl metaHdr)]
+   (.kMeta, .objPl metaHdr), (.kMax, .objPl levMax), (.kImax, .objPl levImax)]
 
 theorem srMap_ok {α β : Type} {f : α → β} {x : ScanRes α} {y : β} {p : USize} (h : srMap f x = .ok y p) :
     ∃ a, x = .ok a p ∧ y = f a := by
@@ -529,6 +564,46 @@ theorem lineLoopI_sound (b : ByteArray) :
           rw [dif_pos hie]
           exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
         · simp at hok
+      case kMax =>
+        dsimp only
+        split at hok
+        · simp at hok
+        rename_i hpl
+        rw [if_neg hpl]
+        simp only [levMax] at hok
+        cases hsc : scanNatList b v with
+        | err er => rw [hsc] at hok; simp at hok
+        | ok us e =>
+          rw [hsc] at hok
+          simp only at hok ⊢
+          rcases us with _ | ⟨a, _ | ⟨d, _ | ⟨x, rest⟩⟩⟩ <;> simp only [reduceCtorEq] at hok
+          all_goals try (simp at hok; done)
+          simp only at hok ⊢
+          split at hok
+          · rename_i hie
+            rw [dif_pos hie]
+            exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
+          · simp at hok
+      case kImax =>
+        dsimp only
+        split at hok
+        · simp at hok
+        rename_i hpl
+        rw [if_neg hpl]
+        simp only [levImax] at hok
+        cases hsc : scanNatList b v with
+        | err er => rw [hsc] at hok; simp at hok
+        | ok us e =>
+          rw [hsc] at hok
+          simp only at hok ⊢
+          rcases us with _ | ⟨a, _ | ⟨d, _ | ⟨x, rest⟩⟩⟩ <;> simp only [reduceCtorEq] at hok
+          all_goals try (simp at hok; done)
+          simp only at hok ⊢
+          split at hok
+          · rename_i hie
+            rw [dif_pos hie]
+            exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
+          · simp at hok
     have n34 : (c == 34) = false := beq_eq_false_iff_ne.mpr h34
     simp [n34] at hok
 

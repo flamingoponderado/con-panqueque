@@ -114,7 +114,6 @@ tables (`IdTable`). Plan:
   - declarations: `parseCVD`, appending to the record block in the `RecOK` layout.
 
 **Frontend gaps that still reject every real file:**
-- `max`/`imax` (two-element lists);
 - `natVal`;
 - escaped and non-ASCII strings;
 - axioms, quot and inductives (scanner and kernel).
@@ -129,3 +128,7 @@ choice) or `{"regular":n}`. The object loop's `.hints` action calls `fHints` and
 position in the slot: `SlotOK (.h x)` holds when `scanHints b p = ok x _`, or when x is the default
 `regular 0` and the slot holds the sentinel. Interning reads the hint again from that position.
 `ScanCodes` gains the `fHints` entry. The preamble shared with `ObjFun` is now `Scan/ObjBase.lean`.
+
+**max/imax:** `levMax`/`levImax` (Line.lean) are con-leche's branch as record scanners. The
+Pancake record function `lpFun` (`Scan/LevPair.lean`) reads exactly `[a, d]`. `lpFun_sound` walks
+con-leche's `scanNatListLoop` step by step (`nlLoop_ws/digit/comma/close`).
