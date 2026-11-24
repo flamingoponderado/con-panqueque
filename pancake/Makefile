@@ -17,6 +17,9 @@ checker.pnk:
 
 checker: $(B)/checker
 
+$(B)/checker: $(B)/checker.S ffi_checker.c
+	$(CC) $(CFLAGS) -o $@ $< ffi_checker.c
+
 $(B):
 	mkdir -p $(B)
 

@@ -425,3 +425,24 @@ has a Pancake parser (`Flapjack.Parser.parseTopDecs`) but no printer. Steps:
    verdict output.
 5. **Prelude** (needed before real files are accepted): inductives, axioms and quot in the
    fold, then con-ron's stage composition up to the top-level verdict.
+
+### Executable status (082f68c and after)
+
+- `ConPanqueque/Emit/Print.lean` prints Pancake source. `Emit/Check.lean` round-trips every
+  function through flapjack's parser: all 393 match after normalisation (sequence flattening,
+  dropped `skip`, merged left-nested operator chains; meaning-preserving, not proved).
+  `cake --pancake` compiles the output, and it links.
+- `pancake/ffi_checker.c` maps Pancake's memory at the fixed address `0x100000000`, so the
+  proofs' absolute layout is the run-time one. `read` gives the length header plus stdin;
+  `accept` prints the verdict. `make -C pancake checker` builds it.
+- 161 bodies embed context constants: `HB`, `EB`, `mG`, `mg` (absolute addresses), `HN`, `EN`,
+  `PO`, `EO`. The concrete layout must therefore be chosen at that base.
+
+Next, the start state:
+1. A concrete `Ctx` layout at base `0x100000000` (memo regions, store tables, key buffer,
+   environment heap, value heap) with `CtxOK`/`FrontOK` proved.
+2. A `main` that sets the globals (`Gdir`, `Gfl*`, `Gkb`, `Ght`, `Geo`, `Glit`, `Get`), relies on the
+   zero-filled `mmap` for empty tables/memos (or initialises them), and runs a Pancake port of
+   con-ron's `internReservedPins` and the environment start. Proved: `SR`/`StateOK`/`PinsOK`
+   for the twin's state after the pin phase.
+3. Then `topP`, and `@accept` on return.
