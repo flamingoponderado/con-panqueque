@@ -25,7 +25,7 @@ for scan,loop,rty,args in kinds:
         elif t=='List Nat': sv.append('.l []'); words.append('BitVec.ofNat 64 listSentinel'); okt.append('simp [SlotOK]')
         elif t=='String': sv.append('.s ""'); words.append('BitVec.ofNat 64 listSentinel'); okt.append('simp [SlotOK]')
         elif t=='Bool': sv.append('.b false'); words.append('0'); okt.append('simp [SlotOK, bw]')
-        elif t=='HintsRec': sv.append(f'.h {a}'); words.append('0'); okt.append('simp [SlotOK]')
+        elif t=='HintsRec': sv.append(f'.h {a}'); words.append('BitVec.ofNat 64 listSentinel'); okt.append('simp [SlotOK]')
     n=len(params)
     spec=scan[0].lower()+scan[1:]+'Spec'
     ks=" ∨ ".join(f"k = {k}" for k in range(n))

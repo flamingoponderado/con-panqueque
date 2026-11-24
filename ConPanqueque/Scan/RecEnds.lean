@@ -257,14 +257,14 @@ theorem defdeclEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
     (lb : t.locals.lookup sB = some (.val (.word A)))
     (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
     (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
-    RetP t (recFun scanDefDeclSpec [0, BitVec.ofNat 64 listSentinel, 0, BitVec.ofNat 64 listSentinel, 0, 0] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧ j.toNat ≤ b.size + 64 ∧
+    RetP t (recFun scanDefDeclSpec [BitVec.ofNat 64 listSentinel, BitVec.ofNat 64 listSentinel, 0, BitVec.ofNat 64 listSentinel, 0, 0] (vv sI)) (fun w => ∃ (j : USize), w = BitVec.ofNat 64 j.toNat ∧ j.toNat ≤ b.size + 64 ∧
       ∃ r : DeclRec, scanDefDecl b i = .ok r j) := by
   unfold recFun
   apply retP_decsOf
-  have hlk := recEntry_lookup [0, BitVec.ofNat 64 listSentinel, 0, BitVec.ofNat 64 listSentinel, 0, 0] t
+  have hlk := recEntry_lookup [BitVec.ofNat 64 listSentinel, BitVec.ofNat 64 listSentinel, 0, BitVec.ofNat 64 listSentinel, 0, 0] t
   have hks : ∀ e ∈ scanDefDeclSpec.keys, ActOK 6 e.2.2 := by simp [scanDefDeclSpec, ActOK]
   have e := recBody_spec (σ := σ) scanDefDeclSpec 6 t A b hp hb hc hks (by decide) i hi [.h (.regular 0), .l [], .n 0, .s "", .n 0, .n 0] rfl sI (Or.inl rfl)
-    ((recLocals [0, BitVec.ofNat 64 listSentinel, 0, BitVec.ofNat 64 listSentinel, 0, 0]).foldl (fun s (x, w) => setVarHOLFinite x (.val (.word w)) s) t) rfl rfl rfl rfl rfl
+    ((recLocals [BitVec.ofNat 64 listSentinel, BitVec.ofNat 64 listSentinel, 0, BitVec.ofNat 64 listSentinel, 0, 0]).foldl (fun s (x, w) => setVarHOLFinite x (.val (.word w)) s) t) rfl rfl rfl rfl rfl
     (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact lb)
     (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact ln)
     (by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]; exact li)
@@ -275,7 +275,7 @@ theorem defdeclEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
         rcases hx with rfl | rfl | rfl | rfl | rfl <;> exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2]⟩)
     (by intro k hk; simp only [List.length_cons, List.length_nil] at hk
         rcases (show k = 0 ∨ k = 1 ∨ k = 2 ∨ k = 3 ∨ k = 4 ∨ k = 5 by omega) with rfl | rfl | rfl | rfl | rfl | rfl
-        · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
+        · exact ⟨BitVec.ofNat 64 listSentinel, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
         · exact ⟨BitVec.ofNat 64 listSentinel, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
         · exact ⟨0, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩
         · exact ⟨BitVec.ofNat 64 listSentinel, by rw [hlk]; simp (config := {decide := true}) [recLocals, slotName, slotNames, sB, sN, sI, sG, sW, sS, sC, sK, sV, sKK, sE2], by simp [SlotOK, natCap, bw, listSentinel]⟩

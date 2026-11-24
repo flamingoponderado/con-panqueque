@@ -1192,7 +1192,7 @@ theorem line_step (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteAr
     (.op .sub [vv sK, .op .add [vv sI, .const 1]]) A (BitVec.ofNat 64 b.size) (BitVec.ofNat 64 j.toNat)
     (BitVec.ofNat 64 (ke - (j + 1)).toNat)
     (BitVec.ofNat 64 (ConLeche.Frontend.keyAt b j (ke - (j + 1))).ctorIdx) wq (by decide)
-    (by rw [k2, k1]; exact hcu.2.2.2.2.2.2.2.2.2.2.2.2)
+    (by rw [k2, k1]; exact hcu.2.2.2.2.2.2.2.2.2.2.2.2.1)
     (eval_vv u2 sB _ (by rw [lo2 sB (by decide), lof sB (by decide)]; lk [v1, v0]; exact lb))
     (eval_vv u2 sN _ (by rw [lo2 sN (by decide), lof sN (by decide)]; lk [v1, v0]; exact ln))
     (eval_vv u2 sI _ li2)
@@ -1670,7 +1670,7 @@ def RecTable (t : PanSemStateFiniteExact 64 σ) : Prop :=
   t.code.lookup fRecLet = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanLetExprSpec [0, 0, 0] (vv sI), .one) ∧
   t.code.lookup fRecConst = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanConstExprSpec [0, BitVec.ofNat 64 listSentinel] (vv sI), .one) ∧
   t.code.lookup fRecProj = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanProjExprSpec [0, 0, 0] (vv sI), .one) ∧
-  t.code.lookup fRecDef = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanDefDeclSpec [0, BitVec.ofNat 64 listSentinel, 0, BitVec.ofNat 64 listSentinel, 0, 0] (vv sI), .one) ∧
+  t.code.lookup fRecDef = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanDefDeclSpec [BitVec.ofNat 64 listSentinel, BitVec.ofNat 64 listSentinel, 0, BitVec.ofNat 64 listSentinel, 0, 0] (vv sI), .one) ∧
   t.code.lookup fRecThm = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanThmDeclSpec [BitVec.ofNat 64 listSentinel, 0, 0, 0] (vv sI), .one) ∧
   t.code.lookup fRecOpaque = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanOpaqueDeclSpec [0, BitVec.ofNat 64 listSentinel, 0, 0, 0] (vv sI), .one) ∧
   t.code.lookup fRecMeta = some ([(sB, .one), (sN, .one), (sI, .one)], hdrFun, .one) ∧

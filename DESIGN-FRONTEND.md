@@ -114,7 +114,6 @@ tables (`IdTable`). Plan:
   - declarations: `parseCVD`, appending to the record block in the `RecOK` layout.
 
 **Frontend gaps that still reject every real file:**
-- `hints` (every definition);
 - `max`/`imax` (two-element lists);
 - `natVal`;
 - escaped and non-ASCII strings;
@@ -124,3 +123,9 @@ tables (`IdTable`). Plan:
 `metaHdr` is con-leche's `kMeta` branch as a record scanner. `brFun_sound` (`Scan/Braced.lean`)
 skips the braced value, and `hdrEnd_sound` is the record function's soundness. A string inside
 the header must be plain, as elsewhere.
+
+**Hints:** `Scan/Hints.lean` has `hiFun_sound`. The value is `"abbrev"` or `"opaque"` (a literal
+choice) or `{"regular":n}`. The object loop's `.hints` action calls `fHints` and keeps the value's
+position in the slot: `SlotOK (.h x)` holds when `scanHints b p = ok x _`, or when x is the default
+`regular 0` and the slot holds the sentinel. Interning reads the hint again from that position.
+`ScanCodes` gains the `fHints` entry. The preamble shared with `ObjFun` is now `Scan/ObjBase.lean`.
