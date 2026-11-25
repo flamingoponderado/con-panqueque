@@ -84,8 +84,9 @@ theorem rt_spec (C : Ctx) (hok : CtxOK C)
     (blk : List IConstantInfo) (ob k mI : Nat) (ty : EIdx) (hk : k ≤ blk.length) (hlen : blk.length < 2 ^ 59)
     (hmI : mI < 2 ^ 64) (H : List (BitVec 64)) (s : AState) (hp : C.H <+: H) (hb : IndBlk C H ob blk) :
     SpecR (σ := σ) (Pre (ctxH C H) s (rtParams.zip [cellA C ob, BitVec.ofNat 64 k, BitVec.ofNat 64 mI, Enc.idxW ty]))
-      (rtBody C) s (recTargetOf ((blk.take k).map (fun (c : IConstantInfo) => c.name)) mI ty) (PostN (ctxH C H)) := by
-  refine specR_prologue (postN_locals _) (rt_none _ _) ?_
+      (rtBody C) s (recTargetOf ((blk.take k).map (fun (c : IConstantInfo) => c.name)) mI ty)
+        (fun a w s' st => PostN (ctxH C H) a w s' st ∧ a ≤ k) := by
+  refine specR_prologue (fun a w s' st L ⟨h1, h2⟩ => ⟨postN_locals _ a w s' st L h1, h2⟩) (rt_none _ _) ?_
   rw [recTargetOf]
   have hnl : ((blk.take k).map (fun (c : IConstantInfo) => c.name)).length = k := by simp; omega
   refine specR_callNIH (C := ctxH C H) rtR fStripPis [pFu, pH] [vv rtM, vv rtT] (stripBody C fStripPis 6)
@@ -105,9 +106,9 @@ theorem rt_spec (C : Ctx) (hok : CtxOK C)
     rw [h rtP (by decide), h rtK (by decide)]; simp +decide [Γ0, Env.get, rtParams, ctxEnv]
   have retK : ∀ (Γ : Env) (H2 : List (BitVec 64)) (s2 : AState), H <+: H2 → Γ.get rtK = some (BitVec.ofNat 64 k) →
       SpecR (σ := σ) (Inv (ctxH C H2) s2 Γ [] (ctxLocals ++ rtLocals)) (.return (vv rtK)) s2 (pure k)
-        (PostN (ctxH C H)) :=
+        (fun a w s' st => PostN (ctxH C H) a w s' st ∧ a ≤ k) :=
     fun Γ H2 s2 h2 hK => specR_returnI _ (BitVec.ofNat 64 k) (by simpa [sev] using hK)
-      (fun t ht => ⟨H2, h2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      (fun t ht => ⟨⟨H2, h2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩, le_refl _⟩)
   rcases o with _ | ⟨tys, b⟩
   · have e0 := hn rfl
     subst e0
@@ -197,13 +198,18 @@ theorem rt_spec (C : Ctx) (hok : CtxOK C)
       (by simp +decide [ctxLocals, rtLocals]) hcn
       ⟨by simp +decide [sev, Env.get_cons, Env.get, rtParams, ctxEnv], rfl,
         by simp +decide [sev, Env.get_cons, Env.get, rtParams, ctxEnv], by simp +decide [sev, Env.get_cons], trivial⟩
-      (PostN (ctxH C H1)) (fun r w _ _ => w = BitVec.ofNat 64 r) (fun r w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu niParams _ rfl hlk)
-        (ni_spec C hcn blk ob k cj hk hlen k 0 H1 s1 (hp.trans hpH) hb1 (by omega) (by omega)))
-      (fun r w s2 H2 hp2 hw => ?_)
+      (fun a w s' st => (pure (nameIdxP blk k cj k 0) : AM Nat) s1 = .ok (a, s') ∧ PostN (ctxH C H1) a w s' st)
+      (fun r w _ _ => w = BitVec.ofNat 64 r ∧ r ≤ k)
+      (fun r w s' st ⟨hrun, H', hp', hw, hsr⟩ => by
+        have hr : r = nameIdxP blk k cj k 0 := by
+          simp only [pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at hrun; exact hrun.1.symm
+        exact ⟨H', hp', ⟨hw, hr ▸ nameIdxP_le _ _ _ _ _⟩, hsr⟩)
+      (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu niParams _ rfl hlk)
+        (ni_spec C hcn blk ob k cj hk hlen k 0 H1 s1 (hp.trans hpH) hb1 (by omega) (by omega))))
+      (fun r w s2 H2 hp2 ⟨hw, hrk⟩ => ?_)
     subst hw
     exact specR_returnI _ _ (by simp +decide [Env.get])
-      (fun t' ht' => ⟨H2, hpH.trans hp2, rfl, sr_of_eq ht'.sr rfl rfl rfl rfl⟩)
+      (fun t' ht' => ⟨⟨H2, hpH.trans hp2, rfl, sr_of_eq ht'.sr rfl rfl rfl rfl⟩, hrk⟩)
 
 end
 

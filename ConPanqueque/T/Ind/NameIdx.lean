@@ -53,6 +53,22 @@ theorem nameIdxP_eq (blk : List IConstantInfo) (k : Nat) (hk : k ≤ blk.length)
       subst this
       cases f <;> simp [nameIdxP]
 
+theorem nameIdxP_le (blk : List IConstantInfo) (k : Nat) (n : NIdx) : ∀ fuel j, nameIdxP blk k n fuel j ≤ k := by
+  intro fuel
+  induction fuel with
+  | zero => intro j; simp [nameIdxP]
+  | succ f ih =>
+    intro j
+    simp only [nameIdxP]
+    split
+    · rename_i hj
+      split
+      · split
+        · omega
+        · exact ih _
+      · exact le_refl _
+    · exact le_refl _
+
 def niP := ofString "ni_p"
 def niJ := ofString "ni_j"
 def niK := ofString "ni_k"
