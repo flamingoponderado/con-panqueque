@@ -119,7 +119,7 @@ theorem ofNat_add_small (a b : Nat) (h : a + b < 2 ^ 64) :
 theorem bc_spec (C : Ctx) (hcp : C.code.lookup fPbc = some ([(pFu, .one), (pH, .one)], pbcBody fPbc, .one))
     (nPd k nC nR : Nat) (cvT : IConstantVal) (r : Option (Nat × Nat))
     (hb : nPd < 2 ^ 60 ∧ k < 2 ^ 60 ∧ nC < 2 ^ 60 ∧ nR < 2 ^ 60)
-    (hr : ∀ mI rP, r = some (mI, rP) → mI < 2 ^ 60 ∧ rP < 2 ^ 60)
+    (hr : ∀ mI rP, r = some (mI, rP) → mI < 2 ^ 63 ∧ rP < 2 ^ 63)
     (H : List (BitVec 64)) (s : AState) :
     SpecR (σ := σ) (Pre (ctxH C H) s (bcParams.zip ([BitVec.ofNat 64 nPd, BitVec.ofNat 64 k, BitVec.ofNat 64 nC,
         BitVec.ofNat 64 nR, Enc.idxW cvT.type] ++ rWords r))) bcBody s

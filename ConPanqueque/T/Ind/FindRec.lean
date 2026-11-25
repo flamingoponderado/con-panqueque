@@ -52,13 +52,14 @@ section
 variable {σ : Type}
 
 /-- The post: the word is the index of the found recursor (`n` when none), the twin's answer its tuple. -/
-def PostFR (C : Ctx) (blk : List IConstantInfo) (n : Nat) (a : Option (IConstantVal × Nat × Nat × Bool × List IRecRule))
+def PostFR (C : Ctx) (blk : List IConstantInfo) (j0 n : Nat) (a : Option (IConstantVal × Nat × Nat × Bool × List IRecRule))
     (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
   ∃ H', C.H <+: H' ∧ SR (ctxH C H') s' st ∧
-    ((a = none ∧ w = BitVec.ofNat 64 n) ∨ ∃ r, ∃ hr : r < blk.length, r < n ∧ a = some (recT blk[r]) ∧ w = BitVec.ofNat 64 r)
+    ((a = none ∧ w = BitVec.ofNat 64 n) ∨
+      ∃ r, ∃ hr : r < blk.length, j0 ≤ r ∧ r < n ∧ a = some (recT blk[r]) ∧ w = BitVec.ofNat 64 r)
 
-theorem postFR_locals (C : Ctx) (blk : List IConstantInfo) (n : Nat) : ∀ a w s' (st : PState σ)
-    (L : HolFiniteMapExact MlS (ValueHOL 64)), PostFR C blk n a w s' st → PostFR C blk n a w s' { st with locals := L } :=
+theorem postFR_locals (C : Ctx) (blk : List IConstantInfo) (j0 n : Nat) : ∀ a w s' (st : PState σ)
+    (L : HolFiniteMapExact MlS (ValueHOL 64)), PostFR C blk j0 n a w s' st → PostFR C blk j0 n a w s' { st with locals := L } :=
   fun _ _ _ _ _ ⟨H', hp, hs, h⟩ => ⟨H', hp, sr_of_eq hs rfl rfl rfl rfl, h⟩
 
 theorem fr_none (C : Ctx) (vals : List (BitVec 64)) :
@@ -84,14 +85,14 @@ theorem fr_spec (C : Ctx) (hok : CtxOK C)
       j ≤ blk.length → (∀ i, j ≤ i → i < blk.length → kindAt blk i = some 5) →
       SpecR (σ := σ) (Pre (ctxH C H) s (frParams.zip [cellA C ob, BitVec.ofNat 64 j, BitVec.ofNat 64 blk.length,
         BitVec.ofNat 64 k, BitVec.ofNat 64 m])) frBody s
-        (List.findM? (recIs (recNames blk k) m) ((blk.drop j).map recT)) (PostFR (ctxH C H) blk blk.length) := by
+        (List.findM? (recIs (recNames blk k) m) ((blk.drop j).map recT)) (PostFR (ctxH C H) blk j blk.length) := by
   intro f
   induction f with
   | zero =>
     intro j H s hp hb hf hj hkd
     have hjl : j = blk.length := by omega
     subst hjl
-    refine specR_prologue (postFR_locals _ _ _) (fr_none _ _) ?_
+    refine specR_prologue (postFR_locals _ _ _ _) (fr_none _ _) ?_
     have hlw := nd_lt_iff blk.length blk.length (by omega) (by omega)
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, frParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw])
       (fun h => absurd rfl h) (fun _ => ?_)
@@ -103,7 +104,7 @@ theorem fr_spec (C : Ctx) (hok : CtxOK C)
     have hjl : j < blk.length := by omega
     obtain ⟨os, hosl, hblk, hcie⟩ := id hb
     have hoj : j < os.length := by omega
-    refine specR_prologue (postFR_locals _ _ _) (fr_none _ _) ?_
+    refine specR_prologue (postFR_locals _ _ _ _) (fr_none _ _) ?_
     have hlw := nd_lt_iff j blk.length (by omega) (by omega)
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, frParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw.mpr hjl])
       (fun _ => ?_) (fun h => absurd h (by decide))
@@ -152,7 +153,7 @@ theorem fr_spec (C : Ctx) (hok : CtxOK C)
         simp only [htm, beq_self_eq_true, ite_true]
         exact specR_returnI _ (BitVec.ofNat 64 j) (by simp +decide [sev, Env.get_cons, Env.get, frParams, ctxEnv])
           (fun t' ht' => ⟨H1, hpH, sr_of_eq ht'.sr rfl rfl rfl rfl,
-            Or.inr ⟨j, hjl, hjl, by rw [hcj, recT_rec], rfl⟩⟩)
+            Or.inr ⟨j, hjl, le_refl _, hjl, by rw [hcj, recT_rec], rfl⟩⟩)
       · have htm : t ≠ m := by intro c; simp [boolW, c] at h
         have hbt : (t == m) = false := by simpa using htm
         simp only [hbt, Bool.false_eq_true, ite_false]
@@ -167,9 +168,12 @@ theorem fr_spec (C : Ctx) (hok : CtxOK C)
             by simp +decide [sev, Env.get_cons, Env.get, frParams, ctxEnv],
             by simp +decide [sev, Env.get_cons, Env.get, frParams, ctxEnv],
             by simp +decide [sev, Env.get_cons, Env.get, frParams, ctxEnv], trivial⟩
-          (PostFR (ctxH C H1) blk blk.length) (fun a w _ _ => (a = none ∧ w = BitVec.ofNat 64 blk.length) ∨
-            ∃ r, ∃ hr : r < blk.length, r < blk.length ∧ a = some (recT blk[r]) ∧ w = BitVec.ofNat 64 r)
-          (fun a w s' st ⟨H', hp', hs', h'⟩ => ⟨H', hp', h', hs'⟩)
+          (PostFR (ctxH C H1) blk (j + 1) blk.length) (fun a w _ _ => (a = none ∧ w = BitVec.ofNat 64 blk.length) ∨
+            ∃ r, ∃ hr : r < blk.length, j ≤ r ∧ r < blk.length ∧ a = some (recT blk[r]) ∧ w = BitVec.ofNat 64 r)
+          (fun a w s' st ⟨H', hp', hs', h'⟩ => ⟨H', hp', by
+            rcases h' with h1 | ⟨r, hr, h1, h2, h3, h4⟩
+            · exact Or.inl h1
+            · exact Or.inr ⟨r, hr, by omega, h2, h3, h4⟩, hs'⟩)
           (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu frParams _ rfl hlk)
             (ih (j + 1) H1 s1 (hp.trans hpH) (indBlk_mono hb hpH) (by omega) (by omega)
               (fun i hi hl => hkd i (by omega) hl)))
