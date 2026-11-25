@@ -107,11 +107,12 @@ theorem bm_none (C : Ctx) (vals : List (BitVec 64)) :
 block's) stays a prefix. -/
 def PostBM (C : Ctx) (H0 : List (BitVec 64)) (oa m : Nat) (ns : List Nat) (w : BitVec 64) (s' : AState)
     (st : PState σ) : Prop :=
-  ∃ H', H0 <+: H' ∧ SR (ctxH C H') s' st ∧ ∀ i (hi : i < ns.length), H'[oa + m + i]? = some (BitVec.ofNat 64 ns[i])
+  ∃ H', H0 <+: H' ∧ SR (ctxH C H') s' st ∧ (∀ i (hi : i < ns.length), H'[oa + m + i]? = some (BitVec.ofNat 64 ns[i])) ∧
+    ∀ i (hi : i < ns.length), ns[i] < 2 ^ 63
 
 theorem postBM_locals (C : Ctx) (H0 : List (BitVec 64)) (oa m : Nat) : ∀ a w s' (st : PState σ)
     (L : HolFiniteMapExact MlS (ValueHOL 64)), PostBM C H0 oa m a w s' st → PostBM C H0 oa m a w s' { st with locals := L } :=
-  fun _ _ _ _ _ ⟨H', hp, hs, h⟩ => ⟨H', hp, sr_of_eq hs rfl rfl rfl rfl, h⟩
+  fun _ _ _ _ _ ⟨H', hp, hs, h, hb⟩ => ⟨H', hp, sr_of_eq hs rfl rfl rfl rfl, h, hb⟩
 
 theorem prefix_set {H0 H : List (BitVec 64)} (hp : H0 <+: H) {j : Nat} (hj : H0.length ≤ j) (v : BitVec 64) :
     H0 <+: H.set j v := by
@@ -170,7 +171,8 @@ theorem bm_spec (C : Ctx) (hok : CtxOK C)
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, bmParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw])
       (fun h => absurd rfl h) (fun _ => ?_)
     simp only [List.drop_eq_nil_of_le (by simp : (blk.take m).length ≤ m), List.map_nil, unwrap_bmc_nil]
-    exact specR_returnI _ 0 rfl (fun t ht => ⟨H, h0, sr_of_eq ht.sr rfl rfl rfl rfl, fun i hi => absurd hi (by simp)⟩)
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨H, h0, sr_of_eq ht.sr rfl rfl rfl rfl, fun i hi => absurd hi (by simp),
+      fun i hi => absurd hi (by simp)⟩)
   | succ f ih =>
     intro m H0 H s hb0 h0 hl0 hoa hf hm
     have hmk : m < k := by omega
@@ -234,11 +236,11 @@ theorem bm_spec (C : Ctx) (hok : CtxOK C)
         ([BitVec.ofNat 64 nPd, BitVec.ofNat 64 k, BitVec.ofNat 64 nC, BitVec.ofNat 64 nR, Enc.idxW blk[m].toConstantVal.type]
           ++ rWords rc) (by decide) (by cases rc <;> rfl) (by simp +decide [ctxLocals, bmLocals]) hcb
         (by cases rc <;> exact ⟨gNP, gK', gNC', gNR', gT, gH', gI', gR', trivial⟩)
-        (PostBC (ctxH C H1)) (fun c w _ _ => w = BitVec.ofNat 64 c.2)
-        (fun c w s' st ⟨H', hp', hw', hsr⟩ => ⟨H', hp', hw', hsr⟩)
+        (PostBC (ctxH C H1)) (fun c w _ _ => w = BitVec.ofNat 64 c.2 ∧ c.2 < 2 ^ 63)
+        (fun c w s' st ⟨H', hp', hw', hsr, hb'⟩ => ⟨H', hp', ⟨hw', hb'⟩, hsr⟩)
         (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu bcParams _ (by cases rc <;> rfl) hlk)
           (bc_spec C hcp nPd k nC nR blk[m].toConstantVal rc ⟨by omega, by omega, by omega, by omega⟩ hrc H1 s1))
-        (fun c wc s2 H2 hp2 hwc => ?_)
+        (fun c wc s2 H2 hp2 ⟨hwc, hcb⟩ => ?_)
       subst hwc
       have hpH2 : H <+: H2 := hpH1.trans hp2
       have hl2 : oa + m < H2.length := by have := hpH2.length_le; omega
@@ -279,12 +281,13 @@ theorem bm_spec (C : Ctx) (hok : CtxOK C)
           BitVec.ofNat 64 nPd, cellA C oa] (by decide) rfl (by simp +decide [ctxLocals, bmLocals]) hc
         ⟨gPs, by simp only [sev] at gMs ⊢; rw [gMs]; simp; exact word_add1_eq m, gKs, gNCs, gNRs, gNPs, gOs, trivial⟩
         (PostBM C H0' oa (m + 1)) (fun ns w _ H' => H0' <+: H' ∧
-          ∀ i (hi : i < ns.length), H'[oa + (m + 1) + i]? = some (BitVec.ofNat 64 ns[i]))
-        (fun ns w s' st ⟨H', hp', hs', hc'⟩ => ⟨H', ⟨hp', hc'⟩, hs'⟩)
+          (∀ i (hi : i < ns.length), H'[oa + (m + 1) + i]? = some (BitVec.ofNat 64 ns[i])) ∧
+          ∀ i (hi : i < ns.length), ns[i] < 2 ^ 63)
+        (fun ns w s' st ⟨H', hp', hs', hc', hb'⟩ => ⟨H', ⟨hp', hc', hb'⟩, hs'⟩)
         (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu bmParams _ rfl hlk)
           (ih (m + 1) H0' H3 s2 (hb0.trans h00') h0'3 (by rw [hH0'l]; omega) (by rw [hl3]; have := hpH2.length_le; omega)
             (by omega) (by omega)))
-        (fun ns w s3 H4 ⟨h0'4, hcells⟩ => ?_)
+        (fun ns w s3 H4 ⟨h0'4, hcells, hbs⟩ => ?_)
       exact specR_returnI _ 0 rfl (fun t ht => ⟨H4, h00'.trans h0'4, sr_of_eq ht.sr rfl rfl rfl rfl, fun i hi => by
         cases i with
         | zero =>
@@ -293,7 +296,10 @@ theorem bm_spec (C : Ctx) (hok : CtxOK C)
         | succ i =>
           simp only [List.getElem_cons_succ]
           rw [show oa + m + (i + 1) = oa + (m + 1) + i by omega]
-          exact hcells i (by simpa using hi)⟩)
+          exact hcells i (by simpa using hi), fun i hi => by
+      cases i with
+      | zero => simpa using hcb
+      | succ i => simpa using hbs i (by simpa using hi)⟩)
     let Γ0 : Env := ctxEnv (ctxH C H) ++ bmParams.zip [cellA C ob, BitVec.ofNat 64 m,
       BitVec.ofNat 64 k, BitVec.ofNat 64 nC, BitVec.ofNat 64 nR, BitVec.ofNat 64 nPd, cellA C oa]
     have gK : Γ0.get bmK = some (BitVec.ofNat 64 k) := by simp +decide [Γ0, Env.get, bmParams, ctxEnv]

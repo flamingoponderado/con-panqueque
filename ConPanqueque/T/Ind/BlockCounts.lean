@@ -88,11 +88,11 @@ variable {σ : Type}
 
 /-- The post: the word is the index count. -/
 def PostBC (C : Ctx) (a : Nat × Nat) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
-  ∃ H', C.H <+: H' ∧ w = BitVec.ofNat 64 a.2 ∧ SR (ctxH C H') s' st
+  ∃ H', C.H <+: H' ∧ w = BitVec.ofNat 64 a.2 ∧ SR (ctxH C H') s' st ∧ a.2 < 2 ^ 63
 
 theorem postBC_locals (C : Ctx) : ∀ (a : Nat × Nat) w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
     PostBC C a w s' st → PostBC C a w s' { st with locals := L } :=
-  fun _ _ _ _ _ ⟨H', hp, hw, hs⟩ => ⟨H', hp, hw, sr_of_eq hs rfl rfl rfl rfl⟩
+  fun _ _ _ _ _ ⟨H', hp, hw, hs, hb⟩ => ⟨H', hp, hw, sr_of_eq hs rfl rfl rfl rfl, hb⟩
 
 theorem bc_none (C : Ctx) (vals : List (BitVec 64)) :
     ∀ x, x ∈ bcLocals → (ctxEnv C ++ bcParams.zip vals).get x = none :=
@@ -185,7 +185,7 @@ theorem bc_spec (C : Ctx) (hcp : C.code.lookup fPbc = some ([(pFu, .one), (pH, .
         Option.pure_def, ofNat_sub_small mI rP (by omega) (by omega)]
     have retOk : SpecR (σ := σ) (Inv (ctxH (ctxH C H) H1) s1 Γ1 [] (ctxLocals ++ bcLocals))
         (.return (.op .sub [vv bcMI, vv bcRP])) s1 (pure (nPd, mI - rP)) (PostBC (ctxH C H)) :=
-      specR_returnI _ _ hmr (fun t ht => ⟨H1, hpH, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      specR_returnI _ _ hmr (fun t ht => ⟨H1, hpH, rfl, sr_of_eq ht.sr rfl rfl rfl rfl, by omega⟩)
     refine specR_ifI _ _ (ConPanqueque.T.WC.sev_eqNatB (by omega) (by omega) hsub (sv bcNP nPd (by decide) gNP))
       (fun h => ?_) (fun h => ?_)
     · have c3 : rP - (nC + k) = nPd := by by_cases c : rP - (nC + k) = nPd; exact c; simp [boolW, c] at h
@@ -234,7 +234,7 @@ theorem bc_spec (C : Ctx) (hcp : C.code.lookup fPbc = some ([(pFu, .one), (pH, .
         show sev Γ2 (.op .sub [vv bcN, vv bcNP]) = _
         simp only [sev] at gN2 gNP2 ⊢; simp only [gN2, gNP2, Option.bind_eq_bind, Option.bind_some, Option.pure_def,
           ofNat_sub_small n nPd c (by omega)])
-      (fun t ht => ⟨H1, hpH, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      (fun t ht => ⟨H1, hpH, rfl, sr_of_eq ht.sr rfl rfl rfl rfl, by omega⟩)
 
 end
 
