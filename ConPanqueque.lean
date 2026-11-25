@@ -442,3 +442,4 @@ import ConPanqueque.T.Ind.IndParams
 import ConPanqueque.T.Ind.Shape
 import ConPanqueque.T.Ind.Split
 import ConPanqueque.T.Ind.PiBinders
+import ConPanqueque.T.Ind.NameIdx
