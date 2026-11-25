@@ -57,6 +57,29 @@ theorem specR_scanErr {α : Type} {m : AM α} {R : α → BitVec 64 → AState �
       (hlc _ (by show t.code = C.code; exact ht.sr.code)) i hi sPl (by simp) c1 c2 c3)
     (fun w ⟨u, ⟨rec, next, hs', _⟩, _⟩ => by rw [hs] at hs'; cases hs')
 
+/-- A scan error: the one scanner call cannot return. -/
+theorem specR_scanErrK {α : Type} {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop} {rest : ProgHOL 64}
+    (C : Ctx) (hok : CtxOK C) (bufJ : Nat) (b : ByteArray) (hbuf : BufOK C bufJ b)
+    (hlc : ∀ t : PState σ, t.code = C.code → LineCodes t)
+    (hc : C.code.lookup fLnKB = some ([(sB, .one), (sN, .one), (sI, .one)], lineFunKB, .one))
+    (s : AState) (Γ : Env) (M : Mem) (D : List MlS) (hD : ∀ x ∈ [kTg, kS0, kIx, kNx], x ∈ D)
+    (i : USize) (hi : i.toNat ≤ b.size) (er : ConLeche.Frontend.ScanErr) (hs : scanLineFwd b i = .err er)
+    (hLI : Γ.get kLI = some (BitVec.ofNat 64 i.toNat))
+    (hBA : Γ.get kBA = some (cellA C bufJ)) (hBN : Γ.get kBN = some (BitVec.ofNat 64 b.size)) :
+    SpecR (Inv C s Γ M D)
+      (.seq (callTo kNx fLnKB [vv kBA, vv kBN, vv kLI]) (.seq (.assign .local kTg (kbLoad 0))
+        (.seq (.assign .local kS0 (kbLoad 1)) (.seq (.assign .local kIx (kbLoad 2)) rest)))) s m R :=
+  specR_callK3 hok kNx kTg kS0 kIx fLnKB sB sN sI lineFunKB (vv kBA) (vv kBN) (vv kLI) (cellA C bufJ)
+    (BitVec.ofNat 64 b.size) (BitVec.ofNat 64 i.toNat) _ (by decide) (by decide) (by decide)
+    (hD _ (by simp)) (hD _ (by simp)) (hD _ (by simp)) (hD _ (by simp)) hc
+    (by simpa [sev, vv] using hBA) (by simpa [sev, vv] using hBN) (by simpa [sev, vv] using hLI)
+    (fun t callee ht c1 c2 c3 => lineFunKB_spec (callEntryStateHOLFinite t callee) (cellA C bufJ) C.KB b hbuf.plat
+      (bytesAt_congr (t := t) (bufOK_bytes (H := C.H) hok hbuf (by rw [ctxH_self]; exact ht) hbuf.pk
+        (Nat.le_refl _)) rfl rfl rfl)
+      (hlc _ (by show t.code = C.code; exact ht.sr.code)) i hi
+      (by show t.globals.lookup gKb = _; exact ht.sr.gkb) (fun j hj => ht.sr.kbuf j hj) c1 c2 c3)
+    (fun _ _ _ _ ⟨u, ⟨rec, next, hs', _⟩, _⟩ => by rw [hs] at hs'; cases hs')
+
 abbrev feedEnv (C : Ctx) (jN jL jE cap bufJ bsz rb capD i n : Nat) : Env :=
   ctxEnv C ++ feedPs.zip (feedVs C jN jL jE cap bufJ bsz rb capD i n)
 
@@ -102,7 +125,7 @@ theorem ctxOK_ctxH {C : Ctx} {H : List (BitVec 64)} (h : CtxOK C) : CtxOK (ctxH 
 theorem frontOK_ctxH {C : Ctx} {H : List (BitVec 64)} (h : FrontOK C) : FrontOK (ctxH C H) := by
   cases C; cases h; constructor <;> assumption
 theorem frontCodes_ctxH {C : Ctx} {H : List (BitVec 64)} (h : FrontCodes σ C) : FrontCodes σ (ctxH C H) :=
-  ⟨h.hsc, h.hnc, h.hhc, h.hlc, h.cNth, h.cSafe, h.cHintV, h.cStr, h.cApp, h.cLam, h.cAll, h.cLet, h.cProj, h.cLs, h.cConst, h.cBVar, h.cSort, h.cSucc, h.cParam, h.cMax, h.cImax, h.cNNum, h.cNStr, h.fApp, h.fLam, h.fAll, h.fLet, h.fProj, h.fConst, h.fNum, h.fStrN, h.fThm, h.fOpq, h.fDef, h.cLnPl, h.cLnS0, h.cLnIx, h.cLnNx, h.l1, h.l2, h.l3, h.l4, h.l5, h.l6, h.l7, h.l8, h.l9, h.l10, h.l11, h.l12, h.l14, h.l15, h.l16, h.l18, h.l19⟩
+  ⟨h.hsc, h.hnc, h.hhc, h.hlc, h.cNth, h.cSafe, h.cHintV, h.cStr, h.cApp, h.cLam, h.cAll, h.cLet, h.cProj, h.cLs, h.cConst, h.cBVar, h.cSort, h.cSucc, h.cParam, h.cMax, h.cImax, h.cNNum, h.cNStr, h.fApp, h.fLam, h.fAll, h.fLet, h.fProj, h.fConst, h.fNum, h.fStrN, h.fThm, h.fOpq, h.fDef, h.cLnPl, h.cLnS0, h.cLnIx, h.cLnNx, h.l1, h.l2, h.l3, h.l4, h.l5, h.l6, h.l7, h.l8, h.l9, h.l10, h.l11, h.l12, h.l14, h.l15, h.l16, h.l18, h.l19, h.cLnKB⟩
 
 section
 variable {F rb capD jN jL jE cap bufJ : Nat} {b : ByteArray} {H : List (BitVec 64)} {st : StateD}
@@ -143,7 +166,9 @@ theorem feedCore_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (F rb capD jN 
       | err er =>
         simp only
         unfold applyLineP
-        exact specR_scanErr C hok bufJ b hbuf fc.hlc fc.cLnPl s _ [] _ (by simp [feedL]) i (by omega) er hsc
+        exact specR_scanErrK C hok bufJ b hbuf fc.hlc fc.cLnKB s _ [] _ (fun x hx => by
+            simp only [List.mem_cons, List.not_mem_nil, or_false] at hx
+            rcases hx with rfl | rfl | rfl | rfl <;> simp [feedL]) i (by omega) er hsc
           (feedEnv_LI ..) (feedEnv_BA ..) (feedEnv_BN ..)
       | ok r j =>
         simp only

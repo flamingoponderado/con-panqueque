@@ -1,4 +1,5 @@
 import ConPanqueque.Front.ScanPhase
+import ConPanqueque.Front.ScanKB
 
 /-! # The frontend's code table and the line dispatcher
 
@@ -71,6 +72,7 @@ structure FrontCodes (σ : Type) (C : Ctx) : Prop where
   l16 : C.code.lookup (fLine 16) = some (linePs.map (fun p => (p, ShapeHOL.one)), prologue opL (opLineP C), .one)
   l18 : C.code.lookup (fLine 18) = some (linePs.map (fun p => (p, ShapeHOL.one)), prologue pairL (lvPairLineP fInternLMax), .one)
   l19 : C.code.lookup (fLine 19) = some (linePs.map (fun p => (p, ShapeHOL.one)), prologue pairL (lvPairLineP fInternLImax), .one)
+  cLnKB : C.code.lookup fLnKB = some ([(sB, .one), (sN, .one), (sI, .one)], lineFunKB, .one)
 
 variable {σ : Type}
 
@@ -254,9 +256,8 @@ end
 
 /-- One line: the scan phase, then the dispatch. -/
 def applyLineP (rest : ProgHOL 64) : ProgHOL 64 :=
-  .seq (callTo kTg fLnPl [vv kBA, vv kBN, vv kLI]) (.seq (callTo kS0 fLnS0 [vv kBA, vv kBN, vv kLI])
-    (.seq (callTo kIx fLnIx [vv kBA, vv kBN, vv kLI]) (.seq (callTo kNx fLnNx [vv kBA, vv kBN, vv kLI])
-      (dispatchP rest))))
+  .seq (callTo kNx fLnKB [vv kBA, vv kBN, vv kLI]) (.seq (.assign .local kTg (kbLoad 0))
+    (.seq (.assign .local kS0 (kbLoad 1)) (.seq (.assign .local kIx (kbLoad 2)) (dispatchP rest))))
 
 section
 variable {F rb capD jN jL jE cap bufJ : Nat} {b : ByteArray}
@@ -282,12 +283,12 @@ theorem applyLine_spec {β : Type} {k : StateD ⊕ RecordVerdict → AM β} {R :
     SpecR (Inv C s Γ M D) (applyLineP rest) s (applyLine st rec n >>= k) R := by
   have hbuf : BufOK C bufJ b := by have := hfs.buf; rwa [ctxH_self] at this
   unfold applyLineP
-  refine specR_scanPhase C hok bufJ b hbuf fc.hlc fc.cLnPl fc.cLnS0 fc.cLnIx fc.cLnNx s Γ M D
+  refine specR_scanPhaseK C hok bufJ b hbuf fc.hlc fc.cLnKB s Γ M D
     (fun x hx => hD x (by
       simp only [List.mem_cons, List.not_mem_nil, or_false] at hx ⊢; rcases hx with rfl | rfl | rfl | rfl <;> simp))
     i hi rec next hs
     hLI h7 h8 (fun wt ws wi wn hso => ?_)
-  let Γ4 : Env := (kNx, wn) :: (kIx, wi) :: (kS0, ws) :: (kTg, wt) :: Γ
+  let Γ4 : Env := (kIx, wi) :: (kS0, ws) :: (kTg, wt) :: (kNx, wn) :: Γ
   have g4 : ∀ y, y ∉ [kTg, kS0, kIx, kNx, kR0] → Γ4.get y = Γ.get y := fun y hy => by
     simp only [List.mem_cons, List.not_mem_nil, or_false, not_or] at hy
     simp only [Γ4, Env.get_cons, if_neg hy.1, if_neg hy.2.1, if_neg hy.2.2.1, if_neg hy.2.2.2.1]
@@ -295,11 +296,10 @@ theorem applyLine_spec {β : Type} {k : StateD ⊕ RecordVerdict → AM β} {R :
     fun y a1 a2 a3 a4 a5 => by simp [a1, a2, a3, a4, a5]
   have L : ∀ y, y ≠ kTg → y ≠ kS0 → y ≠ kIx → y ≠ kNx → y ≠ kR0 → Γ4.get y = Γ.get y :=
     fun y a1 a2 a3 a4 a5 => g4 y (hn' y a1 a2 a3 a4 a5)
-  refine dispatch_spec ra C hok hf fc s Γ4 M D (hD _ (by simp)) st hfs rec next wt ws wi wn hso n hn64
-    (by simp only [Γ4, Env.get_cons, if_neg (show kTg ≠ kNx by decide), if_neg (show kTg ≠ kIx by decide),
-        if_neg (show kTg ≠ kS0 by decide), if_pos])
-    (by simp only [Γ4, Env.get_cons, if_neg (show kS0 ≠ kNx by decide), if_neg (show kS0 ≠ kIx by decide), if_pos])
-    (by simp only [Γ4, Env.get_cons, if_neg (show kIx ≠ kNx by decide), if_pos])
+  refine dispatch_spec ra C hok hf fc s Γ4 [] D (hD _ (by simp)) st hfs rec next wt ws wi wn hso n hn64
+    (by simp (config := {decide := true}) [Γ4, Env.get_cons])
+    (by simp (config := {decide := true}) [Γ4, Env.get_cons])
+    (by simp (config := {decide := true}) [Γ4, Env.get_cons])
     (by rw [L _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hLn)
     (by rw [L _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact h1)
     (by rw [L _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact h2)
@@ -312,7 +312,8 @@ theorem applyLine_spec {β : Type} {k : StateD ⊕ RecordVerdict → AM β} {R :
     (fun st' s' H' Γ' hf' hag => hk st' s' H' Γ' hf' (fun y hy => by
         have hy' : y ≠ kR0 := fun e => hy (by simp [e])
         rw [hag y hy', g4 y hy])
-      (by rw [hag kNx (by decide)]; simp only [Γ4, Env.get_cons, if_pos]; rw [hso.2.1]))
+      (by rw [hag kNx (by decide)]; simp (config := {decide := true}) only [Γ4, Env.get_cons, if_pos, if_neg]
+          rw [hso.2.1]))
 
 end
 
