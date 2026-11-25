@@ -449,3 +449,4 @@ import ConPanqueque.T.Ind.SplitLemma
 import ConPanqueque.T.Ind.FindRec
 import ConPanqueque.T.Ind.CallG
 import ConPanqueque.T.Ind.MemberCounts
+import ConPanqueque.T.Ind.LpsEq
