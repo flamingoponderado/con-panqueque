@@ -518,4 +518,227 @@ theorem io_spec (C : Ctx) (hok : CtxOK C) (hc : IOCodes C) (nP : Nat) (motPos : 
 
 end
 
+/-! ## The inductive hypotheses (`fvs.filterMapM ihOf`) -/
+
+def ihqA := ofString "fmi_a"
+def ihqI := ofString "fmi_i"
+def ihqN := ofString "fmi_n"
+def ihqW := ofString "fmi_w"
+def ihqJ := ofString "fmi_j"
+def ihqP := ofString "fmi_p"
+def ihqMp := ofString "fmi_mp"
+def ihqMn := ofString "fmi_mn"
+def ihqD := ofString "fmi_d"
+def ihqX := ofString "fmi_x"
+def ihqR := ofString "fmi_r"
+def ihqF := ofString "fmi_f"
+def ihqT := ofString "fmi_t"
+def fIhs := ofString "ihsFill"
+
+def fmiParams : List MlS := [ihqA, ihqI, ihqN, ihqW, ihqJ, ihqP, ihqMp, ihqMn, ihqD]
+def fmiLocals : List MlS := [ihqX, ihqR, ihqF, ihqT]
+
+def fmiBody : ProgHOL 64 := prologue fmiLocals
+  (.ite (.cmp .lower (vv ihqI) (vv ihqN))
+    (.seq (.assign .local ihqX (.load .one (.op .add [vv ihqA, .op .add [.panop .mul [vv ihqI, .const 8], .const 8]])))
+    (.seq (.call (some (some (.local, ihqR), none)) fIhOf [vv ihqX, vv ihqP, vv ihqMp, vv ihqMn, vv ihqD])
+    (.ite (.cmp .equal (vv ihqR) (.const 0))
+      (.seq (.call (some (some (.local, ihqR), none)) fIhs
+          [vv ihqA, .op .add [vv ihqI, .const 1], vv ihqN, vv ihqW, vv ihqJ, vv ihqP, vv ihqMp, vv ihqMn, vv ihqD])
+        (.return (vv ihqR)))
+      (.seq (.assign .local ihqF (.load .one (vv ihqR)))
+      (.seq (.assign .local ihqT (.load .one (.op .add [vv ihqR, .const 8])))
+      (.seq (.store (.op .add [vv ihqW, .panop .mul [vv ihqJ, .const 16]]) (vv ihqF))
+      (.seq (.store (.op .add [vv ihqW, .op .add [.panop .mul [vv ihqJ, .const 16], .const 8]]) (vv ihqT))
+      (.seq (.call (some (some (.local, ihqR), none)) fIhs
+          [vv ihqA, .op .add [vv ihqI, .const 1], vv ihqN, vv ihqW, .op .add [vv ihqJ, .const 1], vv ihqP, vv ihqMp, vv ihqMn,
+            vv ihqD])
+        (.return (vv ihqR))))))))))
+    (.return (vv ihqJ)))
+
+section
+variable {σ : Type}
+
+theorem fmi_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ fmiLocals → (ctxEnv C ++ fmiParams.zip vals).get x = none :=
+  Knot.params_none C fmiLocals fmiParams vals (by decide) (by decide)
+
+/-- Pairs written from slot `j`: `ys`, each `(f, t)` at `ow + 2(j + k)`; the count returned. -/
+def PostFMI (C : Ctx) (Hb : List (BitVec 64)) (ow j cap : Nat) (ys : List (Nat × Nat)) (w : BitVec 64) (s' : AState)
+    (st : PState σ) : Prop :=
+  ∃ H', Hb <+: H' ∧ ow + 2 * cap ≤ H'.length ∧ SR (ctxH C H') s' st ∧ w = BitVec.ofNat 64 (j + ys.length) ∧
+    j + ys.length ≤ cap ∧ ∀ k (hk : k < ys.length), H'[ow + 2 * (j + k)]? = some (BitVec.ofNat 64 ys[k].1) ∧
+      H'[ow + 2 * (j + k) + 1]? = some (BitVec.ofNat 64 ys[k].2)
+
+theorem postFMI_locals (C : Ctx) (Hb : List (BitVec 64)) (ow j cap : Nat) : ∀ a w s' (st : PState σ)
+    (L : HolFiniteMapExact MlS (ValueHOL 64)), PostFMI C Hb ow j cap a w s' st → PostFMI C Hb ow j cap a w s' { st with locals := L } :=
+  fun _ _ _ _ _ ⟨H', hp, hl, hs, h⟩ => ⟨H', hp, hl, sr_of_eq hs rfl rfl rfl rfl, h⟩
+
+end
+
+section
+variable {σ : Type}
+
+theorem cellA_mul16z (C : Ctx) (o j : Nat) (hj : j < 2 ^ 59) :
+    cellA C o + BitVec.ofNat 64 j * 16#64 = cellA C (o + 2 * j) := by
+  apply BitVec.eq_of_toNat_eq
+  simp only [cellA, BitVec.toNat_add, BitVec.toNat_mul, BitVec.toNat_ofNat]; omega
+
+set_option maxHeartbeats 4000000 in
+/-- **`ihsFill`** from field `i`, slot `j`. -/
+theorem ihq_spec (C : Ctx) (hok : CtxOK C)
+    (hcl : C.code.lookup fIhs = some (fmiParams.map (fun p => (p, ShapeHOL.one)), fmiBody, .one)) (hio : IOCodes C)
+    (nP : Nat) (motPos : List Nat) (pm d : Nat) (xs : List EIdx) (pa ow cap : Nat) (H0 : List (BitVec 64))
+    (hA : BlkAt H0 pa (xs.map Enc.idxW)) (hMp : BlkAt H0 pm (motPos.map (BitVec.ofNat 64)))
+    (hmp : ∀ x ∈ motPos, x < 2 ^ 63) (hnP : nP < 2 ^ 63) (hd : d < 2 ^ 63) (hcap : cap < 2 ^ 58) :
+    ∀ f i j (Hb H : List (BitVec 64)) (s : AState), xs.length - i = f → i ≤ xs.length → H0 <+: Hb → Hb <+: H →
+      Hb.length ≤ ow + 2 * j → ow + 2 * cap ≤ H.length → j + (xs.length - i) ≤ cap →
+      SpecR (σ := σ) (Pre (ctxH C H) s (fmiParams.zip [cellA C pa, BitVec.ofNat 64 i, BitVec.ofNat 64 xs.length,
+          cellA C ow, BitVec.ofNat 64 j, BitVec.ofNat 64 nP, cellA C pm, BitVec.ofNat 64 motPos.length, BitVec.ofNat 64 d]))
+        fmiBody s (List.filterMapM (ihOf nP motPos d) (xs.drop i)) (PostFMI C Hb ow j cap) := by
+  intro f
+  induction f with
+  | zero =>
+    intro i j Hb H s hf hi hb0 hbH hbl hroom hjc
+    have hin : i = xs.length := by omega
+    subst hin
+    refine specR_prologue (postFMI_locals _ _ _ _ _) (fmi_none _ _) ?_
+    have hal := blkAt_len_le (blkAt_mono hA (hb0.trans hbH))
+    simp only [List.length_map] at hal
+    refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN => ?_)
+    have hHN' : H.length ≤ C.HN := hHN
+    have hlay := hok.heapLay
+    have hlw := nd_lt_iff xs.length xs.length (by omega) (by omega)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, fmiParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    rw [List.drop_length, List.filterMapM_nil]
+    exact specR_returnI _ (BitVec.ofNat 64 j) (by simp +decide [sev, Env.get, fmiParams, ctxEnv])
+      (fun t ht => ⟨H, hbH, hroom, sr_of_eq ht.sr rfl rfl rfl rfl, by simp, by simp; omega, fun k hk => absurd hk (by simp)⟩)
+  | succ f ih =>
+    intro i j Hb H s hf hi hb0 hbH hbl hroom hjc
+    have hin : i < xs.length := by omega
+    refine specR_prologue (postFMI_locals _ _ _ _ _) (fmi_none _ _) ?_
+    refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN => ?_)
+    have hHN' : H.length ≤ C.HN := hHN
+    have hlay := hok.heapLay
+    have hal := blkAt_len_le (blkAt_mono hA (hb0.trans hbH))
+    simp only [List.length_map] at hal
+    have hlw := nd_lt_iff i xs.length (by omega) (by omega)
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get, fmiParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw.mpr hin])
+      (fun _ => ?_) (fun h => absurd h (by decide))
+    rw [List.drop_eq_getElem_cons hin, List.filterMapM_cons]
+    have h0H := hb0.trans hbH
+    have hx := hA.2 i (by simp; omega)
+    simp only [List.getElem_map] at hx
+    refine UD.specR_heapLoadI' (C := ctxH C H) ihqX _ (pa + 1 + i) _ (get_prefix hx h0H) (by decide)
+      (by simp +decide [sev, Env.get, fmiParams, ctxEnv]; exact cellA_mulIdx C pa i (by omega)) ?_
+    refine specR_callNIH (C := ctxH C H) ihqR fIhOf ioParams [vv ihqX, vv ihqP, vv ihqMp, vv ihqMn, vv ihqD] (ioBody C)
+      [Enc.idxW xs[i], BitVec.ofNat 64 nP, cellA C pm, BitVec.ofNat 64 motPos.length, BitVec.ofNat 64 d]
+      (by decide) rfl (by decide) hio.self
+      ⟨by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv], trivial⟩
+      (PostIO (ctxH C H)) (fun o w _ H' => (o = none → w = 0) ∧ ∀ f t, o = some (f, t) →
+        f < 2 ^ 63 ∧ t < 2 ^ 63 ∧ ∃ ow', w = cellA C ow' ∧ H'[ow']? = some (BitVec.ofNat 64 f) ∧
+          H'[ow' + 1]? = some (BitVec.ofNat 64 t))
+      (fun o w s' st ⟨H', hp', hsr, h1, h2⟩ => ⟨H', hp', ⟨h1, h2⟩, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ioParams _ rfl hlk)
+        (io_spec C hok hio nP motPos pm d H (blkAt_mono hMp h0H) hmp hnP hd s xs[i]))
+      (fun o w s1 H1 hp1 ⟨hn1, hs1⟩ => ?_)
+    have hp1' : H <+: H1 := hp1
+    rcases o with _ | ⟨f0, t0⟩
+    · rw [hn1 rfl]
+      refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+        (fun _ => ?_) (fun h => absurd h (by decide))
+      simp only
+      refine specR_congr (m' := List.filterMapM (ihOf nP motPos d) (xs.drop (i + 1)) >>= fun r => pure r) (by simp) ?_
+      refine specR_callNIG (C := ctxH C H1) ihqR fIhs fmiParams
+        [vv ihqA, .op .add [vv ihqI, .const 1], vv ihqN, vv ihqW, vv ihqJ, vv ihqP, vv ihqMp, vv ihqMn, vv ihqD] fmiBody
+        [cellA C pa, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 xs.length, cellA C ow, BitVec.ofNat 64 j, BitVec.ofNat 64 nP,
+          cellA C pm, BitVec.ofNat 64 motPos.length, BitVec.ofNat 64 d] (by decide) rfl (by decide) hcl
+        ⟨by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv],
+          by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv]; exact word_add1_eq i,
+          by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv],
+          by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv],
+          by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv],
+          by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv], trivial⟩
+        (PostFMI C Hb ow j cap) (fun ys w _ H' => Hb <+: H' ∧ ow + 2 * cap ≤ H'.length ∧ w = BitVec.ofNat 64 (j + ys.length) ∧
+          j + ys.length ≤ cap ∧ ∀ k (hk : k < ys.length), H'[ow + 2 * (j + k)]? = some (BitVec.ofNat 64 ys[k].1) ∧
+            H'[ow + 2 * (j + k) + 1]? = some (BitVec.ofNat 64 ys[k].2))
+        (fun ys w s' st ⟨H', hp', hl', hs', h1⟩ => ⟨H', ⟨hp', hl', h1⟩, hs'⟩)
+        (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu fmiParams _ rfl hlk)
+          (ih (i + 1) j Hb H1 s1 (by omega) (by omega) hb0 (hbH.trans hp1') hbl
+            (le_trans hroom (List.IsPrefix.length_le hp1')) (by omega)))
+        (fun ys w s2 H2 ⟨hp2, hl2, hw, hjc', hcells⟩ => ?_)
+      subst hw
+      exact specR_returnI _ _ (by simp [Env.get]) (fun t ht => ⟨H2, hp2, hl2, sr_of_eq ht.sr rfl rfl rfl rfl, rfl, hjc', hcells⟩)
+    obtain ⟨hf63, ht63, ow', rfl, hcf, hct⟩ := hs1 f0 t0 rfl
+    refine specR_fact (fun t ht' => inv_heapLen ht') (fun hHN1 => ?_)
+    have hol' : ow' < H1.length := (List.getElem?_eq_some_iff.mp hcf).1
+    have hHN1' : H1.length ≤ C.HN := hHN1
+    have hne : cellA C ow' ≠ 0 := cellA_ne0 C hok ow' (by omega)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine UD.specR_heapLoadI' (C := ctxH C H1) ihqF (vv ihqR) ow' _ hcf (by decide) (by simp [sev, Env.get_cons]; rfl) ?_
+    refine UD.specR_heapLoadI' (C := ctxH C H1) ihqT _ (ow' + 1) _ hct (by decide)
+      (by simp +decide [sev, Env.get_cons]; exact cellA_add8 C ow') ?_
+    have hH1l : H.length ≤ H1.length := List.IsPrefix.length_le hp1'
+    have hjlt : j < cap := by omega
+    have hj60 : j < 2 ^ 60 := by omega
+    refine specR_heapStoreI (ctxOK_H hok H1) (.op .add [vv ihqW, .panop .mul [vv ihqJ, .const 16]]) (vv ihqF) (ow + 2 * j)
+      (by show _ < H1.length; omega) (BitVec.ofNat 64 f0)
+      (by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv]; exact cellA_mul16z C ow j (by omega))
+      (by simp +decide [sev, Env.get_cons]) ?_
+    refine specR_heapStoreI (ctxOK_H hok _) (.op .add [vv ihqW, .op .add [.panop .mul [vv ihqJ, .const 16], .const 8]])
+      (vv ihqT) (ow + 2 * j + 1) (by show _ < (H1.set _ _).length; simp; omega) (BitVec.ofNat 64 t0)
+      (by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv]
+          rw [cellA_mul16 C ow j hj60, show ow + 1 + 2 * j = ow + 2 * j + 1 by omega]; rfl)
+      (by simp [sev, Env.get_cons]) ?_
+    let H2 := (H1.set (ow + 2 * j) (BitVec.ofNat 64 f0)).set (ow + 2 * j + 1) (BitVec.ofNat 64 t0)
+    have hl2 : H2.length = H1.length := by simp [H2]
+    have hbH1 : Hb <+: H1 := hbH.trans hp1'
+    have hb2 : Hb <+: H2 := prefix_set (prefix_set hbH1 hbl _) (by omega) _
+    let Hb' := H2.take (ow + 2 * j + 2)
+    have hbb' : Hb <+: Hb' := prefix_take_of hb2 (by omega)
+    have hb'2 : Hb' <+: H2 := List.take_prefix _ _
+    have hc0 : Hb'[ow + 2 * j]? = some (BitVec.ofNat 64 f0) := by
+      simp only [Hb', H2, List.getElem?_take]; rw [if_pos (by omega)]
+      rw [List.getElem?_set_ne (by omega)]; exact List.getElem?_set_self (by omega)
+    have hc1 : Hb'[ow + 2 * j + 1]? = some (BitVec.ofNat 64 t0) := by
+      simp only [Hb', H2, List.getElem?_take]; rw [if_pos (by omega)]; exact List.getElem?_set_self (by simp; omega)
+    simp only
+    refine specR_callNIG (C := ctxH (ctxH C H1) H2) ihqR fIhs fmiParams
+      [vv ihqA, .op .add [vv ihqI, .const 1], vv ihqN, vv ihqW, .op .add [vv ihqJ, .const 1], vv ihqP, vv ihqMp, vv ihqMn,
+        vv ihqD] fmiBody
+      [cellA C pa, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 xs.length, cellA C ow, BitVec.ofNat 64 (j + 1),
+        BitVec.ofNat 64 nP, cellA C pm, BitVec.ofNat 64 motPos.length, BitVec.ofNat 64 d] (by decide) rfl (by decide) hcl
+      ⟨by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv]; exact word_add1_eq i,
+        by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv]; exact word_add1_eq j,
+        by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv], trivial⟩
+      (PostFMI C Hb' ow (j + 1) cap) (fun ys w _ H' => Hb' <+: H' ∧ ow + 2 * cap ≤ H'.length ∧
+        w = BitVec.ofNat 64 (j + 1 + ys.length) ∧ j + 1 + ys.length ≤ cap ∧
+        ∀ k (hk : k < ys.length), H'[ow + 2 * (j + 1 + k)]? = some (BitVec.ofNat 64 ys[k].1) ∧
+          H'[ow + 2 * (j + 1 + k) + 1]? = some (BitVec.ofNat 64 ys[k].2))
+      (fun ys w s' st ⟨H', hp', hl', hs', h1⟩ => ⟨H', ⟨hp', hl', h1⟩, hs'⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu fmiParams _ rfl hlk)
+        (ih (i + 1) (j + 1) Hb' H2 s1 (by omega) (by omega) (hb0.trans hbb') hb'2 (by simp [Hb', hl2]; omega)
+          (by rw [hl2]; omega) (by omega)))
+      (fun ys w s2 H3 ⟨hp3, hl3, hw, hjc', hcells⟩ => ?_)
+    subst hw
+    exact specR_returnI _ (BitVec.ofNat 64 (j + 1 + ys.length)) (by simp [Env.get]) (fun t ht => ⟨H3, hbb'.trans hp3, hl3,
+      sr_of_eq ht.sr rfl rfl rfl rfl,
+      by rw [List.length_cons, show j + (ys.length + 1) = j + 1 + ys.length by omega], by simp; omega, fun k hk => by
+        cases k with
+        | zero => exact ⟨get_prefix (by simpa using hc0) hp3, get_prefix (by simpa using hc1) hp3⟩
+        | succ k =>
+          simp only [List.getElem_cons_succ]
+          have := hcells k (by simpa using hk)
+          rw [show j + (k + 1) = j + 1 + k by omega]; exact this⟩)
+
+end
+
 end ConPanqueque.T.Ind
