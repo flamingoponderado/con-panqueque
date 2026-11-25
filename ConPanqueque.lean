@@ -457,3 +457,4 @@ import ConPanqueque.T.Ind.ParamLevels
 import ConPanqueque.T.Ind.ResultSort
 import ConPanqueque.T.Ind.RecShapes
 import ConPanqueque.T.Ind.Large
+import ConPanqueque.T.Ind.Anon
