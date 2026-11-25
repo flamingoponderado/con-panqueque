@@ -323,6 +323,12 @@ theorem rd_none (C : Ctx) (vals : List (BitVec 64)) :
     ∀ x, x ∈ rdLocals → (ctxEnv C ++ rdParams.zip vals).get x = none :=
   Knot.params_none C rdLocals rdParams vals (by decide) (by decide)
 
+theorem constDen_ext {fe : IFEnv} {st st' : EStore} (h : ConstDen fe st) (hx : Ext st st') : ConstDen fe st' := by
+  intro c ci hc
+  obtain ⟨h1, h2, h3, h4, h5⟩ := h c ci hc
+  exact ⟨fun n hn => denoteN_isSome_ext hx (h1 n hn), denoteE_isSome_ext hx h2, h3,
+    fun cv v hint hci => denoteE_isSome_ext hx (h4 cv v hint hci), h5⟩
+
 /-- A recursor rule's firing data denote (the per-rule clause of `RecDen`). -/
 def RuleDen (rl : IRecRule) (st : EStore) : Prop :=
   (∀ lv, ((∃ pins, rl.fire = .nested lv pins) ∨ rl.fire = .levels lv) →
@@ -355,7 +361,7 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (H : List (BitVec 64)) (hp : C.H <+: H) (hrn : rr = none → wr = 0)
     (hrs : ∀ r, rr = some r → ∃ ob, wr = cellA C ob ∧ IotaRecRep C H ob r)
     (es : List (NIdx × Nat × IConstantInfo)) (ob0 : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
-    (hfD : EnvDen fe C.pins C.St) (hT : BTabAt C H ob0 es)
+    (hfD : ConstDen fe C.St) (hT : BTabAt C H ob0 es)
     (hq : RuleE C.EB C.EH oq rl) (hrd : RuleDen rl C.St) (s : AState) :
     SpecR (σ := σ) (Pre (ctxH C H) s (rdParams.zip [cellA C ob0, wr, BitVec.ofNat 64 mI, BitVec.ofNat 64 rP, BitVec.ofNat 64 i,
       ecell C oq, Enc.idxW cv.type])) (rdBody C) s (ruleReads fe cv rr mI rP i rl) (PostB (ctxH C H)) := by
@@ -529,8 +535,8 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
         (eaddr 3 (by decide) _ (by simp +decide [Env.get_cons]; rfl)) (by rw [show o + 3 = o + 1 + 2 by omega]; exact hcve.2.2)
         ?_
       refine specR_fact (fun t ht => And.intro
-        (denoteNList_total' _ ((envDen_ext hfD ht.sr.floor).1 rl.ctor _ hb0).1)
-        (And.intro ((envDen_ext hfD ht.sr.floor).1 rl.ctor _ hb0).2.1
+        (denoteNList_total' _ ((constDen_ext hfD ht.sr.floor) rl.ctor _ hb0).1)
+        (And.intro ((constDen_ext hfD ht.sr.floor) rl.ctor _ hb0).2.1
           (ruleDen_ext hrd ht.sr.floor)))
         (fun ⟨⟨ks, hks⟩, hty, hrd⟩ => ?_)
       obtain ⟨tyP, htyP⟩ := Option.isSome_iff_exists.mp hty

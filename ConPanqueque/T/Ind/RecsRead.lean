@@ -113,7 +113,7 @@ theorem ul_step (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (hcl : C.code.lookup fRulesRead = some (ulParams.map (fun p => (p, ShapeHOL.one)), ulBody, .one))
     (cv : IConstantVal) (rr : Option IotaRec) (wr : BitVec 64) (mI rP : Nat) (hm : mI < 2 ^ 64) (hr : rP < 2 ^ 64)
     (es : List (NIdx × Nat × IConstantInfo)) (ob0 : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
-    (hfD : EnvDen fe C.pins C.St)
+    (hfD : ConstDen fe C.St)
     (rules : List IRecRule) (hrds : ∀ rl ∈ rules, RuleDen rl C.St)
     (ow : Nat) (hrl : RulesAt C ow rules) (i : Nat) (hi : i ≤ rules.length) (H : List (BitVec 64)) (hp : C.H <+: H)
     (hT : BTabAt C H ob0 es)
@@ -225,7 +225,7 @@ theorem ul_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (hcl : C.code.lookup fRulesRead = some (ulParams.map (fun p => (p, ShapeHOL.one)), ulBody, .one))
     (cv : IConstantVal) (rr : Option IotaRec) (wr : BitVec 64) (mI rP : Nat) (hm : mI < 2 ^ 64) (hr : rP < 2 ^ 64)
     (es : List (NIdx × Nat × IConstantInfo)) (ob0 : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
-    (hfD : EnvDen fe C.pins C.St)
+    (hfD : ConstDen fe C.St)
     (rules : List IRecRule) (hrds : ∀ rl ∈ rules, RuleDen rl C.St)
     (ow : Nat) (hrl : RulesAt C ow rules) (hrn : rr = none → wr = 0) :
     ∀ k i (H : List (BitVec 64)) (s : AState), rules.length - i = k → i ≤ rules.length → C.H <+: H →
@@ -254,7 +254,7 @@ theorem rk_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (hcr : C.code.lookup fRuleReads = some (rdParams.map (fun p => (p, ShapeHOL.one)), rdBody C, .one))
     (hcl : C.code.lookup fRulesRead = some (ulParams.map (fun p => (p, ShapeHOL.one)), ulBody, .one))
     (es : List (NIdx × Nat × IConstantInfo)) (ob0 : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
-    (hfD : EnvDen fe C.pins C.St)
+    (hfD : ConstDen fe C.St)
     (ci : IConstantInfo) (hrds : ∀ cv mI rP isK rules, ci = .recInfo cv mI rP isK rules → ∀ rl ∈ rules, RuleDen rl C.St)
     (o : Nat) (hcie : CIE C.EB C.EH o ci)
     (H : List (BitVec 64)) (hp : C.H <+: H) (hT : BTabAt C H ob0 es) (s : AState) :
@@ -355,7 +355,7 @@ theorem ks_step (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (hck : C.code.lookup fRecReads = some (rkParams.map (fun p => (p, ShapeHOL.one)), rkBody, .one))
     (hcs : C.code.lookup fRecsRead = some (ksParams.map (fun p => (p, ShapeHOL.one)), ksBody, .one))
     (es : List (NIdx × Nat × IConstantInfo)) (ob0 : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
-    (hfD : EnvDen fe C.pins C.St)
+    (hfD : ConstDen fe C.St)
     (cis : List IConstantInfo) (ob : Nat) (i : Nat) (hi : i ≤ cis.length) (H : List (BitVec 64)) (hp : C.H <+: H)
     (hT : BTabAt C H ob0 es) (hR : RecsAt C H ob cis) (s : AState)
     (rec : i < cis.length → ∀ (H' : List (BitVec 64)) (s' : AState), H <+: H' →
@@ -442,7 +442,7 @@ theorem ks_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (hck : C.code.lookup fRecReads = some (rkParams.map (fun p => (p, ShapeHOL.one)), rkBody, .one))
     (hcs : C.code.lookup fRecsRead = some (ksParams.map (fun p => (p, ShapeHOL.one)), ksBody, .one))
     (es : List (NIdx × Nat × IConstantInfo)) (ob0 : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
-    (hfD : EnvDen fe C.pins C.St)
+    (hfD : ConstDen fe C.St)
     (cis : List IConstantInfo) (ob : Nat) :
     ∀ k i (H : List (BitVec 64)) (s : AState), cis.length - i = k → i ≤ cis.length → C.H <+: H →
       BTabAt C H ob0 es → RecsAt C H ob cis →
