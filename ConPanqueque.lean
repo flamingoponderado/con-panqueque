@@ -473,3 +473,4 @@ import ConPanqueque.T.Ind.IotaCtor
 import ConPanqueque.T.Ind.IotaBody
 import ConPanqueque.T.Ind.IotaPartsAt
 import ConPanqueque.T.Ind.LvlEqE
+import ConPanqueque.T.Ind.ListLvlEq
