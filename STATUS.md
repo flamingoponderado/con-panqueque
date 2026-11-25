@@ -30,7 +30,7 @@ Axioms: `propext`, `Classical.choice`, `Quot.sound`. The proof uses no
 1. `RuntimeAssumptions` (`Hash.lean`): Lean's runtime `mixHash`, `String.hash` and
    big-`Nat` hash agree with their written-out definitions.
 2. `System.Platform.numBits = 64`.
-3. `PreludeOK pins pre envP`: con-leche's pure checker accepts its own built-in
+3. `PreludeOK pins pre envP` (documented in [docs/SOUNDNESS.md](docs/SOUNDNESS.md), A1): con-leche's pure checker accepts its own built-in
    prelude from the empty environment. The resulting environment and the prelude's
    keys use only names in the forbidden-name list `FN`, and the prelude has no
    Nat-operation records. This holds when run (`#eval`: the prelude is accepted,

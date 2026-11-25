@@ -14,7 +14,7 @@ pure checker accepts it with the built-in prelude in front. The proof assumes co
 accepts its own prelude (`PreludeOK`, checked by `#eval` but not proved) and that Lean's
 runtime hashes match their definitions. The port does not prove that it gives the same
 verdict as con-leche: it does not reach con-leche's cached checker, it does not prove
-completeness, and it rejects inductives, axioms and quotients. See [STATUS.md](STATUS.md)
+completeness, and it rejects inductives, axioms and quotients. See [docs/SOUNDNESS.md](docs/SOUNDNESS.md) for every assumption, [STATUS.md](STATUS.md)
 for the exact statement and gaps, and [PLAN.md](PLAN.md) for the design.
 
 ## Layout
