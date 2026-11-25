@@ -7,13 +7,15 @@ Pancake language and compiler. A sibling of
 [con-pastel](https://github.com/flamingoponderado/con-pastel), which
 translates con-leche to CakeML.
 
-**Status: milestones 1, 3, 4 in progress.** Verified so far (Lean proofs over
-Flapjack's Pancake semantics, axioms `propext`/`Classical.choice`/`Quot.sound`):
-a program logic and separation logic over Pancake memory; the arena allocator
-and node constructors for con-leche's `Expr` (hash-consed data words included);
-a translator for con-leche's word-level code; memo tables; a memoized expression
-fold; and the first kernel operation, `Expr.instantiate1` (`ConPanqueque/Inst1.lean`).
-No checker runs end to end yet. See [PLAN.md](PLAN.md) for the design and milestones.
+**Status: soundness relative to con-leche's pure checker, under stated hypotheses.**
+The theorem `main_pipeline_chunks` (`ConPanqueque/Start/Main3.lean`) proves that if the
+compiled checker accepts an input, con-leche's frontend parses it and con-leche's
+pure checker accepts it with the built-in prelude in front. The proof assumes con-leche
+accepts its own prelude (`PreludeOK`, checked by `#eval` but not proved) and that Lean's
+runtime hashes match their definitions. The port does not prove that it gives the same
+verdict as con-leche: it does not reach con-leche's cached checker, it does not prove
+completeness, and it rejects inductives, axioms and quotients. See [STATUS.md](STATUS.md)
+for the exact statement and gaps, and [PLAN.md](PLAN.md) for the design.
 
 ## Layout
 
