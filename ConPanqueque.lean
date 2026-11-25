@@ -480,3 +480,4 @@ import ConPanqueque.T.Ind.ListAnnEq
 import ConPanqueque.T.Ind.IotaRel
 import ConPanqueque.T.Ind.RuleReads
 import ConPanqueque.T.Ind.RecsRead
+import ConPanqueque.T.Ind.RecFire
