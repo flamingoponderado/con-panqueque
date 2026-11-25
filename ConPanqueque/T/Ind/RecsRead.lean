@@ -65,6 +65,27 @@ def rkBody : ProgHOL 64 := prologue rkLocals
       (.return (vv rkX))))))))))
     (.return (.const 1))))
 
+def ksB := ofString "ks_b"
+def ksI := ofString "ks_i"
+def ksN := ofString "ks_n"
+def ksE := ofString "ks_e"
+def ksX := ofString "ks_x"
+def fRecsRead := ofString "recsRead"
+
+def ksParams : List MlS := [ksB, ksI]
+def ksLocals : List MlS := [ksN, ksE, ksX]
+
+/-- `ksB` points at a value-heap block of environment record pointers. -/
+def ksBody : ProgHOL 64 := prologue ksLocals
+  (.seq (.assign .local ksN (.load .one (vv ksB)))
+  (.ite (.cmp .lower (vv ksI) (vv ksN))
+    (.seq (.assign .local ksE (.load .one (.op .add [vv ksB, .shift .lsl (.op .add [vv ksI, .const 1]) (.const 3)])))
+    (.seq (.call (some (some (.local, ksX), none)) fRecReads [vv ksE])
+    (.ite (veEqC ksX 0) (.return (.const 0))
+    (.seq (.call (some (some (.local, ksX), none)) fRecsRead [vv ksB, .op .add [vv ksI, .const 1]])
+      (.return (vv ksX))))))
+    (.return (.const 1))))
+
 section
 variable {σ : Type}
 
@@ -291,6 +312,128 @@ theorem rk_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     refine specR_ifI _ 0 (by simp +decide [veEqC, sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne])
       (fun h => absurd rfl h) (fun _ => ?_)
     exact specR_returnI _ 1 rfl (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+theorem ks_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ ksLocals → (ctxEnv C ++ ksParams.zip vals).get x = none :=
+  Knot.params_none C ksLocals ksParams vals (by decide) (by decide)
+
+/-- A value-heap block of pointers to stored constants' environment records. -/
+def RecsAt (C : Ctx) (H : List (BitVec 64)) (ob : Nat) (cis : List IConstantInfo) : Prop :=
+  H[ob]? = some (BitVec.ofNat 64 cis.length) ∧ ∀ i (hi : i < cis.length), ∃ o n,
+    H[ob + 1 + i]? = some (ecell C o) ∧ CIE C.EB C.EH o cis[i] ∧ C.fe.find? n = some cis[i]
+
+theorem recsAt_mono {C : Ctx} {H H' : List (BitVec 64)} {ob : Nat} {cis : List IConstantInfo}
+    (h : RecsAt C H ob cis) (hp : H <+: H') : RecsAt C H' ob cis :=
+  ⟨ConPanqueque.T.Decl.get_prefix h.1 hp, fun i hi => by
+    obtain ⟨o, n, h1, h2, h3⟩ := h.2 i hi; exact ⟨o, n, ConPanqueque.T.Decl.get_prefix h1 hp, h2, h3⟩⟩
+
+theorem recsRead_drop_cons (fe : IFEnv) (cis : List IConstantInfo) (i : Nat) (hi : i < cis.length) :
+    recsRead fe (cis.drop i) = (recReads fe cis[i] >>= fun r => if r then recsRead fe (cis.drop (i + 1))
+      else pure false) := by
+  rw [List.drop_eq_getElem_cons hi, recsRead]
+
+theorem ks_step (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hf : Front.FrontOK C)
+    (hc : RDCodes C) (hAn : denoteN C.St.ns anonH = some .anonymous) (hro : ROCodes C)
+    (hcr : C.code.lookup fRuleReads = some (rdParams.map (fun p => (p, ShapeHOL.one)), rdBody C, .one))
+    (hcl : C.code.lookup fRulesRead = some (ulParams.map (fun p => (p, ShapeHOL.one)), ulBody, .one))
+    (hck : C.code.lookup fRecReads = some (rkParams.map (fun p => (p, ShapeHOL.one)), rkBody, .one))
+    (hcs : C.code.lookup fRecsRead = some (ksParams.map (fun p => (p, ShapeHOL.one)), ksBody, .one))
+    (cis : List IConstantInfo) (ob : Nat) (i : Nat) (hi : i ≤ cis.length) (H : List (BitVec 64)) (hp : C.H <+: H)
+    (hR : RecsAt C H ob cis) (s : AState)
+    (rec : i < cis.length → ∀ (H' : List (BitVec 64)) (s' : AState), H <+: H' →
+      SpecR (Pre (σ := σ) (ctxH C H') s' (ksParams.zip [cellA C ob, BitVec.ofNat 64 (i + 1)])) ksBody s'
+        (recsRead C.fe (cis.drop (i + 1))) (PostB (ctxH C H'))) :
+    SpecR (Pre (σ := σ) (ctxH C H) s (ksParams.zip [cellA C ob, BitVec.ofNat 64 i])) ksBody s
+      (recsRead C.fe (cis.drop i)) (PostB (ctxH C H)) := by
+  refine specR_prologue (postB_locals _) (ks_none _ _) ?_
+  let Γ0 : Env := ctxEnv (ctxH C H) ++ ksParams.zip [cellA C ob, BitVec.ofNat 64 i]
+  have gB : Γ0.get ksB = some (cellA C ob) := by simp +decide [Γ0, Env.get, ksParams, ctxEnv]
+  have gI : Γ0.get ksI = some (BitVec.ofNat 64 i) := by simp +decide [Γ0, Env.get, ksParams, ctxEnv]
+  refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN => ?_)
+  have hHN' : H.length ≤ C.HN := hHN
+  have hlay := hok.heapLay
+  have hblen : ob + cis.length < H.length := by
+    have h0 := (List.getElem?_eq_some_iff.mp hR.1).1
+    rcases Nat.lt_or_ge 0 cis.length with h | h
+    · obtain ⟨o, n, h1, -, -⟩ := hR.2 (cis.length - 1) (by omega)
+      have := (List.getElem?_eq_some_iff.mp h1).1; omega
+    · omega
+  have hB0 : (ctxH C H).H[ob]? = some (BitVec.ofNat 64 cis.length) := hR.1
+  refine UD.specR_heapLoadI' (C := ctxH C H) ksN (vv ksB) ob _ hB0 (by decide)
+    (by simp only [sev, sev_vv]; exact gB) ?_
+  have gI' : sev ((ksN, BitVec.ofNat 64 cis.length) :: Γ0) (vv ksI) = some (BitVec.ofNat 64 i) := by
+    simp only [sev, sev_vv, Env.get_cons]; simp +decide; exact gI
+  by_cases hil : i < cis.length
+  · refine specR_ifI _ 1 (by
+        rw [sev_cmp2 _ _ _ _ (BitVec.ofNat 64 i) (BitVec.ofNat 64 cis.length) gI' (by simp [sev, Env.get_cons]),
+          wcL _ _ (by omega) (by omega)]; simp [hil]) (fun _ => ?_) (fun h => absurd h (by decide))
+    rw [recsRead_drop_cons C.fe cis i hil]
+    obtain ⟨o, n, hq, hcie, hfind⟩ := hR.2 i hil
+    refine UD.specR_heapLoadI' (C := ctxH C H) ksE _ (ob + 1 + i) _ hq (by decide)
+      (by
+        simp only [sev, sev_vv, Env.get_cons]; simp +decide
+        simp only [Γ0] at gB gI; rw [gB, gI]; simp
+        show _ = cellA C (ob + 1 + i)
+        apply BitVec.eq_of_toNat_eq; simp [cellA, BitVec.toNat_add, BitVec.toNat_shiftLeft, Nat.shiftLeft_eq]
+        omega) ?_
+    refine specR_callNIH (C := ctxH C H) ksX fRecReads rkParams [vv ksE] rkBody [ecell C o]
+      (by decide) rfl (by decide) hck ⟨by simp +decide [sev, Env.get_cons], trivial⟩
+      (PostB (ctxH C H)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu rkParams _ rfl hlk)
+        (rk_spec ra C hok hf hc hAn hro hcr hcl n cis[i] hfind o hcie H hp s))
+      (fun r w s1 H1 hp1 hw => ?_)
+    subst hw
+    have hp1' : H <+: H1 := hp1
+    rcases r
+    · refine specR_ifI _ 1 (by simp +decide [veEqC, sev, Env.get_cons, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+        (fun _ => ?_) (fun h => absurd h (by decide))
+      simp only [Bool.false_eq_true, ite_false]
+      exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1', rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    refine specR_ifI _ 0 (by simp +decide [veEqC, sev, Env.get_cons, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    simp only [ite_true]
+    refine specR_congr (m' := recsRead C.fe (cis.drop (i + 1)) >>= fun r => pure r) (by rw [bind_pure]) ?_
+    refine specR_callNIH (C := ctxH C H1) ksX fRecsRead ksParams [vv ksB, .op .add [vv ksI, .const 1]] ksBody
+      [cellA C ob, BitVec.ofNat 64 (i + 1)] (by decide) rfl (by decide) hcs
+      ⟨by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gB; exact gB,
+        by
+          show sev _ _ = _
+          rw [sev_add2 _ _ _ _ _ (by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gI; exact gI) rfl]
+          exact congrArg some (word_add1_eq i), trivial⟩
+      (PostB (ctxH C H1)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ksParams _ rfl hlk) (rec hil H1 s1 hp1'))
+      (fun r w s2 H2 hp2 hw => ?_)
+    subst hw
+    have hp2' : H1 <+: H2 := hp2
+    exact specR_returnI _ _ (by simp [sev, Env.get_cons])
+      (fun t ht => ⟨H2, hp1'.trans hp2', rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  · refine specR_ifI _ 0 (by
+        rw [sev_cmp2 _ _ _ _ (BitVec.ofNat 64 i) (BitVec.ofNat 64 cis.length) gI' (by simp [sev, Env.get_cons]),
+          wcL _ _ (by omega) (by omega)]; simp [hil]) (fun h => absurd rfl h) (fun _ => ?_)
+    rw [List.drop_of_length_le (by omega : cis.length ≤ i)]
+    exact specR_returnI _ 1 rfl (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+/-- **`recsRead`** from position `i`. -/
+theorem ks_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hf : Front.FrontOK C)
+    (hc : RDCodes C) (hAn : denoteN C.St.ns anonH = some .anonymous) (hro : ROCodes C)
+    (hcr : C.code.lookup fRuleReads = some (rdParams.map (fun p => (p, ShapeHOL.one)), rdBody C, .one))
+    (hcl : C.code.lookup fRulesRead = some (ulParams.map (fun p => (p, ShapeHOL.one)), ulBody, .one))
+    (hck : C.code.lookup fRecReads = some (rkParams.map (fun p => (p, ShapeHOL.one)), rkBody, .one))
+    (hcs : C.code.lookup fRecsRead = some (ksParams.map (fun p => (p, ShapeHOL.one)), ksBody, .one))
+    (cis : List IConstantInfo) (ob : Nat) :
+    ∀ k i (H : List (BitVec 64)) (s : AState), cis.length - i = k → i ≤ cis.length → C.H <+: H →
+      RecsAt C H ob cis →
+      SpecR (Pre (σ := σ) (ctxH C H) s (ksParams.zip [cellA C ob, BitVec.ofNat 64 i])) ksBody s
+        (recsRead C.fe (cis.drop i)) (PostB (ctxH C H)) := by
+  intro k
+  induction k with
+  | zero =>
+    intro i H s hk hi hp hR
+    exact ks_step ra C hok hf hc hAn hro hcr hcl hck hcs cis ob i hi H hp hR s (fun h => absurd h (by omega))
+  | succ k ih =>
+    intro i H s hk hi hp hR
+    exact ks_step ra C hok hf hc hAn hro hcr hcl hck hcs cis ob i hi H hp hR s
+      (fun hil H' s' hp' => ih (i + 1) H' s' (by omega) (by omega) (hp.trans hp') (recsAt_mono hR hp'))
 
 end
 
