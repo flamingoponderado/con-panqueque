@@ -438,3 +438,4 @@ import ConPanqueque.Front.Read
 import ConPanqueque.Front.ReadBuf
 import ConPanqueque.Front.Top
 import ConPanqueque.T.Ind.PiSortTele
+import ConPanqueque.T.Ind.IndParams
