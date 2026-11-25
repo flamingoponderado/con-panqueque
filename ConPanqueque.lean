@@ -462,3 +462,4 @@ import ConPanqueque.T.Ind.Members
 import ConPanqueque.T.Ind.ReadBlockTwin
 import ConPanqueque.T.Ind.ReadBlock
 import ConPanqueque.T.Ind.PiTele
+import ConPanqueque.T.Ind.MotiveLevel
