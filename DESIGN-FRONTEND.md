@@ -503,3 +503,34 @@ Next for the full verdict: con-leche's verdict is `checkDeclsPure` on `preparePr
 name, (2) con-leche accepting its own prelude, (3) a weakening theorem over con-leche's kernel (a
 stream mentioning only its own constants stays accepted after unrelated constants are installed), or
 else inductives/axioms/quotients in the Pancake fold.
+
+### Toward con-leche's pipeline verdict (d662e61 … e225df2)
+
+con-leche's own accepting outcome (`checkMainG_ndjson_accept`) is: the built-in prelude parses, the
+input parses (`parseChunks [b] = .ok r`), and `Cached.checkDecls … natOpPinSets … (preparePrelude
+pre r.decls) = .ok env`. The port now reaches con-leche's pure fold over that prepared input:
+
+- `Pipeline/Ext`: con-leche's `knot_ext` lifted to value records (`checkDecl_ext`) and to
+  accepting runs (`pureRun_ext`). `prelude_then_stream` gives an accepting run of the prelude
+  followed by the stream, for a stream of value records at fresh names the environment's guards
+  never read (`NameOK`).
+- `Pipeline/Prepare`: `preparePrelude pre ds = pre ++ ds` when no stream record is keyed like a
+  prelude record and no record is a pinned `Nat` operation. `pipeline_of_stream` composes the two.
+- `Pipeline/NameInj`: persistent name handles are canonical (`denoteN_inj`).
+- `Start/Forbid`: `forbidP` walks the parsed registry and rejects a record whose name word equals a
+  pinned cell's word (the 52 pins, the 16 reserved names, `Bool.rec` at cell 138).
+  `Start/Names` (`name_notMem`, `nameOK_of_notMem`, `front_verdict2`) turns that into: every
+  parsed declaration is a value record at a name outside `FN`.
+- `Start/Main3`: `mainBody2` interns `Bool.rec` before the pins, stores it at cell 138, then
+  parse, pass, fold. `main_verdict2`, and `main_pipeline`: **if `main` returns, the read input
+  parses, and con-leche's pure fold accepts the input prepared with the prelude**
+  (`PureRun pins (preparePrelude pre rc.decls) …`), given `PreludeOK` (con-leche's prelude accepted
+  from the empty environment, its environment and keys using only `FN` names, no pinned `Nat`
+  operation record).
+
+Still between this and con-leche's exit 0:
+- `PreludeOK` is assumed (a fact about con-leche's fixed prelude, not proved here);
+- con-leche's exit 0 is its *cached* checker accepting. con-leche proves cached ⇒ pure, not the
+  reverse, so "the port accepts ⇒ con-leche exits 0" needs a completeness theorem for con-leche's
+  cached checker that does not exist;
+- `parseBytes` vs `parseChunks [b]` (con-leche's `parseChunks_eq_parseBytes`).
