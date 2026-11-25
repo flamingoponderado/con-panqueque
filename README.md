@@ -33,6 +33,31 @@ lake build            # the Lean side
 make -C pancake test  # the Pancake toolchain check
 ```
 
+## Running the checker
+
+The checker is the Pancake program `mainBody2` (`ConPanqueque/Start/Main3.lean`), the program the theorem
+is about. `scripts/Emit.lean` prints it as Pancake source and checks that the printed text parses back to
+the same program; `cake --pancake` compiles it; `pancake/ffi_checker.c` is the C harness (input on stdin,
+memory mapped at a fixed address).
+
+```sh
+lake build                          # the proofs must build first
+lake env lean scripts/Emit.lean     # writes pancake/checker.pnk
+make -C pancake checker             # cake --pancake + cc -> pancake/build/checker (~2 min)
+pancake/build/checker < deps/con-leche/tests/e2e/wide_ok.ndjson
+```
+
+It reads a lean4export NDJSON file on stdin and prints `accept` (exit 0) or `reject` (exit 1). Only `accept`
+carries the theorem's guarantee. A rejection may also mean an unsupported feature (inductives, axioms,
+quotients) or an exhausted resource. Set `PNK_MEM_SIZE` / `PNK_STACK_SIZE` (MiB) to change the memory the
+harness maps.
+
+**Platform.** The Makefile fetches the x86-64 CakeML compiler (`cake-x64-64`) and builds an x86-64 binary,
+so the checker currently runs on x86-64 Linux only. CakeML's Pancake compiler also targets RISC-V and ARM
+(among others); a build for those targets would need the matching `cake` release, a harness compiled for that
+target, and a check that the fixed memory address in `ffi_checker.c` is available there. None of this is set
+up yet.
+
 ## Licence
 
 con-panqueque is derived from con-leche and from
