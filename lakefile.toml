@@ -16,7 +16,7 @@ name = "ConPanqueque"
 # The concrete code table and the proofs that it meets every code assumption (slow: ~30 min).
 [[lean_lib]]
 name = "ConPanquequeCode"
-roots = ["ConPanqueque.Code.Top", "ConPanqueque.Code.Layout", "ConPanqueque.Start.Boot", "ConPanqueque.Start.Stores", "ConPanqueque.Start.Empty", "ConPanqueque.Start.InitSR", "ConPanqueque.Start.InitCtx", "ConPanqueque.Start.PinName", "ConPanqueque.Start.PinList", "ConPanqueque.Start.PinCtx", "ConPanqueque.Start.PinPhase", "ConPanqueque.Start.Main", "ConPanqueque.Start.Model"]
+roots = ["ConPanqueque.Code.Top", "ConPanqueque.Code.Layout", "ConPanqueque.Start.Boot", "ConPanqueque.Start.Stores", "ConPanqueque.Start.Empty", "ConPanqueque.Start.InitSR", "ConPanqueque.Start.InitCtx", "ConPanqueque.Start.PinName", "ConPanqueque.Start.PinList", "ConPanqueque.Start.PinCtx", "ConPanqueque.Start.PinPhase", "ConPanqueque.Start.Main", "ConPanqueque.Start.Model", "ConPanqueque.Pipeline.Ext"]
 
 # con-ron's Lean twin of the checker and its Theorem 1 (the twin refines
 # con-leche), built from the `deps/con-ron` submodule. They depend on con-leche
