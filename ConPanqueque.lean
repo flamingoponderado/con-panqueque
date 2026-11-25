@@ -486,3 +486,4 @@ import ConPanqueque.T.RowUndo
 import ConPanqueque.T.Ind.BFind
 import ConPanqueque.T.Ind.BlockEnv
 import ConPanqueque.T.Ind.MentionsAny
+import ConPanqueque.T.Ind.BlockIsRec
