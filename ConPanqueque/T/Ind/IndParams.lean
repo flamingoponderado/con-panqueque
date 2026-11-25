@@ -87,7 +87,7 @@ theorem ofNat_eq_small (a b : Nat) (ha : a < 2 ^ 64) (hb : b < 2 ^ 64) :
   · intro e; have := congrArg BitVec.toNat e; simp at this; omega
   · intro e; rw [e]
 
-theorem cellA_mulIdx (C : Ctx) (o j : Nat) (hj : j < 2 ^ 59) :
+theorem cellA_mulIdx (C : Ctx) (o j : Nat) (hj : j < 2 ^ 61) :
     cellA C o + (BitVec.ofNat 64 j * 8#64 + 8#64) = cellA C (o + 1 + j) := by
   apply BitVec.eq_of_toNat_eq
   simp only [cellA, BitVec.toNat_add, BitVec.toNat_mul, BitVec.toNat_ofNat]; omega

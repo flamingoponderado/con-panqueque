@@ -122,7 +122,7 @@ theorem dm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (hcd : C.code.lookup fDropVars = some (dvParams.map (fun p => (p, ShapeHOL.one)), dvBody C, .one))
     (hcS : C.code.lookup fInternSort = some ([(lEu, .one)], sortBody, .one))
     (hcF : C.code.lookup fInst1F = some ([(pFu, .one), (pH, .one), (pV, .one), (pD, .one)], fastBody C, .one))
-    (hcI : Codes C (body C)) (xs : List EIdx) (oa m n : Nat) (hm : m ≤ xs.length) (hl : xs.length < 2 ^ 59)
+    (hcI : Codes C (body C)) (xs : List EIdx) (oa m n : Nat) (hm : m ≤ xs.length) (hl : xs.length < 2 ^ 61)
     (hn : n < 2 ^ 64) :
     ∀ f i (H : List (BitVec 64)) (s : AState), C.H <+: H → BlkAt H oa (xs.map Enc.idxW) → m - i = f → i ≤ m →
       SpecR (σ := σ) (Pre (ctxH C H) s (dmParams.zip [cellA C oa, BitVec.ofNat 64 i, BitVec.ofNat 64 m,
