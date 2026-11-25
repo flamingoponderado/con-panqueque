@@ -179,18 +179,17 @@ def fmR := ofString "fm_r"
 def fmO := ofString "fm_o"
 def fFormerRec := ofString "formerRecW"
 
-def fmParams : List MlS := [fmM, fmIr, fmAll, fmNp]
-def fmLocals : List MlS := [fmDc, fmNi, fmL, fmNc, fmNz, fmE, fmV, fmX, fmB, fmR, fmO]
+def fmParams : List MlS := [fmM, fmIr, fmAll, fmNp, fmNz]
+def fmLocals : List MlS := [fmDc, fmNi, fmL, fmNc, fmE, fmV, fmX, fmB, fmR, fmO]
 
 /-- A former's environment record (member at `fmM`, the block's recursiveness, its names' environment block, its
-parameter count). -/
+parameter count, its sort's never-zero bit). -/
 def fmBody (C : Ctx) : ProgHOL 64 := prologue fmLocals
   (.seq (.assign .local fmDc (.load .one (.op .add [vv fmM, .const 8])))
   (.seq (.assign .local fmNi (.load .one (.op .add [vv fmM, .const 16])))
   (.seq (.assign .local fmL (.load .one (.op .add [vv fmM, .const 24])))
   (.seq (.assign .local fmNc (.load .one (vv fmL)))
   (guardP fmNc 58
-  (.seq (.call (some (some (.local, fmNz), none)) fMemberNZ [vv fmDc])
   (.seq (.assign .local fmE (.op .and [.cmp .equal (vv fmNc) (.const 1),
     .op .and [.cmp .equal (vv fmNi) (.const 0), .cmp .equal (vv fmIr) (.const 0)]]))
   (allocP C fmV (.shift .lsl (.op .add [vv fmNc, .const 1]) (.const 3))
@@ -199,7 +198,7 @@ def fmBody (C : Ctx) : ProgHOL 64 := prologue fmLocals
   (envBlkP C fmB fmV fmNc fmX
   (.seq (.call (some (some (.local, fmO), none)) fConstRec
     [vv fmDc, .const 3, vv fmE, vv fmAll, vv fmNp, vv fmNi, vv fmB, vv fmNz])
-    (.return (vv fmO))))))))))))))
+    (.return (vv fmO)))))))))))))
 
 section
 variable {σ : Type}
@@ -234,14 +233,14 @@ theorem eta_word (a b : Nat) (r : Bool) (ha : a < 2 ^ 63) (hb : b < 2 ^ 63) :
 /-- **A former's record**, its capabilities `blockCapsAt`'s. -/
 theorem fm_spec (C : Ctx) (hok : CtxOK C)
     (hcp : C.code.lookup fCpy = some (cpParams.map (fun p => (p, ShapeHOL.one)), cpyBody, .one))
-    (hmv : MVCodes C) (hcm : C.code.lookup fMemberNZ = some (mvParams.map (fun p => (p, ShapeHOL.one)), mvBody, .one))
     (hcn : C.code.lookup fCnFill = some (cnParams.map (fun p => (p, ShapeHOL.one)), cnBody, .one))
     (hcw : C.code.lookup fConstRec = some (cwParams.map (fun p => (p, ShapeHOL.one)), cwBody C, .one))
-    (p : BlockShape) (i : Nat) (ms : MemberShape) (hmi : p.members[i]? = some ms) (om : Nat)
+    (p : BlockShape) (ms : MemberShape) (om : Nat)
     (hmr : MemberRep C C.H om ms) (isRec : Bool) (wAll : BitVec 64) (hall : ENList C.EB C.EH wAll p.memberNames)
-    (hnp : p.nP < 2 ^ 63) (hni : ms.nIdx < 2 ^ 63) (hlps : ms.declared.levelParams.length < 2 ^ 60) (s : AState) :
-    SpecR (σ := σ) (Pre C s (fmParams.zip [cellA C om, boolW isRec, wAll, BitVec.ofNat 64 p.nP])) (fmBody C) s
-      (blockCapsAt p i isRec >>= fun caps => pure (IConstantInfo.indInfo ms.declared caps)) (PostFM C) := by
+    (hnp : p.nP < 2 ^ 63) (hni : ms.nIdx < 2 ^ 63) (hlps : ms.declared.levelParams.length < 2 ^ 60) (nz : Bool)
+    (s : AState) :
+    SpecR (σ := σ) (Pre C s (fmParams.zip [cellA C om, boolW isRec, wAll, BitVec.ofNat 64 p.nP, boolW nz])) (fmBody C) s
+      (pure (IConstantInfo.indInfo ms.declared (capsOf p ms isRec nz))) (PostFM C) := by
   refine specR_prologue (postFM_locals _) (fm_none _ _) ?_
   refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN => ?_)
   have hHN' : C.H.length ≤ C.HN := hHN
@@ -260,18 +259,7 @@ theorem fm_spec (C : Ctx) (hok : CtxOK C)
       have := (List.getElem?_eq_some_iff.mp h1).1; omega
     · omega
   refine specR_guardI fmNc ms.ctors.length 58 (by decide) (by simp [Env.get]) (by omega) (fun hc58 => ?_)
-  -- the sort's never-zero bit
-  rw [blockCapsAt_eq p i isRec ms hmi]
-  refine specR_congr (m' := (formerZ ms.declared >>= fun z => pure z.isNever) >>= fun nz =>
-      (pure (IConstantInfo.indInfo ms.declared (capsOf p ms isRec nz)) : AM _)) (by simp only [bind_assoc, pure_bind]) ?_
-  refine specR_callNIH (C := C) fmNz fMemberNZ mvParams [vv fmDc] mvBody [cellA C od] (by decide) rfl (by decide) hcm
-    ⟨by simp +decide [sev, Env.get], trivial⟩
-    (PostB (ctxH C C.H)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu mvParams _ rfl hlk)
-      (mv_spec C hmv ms.declared od C.H (List.prefix_refl _) hcv s))
-    (fun nz w s1 H1 hp1 hw => ?_)
-  subst hw
-  have hp1' : C.H <+: H1 := hp1
+  have hp1' : C.H <+: C.H := List.prefix_refl _
   refine specR_assignI fmE _ (boolW (ms.ctors.length == 1 && ms.nIdx == 0 && !isRec)) (by decide)
     (by
       simp +decide only [sev, sev_vv, Env.get, Env.get_cons, fmParams, ctxEnv, ite_true, ite_false, List.zip,
@@ -280,13 +268,13 @@ theorem fm_spec (C : Ctx) (hok : CtxOK C)
       exact eta_word ms.ctors.length ms.nIdx isRec (by omega) hni) ?_
   -- the constructor names, copied
   refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN1 => ?_)
-  have hHN1' : H1.length ≤ C.HN := hHN1
-  refine specR_allocI (C := ctxH C H1) fmV _ (ms.ctors.length + 1) (by omega) (by decide) (fun v => ?_)
+  have hHN1' : C.H.length ≤ C.HN := hHN1
+  refine specR_allocI (C := ctxH C C.H) fmV _ (ms.ctors.length + 1) (by omega) (by decide) (fun v => ?_)
     (fun H2 ws hp2 hws hroom => ?_)
   · simp +decide [sev, Env.get]
     apply BitVec.eq_of_toNat_eq; simp [BitVec.toNat_add, BitVec.toNat_shiftLeft, Nat.shiftLeft_eq]; omega
-  have hp2' : H1 <+: H2 := hp2
-  have hq0 : H2.length < (ctxH (ctxH C H1) (H2 ++ ws)).H.length := by show H2.length < (H2 ++ ws).length; simp; omega
+  have hp2' : C.H <+: H2 := hp2
+  have hq0 : H2.length < (ctxH (ctxH C C.H) (H2 ++ ws)).H.length := by show H2.length < (H2 ++ ws).length; simp; omega
   refine specR_heapStoreI (ctxOK_H hok _) (vv fmV) (vv fmNc) H2.length hq0 (BitVec.ofNat 64 ms.ctors.length)
     (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get]) ?_
   change SpecR (Inv (ctxH C ((H2 ++ ws).set H2.length (BitVec.ofNat 64 ms.ctors.length))) _ _ _ _) _ _ _ _
@@ -307,8 +295,8 @@ theorem fm_spec (C : Ctx) (hok : CtxOK C)
     [cellA C ol, cellA C H2.length, BitVec.ofNat 64 0, BitVec.ofNat 64 ms.ctors.length] (by decide) rfl (by decide) hcn
     ⟨by simp +decide [sev, Env.get], by simp +decide [sev, Env.get] <;> rfl, rfl, by simp +decide [sev, Env.get],
       trivial⟩
-    (fun a w s' st => (pure () : AM Unit) s1 = .ok (a, s') ∧ PostCN C Hc H2.length ms.ctors 0 a w s' st)
-    (fun a w s' H' => s' = s1 ∧ Hc <+: H' ∧
+    (fun a w s' st => (pure () : AM Unit) s = .ok (a, s') ∧ PostCN C Hc H2.length ms.ctors 0 a w s' st)
+    (fun a w s' H' => s' = s ∧ Hc <+: H' ∧
       ∀ j (hj : j < ms.ctors.length), 0 ≤ j → H'[H2.length + 1 + j]? = some (Enc.idxW ms.ctors[j].1.name))
     (fun a w s' st ⟨hr, H', hp', hs', hc'⟩ => by
       simp only [pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at hr
@@ -316,7 +304,7 @@ theorem fm_spec (C : Ctx) (hok : CtxOK C)
       exact ⟨H', ⟨rfl, hp', hc'⟩, hs'⟩)
     (fun u hu _ hlk => specR_run (fun w hw => by
       subst hw
-      exact cn_spec C hok hcn ms.ctors ol H2.length C.H hcs _ 0 B Hc s1 rfl (Nat.zero_le _)
+      exact cn_spec C hok hcn ms.ctors ol H2.length C.H hcs _ 0 B Hc s rfl (Nat.zero_le _)
         ((hp1'.trans hp2').trans hpc) (by simp [Hc]) (List.take_prefix _ _) (by omega) _
         (pre_of_lookups hu cnParams _ rfl hlk)))
     (fun a w s' H3 ⟨hs', hp3, hc3⟩ => ?_)
@@ -346,11 +334,11 @@ theorem fm_spec (C : Ctx) (hok : CtxOK C)
     ⟨by simp +decide [sev, Env.get], rfl, by simp +decide [sev, Env.get],
       by simp +decide [sev, Env.get, fmParams, ctxEnv], by simp +decide [sev, Env.get, fmParams, ctxEnv],
       by simp +decide [sev, Env.get, fmParams, ctxEnv], by simp +decide [sev, Env.get] <;> rfl,
-      by simp +decide [sev, Env.get], trivial⟩
-    (fun a w s' st => (pure () : AM Unit) s1 = .ok (a, s') ∧
+      by simp +decide [sev, Env.get, fmParams, ctxEnv], trivial⟩
+    (fun a w s' st => (pure () : AM Unit) s = .ok (a, s') ∧
       PostCW (ctxE (ctxH C H3) EH1) ms.declared 3 [boolW (ms.ctors.length == 1 && ms.nIdx == 0 && !isRec), wAll,
-        BitVec.ofNat 64 p.nP, BitVec.ofNat 64 ms.nIdx, ecell C C.EH.length, boolW nz] s1 a w s' st)
-    (fun a w s' C' => s' = s1 ∧ ∃ EH2 o, C' = ctxE (ctxH C H3) EH2 ∧ EH1 <+: EH2 ∧ EH1.length ≤ o ∧ w = ecell C o ∧
+        BitVec.ofNat 64 p.nP, BitVec.ofNat 64 ms.nIdx, ecell C C.EH.length, boolW nz] s a w s' st)
+    (fun a w s' C' => s' = s ∧ ∃ EH2 o, C' = ctxE (ctxH C H3) EH2 ∧ EH1 <+: EH2 ∧ EH1.length ≤ o ∧ w = ecell C o ∧
       CVE C.EB EH2 (o + 1) ms.declared ∧ EH2[o]? = some 3 ∧
       (∀ j (hj : j < 6), EH2[o + 4 + j]? = some ([boolW (ms.ctors.length == 1 && ms.nIdx == 0 && !isRec), wAll,
         BitVec.ofNat 64 p.nP, BitVec.ofNat 64 ms.nIdx, ecell C C.EH.length, boolW nz] : List (BitVec 64))[j]))
@@ -359,7 +347,7 @@ theorem fm_spec (C : Ctx) (hok : CtxOK C)
         by rw [pure_run_unit _ _ _ hr]; exact h7⟩)
     (fun u hu _ hlk => specR_run (fun w' hw' => by
       subst hw'
-      exact cw_spec (ctxE (ctxH C H3) EH1) hok4 hcp ms.declared od (cvRep_mono hpH3 hcv) hlps 3 _ _ _ _ _ _ s1 _
+      exact cw_spec (ctxE (ctxH C H3) EH1) hok4 hcp ms.declared od (cvRep_mono hpH3 hcv) hlps 3 _ _ _ _ _ _ s _
         (pre_of_lookups hu cwParams _ rfl hlk)))
     (fun _ w6 s3 C3 ⟨hs3, EH2, o, eC3, hpe2, hol2, hw6, hcve, htg, hfs⟩ => ?_)
   subst eC3 hw6; subst s3
@@ -377,5 +365,53 @@ theorem fm_spec (C : Ctx) (hok : CtxOK C)
       sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 end
+
+/-! ## The twin's block constants, effects first -/
+
+/-- The formers' records from never-zero bits. -/
+def formersOf (p : BlockShape) (isRec : Bool) (ms : List MemberShape) (nzs : List Bool) : List IConstantInfo :=
+  (ms.zip nzs).map fun a => .indInfo a.1.declared (capsOf p a.1 isRec a.2)
+
+theorem blockFormers_go (p : BlockShape) (isRec : Bool) :
+    ∀ (l : List MemberShape) (k : Nat), l = p.members.drop k →
+      ((l.map (·.declared)).zipIdx k).mapM (fun (a : IConstantVal × Nat) => do
+          pure (IConstantInfo.indInfo a.1 (← blockCapsAt p a.2 isRec))) =
+        (l.mapM fun ms => formerZ ms.declared >>= fun z => pure z.isNever) >>= fun nzs =>
+          pure (formersOf p isRec l nzs)
+  | [], k, _ => by simp [formersOf]
+  | ms :: l, k, hl => by
+    have hk : p.members[k]? = some ms := by
+      have := congrArg List.head? hl
+      simp [List.head?_drop] at this; exact this.symm
+    have hl' : l = p.members.drop (k + 1) := by
+      have := congrArg List.tail hl
+      simpa [List.tail_drop] using this
+    simp only [List.map_cons, List.zipIdx_cons, List.mapM_cons, bind_assoc, pure_bind]
+    rw [blockCapsAt_eq p k isRec ms hk, bind_assoc]
+    congr 1; funext z
+    simp only [pure_bind]
+    rw [blockFormers_go p isRec l (k + 1) hl']
+    simp only [bind_assoc, pure_bind]
+    rfl
+
+theorem blockFormers_eq (p : BlockShape) (isRec : Bool) :
+    blockFormers p isRec = (p.members.mapM fun ms => formerZ ms.declared >>= fun z => pure z.isNever) >>= fun nzs =>
+      pure (formersOf p isRec p.members nzs) := by
+  unfold blockFormers
+  exact blockFormers_go p isRec p.members 0 (by simp)
+
+/-- The recursors' records from their firing modes. -/
+def recsOf (rcs : List RecShape) (fs : List IRecRuleFire) : List IConstantInfo :=
+  (rcs.zip fs).map fun a => .recInfo a.1.cvR a.1.mI a.1.rP a.1.isK (a.1.rules.map ({ · with fire := a.2 }))
+
+theorem blockRecs_eq (p : BlockShape) : ∀ rcs : List RecShape,
+    blockRecs p rcs = (rcs.mapM (recFire p)) >>= fun fs => pure (recsOf rcs fs)
+  | [] => by simp [blockRecs, recsOf]
+  | rc :: rest => by
+    simp only [blockRecs, List.mapM_cons, bind_assoc, pure_bind]
+    congr 1; funext f
+    rw [blockRecs_eq p rest]
+    simp only [bind_assoc, pure_bind]
+    rfl
 
 end ConPanqueque.T.Ind

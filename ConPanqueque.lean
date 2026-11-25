@@ -491,3 +491,4 @@ import ConPanqueque.T.Ind.BlockCaps
 import ConPanqueque.T.Ind.EnvRec
 import ConPanqueque.T.Ind.EnvRules
 import ConPanqueque.T.Ind.BlockFormers
+import ConPanqueque.T.Ind.BlockReads
