@@ -137,6 +137,7 @@ import ConPanqueque.T.LvlRest
 import ConPanqueque.T.LvlLeqCore
 import ConPanqueque.T.LvlEquiv
 import ConPanqueque.T.LvlEqQ
+import ConPanqueque.T.LvlLeqTop
 import ConPanqueque.V.LsView
 import ConPanqueque.T.LsView
 import ConPanqueque.T.LvlEqList
