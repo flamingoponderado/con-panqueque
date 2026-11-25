@@ -15,7 +15,7 @@ namespace ConPanqueque.V
 section
 variable {σ : Type} {α : Type}
 
-theorem vt_frame {t u : PanSemStateFiniteExact 64 σ} {enc : α → List (BitVec 64)} {rows : List α}
+theorem vt_frameLive {t u : PanSemStateFiniteExact 64 σ} {enc : α → List (BitVec 64)} {rows : List α}
     {ders : List (BitVec 64 × BitVec 64)} {slots : List Nat} {g : VGeo} {hu : Nat}
     (h : VT t enc rows ders slots g hu) (hd : u.memaddrs = t.memaddrs)
     (hS : ∀ j, j < g.n → u.memory (g.S + BitVec.ofNat 64 (8 * j)) = t.memory (g.S + BitVec.ofNat 64 (8 * j)))
