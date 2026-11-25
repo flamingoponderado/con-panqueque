@@ -7,7 +7,8 @@
      read  : the whole of stdin into a[0..alen): bytes 0..7 hold its length n (little-endian),
              the input follows from byte 8. An input that does not fit gets the length
              2^64-1, which the program's guard rejects (no verdict).
-     accept: the program's accepting exit; prints "accept" and exits 0.
+     reject: the program's rejecting exit (any failed check or exhausted resource); prints
+             "reject" and exits 1.  The accepting exit is `main` returning (cml_exit(0)).
    Any other end (out of fuel, out of space, a rejected record) is not an acceptance. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,6 +42,14 @@ void ffiaccept(unsigned char *c, long clen, unsigned char *a, long alen) {
 
 /* The runtime calls cml_exit(0) when `main` returns: the program's accepting exit (the
    proofs' `main_verdict` is about a returning `main`).  Any other code is a runtime failure. */
+/* The program's rejecting exit (`hang`): a record failed, or a resource ran out. */
+void ffireject(unsigned char *c, long clen, unsigned char *a, long alen) {
+  (void)c; (void)clen; (void)a; (void)alen;
+  printf("reject\n");
+  fflush(stdout);
+  exit(1);
+}
+
 void cml_exit(int arg) {
   fflush(stdout);
   if (arg == 0) { printf("accept\n"); fflush(stdout); exit(0); }

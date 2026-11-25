@@ -94,7 +94,7 @@ theorem eView_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitVec 
     apply seq_stop
     rw [ite_word t _ _ _ _ hc]
     simp only [bw, hn, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
-    exact Or.inl (hang_spec _ t rfl)
+    exact hang_stop t
   have hwide : i.tag = 4 → i.isWide = true := fun h4 => by
     cases hw : i.isWide
     · exact absurd ((narrow_app_iff i).mpr ⟨hw, h4⟩) hn

@@ -152,18 +152,18 @@ theorem specR_return {α : Type} {P : PState σ → Prop} {s : AState} {a : α}
 theorem spec_fail {α : Type} {P : PState σ → Prop} {s : AState} (err : CheckError)
     {Q : α → AState → PState σ → Prop} : Spec P hang s (fail err) Q := by
   intro t _
-  exact Or.inl (Or.inl (hang_spec t.clock t rfl))
+  exact Or.inl (hang_stop t)
 
 theorem specR_fail {α : Type} {P : PState σ → Prop} {s : AState} (err : CheckError)
     {R : α → BitVec 64 → AState → PState σ → Prop} : SpecR P hang s (fail err) R := by
   intro t _
-  exact Or.inl (Or.inl (hang_spec t.clock t rfl))
+  exact Or.inl (hang_stop t)
 
 /-- Any computation, refined by a halt. -/
 theorem spec_hang {α : Type} {P : PState σ → Prop} {s : AState} {m : AM α}
     {Q : α → AState → PState σ → Prop} : Spec P hang s m Q := by
   intro t _
-  exact Or.inl (Or.inl (hang_spec t.clock t rfl))
+  exact Or.inl (hang_stop t)
 
 /-! ## Branching -/
 
@@ -236,7 +236,7 @@ theorem specR_false {α : Type} {P : PState σ → Prop} {c : ProgHOL 64} {s : A
 theorem specR_hang {α : Type} {P : PState σ → Prop} {s : AState} {m : AM α}
     {R : α → BitVec 64 → AState → PState σ → Prop} : SpecR P hang s m R := by
   intro t _
-  exact Or.inl (Or.inl (hang_spec t.clock t rfl))
+  exact Or.inl (hang_stop t)
 
 theorem spec_congr {α : Type} {P : PState σ → Prop} {c : ProgHOL 64} {s : AState} {m m' : AM α}
     {Q : α → AState → PState σ → Prop} (e : m s = m' s) (h : Spec P c s m' Q) : Spec P c s m Q := by

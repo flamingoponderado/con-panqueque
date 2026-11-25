@@ -189,7 +189,7 @@ theorem retP_of_retSpec {t : PanSemStateFiniteExact 64 σ} {c : ProgHOL 64} {v :
   · exact Or.inr ⟨v, r1, hv, r2, r3, r4, r5, r6⟩
 
 theorem retP_hang (t : PanSemStateFiniteExact 64 σ) (P : BitVec 64 → Prop) : RetP t hang P :=
-  Or.inl (by rw [hang_spec t.clock t rfl]; exact stop_timeOut)
+  Or.inl (by exact hang_stop t)
 
 theorem retP_seq {u u1 : PanSemStateFiniteExact 64 σ} {p q : ProgHOL 64} {P : BitVec 64 → Prop}
     (h : evaluateHOLFiniteState u p = (none, u1)) (hq : RetP u1 q P)

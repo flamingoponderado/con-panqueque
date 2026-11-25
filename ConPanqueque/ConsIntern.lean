@@ -275,7 +275,7 @@ theorem internTier_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (tb : Tbl
     rw [ite_word t6 _ _ _ _ hce]
     by_cases hf0 : BitVec.ofNat 64 f = 0
     · left; simp only [hf0, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
-      rw [hang_spec _ t6 rfl]; exact Or.inl rfl
+      exact hang_stop t6
     simp only [hf0, ↓reduceIte, ne_eq, not_true_eq_false]
     have hc6 : t6.locals.lookup lC0 = some (.val (.word C)) := by
       rw [hfr6 _ (by decide) (by decide) (by decide) (by decide) (by decide),
@@ -366,7 +366,7 @@ theorem internTier_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (tb : Tbl
     rw [ite_word t6 _ _ _ _ hce]
     by_cases hf0 : BitVec.ofNat 64 f = 0
     · left; simp only [hf0, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
-      rw [hang_spec _ t6 rfl]; exact Or.inl rfl
+      exact hang_stop t6
     exact absurd ((hfull.mp hans) ▸ rfl : BitVec.ofNat 64 f = 0) hf0
 
 end ConPanqueque.ConsIntern

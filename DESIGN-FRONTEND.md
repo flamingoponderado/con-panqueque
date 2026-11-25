@@ -494,4 +494,12 @@ Still assumed (outside the Lean proofs):
   not con-leche's full pipeline (built-in prelude, `preparePrelude`, `internAllPins`). Inductives,
   axioms and quotients are rejected, so real Lean exports (which start with the prelude) are
   rejected;
-- rejection is the `hang` loop (no reject exit).
+- (fixed since) rejection: `hang` now calls the harness's `reject` (prints `reject`, exits 1) before
+  its loop; `hang_stop` proves it still never returns.  On con-leche's 612 e2e fixtures the checker
+  accepts 2 (both expected accepts) and rejects 610, each run terminating.
+
+Next for the full verdict: con-leche's verdict is `checkDeclsPure` on `preparePrelude pre rc.decls`
+(the built-in prelude, then the stream).  Bridging needs (1) rejecting streams that declare a prelude
+name, (2) con-leche accepting its own prelude, (3) a weakening theorem over con-leche's kernel (a
+stream mentioning only its own constants stays accepted after unrelated constants are installed), or
+else inductives/axioms/quotients in the Pancake fold.

@@ -115,7 +115,7 @@ theorem rowRead_spec (t : PanSemStateFiniteExact 64 σ) (enc : α → List (BitV
           (.assign .local lRn (.load .one (.op .add [vv lDr, .shift .lsl (vv lDi) (.const 4), .const 8])))) hang)).1 := by
       rw [ite_word t3 _ _ _ _ hcmp]
       simp only [bw, h, ↓reduceIte, ne_eq, not_true_eq_false]
-      exact Or.inl (hang_spec _ t3 rfl)
+      exact hang_stop t3
     exact dec_stop t lDc _ g.C _ D1 (dec_stop t1 lDr _ g.R _ D2 (dec_stop t2 lDn _ _ _ hcn hs3))
 
 end
@@ -259,11 +259,11 @@ theorem storeRow_gen (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitVe
       rw [ite_word u _ _ _ _ hld]
       cases hon : on
       · simp only [Bool.false_eq_true, ↓reduceIte, ne_eq, not_true_eq_false]
-        exact Or.inl (Or.inl (hang_spec _ u rfl))
+        exact Or.inl (hang_stop u)
       · simp only [↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
         exact harm htag (Or.inr hon) u rfl rfl rfl rfl rfl udir (by rw [h0] at lt; rw [h0]; exact lt) lg li uo1 uo2 ufr
   · simp only [bw, htag, ↓reduceIte, ne_eq, not_true_eq_false]
-    exact Or.inl (Or.inl (hang_spec _ u rfl))
+    exact Or.inl (hang_stop u)
 
 end
 

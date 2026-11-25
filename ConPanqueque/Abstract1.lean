@@ -179,7 +179,7 @@ theorem spec_fvar {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (fn : 
         simp only [this, ↓reduceIte]
         split
         · rename_i hh; exact absurd rfl hh
-        left; rw [hang_spec _ _ rfl]; exact Or.inl rfl
+        left; exact hang_stop _
     · rename_i hh; exact absurd (by decide) hh
   have hne : ¬ iw = BitVec.ofNat 64 d := fun e => hid (by rw [← hiw, e, hdw])
   simp only [hne, ↓reduceIte]

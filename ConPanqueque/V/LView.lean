@@ -62,7 +62,7 @@ theorem lView_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitVec 
   · left
     apply seq_stop
     rw [ite_word t _ _ _ _ hc, if_pos hn]
-    exact Or.inl (hang_spec _ t rfl)
+    exact hang_stop t
   have hnw : i.isWide = false := by
     cases e : i.isWide
     · rfl

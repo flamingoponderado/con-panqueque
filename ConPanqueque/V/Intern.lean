@@ -276,7 +276,7 @@ theorem internV_spec (t : PanSemStateFiniteExact 64 σ) (enc : α → List (BitV
     rw [ite_word u _ _ _ _ hce]
     by_cases hf0 : BitVec.ofNat 64 f = 0
     · simp only [bw, hf0, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
-      exact Or.inl (Or.inl (hang_spec _ u rfl))
+      exact Or.inl (hang_stop u)
     simp only [bw, hf0, ↓reduceIte, ne_eq, not_true_eq_false]
     have hnf : ans ≠ .full := fun e => hf0 (by rw [hfull.mp e]; rfl)
     obtain ⟨j0, hans⟩ : ∃ j0, ans = .empty j0 := by

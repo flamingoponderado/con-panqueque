@@ -157,7 +157,7 @@ theorem spec_bvar {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (fn : 
     simp only [this, ↓reduceIte]
     split
     · rename_i hh; exact absurd rfl hh
-    left; rw [hang_spec _ _ rfl]; exact Or.inl rfl
+    left; exact hang_stop _
 
 theorem lift_spec {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (fn : MlS)
     (C : HolFiniteMapExact MlS (List (MlS × ShapeHOL) × ProgHOL 64 × ShapeHOL))

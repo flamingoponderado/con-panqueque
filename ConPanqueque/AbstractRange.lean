@@ -211,13 +211,13 @@ theorem spec_fvar {σ : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (fn : 
             simp only [this, ↓reduceIte]
             split
             · rename_i hh; exact absurd rfl hh
-            left; rw [hang_spec _ _ rfl]; exact Or.inl rfl
+            left; exact hang_stop _
         · rename_i hh; exact absurd (by decide) hh
       · have : ¬ BitVec.ofNat 64 k < 0x8000000000000000#64 := by rw [BitVec.lt_def, hkw]; simpa using hk63
         simp only [this, ↓reduceIte]
         split
         · rename_i hh; exact absurd rfl hh
-        left; rw [hang_spec _ _ rfl]; exact Or.inl rfl
+        left; exact hang_stop _
     · rename_i hh; exact absurd (by decide) hh
   · have : ¬ iw < ew := by rw [BitVec.lt_def, hiw, hew]; exact hin
     simp only [this, ↓reduceIte]

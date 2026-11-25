@@ -217,7 +217,7 @@ theorem specR_envAllocI {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} 
         (BitVec.ofNat 64 (8 * n)) then (1 : BitVec 64) else 0) = 1 := by
       simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, this]
     rw [hw1, if_pos (by decide)]
-    exact Or.inl (Or.inl (hang_spec t1.clock t1 rfl))
+    exact Or.inl (hang_stop t1)
   have hnf : ¬ BitVec.ofNat 64 (8 * (C.EN - C.EH.length)) < BitVec.ofNat 64 (8 * n) := by
     rw [BitVec.lt_def]; simp; omega
   have hw0 : (if Flapjack.Compiler.Encoders.Asm.wordCmpHOL .lower (BitVec.ofNat 64 (8 * (C.EN - C.EH.length)))

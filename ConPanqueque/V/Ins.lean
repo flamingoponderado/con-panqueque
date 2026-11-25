@@ -402,7 +402,7 @@ theorem ins_spec (t : PanSemStateFiniteExact 64 σ) (g : VGeo) (enc : α → Lis
   rw [ite_word t1 _ _ _ _ hcmp]
   by_cases hfull : cnt = g.cap
   · simp only [bw, hfull, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
-    exact Or.inl (Or.inl (hang_spec _ t1 rfl))
+    exact Or.inl (hang_stop t1)
   simp only [bw, hfull, ↓reduceIte, ne_eq, not_true_eq_false]
   have hlt : cnt < g.cap := by omega
   have tC8 : (g.C + 8).toNat = g.C.toNat + 8 := tn8 _ (by omega)
@@ -439,7 +439,7 @@ theorem ins_spec (t : PanSemStateFiniteExact 64 σ) (g : VGeo) (enc : α → Lis
   rw [ite_word t2 _ _ _ _ hcr]
   by_cases hro : g.kcap - hu < L
   · simp only [bw, hro, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
-    exact Or.inl (Or.inl (hang_spec _ t2 rfl))
+    exact Or.inl (hang_stop t2)
   simp only [bw, hro, ↓reduceIte, ne_eq, not_true_eq_false]
   have hroom : hu + L ≤ g.kcap := by omega
   -- the copy

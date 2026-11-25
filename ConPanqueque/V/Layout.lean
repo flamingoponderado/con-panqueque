@@ -452,7 +452,7 @@ theorem storeDerivedC_gen (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : 
   rw [ite_word u _ _ _ _ (hbad u lg uh)]
   by_cases hwc : wc ≠ 0
   · simp only [hwc, ↓reduceIte, ne_eq, not_false_eq_true]
-    left; exact Or.inl (hang_spec _ _ rfl)
+    left; exact hang_stop _
   simp only [hwc, ↓reduceIte, ne_eq, not_true_eq_false]
   replace hwc : wc = 0 := Classical.not_not.mp hwc
   have hw := hW hwc
@@ -482,11 +482,11 @@ theorem storeDerivedC_gen (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : 
       rw [ite_word u _ _ _ _ hld]
       cases hon : on
       · simp only [Bool.false_eq_true, ↓reduceIte, ne_eq, not_true_eq_false]
-        left; exact Or.inl (hang_spec _ _ rfl)
+        left; exact hang_stop _
       · simp only [↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
         exact harm htag (Or.inr hon) hw u rfl rfl rfl rfl rfl rfl udir (by rw [h0] at lt; rw [h0]; exact lt) lg li uo1 uo2 ufr
   · simp only [bw, htag, ↓reduceIte, ne_eq, not_true_eq_false]
-    left; exact Or.inl (hang_spec _ _ rfl)
+    left; exact hang_stop _
 
 end
 

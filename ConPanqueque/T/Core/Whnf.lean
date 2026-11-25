@@ -218,7 +218,7 @@ theorem step_ifI {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {Q :
   · rw [if_neg hw]; exact h2 (by simpa using hw) t ht
 
 theorem step_hangI {P Q : PState σ → Prop} : Step P hang Q :=
-  fun t _ => Or.inl (Or.inl (hang_spec t.clock t rfl))
+  fun t _ => Or.inl (hang_stop t)
 
 theorem step_ex {α : Type} {P : α → PState σ → Prop} {Q : PState σ → Prop} {c : ProgHOL 64}
     (h : ∀ a, Step (P a) c Q) : Step (fun t => ∃ a, P a t) c Q :=

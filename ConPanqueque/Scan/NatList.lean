@@ -72,7 +72,7 @@ def NlI (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (R : 
      (u.locals.lookup sG = some (.val (.word 0)) ∧ R = .ok acc.reverse j))
 
 theorem stop_hang (u : PanSemStateFiniteExact 64 σ) : Stop (evaluateHOLFiniteState u hang).1 := by
-  rw [hang_spec u.clock u rfl]; exact stop_timeOut
+  exact hang_stop u
 
 
 theorem skipDigitsCode_entry {s t : PanSemStateFiniteExact 64 σ} (callee : HolFiniteMapExact MlS (ValueHOL 64))

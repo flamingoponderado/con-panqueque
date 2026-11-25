@@ -9,9 +9,15 @@ def Stop (r : Option (PanSemResultExact 64)) : Prop := r = some .timeOut ∨ ∃
 /-- The endless loop. -/
 def hangLoop : ProgHOL 64 := .while (.const 1) .skip
 
-/-- What the program does when it cannot go on (e.g. out of arena space): loop forever. The
-unreachable `return` satisfies `cake --pancake`'s check that every branch returns. -/
-def hang : ProgHOL 64 := .seq hangLoop (.return (.const 0))
+/-- The rejecting FFI call: no arguments, nothing read or written.  The harness exits with the
+reject verdict; any other oracle answer continues into the endless loop. -/
+def fReject := ofString "reject"
+def rejectP : ProgHOL 64 := .extCall fReject (.const 0) (.const 0) (.const 0) (.const 0)
+
+/-- What the program does when it cannot go on (a rejected record, out of arena space): call the
+harness's `reject`, then loop forever. The unreachable `return` satisfies `cake --pancake`'s check
+that every branch returns. -/
+def hang : ProgHOL 64 := .seq rejectP (.seq hangLoop (.return (.const 0)))
 
 theorem hangLoop_spec {σ : Type} : ∀ (n : Nat) (s : PanSemStateFiniteExact 64 σ), s.clock = n →
     (evaluateHOLFiniteState s hangLoop).1 = some .timeOut := by
@@ -40,14 +46,34 @@ theorem seq_stop {σ : Type} (s : PanSemStateFiniteExact 64 σ) (p q : ProgHOL 6
   obtain ⟨r1, r2⟩ := r
   rcases h with h | ⟨ev, h⟩ <;> (simp only at h; subst h; simp [hr]) <;> first | exact Or.inl rfl | exact Or.inr ⟨ev, rfl⟩
 
-theorem hang_spec {σ : Type} (n : Nat) (s : PanSemStateFiniteExact 64 σ) (hs : s.clock = n) :
-    (evaluateHOLFiniteState s hang).1 = some .timeOut := by
-  unfold hang
+theorem rejectP_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) :
+    Stop (evaluateHOLFiniteState s rejectP).1 ∨ (evaluateHOLFiniteState s rejectP).1 = none := by
+  unfold rejectP
+  rw [evaluateHOLFiniteState_extCall_source]
+  simp only [evalHOLFinite]
+  simp [evalHOLExact]
+  split
+  · split
+    · rename_i ev _; exact Or.inl (Or.inr ⟨ev, rfl⟩)
+    · exact Or.inr rfl
+  · rename_i hn; exact (hn [] [] rfl rfl).elim
+
+theorem hangTail_spec {σ : Type} (n : Nat) (s : PanSemStateFiniteExact 64 σ) (hs : s.clock = n) :
+    (evaluateHOLFiniteState s (.seq hangLoop (.return (.const 0)))).1 = some .timeOut := by
   rw [evaluateHOLFiniteState_eq_evaluate_def]
   generalize hr : evaluateHOLFiniteState s hangLoop = r
   obtain ⟨r1, r2⟩ := r
   have h := hangLoop_spec n s hs
   rw [hr] at h; simp only at h; subst h; simp [hr]
+
+/-- **`hang` never returns**: the harness's reject ends the run, or the loop runs out of clock. -/
+theorem hang_stop {σ : Type} (s : PanSemStateFiniteExact 64 σ) : Stop (evaluateHOLFiniteState s hang).1 := by
+  unfold hang
+  rcases rejectP_spec s with h | h
+  · exact seq_stop _ _ _ h
+  · rw [seq_normal _ (show evaluateHOLFiniteState s rejectP = (none, (evaluateHOLFiniteState s rejectP).2) by
+      rw [← h])]
+    rw [hangTail_spec _ _ rfl]; exact stop_timeOut
 
 theorem dec_stop {σ : Type} (s : PanSemStateFiniteExact 64 σ) (x : MlS) (e : ExpHOL 64) (v : BitVec 64)
     (body : ProgHOL 64)

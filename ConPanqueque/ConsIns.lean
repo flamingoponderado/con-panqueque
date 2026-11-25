@@ -76,7 +76,7 @@ theorem ins_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (C R D S kf ka d
   by_cases hfull : cnt = cap
   · left
     simp only [hfull, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
-    rw [hang_spec _ t1 rfl]; exact Or.inl rfl
+    exact hang_stop t1
   right
   have hlt : cnt < cap := by omega
   refine ⟨hlt, HolFiniteMapExact.resVarEq t1.locals (lN, t.locals.lookup lN), ?_,

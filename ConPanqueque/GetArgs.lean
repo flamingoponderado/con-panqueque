@@ -81,7 +81,7 @@ theorem getArgs_spec {σ : Type} (sl fl : MlS) (t : PanSemStateFiniteExact 64 σ
   by_cases hfull : t2.topAddr - hp < n8
   · simp only [hfull, ↓reduceIte]
     split
-    · left; rw [hang_spec _ _ rfl]; exact Or.inl rfl
+    · left; exact hang_stop _
     · rename_i hh; exact absurd (by decide) hh
   simp only [hfull, ↓reduceIte]
   split

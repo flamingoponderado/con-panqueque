@@ -58,7 +58,7 @@ theorem mkNode_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (h : Heap) (p
     apply seq_stop
     rw [ite_word t _ _ _ _ hg]; simp only [hfull, ↓reduceIte]
     split
-    · rw [hang_spec _ t rfl]; exact Or.inl rfl
+    · exact hang_stop t
     · rename_i hh; exact absurd (by decide) hh
   right
   have eg : evaluateHOLFiniteState t (.ite (.cmp .lower (.op .sub [.topAddr, .var .global nHp]) (.const n8)) hang .skip)
@@ -119,7 +119,7 @@ theorem mkCell_spec {σ : Type} (t : PanSemStateFiniteExact 64 σ) (h : Heap) (p
     apply seq_stop
     rw [ite_word t _ _ _ _ hg]; simp only [hfull, ↓reduceIte]
     split
-    · rw [hang_spec _ t rfl]; exact Or.inl rfl
+    · exact hang_stop t
     · rename_i hh; exact absurd (by decide) hh
   right
   have eg : evaluateHOLFiniteState t (.ite (.cmp .lower (.op .sub [.topAddr, .var .global nHp]) (.const n8)) hang .skip)

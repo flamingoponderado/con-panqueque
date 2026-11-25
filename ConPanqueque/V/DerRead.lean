@@ -286,7 +286,7 @@ theorem derReadC_spec (t : PanSemStateFiniteExact 64 σ) (enc : α → List (Bit
       (fun y y1 y2 y3 y4 y5 => by lk [t4, t3, t2, t1]) rfl rfl
   · left
     simp only [bw, h, ↓reduceIte, ne_eq, not_true_eq_false]
-    exact Or.inl (hang_spec _ _ rfl)
+    exact hang_stop _
 
 end
 
