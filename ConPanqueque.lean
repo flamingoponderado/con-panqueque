@@ -487,3 +487,5 @@ import ConPanqueque.T.Ind.BFind
 import ConPanqueque.T.Ind.BlockEnv
 import ConPanqueque.T.Ind.MentionsAny
 import ConPanqueque.T.Ind.BlockIsRec
+import ConPanqueque.T.Ind.BlockCaps
+import ConPanqueque.T.Ind.EnvRec
