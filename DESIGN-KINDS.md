@@ -77,5 +77,8 @@ index), `Array` growth in the positivity state, and spec-level `Name`/`Level` va
   (`LpsEq`, `AllLps`), `memberIdxAt?`/`ctorMember?` (`CtorMember`), `blockGroups` (`Groups`), `paramLevels`
   (`ParamLevels`), the result sort and `isProp` (`ResultSort`), the recursor shapes (`RecShapes`), `large?`
   (`Large`), the anonymous name (`Anon`, a lookup given the image fact `denoteN C.St.ns anonH = some
-  .anonymous`). Heap layout of the result: `Shape` (`ShapeRep`). Next: the members' blocks and `readBlock`
-  itself.
+  .anonymous`), the members (`Members`). Heap layout of the result: `Shape` (`ShapeRep`).
+- **`readBlock` done** (`ReadBlock.rb_spec`, against `unwrapE (readBlock nPd blk)`; `ReadBlockTwin.rb_twin`
+  flattens the twin). Hypotheses left for the callers: `RuntimeAssumptions`, the image's anonymous name,
+  `lvlEq?`'s spec (as `isPropType` takes it), and bounds on the block's lengths. Next: `blockReadsAt`
+  (`IotaRead`), then `checkBlock` (`Positivity`, `GenRec`, `RecCheck`, the installs).
