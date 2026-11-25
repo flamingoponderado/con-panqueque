@@ -44,9 +44,10 @@ theorem iotaParamsAt_pstep {s s' : AState} {rl : IRecRule} {rP cnP : Nat} {r : L
   | plain => rw [hfr] at hrun; exact iotaBVars_pstep rP _ _ 0 rfl hok hrun
   | levels lvls => rw [hfr] at hrun; exact iotaBVars_pstep rP _ _ 0 rfl hok hrun
 
-theorem ctorLevelsAt_ext {s s' : AState} {rl : IRecRule} {f : ConLeche.RecRuleFire} {lps : List NIdx}
+theorem ctorLevelsAt_ext {s s' : AState} {rl : IRecRule} {lps : List NIdx}
     {lpsP : List ConLeche.Name} {r : LsIdx} (hok : StateOK s)
-    (hf : Frontend.denoteFire s.store rl.fire = some f)
+    (hfl : ∀ lv, ((∃ pins, rl.fire = .nested lv pins) ∨ rl.fire = .levels lv) →
+      ∃ ls, denoteLList s.store.ls lv = some ls)
     (hlps : Frontend.denoteNList s.store.ns lps = some lpsP)
     (hrun : ctorLevelsAt rl lps s = .ok (r, s')) :
     Ext s.store s'.store ∧ ∃ vs, denoteLs s'.store.lss r = some vs := by
@@ -57,17 +58,13 @@ theorem ctorLevelsAt_ext {s s' : AState} {rl : IRecRule} {f : ConLeche.RecRuleFi
     obtain ⟨p, hr⟩ := paramLevels_run hok hlps hrun
     exact ⟨p.ext, _, hr⟩
   | nested lvls pins =>
-    rw [hfr] at hrun hf
-    simp only [Frontend.denoteFire] at hf
-    cases h1 : denoteLList s.store.ls lvls with
-    | none => rw [h1] at hf; simp at hf
-    | some ls =>
+    rw [hfr] at hrun
+    obtain ⟨ls, h1⟩ := hfl lvls (Or.inl ⟨pins, hfr⟩)
     obtain ⟨p, hr⟩ := internLsNode_run hok h1 hrun
     exact ⟨p.ext, _, hr⟩
   | levels lvls =>
-    rw [hfr] at hrun hf
-    simp only [Frontend.denoteFire, Option.map_eq_some_iff] at hf
-    obtain ⟨ls, h1, -⟩ := hf
+    rw [hfr] at hrun
+    obtain ⟨ls, h1⟩ := hfl lvls (Or.inr hfr)
     obtain ⟨p, hr⟩ := internLsNode_run hok h1 hrun
     exact ⟨p.ext, _, hr⟩
 
@@ -169,14 +166,14 @@ theorem ap_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (cvj : IConstantVal) (cnP mI rP : Nat) (rl : IRecRule) (oq ol : Nat)
     (hcn : cnP < 2 ^ 64) (hm : mI < 2 ^ 64) (hr : rP < 2 ^ 64)
     (H : List (BitVec 64)) (hq : RuleE C.HB H oq rl) (hbl : EBlk H ol (cvj.levelParams.map Enc.idxW)) (s : AState)
-    {cvjP : ConLeche.ConstantVal} {rlP : ConLeche.RecRule}
-    (hcv : Frontend.denoteCV s.store cvj = some cvjP) (hrl : Frontend.denoteRule s.store rl = some rlP) :
+    {lpsP : List ConLeche.Name} {tyP : ConLeche.Expr}
+    (hlp0 : Frontend.denoteNList s.store.ns cvj.levelParams = some lpsP) (hty0 : denoteE s.store cvj.type = some tyP)
+    (hfl : ∀ lv, ((∃ pins, rl.fire = .nested lv pins) ∨ rl.fire = .levels lv) →
+      ∃ ls, denoteLList s.store.ls lv = some ls) :
     SpecR (σ := σ) (Pre (ctxH C H) s (apParams.zip [cellA C oq, cellA C ol, Enc.idxW cvj.type, BitVec.ofNat 64 cnP,
       BitVec.ofNat 64 mI, BitVec.ofNat 64 rP])) (apBody C) s (iotaPartsAt cvj cnP mI rP rl) (PostAB (ctxH C H)) := by
   refine specR_prologue (postAB_locals _) (ap_none _ _) ?_
   unfold iotaPartsAt
-  obtain ⟨-, hlp0, hty0⟩ := denoteCV_inv hcv
-  obtain ⟨-, hfire, -, -⟩ := denoteRule_inv hrl
   let Γ0 : Env := ctxEnv (ctxH C H) ++ apParams.zip [cellA C oq, cellA C ol, Enc.idxW cvj.type, BitVec.ofNat 64 cnP,
       BitVec.ofNat 64 mI, BitVec.ofNat 64 rP]
   have cnl : ∀ {Γ : Env} {x z : MlS} {v : BitVec 64}, x ∈ apLocals → z ∉ apLocals →
@@ -230,7 +227,7 @@ theorem ap_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
         (pre_of_lookups hu clParams _ rfl hlk)))
     (fun lv wl s1 H1 hp1 ⟨hrun1, hwl⟩ => ?_)
   subst hwl
-  obtain ⟨ext1, vsL, hvs⟩ := ctorLevelsAt_ext hst0 hfire hlp0 hrun1
+  obtain ⟨ext1, vsL, hvs⟩ := ctorLevelsAt_ext hst0 hfl hlp0 hrun1
   have hp1' : H <+: H1 := hp1
   let Γ2 : Env := (apL, Enc.idxW lv) :: Γ1
   have hΓ2 : ∀ z, z ∉ apLocals → Γ2.get z = Γ0.get z := fun z hz => by
