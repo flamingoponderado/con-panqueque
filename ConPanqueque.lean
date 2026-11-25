@@ -471,3 +471,4 @@ import ConPanqueque.T.Ex.InstLift
 import ConPanqueque.T.Ind.IotaParts
 import ConPanqueque.T.Ind.IotaCtor
 import ConPanqueque.T.Ind.IotaBody
+import ConPanqueque.T.Ind.IotaPartsAt
