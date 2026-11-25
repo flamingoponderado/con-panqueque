@@ -7,7 +7,7 @@ input. The gaps below are documented future work.
 
 ## The theorem
 
-`ConPanqueque.Start.main_pipeline_chunks` (`ConPanqueque/Start/Main3.lean`) says:
+[`ConPanqueque.Start.main_pipeline_chunks`](ConPanqueque/Start/Main3.lean#L280) says:
 take the Pancake program `mainBody2`, the program that `scripts/Emit.lean` emits
 and `cake --pancake` compiles. Start it from the initial state (`InitMem`,
 `InitGlobals`, little-endian). If it returns, then:

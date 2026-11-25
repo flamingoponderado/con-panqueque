@@ -2,7 +2,7 @@
 
 ## The statement
 
-`ConPanqueque.Start.main_pipeline_chunks` (`ConPanqueque/Start/Main3.lean`):
+[`ConPanqueque.Start.main_pipeline_chunks`](../ConPanqueque/Start/Main3.lean#L280):
 take the Pancake program `mainBody2` and start it from the initial state
 (`InitMem`, `InitGlobals`, little-endian). If it returns, then it read input `b`,
 `ConLeche.Frontend.parseChunks [b] = .ok r`, and

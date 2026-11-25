@@ -8,7 +8,7 @@ Pancake language and compiler. A sibling of
 translates con-leche to CakeML.
 
 **Status: soundness relative to con-leche's pure checker, under stated hypotheses.**
-The theorem `main_pipeline_chunks` (`ConPanqueque/Start/Main3.lean`) proves that if the
+The theorem [`main_pipeline_chunks`](ConPanqueque/Start/Main3.lean#L280) proves that if the
 compiled checker accepts an input, con-leche's frontend parses it and con-leche's
 pure checker accepts it with the built-in prelude in front. The proof assumes con-leche
 accepts its own prelude (`PreludeOK`, checked by `#eval` but not proved) and that Lean's
@@ -19,7 +19,7 @@ for the exact statement and gaps, and [PLAN.md](PLAN.md) for the design.
 
 ## Layout
 
-- `deps/con-leche`, `deps/flapjack`: submodules (Lean v4.35.0).
+- `deps/con-leche`, `deps/flapjack`: submodules (Lean v4.36.0).
 - `ConPanqueque/`: the Lean side (specifications, translator, proofs).
 - `pancake/`: Pancake programs and the C FFI harness; `make -C pancake test`
   downloads the CakeML compiler release (checked against its SHA-256),
