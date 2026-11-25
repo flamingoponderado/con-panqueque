@@ -464,3 +464,4 @@ import ConPanqueque.T.Ind.ReadBlock
 import ConPanqueque.T.Ind.PiTele
 import ConPanqueque.T.Ind.MotiveLevel
 import ConPanqueque.T.Ind.IotaMinors
+import ConPanqueque.T.Ind.DropVars
