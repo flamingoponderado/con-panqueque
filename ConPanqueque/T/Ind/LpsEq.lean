@@ -58,6 +58,13 @@ theorem le_none (C : Ctx) (vals : List (BitVec 64)) :
     ∀ x, x ∈ leLocals → (ctxEnv C ++ leParams.zip vals).get x = none :=
   Knot.params_none C leLocals leParams vals (by decide) (by decide)
 
+/-- The handles of a list from cell `o + 1` (an `EBlk`'s elements, the count cell not needed). -/
+def Elems (H : List (BitVec 64)) (o : Nat) (xs : List NIdx) : Prop :=
+  ∀ j (hj : j < xs.length), H[o + 1 + j]? = some (Enc.idxW xs[j])
+
+theorem elems_of_eblk {H : List (BitVec 64)} {o : Nat} {xs : List NIdx} (h : EBlk H o (xs.map Enc.idxW)) :
+    Elems H o xs := fun j hj => by have := h.2 j (by simp; omega); simpa using this
+
 /-- Equal suffixes from index `i`. -/
 theorem drop_beq_succ {xs ys : List NIdx} {i : Nat} (hx : i < xs.length) (hy : i < ys.length) :
     (xs.drop i == ys.drop i) = (xs[i] == ys[i] && xs.drop (i + 1) == ys.drop (i + 1)) := by
@@ -66,7 +73,7 @@ theorem drop_beq_succ {xs ys : List NIdx} {i : Nat} (hx : i < xs.length) (hy : i
 /-- **`lpsEqGo`**: the handles from index `i` agree. -/
 theorem leg_spec (C : Ctx) (hc : C.code.lookup fLpsEqGo = some (legParams.map (fun p => (p, ShapeHOL.one)), legBody, .one))
     (xs ys : List NIdx) (oa ob : Nat) (hlen : xs.length = ys.length) (hl : xs.length < 2 ^ 59) :
-    ∀ f i (H : List (BitVec 64)) (s : AState), C.H <+: H → EBlk H oa (xs.map Enc.idxW) → EBlk H ob (ys.map Enc.idxW) →
+    ∀ f i (H : List (BitVec 64)) (s : AState), C.H <+: H → Elems H oa xs → Elems H ob ys →
       xs.length - i = f → i ≤ xs.length →
       SpecR (σ := σ) (Pre (ctxH C H) s (legParams.zip [cellA C oa, cellA C ob, BitVec.ofNat 64 i, BitVec.ofNat 64 xs.length]))
         legBody s (pure (xs.drop i == ys.drop i)) (PostB (ctxH C H)) := by
@@ -91,9 +98,9 @@ theorem leg_spec (C : Ctx) (hc : C.code.lookup fLpsEqGo = some (legParams.map (f
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, legParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw.mpr hix])
       (fun _ => ?_) (fun h => absurd h (by decide))
     have hwa : (ctxH C H).H[oa + 1 + i]? = some (Enc.idxW xs[i]) := by
-      show H[oa + 1 + i]? = _; have := ha.2 i (by simp; omega); simpa using this
+      show H[oa + 1 + i]? = _; exact ha i hix
     have hwb : (ctxH C H).H[ob + 1 + i]? = some (Enc.idxW ys[i]) := by
-      show H[ob + 1 + i]? = _; have := hb.2 i (by simp; omega); simpa using this
+      show H[ob + 1 + i]? = _; exact hb i hiy
     refine UD.specR_heapLoadI' (C := ctxH C H) leX _ (oa + 1 + i) _ hwa (by decide)
       (by simp +decide [sev, Env.get, legParams, ctxEnv]; exact cellA_mulIdx C oa i (by omega)) ?_
     refine UD.specR_heapLoadI' (C := ctxH C H) leY _ (ob + 1 + i) _ hwb (by decide)
@@ -159,7 +166,8 @@ theorem le_spec (C : Ctx) (hcg : C.code.lookup fLpsEqGo = some (legParams.map (f
         by simp +decide [sev, Env.get_cons], trivial⟩
       (PostB (ctxH C H)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu legParams _ rfl hlk)
-        (leg_spec C hcg xs ys oa ob hl hx xs.length 0 H s hp ha hb (by omega) (by omega)))
+        (leg_spec C hcg xs ys oa ob hl hx xs.length 0 H s hp (elems_of_eblk ha) (elems_of_eblk hb) (by omega)
+          (by omega)))
       (fun b w s1 H1 hp1 hw => ?_)
     subst hw
     exact specR_returnI _ (boolW b) (by simp +decide [Env.get])
