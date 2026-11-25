@@ -466,3 +466,4 @@ import ConPanqueque.T.Ind.MotiveLevel
 import ConPanqueque.T.Ind.IotaMinors
 import ConPanqueque.T.Ind.DropVars
 import ConPanqueque.T.Ind.IotaRec
+import ConPanqueque.T.Ind.IotaRecOf
