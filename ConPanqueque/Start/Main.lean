@@ -174,11 +174,11 @@ theorem core_verdict (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : System
   have hev : (⟨.extCall fRead, [], bs.zip nb⟩ : _) ∈ t3.ffi.ioEvents := by rw [hio]; simp
   -- the frontend's locals and the rest, after the pins
   have hk : ∀ sP (EH' : List (BitVec 64)) (Γ' : Env), internReservedPins (sBoot P0) = .ok ((), sP) →
-      PinBlock EH' sP.pins → sP.pins.zeroLevel = default →
+      PinBlock EH' sP.pins → sP.pins.zeroLevel = default → EH'.length = 138 →
       (∀ y, y ∉ [vPn, vKa, vPb, vRs] → Γ'.get y = Γ2.get y) →
       SpecR (σ := σ) (Inv (C1 codeT H' EH' sP.pins) sP Γ' [] mainLocals) (frontAssigns restP) sP
         ((fun _ => (pure () : AM Unit)) ()) (fun _ _ _ _ => Verdict nb) := by
-    intro sP EH' Γ' hrun hb hz hag
+    intro sP EH' Γ' hrun hb hz _ hag
     obtain ⟨hokP, -, hpo, hpp, hoff, -, -⟩ := internReservedPins_run (boot_ok P0).1 (boot_ok P0).2.1 hrun
     let C := C1 codeT H' EH' sP.pins
     have hC : C.code = codeMap (codeEntries C) := code_C1 _ _ _
