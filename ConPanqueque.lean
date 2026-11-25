@@ -476,3 +476,4 @@ import ConPanqueque.T.Ind.LvlEqE
 import ConPanqueque.T.Ind.ListLvlEq
 import ConPanqueque.T.Ind.AnnEq
 import ConPanqueque.T.Ind.AnnEqRec
+import ConPanqueque.T.Ind.ListAnnEq

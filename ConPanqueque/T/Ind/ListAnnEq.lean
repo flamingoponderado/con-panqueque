@@ -1,0 +1,204 @@
+import ConPanqueque.T.Ind.AnnEqRec
+
+/-!
+# Two lists pairwise related by `annEq` (`listAnnEq`)
+
+`la(pa, pb, i)` compares the blocks at `pa` and `pb` from position `i` on with `annEq fe coreWalkFuel`.
+-/
+
+open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
+open ConPanqueque.Logic ConPanqueque.V
+open ConRon.Arena ConRon.Bridge
+
+namespace ConPanqueque.T.Ind
+
+open ConPanqueque.T ConPanqueque.T.Ex ConPanqueque.T.Knot ConPanqueque.T.ExS ConPanqueque.T.ExI
+
+def laPa := ofString "la_pa"
+def laPb := ofString "la_pb"
+def laI := ofString "la_i"
+def laNa := ofString "la_na"
+def laNb := ofString "la_nb"
+def laX := ofString "la_x"
+def laY := ofString "la_y"
+def laR := ofString "la_r"
+def fListAnnEq := ofString "listAnnEq"
+
+def laParams : List MlS := [laPa, laPb, laI]
+def laLocals : List MlS := [laNa, laNb, laX, laY, laR]
+
+def laBody : ProgHOL 64 := prologue laLocals
+  (.seq (.assign .local laNa (.load .one (vv laPa)))
+  (.seq (.assign .local laNb (.load .one (vv laPb)))
+  (.ite (.cmp .lower (vv laI) (vv laNa))
+    (.ite (.cmp .lower (vv laI) (vv laNb))
+      (.seq (.assign .local laX (.load .one (.op .add [vv laPa, .shift .lsl (.op .add [vv laI, .const 1]) (.const 3)])))
+      (.seq (.assign .local laY (.load .one (.op .add [vv laPb, .shift .lsl (.op .add [vv laI, .const 1]) (.const 3)])))
+      (.seq (.call (some (some (.local, laR), none)) fAnnEq
+        [.const (BitVec.ofNat 64 coreWalkFuel), vv laX, vv laY])
+      (.ite (veEqC laR 0) (.return (.const 0))
+      (.seq (.call (some (some (.local, laR), none)) fListAnnEq [vv laPa, vv laPb, .op .add [vv laI, .const 1]])
+        (.return (vv laR)))))))
+      (.return (.const 0)))
+    (.ite (.cmp .lower (vv laI) (vv laNb)) (.return (.const 0)) (.return (.const 1))))))
+
+section
+variable {σ : Type}
+
+theorem la_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ laLocals → (ctxEnv C ++ laParams.zip vals).get x = none :=
+  Knot.params_none C laLocals laParams vals (by decide) (by decide)
+
+theorem listAnnEq_drop_cons (fe : IFEnv) (as bs : List EIdx) (i : Nat) (ha : i < as.length) (hb : i < bs.length) :
+    listAnnEq fe (as.drop i) (bs.drop i) = (annEq fe coreWalkFuel as[i] bs[i] >>= fun r =>
+      if r then listAnnEq fe (as.drop (i + 1)) (bs.drop (i + 1)) else pure false) := by
+  rw [List.drop_eq_getElem_cons ha, List.drop_eq_getElem_cons hb, listAnnEq]
+
+
+theorem la_step (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hf : Front.FrontOK C)
+    (hc : AECodes C) (hAn : denoteN C.St.ns anonH = some .anonymous)
+    (hcl : C.code.lookup fListAnnEq = some (laParams.map (fun p => (p, ShapeHOL.one)), laBody, .one))
+    (pa pb : Nat) (as bs : List EIdx) (i : Nat) (H : List (BitVec 64)) (s : AState) (hi : i ≤ as.length)
+    (hA : BlkAt H pa (as.map Enc.idxW)) (hB : BlkAt H pb (bs.map Enc.idxW))
+    (rec : i < as.length → ∀ (H' : List (BitVec 64)) (s' : AState), BlkAt H' pa (as.map Enc.idxW) →
+      BlkAt H' pb (bs.map Enc.idxW) →
+      SpecR (Pre (σ := σ) (ctxH C H') s' (laParams.zip [cellA C pa, cellA C pb, BitVec.ofNat 64 (i + 1)])) laBody s'
+        (listAnnEq C.fe (as.drop (i + 1)) (bs.drop (i + 1))) (PostB (ctxH C H'))) :
+    SpecR (Pre (σ := σ) (ctxH C H) s (laParams.zip [cellA C pa, cellA C pb, BitVec.ofNat 64 i])) laBody s
+      (listAnnEq C.fe (as.drop i) (bs.drop i)) (PostB (ctxH C H)) := by
+  refine specR_prologue (postB_locals _) (la_none _ _) ?_
+  let Γ0 : Env := ctxEnv (ctxH C H) ++ laParams.zip [cellA C pa, cellA C pb, BitVec.ofNat 64 i]
+  have gPa : Γ0.get laPa = some (cellA C pa) := by simp +decide [Γ0, Env.get, laParams, ctxEnv]
+  have gPb : Γ0.get laPb = some (cellA C pb) := by simp +decide [Γ0, Env.get, laParams, ctxEnv]
+  have gI : Γ0.get laI = some (BitVec.ofNat 64 i) := by simp +decide [Γ0, Env.get, laParams, ctxEnv]
+  refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN => ?_)
+  have hHN' : H.length ≤ C.HN := hHN
+  have hlay := hok.heapLay
+  have hla := blkAt_len hA
+  have hlb := blkAt_len hB
+  simp only [List.length_map] at hla hlb
+  have hA0 : (ctxH C H).H[pa]? = some (BitVec.ofNat 64 as.length) := by show H[pa]? = _; rw [hA.1]; simp
+  have hB0 : (ctxH C H).H[pb]? = some (BitVec.ofNat 64 bs.length) := by show H[pb]? = _; rw [hB.1]; simp
+  refine UD.specR_heapLoadI' (C := ctxH C H) laNa (vv laPa) pa _ hA0 (by simp +decide [ctxLocals, laLocals])
+    (by simp only [sev, sev_vv]; exact gPa) ?_
+  refine UD.specR_heapLoadI' (C := ctxH C H) laNb (vv laPb) pb _ hB0 (by simp +decide [ctxLocals, laLocals])
+    (by simp only [sev, sev_vv, Env.get_cons]; simp +decide; exact gPb) ?_
+  have gI' : sev ((laNb, BitVec.ofNat 64 bs.length) :: (laNa, BitVec.ofNat 64 as.length) :: Γ0) (vv laI) =
+      some (BitVec.ofNat 64 i) := by simp only [sev, sev_vv, Env.get_cons]; simp +decide; exact gI
+  have ret : ∀ (Γ : Env) (b : Bool) (w : BitVec 64), w = boolW b →
+      SpecR (σ := σ) (Inv (ctxH C H) s Γ [] (ctxLocals ++ laLocals)) (.return (.const w)) s (pure b)
+        (PostB (ctxH C H)) := fun Γ b w hw =>
+    specR_returnI _ w rfl (fun t ht => ⟨H, List.prefix_refl _, hw, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  by_cases hia : i < as.length
+  · refine specR_ifI _ 1 (by
+        rw [sev_cmp2 _ _ _ _ (BitVec.ofNat 64 i) (BitVec.ofNat 64 as.length) gI' (by simp +decide [sev, Env.get_cons]),
+          wcL _ _ (by omega) (by omega)]; simp [hia])
+      (fun _ => ?_) (fun h => absurd h (by decide))
+    by_cases hib : i < bs.length
+    · refine specR_ifI _ 1 (by
+          rw [sev_cmp2 _ _ _ _ (BitVec.ofNat 64 i) (BitVec.ofNat 64 bs.length) gI' (by simp +decide [sev, Env.get_cons]),
+            wcL _ _ (by omega) (by omega)]; simp [hib])
+        (fun _ => ?_) (fun h => absurd h (by decide))
+      rw [listAnnEq_drop_cons C.fe as bs i hia hib]
+      have hxa : (ctxH C H).H[pa + 1 + i]? = some (Enc.idxW as[i]) := by
+        have := hA.2 i (by simp; omega); show H[pa + 1 + i]? = _; simpa using this
+      have hyb : (ctxH C H).H[pb + 1 + i]? = some (Enc.idxW bs[i]) := by
+        have := hB.2 i (by simp; omega); show H[pb + 1 + i]? = _; simpa using this
+      refine UD.specR_heapLoadI' (C := ctxH C H) laX _ (pa + 1 + i) _ hxa (by simp +decide [ctxLocals, laLocals])
+        (by
+          simp only [sev, sev_vv, Env.get_cons]; simp +decide
+          simp only [Γ0] at gPa gI
+          rw [gPa, gI]; simp
+          show _ = cellA C (pa + 1 + i)
+          apply BitVec.eq_of_toNat_eq; simp [cellA, BitVec.toNat_add, BitVec.toNat_shiftLeft, Nat.shiftLeft_eq]
+          omega) ?_
+      refine UD.specR_heapLoadI' (C := ctxH C H) laY _ (pb + 1 + i) _ hyb (by simp +decide [ctxLocals, laLocals])
+        (by
+          simp only [sev, sev_vv, Env.get_cons]; simp +decide
+          simp only [Γ0] at gPb gI
+          rw [gPb, gI]; simp
+          show _ = cellA C (pb + 1 + i)
+          apply BitVec.eq_of_toNat_eq; simp [cellA, BitVec.toNat_add, BitVec.toNat_shiftLeft, Nat.shiftLeft_eq]
+          omega) ?_
+      refine specR_callNIH (C := ctxH C H) laR fAnnEq aeParams [.const (BitVec.ofNat 64 coreWalkFuel), vv laX, vv laY]
+        (aeBody C) [BitVec.ofNat 64 coreWalkFuel, Enc.idxW as[i], Enc.idxW bs[i]] (by decide) rfl
+        (by simp +decide [ctxLocals, laLocals]) hc.ae
+        ⟨rfl, by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], trivial⟩
+        (PostB (ctxH C H)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+        (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu aeParams _ rfl hlk)
+          (ae_spec ra C hok hf hc hAn coreWalkFuel coreWalkFuel_lt63 H as[i] bs[i] s))
+        (fun r w s1 H1 hp1 hw => ?_)
+      subst hw
+      have hp1' : H <+: H1 := hp1
+      rcases r
+      · refine specR_ifI _ 1 (by simp +decide [veEqC, sev, Env.get_cons, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+          (fun _ => ?_) (fun h => absurd h (by decide))
+        exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      refine specR_ifI _ 0 (by simp +decide [veEqC, sev, Env.get_cons, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+        (fun h => absurd rfl h) (fun _ => ?_)
+      simp only [ite_true]
+      refine specR_congr (m' := listAnnEq C.fe (as.drop (i + 1)) (bs.drop (i + 1)) >>= fun r => pure r) (by rw [bind_pure]) ?_
+      refine specR_callNIH (C := ctxH C H1) laR fListAnnEq laParams [vv laPa, vv laPb, .op .add [vv laI, .const 1]]
+        laBody [cellA C pa, cellA C pb, BitVec.ofNat 64 (i + 1)] (by decide) rfl
+        (by simp +decide [ctxLocals, laLocals]) hcl
+        ⟨by simp only [sev, sev_vv, Env.get_cons]; simp +decide; exact gPa,
+          by simp only [sev, sev_vv, Env.get_cons]; simp +decide; exact gPb,
+          by
+            show sev _ _ = _
+            rw [sev_add2 _ _ _ _ _ (by simp only [sev, sev_vv, Env.get_cons]; simp +decide; exact gI) rfl]
+            exact congrArg some (word_add1_eq i), trivial⟩
+        (PostB (ctxH C H1)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
+        (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu laParams _ rfl hlk)
+          (rec hia H1 s1 (blkAt_mono hA hp1') (blkAt_mono hB hp1')))
+        (fun r2 w2 s2 H2 hp2 hw2 => ?_)
+      subst hw2
+      have hp2' : H1 <+: H2 := hp2
+      exact specR_returnI _ _ (by simp [sev, Env.get_cons])
+        (fun t ht => ⟨H2, hp1'.trans hp2', rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    · refine specR_ifI _ 0 (by
+          rw [sev_cmp2 _ _ _ _ (BitVec.ofNat 64 i) (BitVec.ofNat 64 bs.length) gI' (by simp +decide [sev, Env.get_cons]),
+            wcL _ _ (by omega) (by omega)]; simp [hib])
+        (fun h => absurd rfl h) (fun _ => ?_)
+      rw [List.drop_eq_getElem_cons hia, List.drop_of_length_le (by omega : bs.length ≤ i)]
+      exact ret _ false 0 rfl
+  · refine specR_ifI _ 0 (by
+        rw [sev_cmp2 _ _ _ _ (BitVec.ofNat 64 i) (BitVec.ofNat 64 as.length) gI' (by simp +decide [sev, Env.get_cons]),
+          wcL _ _ (by omega) (by omega)]; simp [hia])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    rw [List.drop_of_length_le (by omega : as.length ≤ i)]
+    by_cases hib : i < bs.length
+    · refine specR_ifI _ 1 (by
+          rw [sev_cmp2 _ _ _ _ (BitVec.ofNat 64 i) (BitVec.ofNat 64 bs.length) gI' (by simp +decide [sev, Env.get_cons]),
+            wcL _ _ (by omega) (by omega)]; simp [hib])
+        (fun _ => ?_) (fun h => absurd h (by decide))
+      rw [List.drop_eq_getElem_cons hib]
+      exact ret _ false 0 rfl
+    · refine specR_ifI _ 0 (by
+          rw [sev_cmp2 _ _ _ _ (BitVec.ofNat 64 i) (BitVec.ofNat 64 bs.length) gI' (by simp +decide [sev, Env.get_cons]),
+            wcL _ _ (by omega) (by omega)]; simp [hib])
+        (fun h => absurd rfl h) (fun _ => ?_)
+      rw [List.drop_of_length_le (by omega : bs.length ≤ i)]
+      exact ret _ true 1 rfl
+
+/-- **`listAnnEq C.fe`** from position `i`. -/
+theorem la_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hf : Front.FrontOK C)
+    (hc : AECodes C) (hAn : denoteN C.St.ns anonH = some .anonymous)
+    (hcl : C.code.lookup fListAnnEq = some (laParams.map (fun p => (p, ShapeHOL.one)), laBody, .one))
+    (pa pb : Nat) (as bs : List EIdx) :
+    ∀ k i (H : List (BitVec 64)) (s : AState), as.length - i = k → i ≤ as.length →
+      BlkAt H pa (as.map Enc.idxW) → BlkAt H pb (bs.map Enc.idxW) →
+      SpecR (Pre (σ := σ) (ctxH C H) s (laParams.zip [cellA C pa, cellA C pb, BitVec.ofNat 64 i])) laBody s
+        (listAnnEq C.fe (as.drop i) (bs.drop i)) (PostB (ctxH C H)) := by
+  intro k
+  induction k with
+  | zero =>
+    intro i H s hk hi hA hB
+    exact la_step ra C hok hf hc hAn hcl pa pb as bs i H s hi hA hB (fun h => absurd h (by omega))
+  | succ k ih =>
+    intro i H s hk hi hA hB
+    exact la_step ra C hok hf hc hAn hcl pa pb as bs i H s hi hA hB
+      (fun hia H' s' hA' hB' => ih (i + 1) H' s' (by omega) (by omega) hA' hB')
+
+end
+
+end ConPanqueque.T.Ind
