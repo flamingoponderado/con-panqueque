@@ -1,4 +1,4 @@
-import ConPanqueque.T.Ind.ListLvlEq
+import ConPanqueque.T.Ind.BFind
 import ConPanqueque.Start.PinName
 import ConPanqueque.T.Env
 
@@ -19,6 +19,8 @@ open ConPanqueque.T ConPanqueque.T.Ex ConPanqueque.T.Knot ConPanqueque.T.ExS Con
 open ConPanqueque.Start (vPn vKa strStepP strStep_spec strBytes)
 open ConPanqueque.Front (FrontOK frontOK_H)
 
+def awB := ofString "aw_bt"
+def awK := ofString "aw_k"
 def awD := ofString "aw_d"
 def awN := ofString "aw_n"
 def awU := ofString "aw_u"
@@ -28,8 +30,8 @@ def awL := ofString "aw_l"
 def awC := ofString "aw_c"
 def fAnnWitness := ofString "annWitness"
 
-def awParams : List MlS := [awD]
-def awLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, awN, awU, vPn, vKa, awX, awT, awL, awC]
+def awParams : List MlS := [awB, awD]
+def awLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, awN, awU, vPn, vKa, awX, awT, awL, awC, awK]
 
 def awBody (C : Ctx) : ProgHOL 64 := prologue awLocals
   (.seq (.assign .local lFl (vv lFle)) (.seq (.assign .local lDh (vv awD)) (.seq eViewP
@@ -39,7 +41,7 @@ def awBody (C : Ctx) : ProgHOL 64 := prologue awLocals
     (.seq (.assign .local lDh (vv awU)) (.seq (.assign .local lFl (vv lFls)) (.seq lsViewP
     (.ite (veEqC lRn 0)
       (.seq (.assign .local vPn (vv awN)) (strStepP C "missing"
-      (envFindP C awX (vv vPn)
+      (bfindP awX awB awK (vv vPn)
       (.ite (veEqC awX 0) (.return (.const 0))
       (.seq (.assign .local awT (.load .one (.op .add [vv awX, .const 23])))
       (.ite (.cmp .equal (vv awT) (vv awD))
@@ -50,6 +52,7 @@ def awBody (C : Ctx) : ProgHOL 64 := prologue awLocals
     (.return (.const 0))))))
 
 
+def aiBt := ofString "ai_bt"
 def aiP := ofString "ai_p"
 def aiP2 := ofString "ai_p2"
 def aiAr := ofString "ai_ar"
@@ -61,7 +64,7 @@ def aiZ := ofString "ai_z"
 def aiR := ofString "ai_r"
 def fAnnIdentBody := ofString "annIdentBody"
 
-def aiParams : List MlS := [aiP, aiP2, aiAr, aiB]
+def aiParams : List MlS := [aiBt, aiP, aiP2, aiAr, aiB]
 def aiLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, aiJ, aiD, aiC, aiZ, aiR]
 
 /-- A `bvar` view's index word into `x`: `0` at no limbs, the limb at one, else hang. -/
@@ -89,13 +92,14 @@ def aiBody : ProgHOL 64 := prologue aiLocals
                 (.ite (.cmp .equal (vv aiP) (vv aiP2))
                   (.seq (.call (some (some (.local, aiZ), none)) fInternBVar [.const 0])
                   (.ite (.cmp .equal (vv aiD) (vv aiZ)) (.return (.const 1))
-                    (.seq (.call (some (some (.local, aiR), none)) fAnnWitness [vv aiD]) (.return (vv aiR)))))
+                    (.seq (.call (some (some (.local, aiR), none)) fAnnWitness [vv aiBt, vv aiD]) (.return (vv aiR)))))
                   (.return (.const 0)))
                 (.return (.const 0))))
               (.return (.const 0))))))
           (.return (.const 0))))
       (.return (.const 0))))
 
+def avBt := ofString "av_bt"
 def avL := ofString "av_l"
 def avAr := ofString "av_ar"
 def avV := ofString "av_v"
@@ -108,7 +112,7 @@ def avP2 := ofString "av_p2"
 def avR := ofString "av_r"
 def fAnnIdentVal := ofString "annIdentVal"
 
-def avParams : List MlS := [avL, avAr, avV]
+def avParams : List MlS := [avBt, avL, avAr, avV]
 def avLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, avN, avT, avB, avU, avP, avP2, avR]
 
 /-- `avL` points at the level parameters' block in the environment heap. -/
@@ -126,13 +130,15 @@ def avBody : ProgHOL 64 := prologue avLocals
             (.ite (veEqC lDg 4)
               (.seq (.assign .local avP2 (.load .one (.op .add [vv lRp, .const 0])))
               (.seq (.assign .local avP (.load .one (.op .add [vv avL, .const 8])))
-              (.seq (.call (some (some (.local, avR), none)) fAnnIdentBody [vv avP, vv avP2, vv avAr, vv avB])
+              (.seq (.call (some (some (.local, avR), none)) fAnnIdentBody [vv avBt, vv avP, vv avP2, vv avAr, vv avB])
                 (.return (vv avR)))))
               (.return (.const 0)))))))
             (.return (.const 0))))))
         (.return (.const 0))))
     (.return (.const 0))))
 
+def anBt := ofString "an_bt"
+def anK := ofString "an_k"
 def anN := ofString "an_n"
 def anAr := ofString "an_ar"
 def anX := ofString "an_x"
@@ -142,17 +148,17 @@ def anV := ofString "an_v"
 def anR := ofString "an_r"
 def fAnnIdent := ofString "annIdent"
 
-def anParams : List MlS := [anN, anAr]
-def anLocals : List MlS := [anX, anT, anL, anV, anR]
+def anParams : List MlS := [anBt, anN, anAr]
+def anLocals : List MlS := [anX, anT, anL, anV, anR, anK]
 
 def anBody (C : Ctx) : ProgHOL 64 := prologue anLocals
-  (envFindP C anX (vv anN)
+  (bfindP anX anBt anK (vv anN)
   (.ite (veEqC anX 0) (.return (.const 0))
   (.seq (.assign .local anT (.load .one (.op .sub [vv anX, .const 1])))
   (.ite (veEqC anT 1)
     (.seq (.assign .local anL (.load .one (.op .add [vv anX, .const 15])))
     (.seq (.assign .local anV (.load .one (.op .add [vv anX, .const 31])))
-    (.seq (.call (some (some (.local, anR), none)) fAnnIdentVal [vv anL, vv anAr, vv anV]) (.return (vv anR)))))
+    (.seq (.call (some (some (.local, anR), none)) fAnnIdentVal [vv anBt, vv anL, vv anAr, vv anV]) (.return (vv anR)))))
     (.return (.const 0))))))
 
 section
@@ -167,13 +173,16 @@ theorem aw_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (hcN : C.code.lookup Front.fInternNStr = some ([(Front.pKeyN, .one), (lEn, .one), (lEp, .one), (lHn, .one)], Front.nameStrBody, .one))
     (hcG : C.code.lookup fMemoGet = some ([(pG, .one), (pLen, .one)], memoGetBody, .one))
     (hcP : C.code.lookup fMemoProbe = some ([(pG, .one), (pLen, .one)], memoProbeBody, .one))
-    (H : List (BitVec 64)) (D : EIdx) (s : AState) :
-    SpecR (σ := σ) (Pre (ctxH C H) s (awParams.zip [Enc.idxW D])) (awBody (ctxH C H)) s (annWitness C.fe D)
+    (hcF : C.code.lookup fBFindGo = some (bfParams.map (fun p => (p, ShapeHOL.one)), bfBody C, .one))
+    (es : List (NIdx × Nat × IConstantInfo)) (ob : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
+    (H : List (BitVec 64)) (hT : BTabAt C H ob es) (D : EIdx) (s : AState) :
+    SpecR (σ := σ) (Pre (ctxH C H) s (awParams.zip [cellA C ob, Enc.idxW D])) (awBody (ctxH C H)) s (annWitness fe D)
       (PostB (ctxH C H)) := by
   refine specR_prologue (postB_locals _) (aw_none _ _) ?_
   unfold annWitness
-  let Γ0 : Env := ctxEnv (ctxH C H) ++ awParams.zip [Enc.idxW D]
+  let Γ0 : Env := ctxEnv (ctxH C H) ++ awParams.zip [cellA C ob, Enc.idxW D]
   have gD : Γ0.get awD = some (Enc.idxW D) := by simp +decide [Γ0, Env.get, awParams, ctxEnv]
+  have gB : Γ0.get awB = some (cellA C ob) := by simp +decide [Γ0, Env.get, awParams, ctxEnv]
   have ret0 : ∀ (s1 : AState) (Γ : Env) (M : Mem), SpecR (σ := σ) (Inv (ctxH C H) s1 Γ M (ctxLocals ++ awLocals))
       (.return (.const 0)) s1 (pure false) (PostB (ctxH C H)) := fun s1 Γ M =>
     specR_returnI _ 0 rfl (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
@@ -230,22 +239,25 @@ theorem aw_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
   refine specR_assignI vPn (vv awN) (Enc.idxW n) (by decide) (by simp +decide [sev, Env.get_cons]) ?_
   refine strStep_spec ra (ctxH C H) (ctxOK_H hok H) (frontOK_H hf H) hcN s _ _ _ (by decide) (by decide) n
     (by simp [Env.get_cons]) "missing" (by decide) (fun m s' om hrun => ?_)
-  refine specR_envFindI (C := ctxH C H) (ctxOK_H hok H) hcG hcP awX (vv vPn) m (by decide)
-    (by simp [sev, Env.get_cons]) (by simp +decide [Env.get_cons, Env.get, awParams, ctxEnv] <;> rfl) ?_
-  have hfr := find_rel (ctxOK_H hok H) m
-  have efe : (ctxH C H).fe = C.fe := rfl
-  rw [efe] at hfr
-  cases hfm : C.fe.find? m with
+  rw [hfe m]
+  refine specR_congr (m' := (pure (bfLook es C.fe m) : AM _) >>= fun r => match r with
+      | some c => if (c.toConstantVal.type == D) = true then pure (c.toConstantVal.levelParams.length == 0)
+          else pure false
+      | none => pure false) (by simp only [pure_bind]; rfl) ?_
+  refine specR_bfindI (D := ctxLocals ++ awLocals) (H := H) hok hcG hcP hcF awX awB awK (vv vPn) es ob m hT
+    (by decide) (by decide) ?ht (by decide) ?hen (fun w hw => ?k)
+  case ht => simp +decide [Env.get_cons]; simp only [Γ0] at gB; exact gB
+  case hen => intro v; simp +decide [sev, Env.get_cons]
+  obtain ⟨h1, h2⟩ := hw
+  cases hb : bfLook es C.fe m with
   | none =>
-    rw [hfm] at hfr
-    simp only [hfr, optWG]
+    rw [h1 hb]
     refine specR_ifI _ 1 (by simp +decide [veEqC, sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
       (fun _ => ?_) (fun h => absurd h (by decide))
     exact ret0 _ _ _
   | some ci =>
-    rw [hfm] at hfr
-    obtain ⟨o, he, hcie⟩ := hfr
-    simp only [he, optWG, id]
+    obtain ⟨o, rfl, hcie⟩ := h2 ci hb
+    simp only []
     refine specR_fact (fun t ht => ht.sr.env.1.len) (fun hEN => ?_)
     have ho : o < C.EN := by have := cie_lt hcie; exact Nat.lt_of_lt_of_le this hEN
     have hne : ecell (ctxH C H) o + 1 ≠ 0 := ecell_succ_ne (ctxOK_H hok H) ho
@@ -254,6 +266,7 @@ theorem aw_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     refine specR_envLoadI (C := ctxH C H) awT _ (o + 3) (Enc.idxW ci.toConstantVal.type) (by decide)
       (by
         simp +decide [sev, Env.get_cons]
+        show _ = ecell C (o + 3)
         simp only [ecell]; apply BitVec.eq_of_toNat_eq; simp [BitVec.toNat_add]; omega)
       (by have := hcie.1.2.2; rw [show o + 1 + 2 = o + 3 by omega] at this; exact this) ?_
     by_cases ht : ci.toConstantVal.type = D
@@ -265,10 +278,11 @@ theorem aw_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       refine specR_envLoadI (C := ctxH C H) awL _ (o + 2) w (by decide)
         (by
           simp +decide [sev, Env.get_cons]
+          show _ = ecell C (o + 2)
           simp only [ecell]; apply BitVec.eq_of_toNat_eq; simp [BitVec.toNat_add]; omega)
         (by rw [show o + 2 = o + 1 + 1 by omega]; exact hw2) ?_
       refine specR_envLoadI (C := ctxH C H) awC _ o' (BitVec.ofNat 64 ci.toConstantVal.levelParams.length) (by decide)
-        (by simp [sev, Env.get_cons, hwo]; rfl) (by rw [heb.1]; simp) ?_
+        (by simp [sev, Env.get_cons, hwo]; rfl) (by show C.EH[o']? = _; rw [heb.1]; simp) ?_
       refine specR_returnI _ (boolW (ci.toConstantVal.levelParams.length == 0)) (by
           simp only [veEqC]
           rw [sev_cmp2 _ _ _ _ (BitVec.ofNat 64 ci.toConstantVal.levelParams.length) (BitVec.ofNat 64 0)
@@ -337,12 +351,17 @@ theorem ai_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (hcP : C.code.lookup fMemoProbe = some ([(pG, .one), (pLen, .one)], memoProbeBody, .one))
     (hcB : C.code.lookup fInternBVar = some ([(lIw, .one)], bvarBody, .one))
     (hcW : C.code.lookup fAnnWitness = some (awParams.map (fun p => (p, ShapeHOL.one)), awBody C, .one))
-    (H : List (BitVec 64)) (p p' : NIdx) (arity : Nat) (har : arity < 2 ^ 64) (b : EIdx) (s : AState) :
-    SpecR (σ := σ) (Pre (ctxH C H) s (aiParams.zip [Enc.idxW p, Enc.idxW p', BitVec.ofNat 64 arity, Enc.idxW b]))
-      aiBody s (annIdentBody C.fe p p' arity b) (PostB (ctxH C H)) := by
+    (hcF : C.code.lookup fBFindGo = some (bfParams.map (fun p => (p, ShapeHOL.one)), bfBody C, .one))
+    (es : List (NIdx × Nat × IConstantInfo)) (ob : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
+    (H : List (BitVec 64)) (hT : BTabAt C H ob es) (p p' : NIdx) (arity : Nat) (har : arity < 2 ^ 64) (b : EIdx)
+    (s : AState) :
+    SpecR (σ := σ) (Pre (ctxH C H) s (aiParams.zip [cellA C ob, Enc.idxW p, Enc.idxW p', BitVec.ofNat 64 arity,
+      Enc.idxW b])) aiBody s (annIdentBody fe p p' arity b) (PostB (ctxH C H)) := by
   refine specR_prologue (postB_locals _) (ai_none _ _) ?_
   unfold annIdentBody
-  let Γ0 : Env := ctxEnv (ctxH C H) ++ aiParams.zip [Enc.idxW p, Enc.idxW p', BitVec.ofNat 64 arity, Enc.idxW b]
+  let Γ0 : Env := ctxEnv (ctxH C H) ++ aiParams.zip [cellA C ob, Enc.idxW p, Enc.idxW p', BitVec.ofNat 64 arity,
+    Enc.idxW b]
+  have gBt : Γ0.get aiBt = some (cellA C ob) := by simp +decide [Γ0, Env.get, aiParams, ctxEnv]
   have gP : Γ0.get aiP = some (Enc.idxW p) := by simp +decide [Γ0, Env.get, aiParams, ctxEnv]
   have gP2 : Γ0.get aiP2 = some (Enc.idxW p') := by simp +decide [Γ0, Env.get, aiParams, ctxEnv]
   have gAr : Γ0.get aiAr = some (BitVec.ofNat 64 arity) := by simp +decide [Γ0, Env.get, aiParams, ctxEnv]
@@ -512,12 +531,14 @@ theorem ai_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
               (fun h => absurd rfl h) (fun _ => ?_)
             have : (Dt == z) = false := by simpa using ez
             simp only [this, Bool.false_eq_true, ite_false]
-            refine specR_congr (m' := annWitness C.fe Dt >>= fun r => pure r) (by rw [bind_pure]) ?_
-            refine specR_callNIH (C := ctxH C H) aiR fAnnWitness awParams [vv aiD] (awBody C) [Enc.idxW Dt]
-              (by decide) rfl (by decide) hcW ⟨by simp +decide [sev, Env.get_cons], trivial⟩
+            refine specR_congr (m' := annWitness fe Dt >>= fun r => pure r) (by rw [bind_pure]) ?_
+            refine specR_callNIH (C := ctxH C H) aiR fAnnWitness awParams [vv aiBt, vv aiD] (awBody C)
+              [cellA C ob, Enc.idxW Dt] (by decide) rfl (by decide) hcW
+              ⟨by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gBt; exact gBt,
+                by simp +decide [sev, Env.get_cons], trivial⟩
               (PostB (ctxH C H)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
               (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu awParams _ rfl hlk)
-                (aw_spec ra C hok hf hcN hcG hcP H Dt s1))
+                (aw_spec ra C hok hf hcN hcG hcP hcF es ob fe hfe H hT Dt s1))
               (fun r w s2 H2 hp2 hw => ?_)
             subst hw
             exact specR_returnI _ _ (by simp [sev, Env.get_cons])
@@ -553,13 +574,16 @@ theorem av_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (hcB : C.code.lookup fInternBVar = some ([(lIw, .one)], bvarBody, .one))
     (hcW : C.code.lookup fAnnWitness = some (awParams.map (fun p => (p, ShapeHOL.one)), awBody C, .one))
     (hcI : C.code.lookup fAnnIdentBody = some (aiParams.map (fun p => (p, ShapeHOL.one)), aiBody, .one))
-    (H : List (BitVec 64)) (lps : List NIdx) (ol : Nat) (hl : EBlk C.EH ol (lps.map Enc.idxW))
+    (hcF : C.code.lookup fBFindGo = some (bfParams.map (fun p => (p, ShapeHOL.one)), bfBody C, .one))
+    (es : List (NIdx × Nat × IConstantInfo)) (ob : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
+    (H : List (BitVec 64)) (hT : BTabAt C H ob es) (lps : List NIdx) (ol : Nat) (hl : EBlk C.EH ol (lps.map Enc.idxW))
     (arity : Nat) (har : arity < 2 ^ 64) (v : EIdx) (s : AState) :
-    SpecR (σ := σ) (Pre (ctxH C H) s (avParams.zip [ecell C ol, BitVec.ofNat 64 arity, Enc.idxW v]))
-      avBody s (annIdentVal C.fe lps arity v) (PostB (ctxH C H)) := by
+    SpecR (σ := σ) (Pre (ctxH C H) s (avParams.zip [cellA C ob, ecell C ol, BitVec.ofNat 64 arity, Enc.idxW v]))
+      avBody s (annIdentVal fe lps arity v) (PostB (ctxH C H)) := by
   refine specR_prologue (postB_locals _) (av_none _ _) ?_
   unfold annIdentVal
-  let Γ0 : Env := ctxEnv (ctxH C H) ++ avParams.zip [ecell C ol, BitVec.ofNat 64 arity, Enc.idxW v]
+  let Γ0 : Env := ctxEnv (ctxH C H) ++ avParams.zip [cellA C ob, ecell C ol, BitVec.ofNat 64 arity, Enc.idxW v]
+  have gBt : Γ0.get avBt = some (cellA C ob) := by simp +decide [Γ0, Env.get, avParams, ctxEnv]
   have gL : Γ0.get avL = some (ecell C ol) := by simp +decide [Γ0, Env.get, avParams, ctxEnv]
   have gAr : Γ0.get avAr = some (BitVec.ofNat 64 arity) := by simp +decide [Γ0, Env.get, avParams, ctxEnv]
   have gV : Γ0.get avV = some (Enc.idxW v) := by simp +decide [Γ0, Env.get, avParams, ctxEnv]
@@ -686,15 +710,16 @@ theorem av_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       (by have := hl.2 0 (by simp; omega); show C.EH[ol + 1]? = _; simpa using this) ?_
     have hgd : lps.getD 0 default = lps[0] := by simp [List.getD_eq_getElem?_getD, h0]
     rw [hgd]
-    refine specR_congr (m' := annIdentBody C.fe lps[0] p' arity b >>= fun r => pure r) (by rw [bind_pure]) ?_
-    refine specR_callNIH (C := ctxH C H) avR fAnnIdentBody aiParams [vv avP, vv avP2, vv avAr, vv avB] aiBody
-      [Enc.idxW lps[0], Enc.idxW p', BitVec.ofNat 64 arity, Enc.idxW b] (by decide) rfl (by decide) hcI
-      ⟨by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons],
+    refine specR_congr (m' := annIdentBody fe lps[0] p' arity b >>= fun r => pure r) (by rw [bind_pure]) ?_
+    refine specR_callNIH (C := ctxH C H) avR fAnnIdentBody aiParams [vv avBt, vv avP, vv avP2, vv avAr, vv avB] aiBody
+      [cellA C ob, Enc.idxW lps[0], Enc.idxW p', BitVec.ofNat 64 arity, Enc.idxW b] (by decide) rfl (by decide) hcI
+      ⟨by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gBt; exact gBt,
+        by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons],
         by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gAr; exact gAr,
         by simp +decide [sev, Env.get_cons], trivial⟩
       (PostB (ctxH C H)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu aiParams _ rfl hlk)
-        (ai_spec ra C hok hf hcN hcG hcP hcB hcW H lps[0] p' arity har b s))
+        (ai_spec ra C hok hf hcN hcG hcP hcB hcW hcF es ob fe hfe H hT lps[0] p' arity har b s))
       (fun r w s2 H2 hp2 hw => ?_)
     subst hw
     exact specR_returnI _ _ (by simp [sev, Env.get_cons])
@@ -717,33 +742,37 @@ theorem an_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (hcW : C.code.lookup fAnnWitness = some (awParams.map (fun p => (p, ShapeHOL.one)), awBody C, .one))
     (hcI : C.code.lookup fAnnIdentBody = some (aiParams.map (fun p => (p, ShapeHOL.one)), aiBody, .one))
     (hcV : C.code.lookup fAnnIdentVal = some (avParams.map (fun p => (p, ShapeHOL.one)), avBody, .one))
-    (H : List (BitVec 64)) (n : NIdx) (arity : Nat) (har : arity < 2 ^ 64) (s : AState) :
-    SpecR (σ := σ) (Pre (ctxH C H) s (anParams.zip [Enc.idxW n, BitVec.ofNat 64 arity]))
-      (anBody (ctxH C H)) s (annIdent C.fe n arity) (PostB (ctxH C H)) := by
+    (hcF : C.code.lookup fBFindGo = some (bfParams.map (fun p => (p, ShapeHOL.one)), bfBody C, .one))
+    (es : List (NIdx × Nat × IConstantInfo)) (ob : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
+    (H : List (BitVec 64)) (hT : BTabAt C H ob es) (n : NIdx) (arity : Nat) (har : arity < 2 ^ 64) (s : AState) :
+    SpecR (σ := σ) (Pre (ctxH C H) s (anParams.zip [cellA C ob, Enc.idxW n, BitVec.ofNat 64 arity]))
+      (anBody (ctxH C H)) s (annIdent fe n arity) (PostB (ctxH C H)) := by
   refine specR_prologue (postB_locals _) (an_none _ _) ?_
   unfold annIdent
-  let Γ0 : Env := ctxEnv (ctxH C H) ++ anParams.zip [Enc.idxW n, BitVec.ofNat 64 arity]
+  let Γ0 : Env := ctxEnv (ctxH C H) ++ anParams.zip [cellA C ob, Enc.idxW n, BitVec.ofNat 64 arity]
+  have gBt : Γ0.get anBt = some (cellA C ob) := by simp +decide [Γ0, Env.get, anParams, ctxEnv]
   have gN : Γ0.get anN = some (Enc.idxW n) := by simp +decide [Γ0, Env.get, anParams, ctxEnv]
   have gAr : Γ0.get anAr = some (BitVec.ofNat 64 arity) := by simp +decide [Γ0, Env.get, anParams, ctxEnv]
   have ret0 : ∀ (Γ : Env) (M : Mem), SpecR (σ := σ) (Inv (ctxH C H) s Γ M (ctxLocals ++ anLocals))
       (.return (.const 0)) s (pure false) (PostB (ctxH C H)) := fun Γ M =>
     specR_returnI _ 0 rfl (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  refine specR_envFindI (C := ctxH C H) (ctxOK_H hok H) hcG hcP anX (vv anN) n (by decide)
-    (by simp only [sev, sev_vv]; exact gN) (by simp +decide [Env.get, anParams, ctxEnv] <;> rfl) ?_
-  have hfr := find_rel (ctxOK_H hok H) n
-  have efe : (ctxH C H).fe = C.fe := rfl
-  rw [efe] at hfr
-  cases hfm : C.fe.find? n with
+  rw [hfe n]
+  refine specR_congr (m' := (pure (bfLook es C.fe n) : AM _) >>= fun r => match r with
+      | some (.defnInfo cv v _) => annIdentVal fe cv.levelParams arity v
+      | _ => pure false) (by simp only [pure_bind]; rfl) ?_
+  refine specR_bfindI (D := ctxLocals ++ anLocals) (H := H) hok hcG hcP hcF anX anBt anK (vv anN) es ob n hT
+    (by decide) (by decide) ?ht (by decide) ?hen (fun w hw => ?k)
+  case ht => simp only [Γ0] at gBt; exact gBt
+  case hen => intro v; simp +decide [sev, Env.get_cons]; simp only [Γ0] at gN; exact gN
+  obtain ⟨h1, h2⟩ := hw
+  cases hb : bfLook es C.fe n with
   | none =>
-    rw [hfm] at hfr
-    simp only [hfr, optWG]
+    rw [h1 hb]
     refine specR_ifI _ 1 (by simp +decide [veEqC, sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
       (fun _ => ?_) (fun h => absurd h (by decide))
     exact ret0 _ _
   | some ci =>
-    rw [hfm] at hfr
-    obtain ⟨o, he, hcie⟩ := hfr
-    simp only [he, optWG, id]
+    obtain ⟨o, rfl, hcie⟩ := h2 ci hb
     refine specR_fact (fun t ht => ht.sr.env.1.len) (fun hEN => ?_)
     have hEN' : C.EH.length ≤ C.EN := hEN
     have ho : o < C.EN := by have := cie_lt hcie; exact Nat.lt_of_lt_of_le this hEN
@@ -763,21 +792,24 @@ theorem an_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       refine specR_envLoadI (C := ctxH C H) anL _ (o + 2) w (by decide)
         (by
           simp +decide [sev, Env.get_cons]
+          show _ = ecell C (o + 2)
           simp only [ecell]; apply BitVec.eq_of_toNat_eq; simp [BitVec.toNat_add]; omega)
         (by rw [show o + 2 = o + 1 + 1 by omega]; exact hw2) ?_
       refine specR_envLoadI (C := ctxH C H) anV _ (o + 4) (Enc.idxW val) (by decide)
         (by
           simp +decide [sev, Env.get_cons]
+          show _ = ecell C (o + 4)
           simp only [ecell]; apply BitVec.eq_of_toNat_eq; simp [BitVec.toNat_add]; omega) hval ?_
-      refine specR_congr (m' := annIdentVal C.fe cv.levelParams arity val >>= fun r => pure r) (by rw [bind_pure]) ?_
-      refine specR_callNIH (C := ctxH C H) anR fAnnIdentVal avParams [vv anL, vv anAr, vv anV] avBody
-        [ecell C ol, BitVec.ofNat 64 arity, Enc.idxW val] (by decide) rfl (by decide) hcV
-        ⟨by simp +decide [sev, Env.get_cons, hwo]; rfl,
+      refine specR_congr (m' := annIdentVal fe cv.levelParams arity val >>= fun r => pure r) (by rw [bind_pure]) ?_
+      refine specR_callNIH (C := ctxH C H) anR fAnnIdentVal avParams [vv anBt, vv anL, vv anAr, vv anV] avBody
+        [cellA C ob, ecell C ol, BitVec.ofNat 64 arity, Enc.idxW val] (by decide) rfl (by decide) hcV
+        ⟨by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gBt; exact gBt,
+          by simp +decide [sev, Env.get_cons, hwo]; rfl,
           by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gAr; exact gAr,
           by simp +decide [sev, Env.get_cons], trivial⟩
         (PostB (ctxH C H)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
         (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu avParams _ rfl hlk)
-          (av_spec ra C hok hf hcN hcG hcP hcB hcW hcI H cv.levelParams ol heb arity har val s))
+          (av_spec ra C hok hf hcN hcG hcP hcB hcW hcI hcF es ob fe hfe H hT cv.levelParams ol heb arity har val s))
         (fun r w s2 H2 hp2 hw => ?_)
       subst hw
       exact specR_returnI _ _ (by simp [sev, Env.get_cons])

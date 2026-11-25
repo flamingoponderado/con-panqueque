@@ -15,6 +15,7 @@ namespace ConPanqueque.T.Ind
 
 open ConPanqueque.T ConPanqueque.T.Ex ConPanqueque.T.Knot ConPanqueque.T.ExS ConPanqueque.T.ExI ConPanqueque.T.ExSP
 
+def pqBt := ofString "pq_bt"
 def pqN := ofString "pq_n"
 def pqT := ofString "pq_t"
 def pqD := ofString "pq_d"
@@ -25,7 +26,7 @@ def pqR := ofString "pq_r"
 def pqX := ofString "pq_x"
 def fParamsAnnEq := ofString "paramsAnnEq"
 
-def pqParams : List MlS := [pqN, pqT, pqD]
+def pqParams : List MlS := [pqBt, pqN, pqT, pqD]
 def pqLocals : List MlS := [pqS, pqSc, pqI1, pqR, pqX, lCn, lSrc, lDst, lCi, lCz]
 
 def pqBody (C : Ctx) : ProgHOL 64 := prologue pqLocals
@@ -34,7 +35,7 @@ def pqBody (C : Ctx) : ProgHOL 64 := prologue pqLocals
   (.seq (.assign .local pqSc (.load .one (vv pqS)))
   (.seq (.assign .local pqI1 (.op .sub [vv pqSc, .const 1]))
   (sliceCopyP C pqR pqS (.const 0) pqI1
-  (.seq (.call (some (some (.local, pqX), none)) fListAnnEq [vv pqR, vv pqD, .const 0]) (.return (vv pqX))))))))
+  (.seq (.call (some (some (.local, pqX), none)) fListAnnEq [vv pqBt, vv pqR, vv pqD, .const 0]) (.return (vv pqX))))))))
 
 def beA := ofString "be_a"
 def beB := ofString "be_b"
@@ -64,6 +65,7 @@ def beBody : ProgHOL 64 := prologue beLocals
       (.return (.const 0)))
     (.ite (.cmp .lower (vv beI) (vv beNb)) (.return (.const 0)) (.return (.const 1))))))
 
+def prBt := ofString "pr_bt"
 def prN := ofString "pr_n"
 def prT := ofString "pr_t"
 def prQ := ofString "pr_q"
@@ -80,7 +82,7 @@ def prU2 := ofString "pr_u2"
 def prTg := ofString "pr_tg"
 def fIotaPartsRel := ofString "iotaPartsRel"
 
-def prParams : List MlS := [prN, prT, prQ, prPp, prP, prD]
+def prParams : List MlS := [prBt, prN, prT, prQ, prPp, prP, prD]
 def prLocals : List MlS := [prX, prY, prR, prF1, prF2, prU1, prU2, prTg]
 
 def prBody : ProgHOL 64 := prologue prLocals
@@ -101,9 +103,9 @@ def prBody : ProgHOL 64 := prologue prLocals
     (.ite (veEqC prR 0)
       (.seq (.assign .local prTg (.load .one (.op .add [vv prQ, .const 16])))
       (.ite (veEqC prTg 0)
-        (.seq (.call (some (some (.local, prR), none)) fParamsAnnEq [vv prN, vv prT, vv prD])
+        (.seq (.call (some (some (.local, prR), none)) fParamsAnnEq [vv prBt, vv prN, vv prT, vv prD])
         (.ite (veEqC prR 0) (.return (.const 0))
-        (.seq (.call (some (some (.local, prR), none)) fListAnnEq [vv prF1, vv prF2, .const 0]) (.return (vv prR)))))
+        (.seq (.call (some (some (.local, prR), none)) fListAnnEq [vv prBt, vv prF1, vv prF2, .const 0]) (.return (vv prR)))))
         (.return (.const 0))))
       (.return (.const 1))))))))))
     (.return (.const 0)))))))))
@@ -120,13 +122,15 @@ theorem pq_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (hc : AECodes C) (hAn : denoteN C.St.ns anonH = some .anonymous)
     (hcs : C.code.lookup fStripPis = some ([(pFu, .one), (pH, .one)], stripBody C fStripPis 6, .one))
     (hcl : C.code.lookup fListAnnEq = some (laParams.map (fun p => (p, ShapeHOL.one)), laBody, .one))
+    (es : List (NIdx × Nat × IConstantInfo)) (ob : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
     (cnP : Nat) (hcn : cnP < 2 ^ 58) (cv : IConstantVal) (pd : List EIdx) (opd : Nat) (H : List (BitVec 64))
-    (hpd : BlkAt H opd (pd.map Enc.idxW)) (s : AState) :
-    SpecR (σ := σ) (Pre (ctxH C H) s (pqParams.zip [BitVec.ofNat 64 cnP, Enc.idxW cv.type, cellA C opd]))
-      (pqBody C) s (paramsAnnEq C.fe cnP cv pd) (PostB (ctxH C H)) := by
+    (hT : BTabAt C H ob es) (hpd : BlkAt H opd (pd.map Enc.idxW)) (s : AState) :
+    SpecR (σ := σ) (Pre (ctxH C H) s (pqParams.zip [cellA C ob, BitVec.ofNat 64 cnP, Enc.idxW cv.type, cellA C opd]))
+      (pqBody C) s (paramsAnnEq fe cnP cv pd) (PostB (ctxH C H)) := by
   refine specR_prologue (postB_locals _) (pq_none _ _) ?_
   unfold paramsAnnEq
-  let Γ0 : Env := ctxEnv (ctxH C H) ++ pqParams.zip [BitVec.ofNat 64 cnP, Enc.idxW cv.type, cellA C opd]
+  let Γ0 : Env := ctxEnv (ctxH C H) ++ pqParams.zip [cellA C ob, BitVec.ofNat 64 cnP, Enc.idxW cv.type, cellA C opd]
+  have gBt : Γ0.get pqBt = some (cellA C ob) := by simp +decide [Γ0, Env.get, pqParams, ctxEnv]
   have gN : Γ0.get pqN = some (BitVec.ofNat 64 cnP) := by simp +decide [Γ0, Env.get, pqParams, ctxEnv]
   have gT : Γ0.get pqT = some (Enc.idxW cv.type) := by simp +decide [Γ0, Env.get, pqParams, ctxEnv]
   have gD : Γ0.get pqD = some (cellA C opd) := by simp +decide [Γ0, Env.get, pqParams, ctxEnv]
@@ -164,13 +168,15 @@ theorem pq_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
   have hfd : ((rd.map Enc.idxW ++ [Enc.idxW b]).drop 0).take rd.length = rd.map Enc.idxW := by simp
   rw [hfd] at hb5
   have hp5' : H1 <+: H5 := hp5
-  refine specR_congr (m' := listAnnEq C.fe (rd.drop 0) (pd.drop 0) >>= fun r => pure r) (by simp) ?_
-  refine specR_callNIH (C := ctxH C H5) pqX fListAnnEq laParams [vv pqR, vv pqD, .const 0] laBody
-    [cellA C o5, cellA C opd, BitVec.ofNat 64 0] (by decide) rfl (by simp +decide [ctxLocals, pqLocals]) hcl
-    ⟨by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons]; exact gD, rfl, trivial⟩
+  refine specR_congr (m' := listAnnEq fe (rd.drop 0) (pd.drop 0) >>= fun r => pure r) (by simp) ?_
+  refine specR_callNIH (C := ctxH C H5) pqX fListAnnEq laParams [vv pqBt, vv pqR, vv pqD, .const 0] laBody
+    [cellA C ob, cellA C o5, cellA C opd, BitVec.ofNat 64 0] (by decide) rfl (by simp +decide [ctxLocals, pqLocals]) hcl
+    ⟨by simp +decide [sev, Env.get_cons]; exact gBt, by simp +decide [sev, Env.get_cons],
+      by simp +decide [sev, Env.get_cons]; exact gD, rfl, trivial⟩
     (PostB (ctxH C H5)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu laParams _ rfl hlk)
-      (la_spec ra C hok hf hc hAn hcl o5 opd rd pd _ 0 H5 s1 rfl (Nat.zero_le _) hb5
+      (la_spec ra C hok hf hc hAn hcl es ob fe hfe o5 opd rd pd _ 0 H5 s1 rfl (Nat.zero_le _)
+        (btabAt_mono hT (hp1'.trans hp5')) hb5
         (blkAt_mono hpd (hp1'.trans hp5'))))
     (fun r w s2 H6 hp6 hw => ?_)
   subst hw
@@ -362,15 +368,17 @@ structure PRCodes (C : Ctx) : Prop where
 /-- **`iotaPartsRel`** against the context's environment. -/
 theorem pr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hf : Front.FrontOK C)
     (hc : PRCodes C) (hAn : denoteN C.St.ns anonH = some .anonymous)
+    (es : List (NIdx × Nat × IConstantInfo)) (ob : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
     (cnP : Nat) (hcn : cnP < 2 ^ 58) (cv : IConstantVal) (rl : IRecRule) (pp p : IIotaParts) (pd : List EIdx)
-    (oq opp op opd : Nat) (H : List (BitVec 64)) (hq : RuleE C.HB H oq rl) (hpp : PartsRep C H opp pp)
+    (oq opp op opd : Nat) (H : List (BitVec 64)) (hT : BTabAt C H ob es) (hq : RuleE C.HB H oq rl) (hpp : PartsRep C H opp pp)
     (hp : PartsRep C H op p) (hpd : BlkAt H opd (pd.map Enc.idxW)) (s : AState) :
-    SpecR (σ := σ) (Pre (ctxH C H) s (prParams.zip [BitVec.ofNat 64 cnP, Enc.idxW cv.type, cellA C oq, cellA C opp,
-      cellA C op, cellA C opd])) prBody s (iotaPartsRel C.fe cnP cv rl pp p pd) (PostB (ctxH C H)) := by
+    SpecR (σ := σ) (Pre (ctxH C H) s (prParams.zip [cellA C ob, BitVec.ofNat 64 cnP, Enc.idxW cv.type, cellA C oq, cellA C opp,
+      cellA C op, cellA C opd])) prBody s (iotaPartsRel fe cnP cv rl pp p pd) (PostB (ctxH C H)) := by
   refine specR_prologue (postB_locals _) (pr_none _ _) ?_
   unfold iotaPartsRel
-  let Γ0 : Env := ctxEnv (ctxH C H) ++ prParams.zip [BitVec.ofNat 64 cnP, Enc.idxW cv.type, cellA C oq, cellA C opp,
+  let Γ0 : Env := ctxEnv (ctxH C H) ++ prParams.zip [cellA C ob, BitVec.ofNat 64 cnP, Enc.idxW cv.type, cellA C oq, cellA C opp,
       cellA C op, cellA C opd]
+  have gBt : Γ0.get prBt = some (cellA C ob) := by simp +decide [Γ0, Env.get, prParams, ctxEnv]
   have gN : Γ0.get prN = some (BitVec.ofNat 64 cnP) := by simp +decide [Γ0, Env.get, prParams, ctxEnv]
   have gT : Γ0.get prT = some (Enc.idxW cv.type) := by simp +decide [Γ0, Env.get, prParams, ctxEnv]
   have gQ : Γ0.get prQ = some (cellA C oq) := by simp +decide [Γ0, Env.get, prParams, ctxEnv]
@@ -453,7 +461,7 @@ theorem pr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gP; rw [gP]; rfl) ?_
   refine specR_congr (m' := listLvlEq (pp.fieldDoms.drop 0) (p.fieldDoms.drop 0) >>= fun r =>
     if r = true then pure true else match rl.fire with
-      | .plain => do if ← paramsAnnEq C.fe cnP cv pd then listAnnEq C.fe pp.fieldDoms p.fieldDoms else pure false
+      | .plain => do if ← paramsAnnEq fe cnP cv pd then listAnnEq fe pp.fieldDoms p.fieldDoms else pure false
       | _ => pure false) (by simp only [List.drop_zero]; rfl) ?_
   refine specR_callNIH (C := ctxH C H2) prR fListLvlEq llParams [vv prF1, vv prF2, .const 0] llBody
     [cellA C f1, cellA C f2, BitVec.ofNat 64 0] (by decide) rfl (by simp +decide [ctxLocals, prLocals]) hc.ll
@@ -481,14 +489,16 @@ theorem pr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       (by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gQ; rw [gQ]; simp; exact addr oq 2) ?_
     refine specR_ifI _ 1 (by simp +decide [veEqC, sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
       (fun _ => ?_) (fun h => absurd h (by decide))
-    refine specR_callNIH (C := ctxH C H3) prR fParamsAnnEq pqParams [vv prN, vv prT, vv prD] (pqBody C)
-      [BitVec.ofNat 64 cnP, Enc.idxW cv.type, cellA C opd] (by decide) rfl (by simp +decide [ctxLocals, prLocals]) hc.pq
-      ⟨by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gN; exact gN,
+    refine specR_callNIH (C := ctxH C H3) prR fParamsAnnEq pqParams [vv prBt, vv prN, vv prT, vv prD] (pqBody C)
+      [cellA C ob, BitVec.ofNat 64 cnP, Enc.idxW cv.type, cellA C opd] (by decide) rfl (by simp +decide [ctxLocals, prLocals]) hc.pq
+      ⟨by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gBt; exact gBt,
+        by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gN; exact gN,
         by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gT; exact gT,
         by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gD; exact gD, trivial⟩
       (PostB (ctxH C H3)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu pqParams _ rfl hlk)
-        (pq_spec ra C hok hf hc.ae hAn hc.sp hc.la cnP hcn cv pd opd H3 (blkAt_mono hpd hp13) s3))
+        (pq_spec ra C hok hf hc.ae hAn hc.sp hc.la es ob fe hfe cnP hcn cv pd opd H3 (btabAt_mono hT hp13)
+          (blkAt_mono hpd hp13) s3))
       (fun r w s4 H4 hp4 hw => ?_)
     subst hw
     have hp14 : H <+: H4 := hp13.trans hp4
@@ -500,14 +510,16 @@ theorem pr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     refine specR_ifI _ 0 (by simp +decide [veEqC, sev, Env.get_cons, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
       (fun h => absurd rfl h) (fun _ => ?_)
     simp only [ite_true]
-    refine specR_congr (m' := listAnnEq C.fe (pp.fieldDoms.drop 0) (p.fieldDoms.drop 0) >>= fun r => pure r)
+    refine specR_congr (m' := listAnnEq fe (pp.fieldDoms.drop 0) (p.fieldDoms.drop 0) >>= fun r => pure r)
       (by simp) ?_
-    refine specR_callNIH (C := ctxH C H4) prR fListAnnEq laParams [vv prF1, vv prF2, .const 0] laBody
-      [cellA C f1, cellA C f2, BitVec.ofNat 64 0] (by decide) rfl (by simp +decide [ctxLocals, prLocals]) hc.la
-      ⟨by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], rfl, trivial⟩
+    refine specR_callNIH (C := ctxH C H4) prR fListAnnEq laParams [vv prBt, vv prF1, vv prF2, .const 0] laBody
+      [cellA C ob, cellA C f1, cellA C f2, BitVec.ofNat 64 0] (by decide) rfl (by simp +decide [ctxLocals, prLocals]) hc.la
+      ⟨by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gBt; exact gBt,
+        by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], rfl, trivial⟩
       (PostB (ctxH C H4)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu laParams _ rfl hlk)
-        (la_spec ra C hok hf hc.ae hAn hc.la f1 f2 pp.fieldDoms p.fieldDoms _ 0 H4 s4 rfl (Nat.zero_le _)
+        (la_spec ra C hok hf hc.ae hAn hc.la es ob fe hfe f1 f2 pp.fieldDoms p.fieldDoms _ 0 H4 s4 rfl (Nat.zero_le _)
+          (btabAt_mono hT hp14)
           (blkAt_mono hbf1 (hp12.trans (hp3.trans hp4))) (blkAt_mono hbf2 (hp12.trans (hp3.trans hp4)))))
       (fun r w s5 H5 hp5 hw => ?_)
     subst hw

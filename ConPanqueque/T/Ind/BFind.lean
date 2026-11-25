@@ -1,4 +1,4 @@
-import ConPanqueque.T.Ind.RecFire
+import ConPanqueque.T.Ind.ListLvlEq
 
 /-!
 # The block-aware finder
@@ -205,6 +205,24 @@ theorem specR_bfindI {β : Type} {C : Ctx} (hok : CtxOK C)
   obtain ⟨rfl, rfl⟩ := hrun
   rw [bfLook_full] at h1 h2 ⊢
   exact hcont w ⟨h1, h2⟩
+
+/-- `specR_bfindI` against a twin continuation applied to the (generalized) answer `r0`. -/
+theorem specR_bfindI' {β : Type} {C : Ctx} (hok : CtxOK C)
+    (hcG : C.code.lookup fMemoGet = some ([(pG, .one), (pLen, .one)], memoGetBody, .one))
+    (hcP : C.code.lookup fMemoProbe = some ([(pG, .one), (pLen, .one)], memoProbeBody, .one))
+    (hcode : C.code.lookup fBFindGo = some (bfParams.map (fun p => (p, ShapeHOL.one)), bfBody C, .one))
+    {H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64}
+    {k' : Option IConstantInfo → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    (x t k : MlS) (en : ExpHOL 64) (es : List (NIdx × Nat × IConstantInfo)) (ob : Nat) (n : NIdx)
+    (r0 : Option IConstantInfo) (hr0 : bfLook es C.fe n = r0)
+    (hT : BTabAt C H ob es) (hx : x ∈ D) (hk : k ∈ D) (ht : Γ.get t = some (cellA C ob)) (htk : t ≠ k)
+    (hen : ∀ v, sev ((k, v) :: Γ) en = some (Enc.idxW n))
+    (hcont : ∀ w, ((r0 = none → w = 0) ∧ ∀ ci, r0 = some ci → ∃ o, w = ecell C o + 1 ∧ CIE C.EB C.EH o ci) →
+      SpecR (Inv (ctxH C H) s ((x, w) :: (k, BitVec.ofNat 64 es.length) :: Γ) [] D) rest s (k' r0) R) :
+    SpecR (Inv (ctxH C H) s Γ M D) (bfindP x t k en rest) s (k' r0) R := by
+  subst hr0
+  refine specR_congr (m' := (pure (bfLook es C.fe n) : AM _) >>= k') (by simp) ?_
+  exact specR_bfindI hok hcG hcP hcode x t k en es ob n hT hx hk ht htk hen hcont
 
 end
 

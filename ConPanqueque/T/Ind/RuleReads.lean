@@ -52,6 +52,8 @@ def ruleCopyP (C : Ctx) (x q : MlS) (rest : ProgHOL 64) : ProgHOL 64 :=
         (alloc6 C x (vv ryC) (vv ryN) (.const 1) (vv ryB1) (vv ryB2) (vv ryH) rest)))
       (alloc6 C x (vv ryC) (vv ryN) (.const 2) (vv ryB1) (.const 0) (vv ryH) rest))))))))
 
+def rdBt := ofString "rd_bt"
+def rdFk := ofString "rd_fk"
 def rdR := ofString "rd_r"
 def rdMI := ofString "rd_mi"
 def rdRP := ofString "rd_rp"
@@ -74,8 +76,8 @@ def rdPd := ofString "rd_pd"
 def rdZ := ofString "rd_z"
 def fRuleReads := ofString "ruleReads"
 
-def rdParams : List MlS := [rdR, rdMI, rdRP, rdI, rdQ, rdT]
-def rdLocals : List MlS := [rdX, rdK, rdNF, rdP1, rdCt, rdE, rdTg, rdCn, rdLw, rdL, rdTy, rdP2, rdPd, rdZ,
+def rdParams : List MlS := [rdBt, rdR, rdMI, rdRP, rdI, rdQ, rdT]
+def rdLocals : List MlS := [rdX, rdFk, rdK, rdNF, rdP1, rdCt, rdE, rdTg, rdCn, rdLw, rdL, rdTy, rdP2, rdPd, rdZ,
   ryT, ryC, ryN, ryH, ryW1, ryW2, ryB1, ryB2, lCn, lSrc, lDst, lCi, lCz]
 
 def rdBody (C : Ctx) : ProgHOL 64 := prologue rdLocals
@@ -88,7 +90,7 @@ def rdBody (C : Ctx) : ProgHOL 64 := prologue rdLocals
   (.seq (.call (some (some (.local, rdP1), none)) fIotaPartsOf [vv rdR, vv rdRP, vv rdK, vv rdI, vv rdNF])
   (.ite (veEqC rdP1 0) (.return (.const 0))
   (.seq (.assign .local rdCt (.load .one (vv rdQ)))
-  (envFindP C rdE (vv rdCt)
+  (bfindP rdE rdBt rdFk (vv rdCt)
   (.ite (veEqC rdE 0) (.return (.const 0))
   (.seq (.assign .local rdTg (.load .one (.op .sub [vv rdE, .const 1])))
   (.ite (veEqC rdTg 4)
@@ -100,7 +102,7 @@ def rdBody (C : Ctx) : ProgHOL 64 := prologue rdLocals
     (.seq (.call (some (some (.local, rdP2), none)) fIotaPartsAt [vv rdX, vv rdL, vv rdTy, vv rdCn, vv rdMI, vv rdRP])
     (.ite (veEqC rdP2 0) (.return (.const 0))
     (.seq (.assign .local rdPd (.load .one (.op .add [vv rdP2, .const 32])))
-    (.seq (.call (some (some (.local, rdZ), none)) fIotaPartsRel [vv rdCn, vv rdT, vv rdX, vv rdP1, vv rdP2, vv rdPd])
+    (.seq (.call (some (some (.local, rdZ), none)) fIotaPartsRel [vv rdBt, vv rdCn, vv rdT, vv rdX, vv rdP1, vv rdP2, vv rdPd])
       (.return (vv rdZ)))))))))))
     (.return (.const 0)))))))))))))))))
 
@@ -336,13 +338,15 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (hm : mI < 2 ^ 64) (hr : rP < 2 ^ 64) (hi : i < 2 ^ 64)
     (H : List (BitVec 64)) (hp : C.H <+: H) (hrn : rr = none → wr = 0)
     (hrs : ∀ r, rr = some r → ∃ ob, wr = cellA C ob ∧ IotaRecRep C H ob r)
+    (es : List (NIdx × Nat × IConstantInfo)) (ob0 : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
+    (hfD : EnvDen fe C.pins C.St) (hT : BTabAt C H ob0 es)
     (hq : RuleE C.EB C.EH oq rl) (crec : NIdx) (isK : Bool) (rules : List IRecRule)
-    (hrec : C.fe.find? crec = some (.recInfo cv mI rP isK rules)) (hmem : rl ∈ rules) (s : AState) :
-    SpecR (σ := σ) (Pre (ctxH C H) s (rdParams.zip [wr, BitVec.ofNat 64 mI, BitVec.ofNat 64 rP, BitVec.ofNat 64 i,
-      ecell C oq, Enc.idxW cv.type])) (rdBody C) s (ruleReads C.fe cv rr mI rP i rl) (PostB (ctxH C H)) := by
+    (hrec : fe.find? crec = some (.recInfo cv mI rP isK rules)) (hmem : rl ∈ rules) (s : AState) :
+    SpecR (σ := σ) (Pre (ctxH C H) s (rdParams.zip [cellA C ob0, wr, BitVec.ofNat 64 mI, BitVec.ofNat 64 rP, BitVec.ofNat 64 i,
+      ecell C oq, Enc.idxW cv.type])) (rdBody C) s (ruleReads fe cv rr mI rP i rl) (PostB (ctxH C H)) := by
   refine specR_prologue (postB_locals _) (rd_none _ _) ?_
   unfold ruleReads
-  let Γ0 : Env := ctxEnv (ctxH C H) ++ rdParams.zip [wr, BitVec.ofNat 64 mI, BitVec.ofNat 64 rP, BitVec.ofNat 64 i,
+  let Γ0 : Env := ctxEnv (ctxH C H) ++ rdParams.zip [cellA C ob0, wr, BitVec.ofNat 64 mI, BitVec.ofNat 64 rP, BitVec.ofNat 64 i,
       ecell C oq, Enc.idxW cv.type]
   have cnl : ∀ {Γ : Env} {x z : MlS} {v : BitVec 64}, x ∈ rdLocals → z ∉ rdLocals →
       Env.get ((x, v) :: Γ) z = Env.get Γ z := fun {Γ x z v} hx hz => by
@@ -352,8 +356,9 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       Γ0.get y = some v → Γ.get y = some v := fun Γ hΓ y hy v h => by
     have hyl : y ∉ rdLocals := by
       simp only [rdParams, List.mem_cons, List.not_mem_nil, or_false] at hy
-      rcases hy with rfl|rfl|rfl|rfl|rfl|rfl <;> decide
+      rcases hy with rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> decide
     rw [hΓ y hyl, h]
+  have gBt : Γ0.get rdBt = some (cellA C ob0) := by simp +decide [Γ0, Env.get, rdParams, ctxEnv]
   have gR : Γ0.get rdR = some wr := by simp +decide [Γ0, Env.get, rdParams, ctxEnv]
   have gMI : Γ0.get rdMI = some (BitVec.ofNat 64 mI) := by simp +decide [Γ0, Env.get, rdParams, ctxEnv]
   have gRP : Γ0.get rdRP = some (BitVec.ofNat 64 rP) := by simp +decide [Γ0, Env.get, rdParams, ctxEnv]
@@ -391,7 +396,7 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
   have g1 : ∀ y, y ∈ rdParams → ∀ v, Γ0.get y = some v → Γ1.get y = some v := fun y hy v h => by
     have hyl : y ∉ rdX :: rySc := by
       simp only [rdParams, List.mem_cons, List.not_mem_nil, or_false] at hy
-      rcases hy with rfl|rfl|rfl|rfl|rfl|rfl <;> decide
+      rcases hy with rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> decide
     rw [hΓ1 y hyl, h]
   refine specR_pureBind (mI - rP) ?_
   refine rb_tsub (D := ctxLocals ++ rdLocals) C hc.iq.ts mI rP (by omega) (by omega) H1 s rdK (vv rdMI) (vv rdRP)
@@ -408,7 +413,7 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
   have g2 : ∀ y, y ∈ rdParams → ∀ v, Γ0.get y = some v → Γ2.get y = some v := fun y hy v h => by
     have hyl : y ∉ rdLocals := by
       simp only [rdParams, List.mem_cons, List.not_mem_nil, or_false] at hy
-      rcases hy with rfl|rfl|rfl|rfl|rfl|rfl <;> decide
+      rcases hy with rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> decide
     simp only [Γ2]; rw [cnl (by decide) hyl, cnl (by decide) hyl]; exact g1 y hy v h
   refine specR_callNIH (C := ctxH C H2) rdP1 fIotaPartsOf iqoParams [vv rdR, vv rdRP, vv rdK, vv rdI, vv rdNF]
     (iqoBody C) [cellA C ob, BitVec.ofNat 64 rP, BitVec.ofNat 64 (mI - rP), BitVec.ofNat 64 i,
@@ -432,7 +437,7 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
   have g3 : ∀ y, y ∈ rdParams → ∀ v, Γ0.get y = some v → Γ3.get y = some v := fun y hy v h => by
     have hyl : y ∉ rdLocals := by
       simp only [rdParams, List.mem_cons, List.not_mem_nil, or_false] at hy
-      rcases hy with rfl|rfl|rfl|rfl|rfl|rfl <;> decide
+      rcases hy with rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> decide
     simp only [Γ3]; rw [cnl (by decide) hyl]; exact g2 y hy v h
   rcases o with _ | pp
   · rw [hn1 rfl]
@@ -448,26 +453,29 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
   simp only
   refine specR_envLoadI (C := ctxH C H3) rdCt (vv rdQ) oq (Enc.idxW rl.ctor) (by decide)
     (by simp only [sev, sev_vv]; exact g3 rdQ (by decide) _ gQ) hc0 ?_
-  have hkb : Env.get ((rdCt, Enc.idxW rl.ctor) :: Γ3) lKb = some (ctxH C H3).KB := by
-    simp +decide only [Γ3, Γ2, Env.get_cons, ite_false]
-    rw [hΓ1 lKb (by decide)]
-    simp +decide [Γ0, Env.get, rdParams, ctxEnv]; rfl
-  refine specR_envFindI (C := ctxH C H3) (ctxOK_H hok H3) hc.pr.ae.cG hc.pr.ae.cP rdE (vv rdCt) rl.ctor (by decide)
-    (by simp [sev, Env.get_cons]) hkb ?_
-  have hfr := find_rel (ctxOK_H hok H3) rl.ctor
-  have efe : (ctxH C H3).fe = C.fe := rfl
-  rw [efe] at hfr
-  cases hfm : C.fe.find? rl.ctor with
+  have hT3 : BTabAt C H3 ob0 es := btabAt_mono hT hp13
+  generalize hb0 : fe.find? rl.ctor = r0
+  have hr0 : bfLook es C.fe rl.ctor = r0 := by rw [← hb0, hfe]
+  refine specR_bfindI' (C := C) (D := ctxLocals ++ rdLocals) (H := H3)
+    (k' := fun r => match r with
+      | some (.ctorInfo cvj cnP _ _) => do
+        match ← iotaPartsAt cvj cnP mI rP rl with
+        | some (p, pd) => iotaPartsRel fe cnP cv rl pp p pd
+        | none => pure false
+      | _ => pure false) hok hc.pr.ae.cG hc.pr.ae.cP hc.pr.ae.cF
+    rdE rdBt rdFk (vv rdCt) es ob0 rl.ctor r0 hr0 hT3 (by decide) (by decide) ?ht (by decide) ?hen (fun w hw => ?k)
+  case ht => simp +decide only [Γ3, Γ2, Env.get_cons, ite_false]; exact g1 rdBt (by decide) _ gBt
+  case hen => intro v; simp +decide [sev, Env.get_cons]
+  obtain ⟨hw1, hw2⟩ := hw
+  cases hfm : r0 with
   | none =>
-    rw [hfm] at hfr
-    simp only [hfr, optWG]
+    rw [hw1 hfm]
     refine specR_ifI _ 1 (by simp +decide [veEqC, sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
       (fun _ => ?_) (fun h => absurd h (by decide))
     exact ret0 H3 s1 _ _ hp13
   | some ci =>
-    rw [hfm] at hfr
-    obtain ⟨o, he, hcie⟩ := hfr
-    simp only [he, optWG, id]
+    obtain ⟨o, rfl, hcie⟩ := hw2 ci hfm
+    rw [hfm] at hb0
     refine specR_fact (fun t ht => ht.sr.env.1.len) (fun hEN => ?_)
     have hEN' : C.EH.length ≤ C.EN := hEN
     have ho : o < C.EN := by have := cie_lt hcie; exact Nat.lt_of_lt_of_le this hEN
@@ -489,11 +497,11 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
         simp only [sev, sev_vv, h]; simp
         simp only [ecell]; apply BitVec.eq_of_toNat_eq; simp [BitVec.toNat_add]; omega
       refine specR_envLoadI (C := ctxH C H3) rdCn _ (o + 4) (BitVec.ofNat 64 cnP) (by decide)
-        (eaddr 4 (by decide) _ (by simp +decide [Env.get_cons])) hnp ?_
+        (eaddr 4 (by decide) _ (by simp +decide [Env.get_cons]; rfl)) hnp ?_
       refine specR_guardI rdCn cnP 58 (by decide) (by simp [Env.get_cons]) (by omega) (fun hcn => ?_)
       obtain ⟨wl, hwl, oL0, hwlo, hebL⟩ := hcve.2.1
       refine specR_envLoadI (C := ctxH C H3) rdLw _ (o + 2) wl (by decide)
-        (eaddr 2 (by decide) _ (by simp +decide [Env.get_cons])) (by rw [show o + 2 = o + 1 + 1 by omega]; exact hwl) ?_
+        (eaddr 2 (by decide) _ (by simp +decide [Env.get_cons]; rfl)) (by rw [show o + 2 = o + 1 + 1 by omega]; exact hwl) ?_
       refine specR_envBlkCopyI hok rdL rdLw oL0 (cvj.levelParams.map Enc.idxW)
         ⟨by decide, by decide, by decide, by decide, by decide, by decide⟩
         (by simp [Env.get_cons, hwlo]; rfl) hebL
@@ -503,10 +511,13 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
         (by decide) (by decide) (fun H4 oL hp4 hl4 hbL => ?_)
       have hp14 : H <+: H4 := hp13.trans hp4
       refine specR_envLoadI (C := ctxH C H4) rdTy _ (o + 3) (Enc.idxW cvj.type) (by decide)
-        (eaddr 3 (by decide) _ (by simp +decide [Env.get_cons])) (by rw [show o + 3 = o + 1 + 2 by omega]; exact hcve.2.2)
+        (eaddr 3 (by decide) _ (by simp +decide [Env.get_cons]; rfl)) (by rw [show o + 3 = o + 1 + 2 by omega]; exact hcve.2.2)
         ?_
-      refine specR_fact (fun t ht => And.intro (sr_lpDen ht.sr rl.ctor _ hfm)
-        (And.intro (sr_tyDen ht.sr rl.ctor _ hfm) (sr_recDen ht.sr hrec hmem))) (fun ⟨⟨ks, hks⟩, hty, hrd⟩ => ?_)
+      refine specR_fact (fun t ht => And.intro
+        (denoteNList_total' _ ((envDen_ext hfD ht.sr.floor).1 rl.ctor _ hb0).1)
+        (And.intro ((envDen_ext hfD ht.sr.floor).1 rl.ctor _ hb0).2.1
+          ((envDen_ext hfD ht.sr.floor).2.2.2 crec cv mI rP isK rules hrec rl hmem)))
+        (fun ⟨⟨ks, hks⟩, hty, hrd⟩ => ?_)
       obtain ⟨tyP, htyP⟩ := Option.isSome_iff_exists.mp hty
       have hfl : ∀ lv, ((∃ pins, rl.fire = .nested lv pins) ∨ rl.fire = .levels lv) →
           ∃ ls, denoteLList s1.store.ls lv = some ls := fun lv h => denoteLList_some_of lv (hrd.1 lv h).1
@@ -515,7 +526,8 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
           (lDst, cellA C (oL + 1 + (cvj.levelParams.map Enc.idxW).length)) ::
           (lSrc, ecell C (oL0 + 1 + (cvj.levelParams.map Enc.idxW).length)) :: (rdL, cellA C oL) ::
           (lCn, BitVec.ofNat 64 (cvj.levelParams.map Enc.idxW).length) :: (rdLw, wl) :: (rdCn, BitVec.ofNat 64 cnP) ::
-          (rdTg, BitVec.ofNat 64 4) :: (rdE, ecell (ctxH C H3) o + 1) :: (rdCt, Enc.idxW rl.ctor) :: Γ3) rdX =
+          (rdTg, BitVec.ofNat 64 4) :: (rdE, ecell (ctxH C H3) o + 1) :: (rdFk, BitVec.ofNat 64 es.length) ::
+          (rdCt, Enc.idxW rl.ctor) :: Γ3) rdX =
           some (cellA C q1) := fun v => by
         simp +decide only [Γ3, Γ2, Env.get_cons, ite_false]; exact gX
       have gP4 : ∀ v y, y ∈ rdParams → ∀ w', Γ0.get y = some w' → Env.get ((rdTy, v) ::
@@ -523,17 +535,18 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
           (lDst, cellA C (oL + 1 + (cvj.levelParams.map Enc.idxW).length)) ::
           (lSrc, ecell C (oL0 + 1 + (cvj.levelParams.map Enc.idxW).length)) :: (rdL, cellA C oL) ::
           (lCn, BitVec.ofNat 64 (cvj.levelParams.map Enc.idxW).length) :: (rdLw, wl) :: (rdCn, BitVec.ofNat 64 cnP) ::
-          (rdTg, BitVec.ofNat 64 4) :: (rdE, ecell (ctxH C H3) o + 1) :: (rdCt, Enc.idxW rl.ctor) :: Γ3) y = some w' := by
+          (rdTg, BitVec.ofNat 64 4) :: (rdE, ecell (ctxH C H3) o + 1) :: (rdFk, BitVec.ofNat 64 es.length) ::
+          (rdCt, Enc.idxW rl.ctor) :: Γ3) y = some w' := by
         intro v y hy w' h
         have hyl : y ∉ rdLocals := by
           simp only [rdParams, List.mem_cons, List.not_mem_nil, or_false] at hy
-          rcases hy with rfl|rfl|rfl|rfl|rfl|rfl <;> decide
+          rcases hy with rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> decide
         have hy2 : y ≠ lCi ∧ y ≠ lDst ∧ y ≠ lSrc ∧ y ≠ lCn := by
           simp only [rdParams, List.mem_cons, List.not_mem_nil, or_false] at hy
-          rcases hy with rfl|rfl|rfl|rfl|rfl|rfl <;> decide
+          rcases hy with rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> decide
         rw [cnl (by decide) hyl, Env.get_cons, if_neg hy2.1, Env.get_cons, if_neg hy2.2.1, Env.get_cons, if_neg hy2.2.2.1,
           cnl (by decide) hyl, Env.get_cons, if_neg hy2.2.2.2, cnl (by decide) hyl, cnl (by decide) hyl,
-          cnl (by decide) hyl, cnl (by decide) hyl, cnl (by decide) hyl]
+          cnl (by decide) hyl, cnl (by decide) hyl, cnl (by decide) hyl, cnl (by decide) hyl]
         exact g3 y hy w' h
       refine specR_callNIH (C := ctxH C H4) rdP2 fIotaPartsAt apParams [vv rdX, vv rdL, vv rdTy, vv rdCn, vv rdMI, vv rdRP]
         (apBody C) [cellA C q1, cellA C oL, Enc.idxW cvj.type, BitVec.ofNat 64 cnP, BitVec.ofNat 64 mI,
@@ -566,19 +579,21 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       simp only
       refine UD.specR_heapLoadI' (C := ctxH C H5) rdPd _ (ob2 + 4) _ h4c (by decide)
         (by simp +decide [sev, Env.get_cons]; exact cellA_plus C ob2 4) ?_
-      refine specR_congr (m' := iotaPartsRel C.fe cnP cv rl pp p pd >>= fun r => pure r) (by rw [bind_pure]) ?_
+      refine specR_congr (m' := iotaPartsRel fe cnP cv rl pp p pd >>= fun r => pure r) (by rw [bind_pure]) ?_
       refine specR_callNIH (C := ctxH C H5) rdZ fIotaPartsRel prParams
-        [vv rdCn, vv rdT, vv rdX, vv rdP1, vv rdP2, vv rdPd] prBody
-        [BitVec.ofNat 64 cnP, Enc.idxW cv.type, cellA C q1, cellA C ob1, cellA C ob2, cellA C o4] (by decide) rfl
+        [vv rdBt, vv rdCn, vv rdT, vv rdX, vv rdP1, vv rdP2, vv rdPd] prBody
+        [cellA C ob0, BitVec.ofNat 64 cnP, Enc.idxW cv.type, cellA C q1, cellA C ob1, cellA C ob2, cellA C o4] (by decide) rfl
         (by decide) hc.prL
-        ⟨by simp +decide [sev, Env.get_cons],
+        ⟨by simp only [sev, sev_vv, Env.get_cons]; simp +decide; exact gP4 (Enc.idxW cvj.type) rdBt (by decide) _ gBt,
+          by simp +decide [sev, Env.get_cons],
           by simp only [sev, sev_vv, Env.get_cons]; simp +decide; exact gP4 (Enc.idxW cvj.type) rdT (by decide) _ gT,
           by simp only [sev, sev_vv, Env.get_cons]; simp +decide; exact gX4 (Enc.idxW cvj.type),
           by simp +decide [sev, Env.get_cons, Γ3], by simp +decide [sev, Env.get_cons],
           by simp +decide [sev, Env.get_cons], trivial⟩
         (PostB (ctxH C H5)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
         (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu prParams _ rfl hlk)
-          (pr_spec ra C hok hf hc.pr hAn cnP hcn cv rl pp p pd q1 ob1 ob2 o4 H5
+          (pr_spec ra C hok hf hc.pr hAn es ob0 fe hfe cnP hcn cv rl pp p pd q1 ob1 ob2 o4 H5
+            (btabAt_mono hT hp15)
             (ConPanqueque.T.Decl.ruleE_mono hp45 hq14) (partsRep_mono hpr1 (hp4.trans hp45)) hpr2 hbpd s2))
         (fun r w s3 H6 hp6 hw => ?_)
       subst hw

@@ -19,6 +19,7 @@ open ConPanqueque.T ConPanqueque.T.Ex ConPanqueque.T.Knot ConPanqueque.T.ExS Con
 open ConPanqueque.Start (vPn vKa strStepP strStep_spec strBytes)
 open ConPanqueque.Front (FrontOK frontOK_H)
 
+def aeBt := ofString "ae_bt"
 def aeS := ofString "ae_s"
 def aeC := ofString "ae_c"
 def aeR := ofString "ae_r"
@@ -32,7 +33,7 @@ def aeO := ofString "ae_o"
 def aeT := ofString "ae_t"
 def fAnnEq := ofString "annEq"
 
-def aeParams : List MlS := [pFu, aeS, aeC]
+def aeParams : List MlS := [aeBt, pFu, aeS, aeC]
 def aeLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, aeR, aeF, aeX, aeG, aeA, aeN, aeU, aeO, aeT, vPn, vKa]
 
 /-- `topName str` into `vPn`. -/
@@ -47,9 +48,9 @@ def aeArm (C : Ctx) (s1 s2 : String) (k : Nat) (xv : MlS) : ProgHOL 64 :=
     (topNameP C s1 (.seq (.assign .local aeO (vv vPn))
     (topNameP C s2 (.seq (.assign .local aeT (vv vPn))
     (.ite (.op .or [.cmp .equal (vv aeN) (vv aeO), .cmp .equal (vv aeN) (vv aeT)])
-      (.seq (.call (some (some (.local, aeR), none)) fAnnIdent [vv aeN, .const (BitVec.ofNat 64 k)])
+      (.seq (.call (some (some (.local, aeR), none)) fAnnIdent [vv aeBt, vv aeN, .const (BitVec.ofNat 64 k)])
       (.ite (veEqC aeR 0) (.return (.const 0))
-      (.seq (.call (some (some (.local, aeR), none)) fAnnEq [.op .sub [vv pFu, .const 1], vv aeS, vv xv])
+      (.seq (.call (some (some (.local, aeR), none)) fAnnEq [vv aeBt, .op .sub [vv pFu, .const 1], vv aeS, vv xv])
         (.return (vv aeR)))))
       (.return (.const 0)))))))
     (.return (.const 0)))))
@@ -114,11 +115,12 @@ structure AECodes (C : Ctx) : Prop where
   cI : C.code.lookup fAnnIdentBody = some (aiParams.map (fun p => (p, ShapeHOL.one)), aiBody, .one)
   cV : C.code.lookup fAnnIdentVal = some (avParams.map (fun p => (p, ShapeHOL.one)), avBody, .one)
   cA : C.code.lookup fAnnIdent = some (anParams.map (fun p => (p, ShapeHOL.one)), anBody C, .one)
+  cF : C.code.lookup fBFindGo = some (bfParams.map (fun p => (p, ShapeHOL.one)), bfBody C, .one)
 
-def RecAE (C : Ctx) (n : Nat) : Prop :=
-  ∀ (H : List (BitVec 64)) (c0 c : EIdx) (s : AState),
-    SpecR (Pre (σ := σ) (ctxH C H) s (aeParams.zip [BitVec.ofNat 64 n, Enc.idxW c0, Enc.idxW c])) (aeBody C) s
-      (annEq C.fe n c0 c) (PostB (ctxH C H))
+def RecAE (C : Ctx) (es : List (NIdx × Nat × IConstantInfo)) (ob : Nat) (fe : IFEnv) (n : Nat) : Prop :=
+  ∀ (H : List (BitVec 64)) (_ : BTabAt C H ob es) (c0 c : EIdx) (s : AState),
+    SpecR (Pre (σ := σ) (ctxH C H) s (aeParams.zip [cellA C ob, BitVec.ofNat 64 n, Enc.idxW c0, Enc.idxW c])) (aeBody C)
+      s (annEq fe n c0 c) (PostB (ctxH C H))
 
 theorem sev_or2 (Γ : Env) (e1 e2 : ExpHOL 64) (a b : BitVec 64)
     (h1 : sev Γ e1 = some a) (h2 : sev Γ e2 = some b) : sev Γ (.op .or [e1, e2]) = some (a ||| b) := by
@@ -138,13 +140,15 @@ theorem sev_eqIdx (Γ : Env) (x y : MlS) (a b : NIdx) (hx : Γ.get x = some (Enc
 
 /-- An annotation arm. -/
 theorem aeArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hf : FrontOK C)
-    (hc : AECodes C) (hA : denoteN C.St.ns anonH = some .anonymous) (fuel : Nat) (ih : RecAE (σ := σ) C fuel)
-    (H H1 : List (BitVec 64)) (hp : H <+: H1) (s1 : AState) (Γ : Env) (M : Mem)
+    (hc : AECodes C) (hA : denoteN C.St.ns anonH = some .anonymous)
+    (es : List (NIdx × Nat × IConstantInfo)) (ob : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
+    (fuel : Nat) (ih : RecAE (σ := σ) C es ob fe fuel)
+    (H H1 : List (BitVec 64)) (hp : H <+: H1) (hT : BTabAt C H1 ob es) (s1 : AState) (Γ : Env) (M : Mem)
     (c0 x : EIdx) (nm : NIdx) (us : LsIdx) (str1 str2 : String) (k : Nat) (hk : k < 2 ^ 64) (xv : MlS)
     (hxv : xv = aeA ∨ xv = aeX) (hb1 : (strBytes str1).length < 2 ^ 50) (hb2 : (strBytes str2).length < 2 ^ 50)
     (gN : Γ.get aeN = some (Enc.idxW nm)) (gU : Γ.get aeU = some (Enc.idxW us)) (gX : Γ.get xv = some (Enc.idxW x))
     (gS : Γ.get aeS = some (Enc.idxW c0)) (gFu : Γ.get pFu = some (BitVec.ofNat 64 (fuel + 1)))
-    (gFls : Γ.get lFls = some C.FLs) (gDir : Γ.get lDir = some C.L.DIR) :
+    (gFls : Γ.get lFls = some C.FLs) (gDir : Γ.get lDir = some C.L.DIR) (gBt : Γ.get aeBt = some (cellA C ob)) :
     SpecR (σ := σ) (Inv (ctxH C H1) s1 Γ M (ctxLocals ++ aeLocals)) (aeArm C str1 str2 k xv) s1
       (do
         let __do_lift ← viewLsLen us
@@ -153,8 +157,8 @@ theorem aeArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
             let o ← topName str1
             let t ← topName str2
             if (nm == o || nm == t) = true then do
-                let __do_lift ← annIdent C.fe nm k
-                if __do_lift = true then annEq C.fe fuel c0 x else pure false
+                let __do_lift ← annIdent fe nm k
+                if __do_lift = true then annEq fe fuel c0 x else pure false
               else pure false
           | some _ => pure false
           | none => failDanglingLs)
@@ -205,12 +209,12 @@ theorem aeArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
   · refine specR_ifI _ _ (hor _ (by simp +decide [Env.get_cons]; exact gN) (by simp +decide [Env.get_cons])
         (by simp +decide [Env.get_cons])) (fun _ => ?_) (fun h => absurd h (by simp [boolW, hnt]))
     simp only [hnt, ite_true]
-    refine specR_callNIH (C := ctxH C H1) aeR fAnnIdent anParams [vv aeN, .const (BitVec.ofNat 64 k)] (anBody C)
-      [Enc.idxW nm, BitVec.ofNat 64 k] (by decide) rfl (by decide) hc.cA
-      ⟨by simp +decide [sev, Env.get_cons]; exact gN, rfl, trivial⟩
+    refine specR_callNIH (C := ctxH C H1) aeR fAnnIdent anParams [vv aeBt, vv aeN, .const (BitVec.ofNat 64 k)]
+      (anBody C) [cellA C ob, Enc.idxW nm, BitVec.ofNat 64 k] (by decide) rfl (by decide) hc.cA
+      ⟨by simp +decide [sev, Env.get_cons]; exact gBt, by simp +decide [sev, Env.get_cons]; exact gN, rfl, trivial⟩
       (PostB (ctxH C H1)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu anParams _ rfl hlk)
-        (an_spec ra C hok hf hc.cN hc.cG hc.cP hc.cB hc.cW hc.cI hc.cV H1 nm k hk s3))
+        (an_spec ra C hok hf hc.cN hc.cG hc.cP hc.cB hc.cW hc.cI hc.cV hc.cF es ob fe hfe H1 hT nm k hk s3))
       (fun r w s4 H2 hp2 hw => ?_)
     subst hw
     have hp2' : H1 <+: H2 := hp2
@@ -221,10 +225,11 @@ theorem aeArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
     refine specR_ifI _ 0 (by simp +decide [veEqC, sev, Env.get_cons, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
       (fun h => absurd rfl h) (fun _ => ?_)
     simp only [ite_true]
-    refine specR_congr (m' := annEq C.fe fuel c0 x >>= fun r => pure r) (by rw [bind_pure]) ?_
-    refine specR_callNIH (C := ctxH C H2) aeR fAnnEq aeParams [.op .sub [vv pFu, .const 1], vv aeS, vv xv] (aeBody C)
-      [BitVec.ofNat 64 fuel, Enc.idxW c0, Enc.idxW x] (by decide) rfl (by decide) hc.ae
-      ⟨by
+    refine specR_congr (m' := annEq fe fuel c0 x >>= fun r => pure r) (by rw [bind_pure]) ?_
+    refine specR_callNIH (C := ctxH C H2) aeR fAnnEq aeParams [vv aeBt, .op .sub [vv pFu, .const 1], vv aeS, vv xv]
+      (aeBody C) [cellA C ob, BitVec.ofNat 64 fuel, Enc.idxW c0, Enc.idxW x] (by decide) rfl (by decide) hc.ae
+      ⟨by simp +decide [sev, Env.get_cons]; exact gBt,
+        by
           show sev _ _ = _
           rw [sev_sub2 _ _ _ _ _ (by simp +decide only [sev, sev_vv, Env.get_cons, ite_false]; exact gFu) rfl]
           exact congrArg some (ofNat_succ_sub_one fuel),
@@ -235,7 +240,8 @@ theorem aeArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
             hxa.2.2.2.2.2.2.2.2.2.2.1, hxa.2.2.2.2.2.2.2.2.2.2.2, ite_false]
           exact gX, trivial⟩
       (PostB (ctxH C H2)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu aeParams _ rfl hlk) (ih H2 c0 x s4))
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu aeParams _ rfl hlk)
+        (ih H2 (btabAt_mono hT hp2') c0 x s4))
       (fun r w s5 H3 hp3 hw => ?_)
     subst hw
     have hp3' : H2 <+: H3 := hp3
@@ -248,19 +254,22 @@ theorem aeArm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
 
 /-- **`annEq`** at fuel below `2 ^ 63`. -/
 theorem ae_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hf : FrontOK C)
-    (hc : AECodes C) (hA : denoteN C.St.ns anonH = some .anonymous) : ∀ n, n < 2 ^ 63 → RecAE (σ := σ) C n := by
+    (hc : AECodes C) (hA : denoteN C.St.ns anonH = some .anonymous)
+    (es : List (NIdx × Nat × IConstantInfo)) (ob : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n) :
+    ∀ n, n < 2 ^ 63 → RecAE (σ := σ) C es ob fe n := by
   intro n
   induction n with
   | zero =>
-    intro _ H c0 c s
+    intro _ H _ c0 c s
     refine specR_prologue (postB_locals _) (ae_none _ _) ?_
     refine specR_ifI _ _ rfl (fun _ => specR_hangI) (fun hw => ?_)
     simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, sev, Env.get, aeParams, ctxEnv] at hw
   | succ n ih =>
-    intro hfu H c0 c s
+    intro hfu H hT c0 c s
     have ih' := ih (by omega)
     refine specR_prologue (postB_locals _) (ae_none _ _) ?_
-    let Γ0 : Env := ctxEnv (ctxH C H) ++ aeParams.zip [BitVec.ofNat 64 (n + 1), Enc.idxW c0, Enc.idxW c]
+    let Γ0 : Env := ctxEnv (ctxH C H) ++ aeParams.zip [cellA C ob, BitVec.ofNat 64 (n + 1), Enc.idxW c0, Enc.idxW c]
+    have gBt : Γ0.get aeBt = some (cellA C ob) := by simp +decide [Γ0, Env.get, aeParams, ctxEnv]
     have gFu : Γ0.get pFu = some (BitVec.ofNat 64 (n + 1)) := by simp +decide [Γ0, Env.get, aeParams, ctxEnv]
     have gS : Γ0.get aeS = some (Enc.idxW c0) := by simp +decide [Γ0, Env.get, aeParams, ctxEnv]
     have gC : Γ0.get aeC = some (Enc.idxW c) := by simp +decide [Γ0, Env.get, aeParams, ctxEnv]
@@ -377,11 +386,12 @@ theorem ae_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
         (by simp +decide [sev, Env.get_cons]) rfl
         (List.mem_append_left _ (by have := wordsAt_mem1 Pg (Enc.idxW nm) (Enc.idxW us) [] []; simpa [encEView, Enc.encConst] using this)) ?_
       simp only []
-      exact aeArm_spec ra C hok hf hc hA n ih' H H1 hp1' s1 _ _ c0 a nm us "optParam" "autoParam" 2 (by decide) aeA
+      exact aeArm_spec ra C hok hf hc hA es ob fe hfe n ih' H H1 hp1' (btabAt_mono hT hp1') s1 _ _ c0 a nm us "optParam" "autoParam" 2 (by decide) aeA
         (Or.inl rfl) (by decide) (by decide) (by simp +decide [Env.get_cons]) (by simp [Env.get_cons])
         (by simp +decide [Env.get_cons]) (by simp +decide [Env.get_cons]; exact gS) (by simp +decide [Env.get_cons]; exact gFu)
         (by simp +decide [Env.get_cons, Env.get, aeParams, ctxEnv] <;> rfl)
         (by simp +decide [Env.get_cons, Env.get, aeParams, ctxEnv] <;> rfl)
+        (by simp +decide [Env.get_cons]; exact gBt)
     · refine specR_ifI _ _ (gTag _ vf 4 (by decide) (by simp [Env.get_cons])) (fun h => absurd h (by simp [boolW, hf4]))
         (fun _ => ?_)
       simp only [tagNo f vf 4 ETag.app rfl (by decide) hatf hf4, Bool.false_eq_true, ite_false]
@@ -405,11 +415,12 @@ theorem ae_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
         (by simp +decide [sev, Env.get_cons]) rfl
         (by simpa [encEView, Enc.encConst] using wordsAt_mem1 Pf (Enc.idxW nm) (Enc.idxW us) [] _) ?_
       simp only []
-      exact aeArm_spec ra C hok hf hc hA n ih' H H1 hp1' s1 _ _ c0 x nm us "outParam" "semiOutParam" 1 (by decide) aeX
+      exact aeArm_spec ra C hok hf hc hA es ob fe hfe n ih' H H1 hp1' (btabAt_mono hT hp1') s1 _ _ c0 x nm us "outParam" "semiOutParam" 1 (by decide) aeX
         (Or.inr rfl) (by decide) (by decide) (by simp +decide [Env.get_cons]) (by simp [Env.get_cons])
         (by simp +decide [Env.get_cons]) (by simp +decide [Env.get_cons]; exact gS) (by simp +decide [Env.get_cons]; exact gFu)
         (by simp +decide [Env.get_cons, Env.get, aeParams, ctxEnv] <;> rfl)
         (by simp +decide [Env.get_cons, Env.get, aeParams, ctxEnv] <;> rfl)
+        (by simp +decide [Env.get_cons]; exact gBt)
 
 end
 

@@ -14,6 +14,7 @@ namespace ConPanqueque.T.Ind
 
 open ConPanqueque.T ConPanqueque.T.Ex ConPanqueque.T.Knot ConPanqueque.T.ExS ConPanqueque.T.ExI
 
+def laBt := ofString "la_bt"
 def laPa := ofString "la_pa"
 def laPb := ofString "la_pb"
 def laI := ofString "la_i"
@@ -24,7 +25,7 @@ def laY := ofString "la_y"
 def laR := ofString "la_r"
 def fListAnnEq := ofString "listAnnEq"
 
-def laParams : List MlS := [laPa, laPb, laI]
+def laParams : List MlS := [laBt, laPa, laPb, laI]
 def laLocals : List MlS := [laNa, laNb, laX, laY, laR]
 
 def laBody : ProgHOL 64 := prologue laLocals
@@ -35,9 +36,9 @@ def laBody : ProgHOL 64 := prologue laLocals
       (.seq (.assign .local laX (.load .one (.op .add [vv laPa, .shift .lsl (.op .add [vv laI, .const 1]) (.const 3)])))
       (.seq (.assign .local laY (.load .one (.op .add [vv laPb, .shift .lsl (.op .add [vv laI, .const 1]) (.const 3)])))
       (.seq (.call (some (some (.local, laR), none)) fAnnEq
-        [.const (BitVec.ofNat 64 coreWalkFuel), vv laX, vv laY])
+        [vv laBt, .const (BitVec.ofNat 64 coreWalkFuel), vv laX, vv laY])
       (.ite (veEqC laR 0) (.return (.const 0))
-      (.seq (.call (some (some (.local, laR), none)) fListAnnEq [vv laPa, vv laPb, .op .add [vv laI, .const 1]])
+      (.seq (.call (some (some (.local, laR), none)) fListAnnEq [vv laBt, vv laPa, vv laPb, .op .add [vv laI, .const 1]])
         (.return (vv laR)))))))
       (.return (.const 0)))
     (.ite (.cmp .lower (vv laI) (vv laNb)) (.return (.const 0)) (.return (.const 1))))))
@@ -58,16 +59,18 @@ theorem listAnnEq_drop_cons (fe : IFEnv) (as bs : List EIdx) (i : Nat) (ha : i <
 theorem la_step (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hf : Front.FrontOK C)
     (hc : AECodes C) (hAn : denoteN C.St.ns anonH = some .anonymous)
     (hcl : C.code.lookup fListAnnEq = some (laParams.map (fun p => (p, ShapeHOL.one)), laBody, .one))
+    (es : List (NIdx × Nat × IConstantInfo)) (ob : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
     (pa pb : Nat) (as bs : List EIdx) (i : Nat) (H : List (BitVec 64)) (s : AState) (hi : i ≤ as.length)
-    (hA : BlkAt H pa (as.map Enc.idxW)) (hB : BlkAt H pb (bs.map Enc.idxW))
-    (rec : i < as.length → ∀ (H' : List (BitVec 64)) (s' : AState), BlkAt H' pa (as.map Enc.idxW) →
+    (hT : BTabAt C H ob es) (hA : BlkAt H pa (as.map Enc.idxW)) (hB : BlkAt H pb (bs.map Enc.idxW))
+    (rec : i < as.length → ∀ (H' : List (BitVec 64)) (s' : AState), BTabAt C H' ob es → BlkAt H' pa (as.map Enc.idxW) →
       BlkAt H' pb (bs.map Enc.idxW) →
-      SpecR (Pre (σ := σ) (ctxH C H') s' (laParams.zip [cellA C pa, cellA C pb, BitVec.ofNat 64 (i + 1)])) laBody s'
-        (listAnnEq C.fe (as.drop (i + 1)) (bs.drop (i + 1))) (PostB (ctxH C H'))) :
-    SpecR (Pre (σ := σ) (ctxH C H) s (laParams.zip [cellA C pa, cellA C pb, BitVec.ofNat 64 i])) laBody s
-      (listAnnEq C.fe (as.drop i) (bs.drop i)) (PostB (ctxH C H)) := by
+      SpecR (Pre (σ := σ) (ctxH C H') s' (laParams.zip [cellA C ob, cellA C pa, cellA C pb, BitVec.ofNat 64 (i + 1)])) laBody s'
+        (listAnnEq fe (as.drop (i + 1)) (bs.drop (i + 1))) (PostB (ctxH C H'))) :
+    SpecR (Pre (σ := σ) (ctxH C H) s (laParams.zip [cellA C ob, cellA C pa, cellA C pb, BitVec.ofNat 64 i])) laBody s
+      (listAnnEq fe (as.drop i) (bs.drop i)) (PostB (ctxH C H)) := by
   refine specR_prologue (postB_locals _) (la_none _ _) ?_
-  let Γ0 : Env := ctxEnv (ctxH C H) ++ laParams.zip [cellA C pa, cellA C pb, BitVec.ofNat 64 i]
+  let Γ0 : Env := ctxEnv (ctxH C H) ++ laParams.zip [cellA C ob, cellA C pa, cellA C pb, BitVec.ofNat 64 i]
+  have gBt : Γ0.get laBt = some (cellA C ob) := by simp +decide [Γ0, Env.get, laParams, ctxEnv]
   have gPa : Γ0.get laPa = some (cellA C pa) := by simp +decide [Γ0, Env.get, laParams, ctxEnv]
   have gPb : Γ0.get laPb = some (cellA C pb) := by simp +decide [Γ0, Env.get, laParams, ctxEnv]
   have gI : Γ0.get laI = some (BitVec.ofNat 64 i) := by simp +decide [Γ0, Env.get, laParams, ctxEnv]
@@ -99,7 +102,7 @@ theorem la_step (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
           rw [sev_cmp2 _ _ _ _ (BitVec.ofNat 64 i) (BitVec.ofNat 64 bs.length) gI' (by simp +decide [sev, Env.get_cons]),
             wcL _ _ (by omega) (by omega)]; simp [hib])
         (fun _ => ?_) (fun h => absurd h (by decide))
-      rw [listAnnEq_drop_cons C.fe as bs i hia hib]
+      rw [listAnnEq_drop_cons fe as bs i hia hib]
       have hxa : (ctxH C H).H[pa + 1 + i]? = some (Enc.idxW as[i]) := by
         have := hA.2 i (by simp; omega); show H[pa + 1 + i]? = _; simpa using this
       have hyb : (ctxH C H).H[pb + 1 + i]? = some (Enc.idxW bs[i]) := by
@@ -120,13 +123,15 @@ theorem la_step (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
           show _ = cellA C (pb + 1 + i)
           apply BitVec.eq_of_toNat_eq; simp [cellA, BitVec.toNat_add, BitVec.toNat_shiftLeft, Nat.shiftLeft_eq]
           omega) ?_
-      refine specR_callNIH (C := ctxH C H) laR fAnnEq aeParams [.const (BitVec.ofNat 64 coreWalkFuel), vv laX, vv laY]
-        (aeBody C) [BitVec.ofNat 64 coreWalkFuel, Enc.idxW as[i], Enc.idxW bs[i]] (by decide) rfl
+      refine specR_callNIH (C := ctxH C H) laR fAnnEq aeParams
+        [vv laBt, .const (BitVec.ofNat 64 coreWalkFuel), vv laX, vv laY]
+        (aeBody C) [cellA C ob, BitVec.ofNat 64 coreWalkFuel, Enc.idxW as[i], Enc.idxW bs[i]] (by decide) rfl
         (by simp +decide [ctxLocals, laLocals]) hc.ae
-        ⟨rfl, by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], trivial⟩
+        ⟨by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gBt; exact gBt, rfl,
+          by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], trivial⟩
         (PostB (ctxH C H)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
         (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu aeParams _ rfl hlk)
-          (ae_spec ra C hok hf hc hAn coreWalkFuel coreWalkFuel_lt63 H as[i] bs[i] s))
+          (ae_spec ra C hok hf hc hAn es ob fe hfe coreWalkFuel coreWalkFuel_lt63 H hT as[i] bs[i] s))
         (fun r w s1 H1 hp1 hw => ?_)
       subst hw
       have hp1' : H <+: H1 := hp1
@@ -137,11 +142,12 @@ theorem la_step (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       refine specR_ifI _ 0 (by simp +decide [veEqC, sev, Env.get_cons, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
         (fun h => absurd rfl h) (fun _ => ?_)
       simp only [ite_true]
-      refine specR_congr (m' := listAnnEq C.fe (as.drop (i + 1)) (bs.drop (i + 1)) >>= fun r => pure r) (by rw [bind_pure]) ?_
-      refine specR_callNIH (C := ctxH C H1) laR fListAnnEq laParams [vv laPa, vv laPb, .op .add [vv laI, .const 1]]
-        laBody [cellA C pa, cellA C pb, BitVec.ofNat 64 (i + 1)] (by decide) rfl
+      refine specR_congr (m' := listAnnEq fe (as.drop (i + 1)) (bs.drop (i + 1)) >>= fun r => pure r) (by rw [bind_pure]) ?_
+      refine specR_callNIH (C := ctxH C H1) laR fListAnnEq laParams [vv laBt, vv laPa, vv laPb, .op .add [vv laI, .const 1]]
+        laBody [cellA C ob, cellA C pa, cellA C pb, BitVec.ofNat 64 (i + 1)] (by decide) rfl
         (by simp +decide [ctxLocals, laLocals]) hcl
-        ⟨by simp only [sev, sev_vv, Env.get_cons]; simp +decide; exact gPa,
+        ⟨by simp only [sev, sev_vv, Env.get_cons]; simp +decide; exact gBt,
+          by simp only [sev, sev_vv, Env.get_cons]; simp +decide; exact gPa,
           by simp only [sev, sev_vv, Env.get_cons]; simp +decide; exact gPb,
           by
             show sev _ _ = _
@@ -149,7 +155,7 @@ theorem la_step (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
             exact congrArg some (word_add1_eq i), trivial⟩
         (PostB (ctxH C H1)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp, hw, hsr⟩ => ⟨H', hp, hw, hsr⟩)
         (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu laParams _ rfl hlk)
-          (rec hia H1 s1 (blkAt_mono hA hp1') (blkAt_mono hB hp1')))
+          (rec hia H1 s1 (btabAt_mono hT hp1') (blkAt_mono hA hp1') (blkAt_mono hB hp1')))
         (fun r2 w2 s2 H2 hp2 hw2 => ?_)
       subst hw2
       have hp2' : H1 <+: H2 := hp2
@@ -180,24 +186,25 @@ theorem la_step (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       rw [List.drop_of_length_le (by omega : bs.length ≤ i)]
       exact ret _ true 1 rfl
 
-/-- **`listAnnEq C.fe`** from position `i`. -/
+/-- **`listAnnEq fe`** from position `i`. -/
 theorem la_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hf : Front.FrontOK C)
     (hc : AECodes C) (hAn : denoteN C.St.ns anonH = some .anonymous)
     (hcl : C.code.lookup fListAnnEq = some (laParams.map (fun p => (p, ShapeHOL.one)), laBody, .one))
+    (es : List (NIdx × Nat × IConstantInfo)) (ob : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
     (pa pb : Nat) (as bs : List EIdx) :
-    ∀ k i (H : List (BitVec 64)) (s : AState), as.length - i = k → i ≤ as.length →
+    ∀ k i (H : List (BitVec 64)) (s : AState), as.length - i = k → i ≤ as.length → BTabAt C H ob es →
       BlkAt H pa (as.map Enc.idxW) → BlkAt H pb (bs.map Enc.idxW) →
-      SpecR (Pre (σ := σ) (ctxH C H) s (laParams.zip [cellA C pa, cellA C pb, BitVec.ofNat 64 i])) laBody s
-        (listAnnEq C.fe (as.drop i) (bs.drop i)) (PostB (ctxH C H)) := by
+      SpecR (Pre (σ := σ) (ctxH C H) s (laParams.zip [cellA C ob, cellA C pa, cellA C pb, BitVec.ofNat 64 i])) laBody s
+        (listAnnEq fe (as.drop i) (bs.drop i)) (PostB (ctxH C H)) := by
   intro k
   induction k with
   | zero =>
-    intro i H s hk hi hA hB
-    exact la_step ra C hok hf hc hAn hcl pa pb as bs i H s hi hA hB (fun h => absurd h (by omega))
+    intro i H s hk hi hT hA hB
+    exact la_step ra C hok hf hc hAn hcl es ob fe hfe pa pb as bs i H s hi hT hA hB (fun h => absurd h (by omega))
   | succ k ih =>
-    intro i H s hk hi hA hB
-    exact la_step ra C hok hf hc hAn hcl pa pb as bs i H s hi hA hB
-      (fun hia H' s' hA' hB' => ih (i + 1) H' s' (by omega) (by omega) hA' hB')
+    intro i H s hk hi hT hA hB
+    exact la_step ra C hok hf hc hAn hcl es ob fe hfe pa pb as bs i H s hi hT hA hB
+      (fun hia H' s' hT' hA' hB' => ih (i + 1) H' s' (by omega) (by omega) hT' hA' hB')
 
 end
 
