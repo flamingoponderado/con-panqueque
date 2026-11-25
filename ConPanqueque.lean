@@ -455,3 +455,4 @@ import ConPanqueque.T.Ind.CtorMember
 import ConPanqueque.T.Ind.Groups
 import ConPanqueque.T.Ind.ParamLevels
 import ConPanqueque.T.Ind.ResultSort
+import ConPanqueque.T.Ind.RecShapes
