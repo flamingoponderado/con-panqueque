@@ -496,3 +496,5 @@ import ConPanqueque.T.Ind.BlockTable
 import ConPanqueque.T.Ind.BlockTable2
 import ConPanqueque.T.Ind.BlockReadsAt
 import ConPanqueque.T.Ind.BlockReadsSpec
+import ConPanqueque.T.Ind.CheckBlock
+import ConPanqueque.T.Ind.IdxIns
