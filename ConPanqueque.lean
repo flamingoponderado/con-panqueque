@@ -468,3 +468,4 @@ import ConPanqueque.T.Ind.DropVars
 import ConPanqueque.T.Ind.IotaRec
 import ConPanqueque.T.Ind.IotaRecOf
 import ConPanqueque.T.Ex.InstLift
+import ConPanqueque.T.Ind.IotaParts
