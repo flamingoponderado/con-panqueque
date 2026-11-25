@@ -453,3 +453,4 @@ import ConPanqueque.T.Ind.LpsEq
 import ConPanqueque.T.Ind.AllLps
 import ConPanqueque.T.Ind.CtorMember
 import ConPanqueque.T.Ind.Groups
+import ConPanqueque.T.Ind.ParamLevels
