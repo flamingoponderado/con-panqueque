@@ -128,4 +128,134 @@ theorem cc_spec (C : Ctx) (hok : CtxOK C)
 
 end
 
+/-! ## The twin, effects first -/
+
+theorem blockReadsAt_eq (fe : IFEnv) (p : BlockShape) :
+    blockReadsAt fe p = (do
+      let isRec ← blockIsRec p
+      let nzs ← p.members.mapM fun ms => formerZ ms.declared >>= fun z => pure z.isNever
+      let fs1 ← p.recs.mapM (recFire p)
+      let fs2 ← p.recs.mapM (recFire p)
+      let cs := formersOf p isRec p.members nzs ++ membersCtors p.nP p.members ++ recsOf p.recs fs1
+      let ok ← recsRead (consBlockRecsTemp cs fe []).1 (recsOf p.recs fs2)
+      pure (ok, ((consBlockRecsTemp cs fe []).2.foldr (fun (x : NIdx × Option IConstantInfo) acc => acc.popTemp x.1 x.2)
+        (consBlockRecsTemp cs fe []).1).setFlags fe.natLit fe.strLit)) := by
+  unfold blockReadsAt blockConstants
+  simp only [blockFormers_eq, blockRecs_eq, blockCtors_eq, bind_assoc, pure_bind]
+
+/-! ## The program -/
+
+def brS := ofString "br_s"
+def brOm := ofString "br_om"
+def brK := ofString "br_k"
+def brOr := ofString "br_or"
+def brNr := ofString "br_nr"
+def brNp := ofString "br_np"
+def brIr := ofString "br_ir"
+def brNz := ofString "br_nz"
+def brX2 := ofString "br_x2"
+def brF1 := ofString "br_f1"
+def brF2 := ofString "br_f2"
+def brNc := ofString "br_nc"
+def brNb := ofString "br_nb"
+def brX1 := ofString "br_x1"
+def brAll := ofString "br_all"
+def brR1 := ofString "br_r1"
+def brN := ofString "br_n"
+def brT := ofString "br_t"
+def brX3 := ofString "br_x3"
+def brX4 := ofString "br_x4"
+def brX5 := ofString "br_x5"
+def brD := ofString "br_d"
+def brX6 := ofString "br_x6"
+def brOk := ofString "br_ok"
+def fBlockReadsAt := ofString "blockReadsAt"
+
+def brParams : List MlS := [brS]
+def brLocals : List MlS := [brOm, brK, brOr, brNr, brNp, brIr, brNz, brX2, brF1, brF2, brNc, brNb, brX1, brAll, brR1,
+  brN, brT, brX3, brX4, brX5, brD, brX6, brOk]
+
+/-- `blockReadsAt` at the shape `brS`: phase A (recursiveness, never-zero bits, both firing-mode runs, the
+constructor count), then phase B (the names' environment block, the block table, the recursors' block), then
+`recsRead` through the table. -/
+def brBody (C : Ctx) : ProgHOL 64 := prologue brLocals
+  (.seq (.assign .local brOm (.load .one (vv brS)))
+  (.seq (.assign .local brK (.load .one (vv brOm)))
+  (.seq (.assign .local brOr (.load .one (.op .add [vv brS, .const 8])))
+  (.seq (.assign .local brNr (.load .one (vv brOr)))
+  (.seq (.assign .local brNp (.load .one (.op .add [vv brS, .const 16])))
+  (guardP brK 58 (guardP brNr 58
+  (.seq (.call (some (some (.local, brIr), none)) fBlockIsRec [vv brOm, vv brK])
+  (allocP C brNz (.shift .lsl (.op .add [vv brK, .const 1]) (.const 3))
+  (.seq (.store (vv brNz) (vv brK))
+  (.seq (.call (some (some (.local, brX2), none)) fZfFill [vv brOm, vv brNz, .const 0, vv brK])
+  (.seq (.call (some (some (.local, brF1), none)) fFfFill [vv brOr, .const 0, vv brNr, vv brK])
+  (.seq (.call (some (some (.local, brF2), none)) fFfFill [vv brOr, .const 0, vv brNr, vv brK])
+  (.seq (.call (some (some (.local, brNc), none)) fCtorCount [vv brOm, .const 0, vv brK, .const 0])
+  (guardP brNc 58
+  (allocP C brNb (.shift .lsl (.op .add [vv brK, .const 1]) (.const 3))
+  (.seq (.store (vv brNb) (vv brK))
+  (.seq (.call (some (some (.local, brX1), none)) fNmFill [vv brOm, vv brNb, .const 0, vv brK])
+  (envBlkP C brAll brNb brK brR1
+  (.seq (.assign .local brN (.op .add [.op .add [vv brK, vv brNc], vv brNr]))
+  (allocP C brT (.shift .lsl (.op .add [.shift .lsl (vv brN) (.const 1), .const 1]) (.const 3))
+  (.seq (.store (vv brT) (vv brN))
+  (.seq (.call (some (some (.local, brX3), none)) fTfFill
+    [vv brOm, vv brNz, vv brT, .const 0, .const 0, vv brK, vv brIr, vv brAll, vv brNp])
+  (.seq (.call (some (some (.local, brX4), none)) fTmFill [vv brOm, vv brT, vv brK, .const 0, vv brK, vv brNp])
+  (.seq (.call (some (some (.local, brX5), none)) fTqFill
+    [vv brOr, vv brF1, vv brT, .op .add [vv brK, vv brNc], .const 0, vv brNr])
+  (allocP C brD (.shift .lsl (.op .add [vv brNr, .const 1]) (.const 3))
+  (.seq (.store (vv brD) (vv brNr))
+  (.seq (.call (some (some (.local, brX6), none)) fTxFill [vv brOr, vv brF2, vv brD, .const 0, vv brNr])
+  (.seq (.call (some (some (.local, brOk), none)) fRecsRead [vv brT, vv brD, .const 0])
+    (.return (vv brOk)))))))))))))))))))))))))))))))
+
+/-! ## Facts the assembly needs -/
+
+theorem exists_list_of_forall {P : Nat → Nat → Prop} : ∀ n : Nat, (∀ j, j < n → ∃ o, P j o) →
+    ∃ os : List Nat, os.length = n ∧ ∀ j, j < n → P j (os.getD j 0)
+  | 0, _ => ⟨[], rfl, fun j hj => absurd hj (by omega)⟩
+  | n + 1, h => by
+    obtain ⟨os, hl, hos⟩ := exists_list_of_forall n (fun j hj => h j (by omega))
+    obtain ⟨o, ho⟩ := h n (by omega)
+    refine ⟨os ++ [o], by simp [hl], fun j hj => ?_⟩
+    rcases Nat.lt_or_ge j n with h' | h'
+    · have : (os ++ [o]).getD j 0 = os.getD j 0 := by
+        simp only [List.getD_eq_getElem?_getD, List.getElem?_append_left (show j < os.length by omega)]
+      rw [this]; exact hos j h'
+    · have e : j = n := by omega
+      subst e
+      have : (os ++ [o]).getD j 0 = o := by
+        simp [List.getD_eq_getElem?_getD, List.getElem?_append_right (show os.length ≤ j by omega), hl]
+      rw [this]; exact ho
+
+/-- A constant's own data denote (the parts of `ConstDen` a block constant needs). -/
+def CVDen (cv : IConstantVal) (st : EStore) : Prop :=
+  (∀ n ∈ cv.levelParams, (denoteN st.ns n).isSome = true) ∧ (denoteE st cv.type).isSome = true ∧
+    cv.levelParams.length + 1 < 2 ^ 60
+
+theorem cvDen_ext {cv : IConstantVal} {st st' : EStore} (h : CVDen cv st) (hx : Ext st st') : CVDen cv st' :=
+  ⟨fun n hn => denoteN_isSome_ext hx (h.1 n hn), denoteE_isSome_ext hx h.2.1, h.2.2⟩
+
+/-- The block constants' `ConstDen` clauses. -/
+def BlockDen (cs : List IConstantInfo) (st : EStore) : Prop :=
+  ∀ ci ∈ cs, CVDen ci.toConstantVal st ∧ (∀ cv v hint, ci = .defnInfo cv v hint → (denoteE st v).isSome = true) ∧
+    (∀ cv caps, ci = .indInfo cv caps → caps.nparams + caps.nIdx < 2 ^ 63)
+
+theorem constDen_bfLook {es : List (NIdx × Nat × IConstantInfo)} {fe : IFEnv} {fe' : IFEnv} {st : EStore}
+    (hfe : ∀ n, fe'.find? n = bfLook es fe n) (hd : ConstDen fe st) (hb : BlockDen (es.map (·.2.2)) st) :
+    ConstDen fe' st := by
+  intro c ci hc
+  rw [hfe] at hc
+  unfold bfLook at hc
+  cases hf : es.reverse.find? (fun e => e.1 == c) with
+  | none => rw [hf] at hc; exact hd c ci hc
+  | some e =>
+    rw [hf] at hc
+    cases hc
+    have hm : e ∈ es := List.mem_reverse.mp (List.mem_of_find?_eq_some hf)
+    obtain ⟨h1, h2, h3⟩ := hb e.2.2 (List.mem_map.mpr ⟨e, hm, rfl⟩)
+    exact ⟨h1.1, h1.2.1, h1.2.2, h2, h3⟩
+
 end ConPanqueque.T.Ind
