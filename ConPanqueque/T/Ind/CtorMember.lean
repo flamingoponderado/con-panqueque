@@ -144,4 +144,115 @@ theorem mi_spec (C : Ctx)
 
 end
 
+def cmP := ofString "cm_p"
+def cmK := ofString "cm_k"
+def cmL := ofString "cm_l"
+def cmN := ofString "cm_n"
+def cmT := ofString "cm_t"
+def cmR := ofString "cm_r"
+def cmW := ofString "cm_w"
+def cmB := ofString "cm_b"
+def cmH := ofString "cm_h"
+def fCtorMember := ofString "ctorMember"
+
+def cmParams : List MlS := [cmP, cmK, cmL, cmN, cmT]
+def cmLocals : List MlS := [cmR, cmW, cmB, cmH]
+
+def cmBody (_C : Ctx) : ProgHOL 64 := prologue cmLocals
+  (.seq (.call (some (some (.local, cmR), none)) fStripPis [vv cmN, vv cmT])
+  (.ite (.cmp .equal (vv cmR) (.const 0)) (.return (vv cmK))
+  (.seq (.assign .local cmW (.load .one (vv cmR)))
+  (.seq (.assign .local cmB (.load .one (.op .add [vv cmR, .shift .lsl (vv cmW) (.const 3)])))
+  (.seq (.call (some (some (.local, cmH), none)) fGetAppFn [.const (BitVec.ofNat 64 coreWalkFuel), vv cmB])
+  (.seq (.call (some (some (.local, cmR), none)) fMemberIdx [vv cmP, vv cmK, vv cmL, vv cmH])
+    (.return (vv cmR))))))))
+
+section
+variable {σ : Type}
+
+theorem cm_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ cmLocals → (ctxEnv C ++ cmParams.zip vals).get x = none :=
+  Knot.params_none C cmLocals cmParams vals (by decide) (by decide)
+
+/-- **`ctorMember?`**: the member a constructor's result names. -/
+theorem cm_spec (C : Ctx) (hok : CtxOK C)
+    (hcs : C.code.lookup fStripPis = some ([(pFu, .one), (pH, .one)], stripBody C fStripPis 6, .one))
+    (hcg : C.code.lookup fGetAppFn = some ([(pFu, .one), (pH, .one)], getAppFnBody, .one))
+    (hcm : C.code.lookup fMemberIdx = some (miParams.map (fun p => (p, ShapeHOL.one)), miBody, .one))
+    (hcn : C.code.lookup fNameIdx = some (niParams.map (fun p => (p, ShapeHOL.one)), niBody, .one))
+    (blk : List IConstantInfo) (ob k nP : Nat) (lvls : LsIdx) (c : IConstantVal × Nat) (hk : k ≤ blk.length)
+    (hlen : blk.length < 2 ^ 59) (hnP : nP + c.2 < 2 ^ 64)
+    (H : List (BitVec 64)) (s : AState) (hp : C.H <+: H) (hb : IndBlk C H ob blk) :
+    SpecR (σ := σ) (Pre (ctxH C H) s (cmParams.zip [cellA C ob, BitVec.ofNat 64 k, Enc.idxW lvls,
+        BitVec.ofNat 64 (nP + c.2), Enc.idxW c.1.type])) (cmBody C) s
+      (ctorMember? ((blk.take k).map (fun (c : IConstantInfo) => c.name)) lvls nP c) (PostMI (ctxH C H) k) := by
+  refine specR_prologue (fun a w s' st L ⟨h1, h2⟩ => ⟨postN_locals _ _ w s' st L h1, h2⟩) (cm_none _ _) ?_
+  rw [ctorMember?]
+  refine specR_callNIH (C := ctxH C H) cmR fStripPis [pFu, pH] [vv cmN, vv cmT] (stripBody C fStripPis 6)
+    [BitVec.ofNat 64 (nP + c.2), Enc.idxW c.1.type] (by decide) rfl (by simp +decide [ctxLocals, cmLocals]) hcs
+    ⟨by simp +decide [sev, Env.get, cmParams, ctxEnv], by simp +decide [sev, Env.get, cmParams, ctxEnv], trivial⟩
+    (PostSP (ctxH C H)) (fun o w s' H' => (o = none → w = 0) ∧
+      ∀ tys b, o = some (tys, b) → ∃ ob', w = cellA C ob' ∧ BlkAt H' ob' (tys.map Enc.idxW ++ [Enc.idxW b]))
+    (fun o w s' st ⟨H', hp', hs', h1, h2⟩ => ⟨H', hp', ⟨h1, h2⟩, hs'⟩)
+    (fun u hu _ hlk => fun w hw => by
+      subst hw; exact stripPis_spec C hok hcs (nP + c.2) hnP H s c.1.type _ (pre_of_lookups hu [pFu, pH] _ rfl hlk))
+    (fun o w s1 H1 hp1 ⟨hn, hsm⟩ => ?_)
+  have hpH : H <+: H1 := hp1
+  have hb1 : IndBlk C H1 ob blk := indBlk_mono hb hpH
+  rcases o with _ | ⟨tys, b⟩
+  · have e0 := hn rfl
+    subst e0
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    exact specR_returnI _ (BitVec.ofNat 64 k) (by simp +decide [sev, Env.get_cons, Env.get, cmParams, ctxEnv])
+      (fun t ht => ⟨⟨H1, hpH, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩, fun _ e => by simp at e⟩)
+  obtain ⟨ob', rfl, hblk⟩ := hsm tys b rfl
+  refine specR_fact (fun t ht' => inv_heapLen ht') (fun hHN => ?_)
+  have hol := blkAt_lt hblk
+  have hHN' : H1.length ≤ C.HN := hHN
+  have hne : cellA C ob' ≠ 0 := cellA_ne0 C hok ob' (by omega)
+  refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
+    (fun h => absurd rfl h) (fun _ => ?_)
+  have hl0 : (ctxH C H1).H[ob']? = some (BitVec.ofNat 64 (tys.length + 1)) := by
+    show H1[ob']? = _; rw [hblk.1]; simp
+  refine UD.specR_heapLoadI' (C := ctxH C H1) cmW (vv cmR) ob' _ hl0 (by simp +decide [ctxLocals, cmLocals])
+    (by simp [sev, Env.get_cons]; rfl) ?_
+  have hbw : (ctxH C H1).H[ob' + 1 + tys.length]? = some (Enc.idxW b) := by
+    show H1[ob' + 1 + tys.length]? = _
+    have := hblk.2 tys.length (by simp); simpa using this
+  refine UD.specR_heapLoadI' (C := ctxH C H1) cmB _ (ob' + 1 + tys.length) _ hbw (by simp +decide [ctxLocals, cmLocals])
+    (by
+      simp only [sev, sev_vv, Env.get_cons]; simp +decide
+      show cellA C ob' + _ = cellA C _
+      rw [cellA_shl3]; congr 1; omega) ?_
+  dsimp only
+  refine specR_callNIM cmH fGetAppFn [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv cmB]
+    getAppFnBody [BitVec.ofNat 64 coreWalkFuel, Enc.idxW b] (by decide) rfl (by simp +decide [ctxLocals, cmLocals]) hcg
+    ⟨rfl, by simp [sev, Env.get_cons], trivial⟩
+    (fun a w s' st => getAppFn coreWalkFuel b s1 = .ok (a, s') ∧ Post (ctxH C H1) s1 a w s' st)
+    (fun a w s' st ⟨_, _, hs, hsr⟩ => hs ▸ hsr)
+    (fun u hu _ hlk => specR_run (fun t ht => by
+      subst ht
+      exact getAppFn_spec (ctxH C H1) hcg coreWalkFuel b s1 CV.coreWalkFuel_lt t ⟨hu, hlk 0 (by decide), hlk 1 (by decide)⟩))
+    (fun hh w s' st ⟨hrun2, hw, hs, _⟩ => ?_)
+  subst hw
+  have hs' : s1 = s' := hs.symm
+  subst hs'
+  refine specR_congr (m' := memberIdxAt? ((blk.take k).map (fun (c : IConstantInfo) => c.name)) lvls hh >>= fun r => pure r)
+    (by simp) ?_
+  refine specR_callNIH (C := ctxH C H1) cmR fMemberIdx miParams [vv cmP, vv cmK, vv cmL, vv cmH] miBody
+    [cellA C ob, BitVec.ofNat 64 k, Enc.idxW lvls, Enc.idxW hh] (by decide) rfl (by simp +decide [ctxLocals, cmLocals]) hcm
+    ⟨by simp +decide [sev, Env.get_cons, Env.get, cmParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cmParams, ctxEnv],
+      by simp +decide [sev, Env.get_cons, Env.get, cmParams, ctxEnv], by simp +decide [sev, Env.get_cons], trivial⟩
+    (PostMI (ctxH C H1) k) (fun a w _ _ => w = BitVec.ofNat 64 (optIdx k a) ∧ ∀ t, a = some t → t < k)
+    (fun a w s' st ⟨⟨H', hp', hw, hsr⟩, hbd⟩ => ⟨H', hp', ⟨hw, hbd⟩, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu miParams _ rfl hlk)
+      (mi_spec C hcn blk ob k lvls hh hk hlen H1 s1 (hp.trans hpH) hb1))
+    (fun a w s2 H2 hp2 ⟨hw, hbd⟩ => ?_)
+  subst hw
+  exact specR_returnI _ (BitVec.ofNat 64 (optIdx k a)) (by simp +decide [Env.get])
+    (fun t ht => ⟨⟨H2, hpH.trans hp2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩, hbd⟩)
+
+end
+
 end ConPanqueque.T.Ind
