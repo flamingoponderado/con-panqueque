@@ -1096,4 +1096,216 @@ theorem crm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
 
 end
 
+/-! ## `classNPcOf` -/
+
+def mncM := ofString "mnc_m"
+def mncX := ofString "mnc_x"
+def mncI := ofString "mnc_i"
+def mncN := ofString "mnc_n"
+def mncP := ofString "mnc_p"
+def mncC := ofString "mnc_c"
+def mncY := ofString "mnc_y"
+def mncR := ofString "mnc_r"
+def fMemNameIn := ofString "memberNameIn"
+
+def mncParams : List MlS := [mncM, mncX, mncI, mncN]
+def mncLocals : List MlS := [mncP, mncC, mncY, mncR]
+
+/-- Whether a member from `i` on is named `x`. -/
+def mncBody : ProgHOL 64 := prologue mncLocals
+  (.ite (.cmp .lower (vv mncI) (vv mncN))
+    (.seq (.assign .local mncP (.load .one (.op .add [vv mncM, .op .add [.panop .mul [vv mncI, .const 8], .const 8]])))
+    (.seq (.assign .local mncC (.load .one (vv mncP)))
+    (.seq (.assign .local mncY (.load .one (vv mncC)))
+    (.ite (.cmp .equal (vv mncY) (vv mncX)) (.return (.const 1))
+      (.seq (.call (some (some (.local, mncR), none)) fMemNameIn [vv mncM, vv mncX, .op .add [vv mncI, .const 1], vv mncN])
+        (.return (vv mncR)))))))
+    (.return (.const 0)))
+
+section
+variable {σ : Type}
+
+theorem mnc_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ mncLocals → (ctxEnv C ++ mncParams.zip vals).get x = none :=
+  Knot.params_none C mncLocals mncParams vals (by decide) (by decide)
+
+/-- **`memberNameIn`** from member `i`. -/
+theorem mnc_spec (C : Ctx) (hok : CtxOK C)
+    (hc : C.code.lookup fMemNameIn = some (mncParams.map (fun p => (p, ShapeHOL.one)), mncBody, .one))
+    (ms : List MemberShape) (x : NIdx) (om : Nat) (H : List (BitVec 64)) (hM : PtrsRep C H om (MemberRep C H) ms)
+    (hml : ms.length < 2 ^ 59) :
+    ∀ f i (s : AState), ms.length - i = f → i ≤ ms.length →
+      SpecR (σ := σ) (Pre (ctxH C H) s (mncParams.zip [cellA C om, Enc.idxW x, BitVec.ofNat 64 i, BitVec.ofNat 64 ms.length]))
+        mncBody s (pure (((ms.drop i).map (·.cvT.name)).contains x)) (PostB (ctxH C H)) := by
+  intro f
+  induction f with
+  | zero =>
+    intro i s hf hi
+    have hin : i = ms.length := by omega
+    subst hin
+    refine specR_prologue (postB_locals _) (mnc_none _ _) ?_
+    have hlw := nd_lt_iff ms.length ms.length (by omega) (by omega)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, mncParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    rw [List.drop_length]
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  | succ f ih =>
+    intro i s hf hi
+    have hin : i < ms.length := by omega
+    refine specR_prologue (postB_locals _) (mnc_none _ _) ?_
+    have hlw := nd_lt_iff i ms.length (by omega) (by omega)
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get, mncParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw.mpr hin])
+      (fun _ => ?_) (fun h => absurd h (by decide))
+    rw [List.drop_eq_getElem_cons hin, List.map_cons, List.contains_cons]
+    obtain ⟨omi, hmi, hrep⟩ := hM.2 i hin
+    obtain ⟨⟨oc, hoc, hcv⟩, -⟩ := hrep
+    obtain ⟨hnm, -, -⟩ := hcv
+    refine UD.specR_heapLoadI' (C := ctxH C H) mncP _ (om + 1 + i) _ hmi (by decide)
+      (by simp +decide [sev, Env.get, mncParams, ctxEnv]; exact cellA_mulIdx C om i (by omega)) ?_
+    refine UD.specR_heapLoadI' (C := ctxH C H) mncC (vv mncP) omi _ hoc (by decide) (by simp +decide [sev, Env.get_cons]; rfl) ?_
+    refine UD.specR_heapLoadI' (C := ctxH C H) mncY (vv mncC) oc _ hnm (by decide) (by simp +decide [sev, Env.get_cons]; rfl) ?_
+    by_cases he : ms[i].cvT.name = x
+    · rw [he]
+      refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Env.get, mncParams, ctxEnv,
+          Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+      simp only [beq_self_eq_true, Bool.true_or]
+      exact specR_returnI _ 1 rfl (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    have hw : Enc.idxW ms[i].cvT.name ≠ Enc.idxW x := fun e => he (Enc.idxW_inj e)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Env.get, mncParams, ctxEnv,
+        Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hw]) (fun h => absurd rfl h) (fun _ => ?_)
+    have hf' : (x == ms[i].cvT.name) = false := by simp only [beq_eq_false_iff_ne, ne_eq]; exact fun e => he e.symm
+    rw [hf', Bool.false_or]
+    refine specR_congr (m' := (pure (((ms.drop (i + 1)).map (·.cvT.name)).contains x) : AM Bool) >>= fun b => pure b)
+      (by simp) ?_
+    refine specR_callNIH (C := ctxH C H) mncR fMemNameIn mncParams [vv mncM, vv mncX, .op .add [vv mncI, .const 1], vv mncN]
+      mncBody [cellA C om, Enc.idxW x, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 ms.length] (by decide) rfl (by decide) hc
+      ⟨by simp +decide [sev, Env.get_cons, Env.get, mncParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, mncParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, mncParams, ctxEnv]; exact word_add1_eq i,
+        by simp +decide [sev, Env.get_cons, Env.get, mncParams, ctxEnv], trivial⟩
+      (PostB (ctxH C H)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu mncParams _ rfl hlk) (ih (i + 1) s (by omega) (by omega)))
+      (fun b w s1 H1 hp1 hw => ?_)
+    subst hw
+    exact specR_returnI _ _ (by simp [Env.get]) (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+end
+
+def cnpM := ofString "cnp_m"
+def cnpN := ofString "cnp_n"
+def cnpX := ofString "cnp_x"
+def cnpK := ofString "cnp_k"
+def cnpR := ofString "cnp_r"
+def cnpW := ofString "cnp_w"
+def cnpQ := ofString "cnp_q"
+def cnpT := ofString "cnp_t"
+def cnpV := ofString "cnp_v"
+def fClassNPc := ofString "classNPcOf"
+
+def cnpParams : List MlS := [cnpM, cnpN, cnpX]
+def cnpLocals : List MlS := [cnpK, cnpR, cnpW, cnpQ, cnpT, cnpV]
+
+def cnpBody (C : Ctx) : ProgHOL 64 := prologue cnpLocals
+  (.seq (.assign .local cnpK (.load .one (vv cnpM)))
+  (.seq (.call (some (some (.local, cnpR), none)) fMemNameIn [vv cnpM, vv cnpX, .const 0, vv cnpK])
+  (.ite (.cmp .equal (vv cnpR) (.const 0))
+    (envFindP C cnpW (vv cnpX)
+      (.ite (.cmp .equal (vv cnpW) (.const 0)) (.return (.const 0))
+      (.seq (.assign .local cnpQ (.op .sub [vv cnpW, .const 1]))
+      (.seq (.assign .local cnpT (.load .one (vv cnpQ)))
+      (.ite (.cmp .equal (vv cnpT) (.const 3))
+        (.seq (.assign .local cnpV (.load .one (.op .add [vv cnpQ, .const 48]))) (.return (vv cnpV)))
+        (.return (.const 0)))))))
+    (.return (vv cnpN)))))
+
+section
+variable {σ : Type}
+
+theorem cnp_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ cnpLocals → (ctxEnv C ++ cnpParams.zip vals).get x = none :=
+  Knot.params_none C cnpLocals cnpParams vals (by decide) (by decide)
+
+/-- **`classNPcOf`** at the context's environment. -/
+theorem cnp_spec (C : Ctx) (hok : CtxOK C)
+    (hcodeG : C.code.lookup fMemoGet = some ([(pG, .one), (pLen, .one)], memoGetBody, .one))
+    (hcodeP : C.code.lookup fMemoProbe = some ([(pG, .one), (pLen, .one)], memoProbeBody, .one))
+    (hmn : C.code.lookup fMemNameIn = some (mncParams.map (fun p => (p, ShapeHOL.one)), mncBody, .one))
+    (p : BlockShape) (om : Nat) (H : List (BitVec 64)) (hM : PtrsRep C H om (MemberRep C H) p.members)
+    (hml : p.members.length < 2 ^ 59) (hnP : p.nP < 2 ^ 63) (s : AState) (x : NIdx) :
+    SpecR (σ := σ) (Pre (ctxH C H) s (cnpParams.zip [cellA C om, BitVec.ofNat 64 p.nP, Enc.idxW x])) (cnpBody C) s
+      (pure (classNPcOf p C.fe x)) (PostN (ctxH C H)) := by
+  refine specR_prologue (postN_locals _) (cnp_none _ _) ?_
+  refine UD.specR_heapLoadI' (C := ctxH C H) cnpK (vv cnpM) om _ hM.1 (by decide)
+    (by simp +decide [sev, Env.get, cnpParams, ctxEnv]; rfl) ?_
+  refine specR_pureBind (((p.members.drop 0).map (·.cvT.name)).contains x) ?_
+  refine specR_callNIH (C := ctxH C H) cnpR fMemNameIn mncParams [vv cnpM, vv cnpX, .const 0, vv cnpK] mncBody
+    [cellA C om, Enc.idxW x, BitVec.ofNat 64 0, BitVec.ofNat 64 p.members.length] (by decide) rfl (by decide) hmn
+    ⟨by simp +decide [sev, Env.get_cons, Env.get, cnpParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cnpParams, ctxEnv],
+      rfl, by simp +decide [sev, Env.get_cons], trivial⟩
+    (fun a w s' st => (pure (((p.members.drop 0).map (·.cvT.name)).contains x) : AM Bool) s = .ok (a, s') ∧
+      PostB (ctxH C H) a w s' st)
+    (fun a w s' _ => (pure (((p.members.drop 0).map (·.cvT.name)).contains x) : AM Bool) s = .ok (a, s') ∧ w = boolW a)
+    (fun a w s' st ⟨hrun, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hrun, hw⟩, hsr⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu mncParams _ rfl hlk)
+      (mnc_spec C hok hmn p.members x om H hM hml _ 0 s rfl (by omega))))
+    (fun a w s1 H1 hp1 ⟨hrun, hw⟩ => ?_)
+  simp only [pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at hrun
+  obtain ⟨hra, hs1⟩ := hrun
+  subst hw; subst hs1
+  have hp1' : H <+: H1 := hp1
+  simp only [List.drop_zero] at hra
+  unfold classNPcOf
+  by_cases hmem : (p.members.map (·.cvT.name)).contains x = true
+  · have ha : a = true := by rw [← hra]; exact hmem
+    subst ha
+    have hmem' : p.memberNames.contains x = true := by simpa [BlockShape.memberNames] using hmem
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    rw [if_pos hmem']
+    exact specR_returnI _ _ (by simp +decide [sev, Env.get_cons, Env.get, cnpParams, ctxEnv])
+      (fun t ht => ⟨H1, hp1', rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  have hf : a = false := by rw [← hra]; simpa using hmem
+  subst hf
+  have hmem' : ¬ p.memberNames.contains x = true := by simpa [BlockShape.memberNames] using hmem
+  refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+    (fun _ => ?_) (fun h => absurd h (by decide))
+  rw [if_neg hmem']
+  have hok1 := ctxOK_H (ctxOK_H hok H) H1
+  refine specR_envFindI hok1 hcodeG hcodeP cnpW (vv cnpX) x (by decide)
+    (by simp +decide [sev, Env.get_cons, Env.get, cnpParams, ctxEnv]) (by simp +decide [Env.get, ctxEnv]; rfl) ?_
+  have hrel := find_rel hok1 x
+  revert hrel
+  show (match C.fe.find? x with
+    | none => C.envM[x]? = none
+    | some ci => ∃ o, C.envM[x]? = some (ecell C o) ∧ CIE C.EB C.EH o ci) → _
+  rcases hfind : C.fe.find? x with _ | ci
+  · intro hrel; simp only at hrel
+    rw [show (ctxH (ctxH C H) H1).envM = C.envM from rfl, hrel]
+    exact specR_ifI _ 1 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun _ => specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1', rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩))
+      (fun h => absurd h (by decide))
+  intro ⟨o, hm, hci⟩
+  rw [show (ctxH (ctxH C H) H1).envM = C.envM from rfl, hm]
+  refine specR_atEntry fun t ht => ?_
+  have hoE : o < C.EN := Nat.lt_of_lt_of_le (cie_lt hci) ht.sr.env.1.len
+  refine specR_ifI _ 0 (by simp [sev, optWG, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact ecell_succ_ne hok hoE)
+    (fun h => absurd rfl h) (fun _ => ?_)
+  refine specR_assignI cnpQ _ (ecell C o) (by decide) (by simp [sev, optWG]; exact ecell_succ_sub C o) ?_
+  refine specR_envLoadI (C := ctxH C H1) cnpT (vv cnpQ) o _ (by decide) (by simp; rfl) (UD.cie_tag hci) ?_
+  cases ci
+  case indInfo cvT caps =>
+    obtain ⟨-, -, -, -, ⟨hnpW, -⟩, -⟩ := hci
+    dsimp only
+    refine specR_ifI _ 1 (by simp +decide [sev, UD.ciTag, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun _ => ?_) (fun h => absurd h (by decide))
+    refine specR_envLoadI (C := ctxH C H1) cnpV _ (o + 6) _ (by decide)
+      (by simp +decide [sev, Env.get_cons]; exact ecell_addk C o 6) hnpW ?_
+    exact specR_returnI _ _ (by simp [sev, Env.get_cons]) (fun t ht => ⟨H1, hp1', rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  all_goals
+    dsimp only
+    refine specR_ifI _ 0 (by simp +decide [sev, UD.ciTag, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1', rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+end
+
 end ConPanqueque.T.Ind
