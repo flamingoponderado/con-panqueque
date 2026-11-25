@@ -162,6 +162,50 @@ theorem bf_spec (C : Ctx) (hok : CtxOK C)
       exact specR_returnI _ w (by simp [sev, Env.get_cons])
         (fun t ht => ⟨sr_of_eq ht.sr rfl rfl rfl rfl, h1, h2⟩)
 
+theorem btabAt_mono {C : Ctx} {H H' : List (BitVec 64)} {ob : Nat} {es : List (NIdx × Nat × IConstantInfo)}
+    (h : BTabAt C H ob es) (hp : H <+: H') : BTabAt C H' ob es :=
+  ⟨ConPanqueque.T.Decl.get_prefix h.1 hp, fun j hj => by
+    obtain ⟨a, b, c⟩ := h.2 j hj
+    exact ⟨ConPanqueque.T.Decl.get_prefix a hp, ConPanqueque.T.Decl.get_prefix b hp, c⟩⟩
+
+theorem bfLook_full (es : List (NIdx × Nat × IConstantInfo)) (fe : IFEnv) (n : NIdx) :
+    bfLook (es.take es.length) fe n = bfLook es fe n := by rw [List.take_length]
+
+/-- `x := find(n)` through the block table at `t` (its count read first into `k`). -/
+def bfindP (x t k : MlS) (en : ExpHOL 64) (rest : ProgHOL 64) : ProgHOL 64 :=
+  .seq (.assign .local k (.load .one (vv t))) (.seq (.call (some (some (.local, x), none)) fBFindGo [vv t, en, vv k]) rest)
+
+theorem specR_bfindI {β : Type} {C : Ctx} (hok : CtxOK C)
+    (hcG : C.code.lookup fMemoGet = some ([(pG, .one), (pLen, .one)], memoGetBody, .one))
+    (hcP : C.code.lookup fMemoProbe = some ([(pG, .one), (pLen, .one)], memoProbeBody, .one))
+    (hcode : C.code.lookup fBFindGo = some (bfParams.map (fun p => (p, ShapeHOL.one)), bfBody C, .one))
+    {H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64}
+    {k' : Option IConstantInfo → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    (x t k : MlS) (en : ExpHOL 64) (es : List (NIdx × Nat × IConstantInfo)) (ob : Nat) (n : NIdx)
+    (hT : BTabAt C H ob es) (hx : x ∈ D) (hk : k ∈ D) (ht : Γ.get t = some (cellA C ob)) (htk : t ≠ k)
+    (hen : ∀ v, sev ((k, v) :: Γ) en = some (Enc.idxW n))
+    (hcont : ∀ w, ((bfLook es C.fe n = none → w = 0) ∧ ∀ ci, bfLook es C.fe n = some ci →
+        ∃ o, w = ecell C o + 1 ∧ CIE C.EB C.EH o ci) →
+      SpecR (Inv (ctxH C H) s ((x, w) :: (k, BitVec.ofNat 64 es.length) :: Γ) [] D) rest s (k' (bfLook es C.fe n)) R) :
+    SpecR (Inv (ctxH C H) s Γ M D) (bfindP x t k en rest) s (pure (bfLook es C.fe n) >>= k') R := by
+  unfold bfindP
+  refine UD.specR_heapLoadI' (C := ctxH C H) k (vv t) ob _ hT.1 hk (by simp only [sev, sev_vv]; exact ht) ?_
+  refine specR_congr (m' := (pure (bfLook (es.take es.length) C.fe n) : AM _) >>= k') (by rw [bfLook_full]) ?_
+  refine specR_callNIM x fBFindGo bfParams [vv t, en, vv k] (bfBody C)
+    [cellA C ob, Enc.idxW n, BitVec.ofNat 64 es.length] (by decide) rfl hx hcode
+    ⟨by simp only [sev, sev_vv, Env.get_cons, if_neg htk]; exact ht, hen _, by simp [sev, Env.get_cons], trivial⟩
+    (fun a w s' st => (pure (bfLook (es.take es.length) C.fe n) : AM _) s = .ok (a, s') ∧ PostBF (ctxH C H) a w s' st)
+    (fun a w s' st h => h.2.1)
+    (fun u hu _ hlk => specR_run (fun w hw => by
+      subst hw
+      exact bf_spec C hok hcG hcP hcode es ob n H hT es.length s (Nat.le_refl _) _
+        (pre_of_lookups hu bfParams _ rfl hlk)))
+    (fun r w s' st ⟨hrun, hsr, h1, h2⟩ => ?_)
+  simp only [pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at hrun
+  obtain ⟨rfl, rfl⟩ := hrun
+  rw [bfLook_full] at h1 h2 ⊢
+  exact hcont w ⟨h1, h2⟩
+
 end
 
 end ConPanqueque.T.Ind
