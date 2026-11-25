@@ -114,7 +114,7 @@ theorem ul_step (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (cv : IConstantVal) (rr : Option IotaRec) (wr : BitVec 64) (mI rP : Nat) (hm : mI < 2 ^ 64) (hr : rP < 2 ^ 64)
     (es : List (NIdx × Nat × IConstantInfo)) (ob0 : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
     (hfD : EnvDen fe C.pins C.St)
-    (crec : NIdx) (isK : Bool) (rules : List IRecRule) (hrec : fe.find? crec = some (.recInfo cv mI rP isK rules))
+    (rules : List IRecRule) (hrds : ∀ rl ∈ rules, RuleDen rl C.St)
     (ow : Nat) (hrl : RulesAt C ow rules) (i : Nat) (hi : i ≤ rules.length) (H : List (BitVec 64)) (hp : C.H <+: H)
     (hT : BTabAt C H ob0 es)
     (hrn : rr = none → wr = 0) (hrs : ∀ r, rr = some r → ∃ ob, wr = cellA C ob ∧ IotaRecRep C H ob r) (s : AState)
@@ -175,8 +175,7 @@ theorem ul_step (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       (PostB (ctxH C H)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu rdParams _ rfl hlk)
         (rd_spec ra C hok hf hc hAn cv rr wr mI rP i rules[i] q hm hr (by omega) H hp hrn hrs es ob0 fe hfe hfD hT
-          hrq crec isK rules hrec
-          (List.getElem_mem hil) s))
+          hrq (hrds _ (List.getElem_mem hil)) s))
       (fun r w s1 H1 hp1 hw => ?_)
     subst hw
     have hp1' : H <+: H1 := hp1
@@ -227,7 +226,7 @@ theorem ul_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (cv : IConstantVal) (rr : Option IotaRec) (wr : BitVec 64) (mI rP : Nat) (hm : mI < 2 ^ 64) (hr : rP < 2 ^ 64)
     (es : List (NIdx × Nat × IConstantInfo)) (ob0 : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
     (hfD : EnvDen fe C.pins C.St)
-    (crec : NIdx) (isK : Bool) (rules : List IRecRule) (hrec : fe.find? crec = some (.recInfo cv mI rP isK rules))
+    (rules : List IRecRule) (hrds : ∀ rl ∈ rules, RuleDen rl C.St)
     (ow : Nat) (hrl : RulesAt C ow rules) (hrn : rr = none → wr = 0) :
     ∀ k i (H : List (BitVec 64)) (s : AState), rules.length - i = k → i ≤ rules.length → C.H <+: H →
       BTabAt C H ob0 es → (∀ r, rr = some r → ∃ ob, wr = cellA C ob ∧ IotaRecRep C H ob r) →
@@ -238,11 +237,11 @@ theorem ul_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
   induction k with
   | zero =>
     intro i H s hk hi hp hT hrs
-    exact ul_step ra C hok hf hc hAn hcr hcl cv rr wr mI rP hm hr es ob0 fe hfe hfD crec isK rules hrec ow hrl i hi H hp
+    exact ul_step ra C hok hf hc hAn hcr hcl cv rr wr mI rP hm hr es ob0 fe hfe hfD rules hrds ow hrl i hi H hp
       hT hrn hrs s (fun h => absurd h (by omega))
   | succ k ih =>
     intro i H s hk hi hp hT hrs
-    exact ul_step ra C hok hf hc hAn hcr hcl cv rr wr mI rP hm hr es ob0 fe hfe hfD crec isK rules hrec ow hrl i hi H hp
+    exact ul_step ra C hok hf hc hAn hcr hcl cv rr wr mI rP hm hr es ob0 fe hfe hfD rules hrds ow hrl i hi H hp
       hT hrn hrs s (fun hil H' s' hp' hT' hrs' => ih (i + 1) H' s' (by omega) (by omega) hp' hT' hrs')
 
 theorem rk_none (C : Ctx) (vals : List (BitVec 64)) :
@@ -256,7 +255,8 @@ theorem rk_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (hcl : C.code.lookup fRulesRead = some (ulParams.map (fun p => (p, ShapeHOL.one)), ulBody, .one))
     (es : List (NIdx × Nat × IConstantInfo)) (ob0 : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
     (hfD : EnvDen fe C.pins C.St)
-    (cn : NIdx) (ci : IConstantInfo) (hfind : fe.find? cn = some ci) (o : Nat) (hcie : CIE C.EB C.EH o ci)
+    (ci : IConstantInfo) (hrds : ∀ cv mI rP isK rules, ci = .recInfo cv mI rP isK rules → ∀ rl ∈ rules, RuleDen rl C.St)
+    (o : Nat) (hcie : CIE C.EB C.EH o ci)
     (H : List (BitVec 64)) (hp : C.H <+: H) (hT : BTabAt C H ob0 es) (s : AState) :
     SpecR (σ := σ) (Pre (ctxH C H) s (rkParams.zip [cellA C ob0, ecell C o])) rkBody s (recReads fe ci) (PostB (ctxH C H)) := by
   refine specR_prologue (postB_locals _) (rk_none _ _) ?_
@@ -306,7 +306,7 @@ theorem rk_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
         by simp +decide [sev, Env.get_cons, hwo]; rfl, by simp +decide [sev, Env.get_cons], rfl, trivial⟩
       (PostB (ctxH C H1)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ulParams _ rfl hlk)
-        (ul_spec ra C hok hf hc hAn hcr hcl cv rr wr mI rP (by omega) (by omega) es ob0 fe hfe hfD cn isK rules hfind
+        (ul_spec ra C hok hf hc hAn hcr hcl cv rr wr mI rP (by omega) (by omega) es ob0 fe hfe hfD rules (hrds _ _ _ _ _ rfl)
           ow hRA hrn rules.length 0 H1 s1 (by simp) (Nat.zero_le _) (hp.trans hp1') (btabAt_mono hT hp1') hrs))
       (fun r w s2 H2 hp2 hw => ?_)
     subst hw
@@ -333,14 +333,15 @@ theorem ks_none (C : Ctx) (vals : List (BitVec 64)) :
   Knot.params_none C ksLocals ksParams vals (by decide) (by decide)
 
 /-- A value-heap block of pointers to stored constants' environment records. -/
-def RecsAt (C : Ctx) (fe : IFEnv) (H : List (BitVec 64)) (ob : Nat) (cis : List IConstantInfo) : Prop :=
-  H[ob]? = some (BitVec.ofNat 64 cis.length) ∧ ∀ i (hi : i < cis.length), ∃ o n,
-    H[ob + 1 + i]? = some (ecell C o) ∧ CIE C.EB C.EH o cis[i] ∧ fe.find? n = some cis[i]
+def RecsAt (C : Ctx) (H : List (BitVec 64)) (ob : Nat) (cis : List IConstantInfo) : Prop :=
+  H[ob]? = some (BitVec.ofNat 64 cis.length) ∧ ∀ i (hi : i < cis.length), ∃ o,
+    H[ob + 1 + i]? = some (ecell C o) ∧ CIE C.EB C.EH o cis[i] ∧
+    ∀ cv mI rP isK rules, cis[i] = .recInfo cv mI rP isK rules → ∀ rl ∈ rules, RuleDen rl C.St
 
-theorem recsAt_mono {C : Ctx} {fe : IFEnv} {H H' : List (BitVec 64)} {ob : Nat} {cis : List IConstantInfo}
-    (h : RecsAt C fe H ob cis) (hp : H <+: H') : RecsAt C fe H' ob cis :=
+theorem recsAt_mono {C : Ctx} {H H' : List (BitVec 64)} {ob : Nat} {cis : List IConstantInfo}
+    (h : RecsAt C H ob cis) (hp : H <+: H') : RecsAt C H' ob cis :=
   ⟨ConPanqueque.T.Decl.get_prefix h.1 hp, fun i hi => by
-    obtain ⟨o, n, h1, h2, h3⟩ := h.2 i hi; exact ⟨o, n, ConPanqueque.T.Decl.get_prefix h1 hp, h2, h3⟩⟩
+    obtain ⟨o, h1, h2, h3⟩ := h.2 i hi; exact ⟨o, ConPanqueque.T.Decl.get_prefix h1 hp, h2, h3⟩⟩
 
 theorem recsRead_drop_cons (fe : IFEnv) (cis : List IConstantInfo) (i : Nat) (hi : i < cis.length) :
     recsRead fe (cis.drop i) = (recReads fe cis[i] >>= fun r => if r then recsRead fe (cis.drop (i + 1))
@@ -356,7 +357,7 @@ theorem ks_step (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (es : List (NIdx × Nat × IConstantInfo)) (ob0 : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
     (hfD : EnvDen fe C.pins C.St)
     (cis : List IConstantInfo) (ob : Nat) (i : Nat) (hi : i ≤ cis.length) (H : List (BitVec 64)) (hp : C.H <+: H)
-    (hT : BTabAt C H ob0 es) (hR : RecsAt C fe H ob cis) (s : AState)
+    (hT : BTabAt C H ob0 es) (hR : RecsAt C H ob cis) (s : AState)
     (rec : i < cis.length → ∀ (H' : List (BitVec 64)) (s' : AState), H <+: H' →
       SpecR (Pre (σ := σ) (ctxH C H') s' (ksParams.zip [cellA C ob0, cellA C ob, BitVec.ofNat 64 (i + 1)])) ksBody s'
         (recsRead fe (cis.drop (i + 1))) (PostB (ctxH C H'))) :
@@ -373,7 +374,7 @@ theorem ks_step (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
   have hblen : ob + cis.length < H.length := by
     have h0 := (List.getElem?_eq_some_iff.mp hR.1).1
     rcases Nat.lt_or_ge 0 cis.length with h | h
-    · obtain ⟨o, n, h1, -, -⟩ := hR.2 (cis.length - 1) (by omega)
+    · obtain ⟨o, h1, -, -⟩ := hR.2 (cis.length - 1) (by omega)
       have := (List.getElem?_eq_some_iff.mp h1).1; omega
     · omega
   have hB0 : (ctxH C H).H[ob]? = some (BitVec.ofNat 64 cis.length) := hR.1
@@ -386,7 +387,7 @@ theorem ks_step (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
         rw [sev_cmp2 _ _ _ _ (BitVec.ofNat 64 i) (BitVec.ofNat 64 cis.length) gI' (by simp [sev, Env.get_cons]),
           wcL _ _ (by omega) (by omega)]; simp [hil]) (fun _ => ?_) (fun h => absurd h (by decide))
     rw [recsRead_drop_cons fe cis i hil]
-    obtain ⟨o, n, hq, hcie, hfind⟩ := hR.2 i hil
+    obtain ⟨o, hq, hcie, hrds⟩ := hR.2 i hil
     refine UD.specR_heapLoadI' (C := ctxH C H) ksE _ (ob + 1 + i) _ hq (by decide)
       (by
         simp only [sev, sev_vv, Env.get_cons]; simp +decide
@@ -399,7 +400,7 @@ theorem ks_step (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       ⟨by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gBt; exact gBt, by simp +decide [sev, Env.get_cons], trivial⟩
       (PostB (ctxH C H)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu rkParams _ rfl hlk)
-        (rk_spec ra C hok hf hc hAn hro hcr hcl es ob0 fe hfe hfD n cis[i] hfind o hcie H hp hT s))
+        (rk_spec ra C hok hf hc hAn hro hcr hcl es ob0 fe hfe hfD cis[i] hrds o hcie H hp hT s))
       (fun r w s1 H1 hp1 hw => ?_)
     subst hw
     have hp1' : H <+: H1 := hp1
@@ -444,7 +445,7 @@ theorem ks_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (hfD : EnvDen fe C.pins C.St)
     (cis : List IConstantInfo) (ob : Nat) :
     ∀ k i (H : List (BitVec 64)) (s : AState), cis.length - i = k → i ≤ cis.length → C.H <+: H →
-      BTabAt C H ob0 es → RecsAt C fe H ob cis →
+      BTabAt C H ob0 es → RecsAt C H ob cis →
       SpecR (Pre (σ := σ) (ctxH C H) s (ksParams.zip [cellA C ob0, cellA C ob, BitVec.ofNat 64 i])) ksBody s
         (recsRead fe (cis.drop i)) (PostB (ctxH C H)) := by
   intro k

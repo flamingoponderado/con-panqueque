@@ -323,6 +323,22 @@ theorem rd_none (C : Ctx) (vals : List (BitVec 64)) :
     ∀ x, x ∈ rdLocals → (ctxEnv C ++ rdParams.zip vals).get x = none :=
   Knot.params_none C rdLocals rdParams vals (by decide) (by decide)
 
+/-- A recursor rule's firing data denote (the per-rule clause of `RecDen`). -/
+def RuleDen (rl : IRecRule) (st : EStore) : Prop :=
+  (∀ lv, ((∃ pins, rl.fire = .nested lv pins) ∨ rl.fire = .levels lv) →
+    (∀ u ∈ lv, (denoteL st.ls u).isSome = true) ∧ lv.length < 2 ^ 60) ∧
+  (∀ lv pins, rl.fire = .nested lv pins → ∀ p ∈ pins, (denoteE st p).isSome = true)
+
+theorem ruleDen_ext {rl : IRecRule} {st st' : EStore} (h : RuleDen rl st) (hx : Ext st st') : RuleDen rl st' := by
+  refine ⟨fun lv hlv => ⟨fun u hu => ?_, (h.1 lv hlv).2⟩, fun lv pins hf p hp => denoteE_isSome_ext hx (h.2 lv pins hf p hp)⟩
+  obtain ⟨l, hl⟩ := Option.isSome_iff_exists.mp ((h.1 lv hlv).1 u hu)
+  show (denoteL st'.lss.ls u).isSome = true
+  rw [hx.lss.ls.lvl _ _ hl]; rfl
+
+theorem ruleDen_of_recDen {fe : IFEnv} {st : EStore} (h : RecDen fe st) {c : NIdx} {cv : IConstantVal}
+    {mI rP : Nat} {isK : Bool} {rules : List IRecRule} (hc : fe.find? c = some (.recInfo cv mI rP isK rules))
+    {rl : IRecRule} (hrl : rl ∈ rules) : RuleDen rl st := h c cv mI rP isK rules hc rl hrl
+
 /-- The code `ruleReads` runs. -/
 structure RDCodes (C : Ctx) : Prop where
   iq : IQCodes C
@@ -340,8 +356,7 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (hrs : ∀ r, rr = some r → ∃ ob, wr = cellA C ob ∧ IotaRecRep C H ob r)
     (es : List (NIdx × Nat × IConstantInfo)) (ob0 : Nat) (fe : IFEnv) (hfe : ∀ n, fe.find? n = bfLook es C.fe n)
     (hfD : EnvDen fe C.pins C.St) (hT : BTabAt C H ob0 es)
-    (hq : RuleE C.EB C.EH oq rl) (crec : NIdx) (isK : Bool) (rules : List IRecRule)
-    (hrec : fe.find? crec = some (.recInfo cv mI rP isK rules)) (hmem : rl ∈ rules) (s : AState) :
+    (hq : RuleE C.EB C.EH oq rl) (hrd : RuleDen rl C.St) (s : AState) :
     SpecR (σ := σ) (Pre (ctxH C H) s (rdParams.zip [cellA C ob0, wr, BitVec.ofNat 64 mI, BitVec.ofNat 64 rP, BitVec.ofNat 64 i,
       ecell C oq, Enc.idxW cv.type])) (rdBody C) s (ruleReads fe cv rr mI rP i rl) (PostB (ctxH C H)) := by
   refine specR_prologue (postB_locals _) (rd_none _ _) ?_
@@ -516,7 +531,7 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       refine specR_fact (fun t ht => And.intro
         (denoteNList_total' _ ((envDen_ext hfD ht.sr.floor).1 rl.ctor _ hb0).1)
         (And.intro ((envDen_ext hfD ht.sr.floor).1 rl.ctor _ hb0).2.1
-          ((envDen_ext hfD ht.sr.floor).2.2.2 crec cv mI rP isK rules hrec rl hmem)))
+          (ruleDen_ext hrd ht.sr.floor)))
         (fun ⟨⟨ks, hks⟩, hty, hrd⟩ => ?_)
       obtain ⟨tyP, htyP⟩ := Option.isSome_iff_exists.mp hty
       have hfl : ∀ lv, ((∃ pins, rl.fire = .nested lv pins) ∨ rl.fire = .levels lv) →

@@ -489,3 +489,4 @@ import ConPanqueque.T.Ind.MentionsAny
 import ConPanqueque.T.Ind.BlockIsRec
 import ConPanqueque.T.Ind.BlockCaps
 import ConPanqueque.T.Ind.EnvRec
+import ConPanqueque.T.Ind.EnvRules

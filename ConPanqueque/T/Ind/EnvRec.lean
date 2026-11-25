@@ -230,4 +230,100 @@ theorem cr_spec (C : Ctx) (hok : CtxOK C)
 
 end
 
+def cwC := ofString "cw_c"
+def cwT := ofString "cw_t"
+def cwF4 := ofString "cw_f4"
+def cwF5 := ofString "cw_f5"
+def cwF6 := ofString "cw_f6"
+def cwF7 := ofString "cw_f7"
+def cwF8 := ofString "cw_f8"
+def cwF9 := ofString "cw_f9"
+def cwN := ofString "cw_n"
+def cwL := ofString "cw_l"
+def cwLn := ofString "cw_ln"
+def cwTy := ofString "cw_ty"
+def cwB := ofString "cw_b"
+def cwX := ofString "cw_x"
+def cwR := ofString "cw_r"
+def fConstRec := ofString "constRecW"
+
+def cwParams : List MlS := [cwC, cwT, cwF4, cwF5, cwF6, cwF7, cwF8, cwF9]
+def cwLocals : List MlS := [cwN, cwL, cwLn, cwTy, cwB, cwX, cwR]
+
+/-- A constant's ten-word environment record `[tag, name, lps, type, f₄ … f₉]` from its value-heap constant. -/
+def cwBody (C : Ctx) : ProgHOL 64 := prologue cwLocals
+  (.seq (.assign .local cwN (.load .one (vv cwC)))
+  (.seq (.assign .local cwL (.load .one (.op .add [vv cwC, .const 8])))
+  (.seq (.assign .local cwTy (.load .one (.op .add [vv cwC, .const 16])))
+  (.seq (.assign .local cwLn (.load .one (vv cwL)))
+  (envBlkP C cwB cwL cwLn cwR
+  (envRecP C cwX [vv cwT, vv cwN, vv cwB, vv cwTy, vv cwF4, vv cwF5, vv cwF6, vv cwF7, vv cwF8, vv cwF9]
+    (.return (vv cwX))))))))
+
+section
+variable {σ : Type}
+
+/-- A fresh ten-word record: the constant's three words, the tag and the six fields. -/
+def PostCW (C : Ctx) (cv : IConstantVal) (tg : BitVec 64) (fs : List (BitVec 64)) (s : AState) (_ : Unit)
+    (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
+  s' = s ∧ ∃ EH o, C.EH <+: EH ∧ C.EH.length ≤ o ∧ w = ecell C o ∧ CVE C.EB EH (o + 1) cv ∧ EH[o]? = some tg ∧
+    (∀ j (hj : j < fs.length), EH[o + 4 + j]? = some fs[j]) ∧ SR (ctxE C EH) s st
+
+theorem postCW_locals (C : Ctx) (cv : IConstantVal) (tg : BitVec 64) (fs : List (BitVec 64)) (s : AState) :
+    ∀ a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
+    PostCW C cv tg fs s a w s' st → PostCW C cv tg fs s a w s' { st with locals := L } :=
+  fun _ _ _ _ _ ⟨h0, EH, o, h1, h2, h3, h4, h5, h6, h7⟩ => ⟨h0, EH, o, h1, h2, h3, h4, h5, h6, sr_of_eq h7 rfl rfl rfl rfl⟩
+
+theorem cw_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ cwLocals → (ctxEnv C ++ cwParams.zip vals).get x = none :=
+  Knot.params_none C cwLocals cwParams vals (by decide) (by decide)
+
+/-- **A constant's ten-word record**, written into the environment heap. -/
+theorem cw_spec (C : Ctx) (hok : CtxOK C)
+    (hcp : C.code.lookup fCpy = some (cpParams.map (fun p => (p, ShapeHOL.one)), cpyBody, .one))
+    (cv : IConstantVal) (oc : Nat) (hcv : CVRep C C.H oc cv) (hlps : cv.levelParams.length < 2 ^ 60)
+    (tg f4 f5 f6 f7 f8 f9 : BitVec 64) (s : AState) :
+    SpecR (σ := σ) (Pre C s (cwParams.zip [cellA C oc, tg, f4, f5, f6, f7, f8, f9]))
+      (cwBody C) s (pure ()) (PostCW C cv tg [f4, f5, f6, f7, f8, f9] s) := by
+  refine specR_prologue (postCW_locals _ _ _ _ _) (cw_none _ _) ?_
+  obtain ⟨hn0, ⟨wl, hwl, ol, hwlo, hebl⟩, hty⟩ := hcv
+  have hbl : BlkAt C.H ol (cv.levelParams.map Enc.idxW) := hebl
+  refine UD.specR_heapLoadI' (C := C) cwN _ oc _ hn0 (by decide) (by simp +decide [Env.get, cwParams, ctxEnv]) ?_
+  refine UD.specR_heapLoadI' (C := C) cwL _ (oc + 1) _ hwl (by decide)
+    (by simp +decide [sev, Env.get, cwParams, ctxEnv]; exact cellA_add8 C oc) ?_
+  refine UD.specR_heapLoadI' (C := C) cwTy _ (oc + 2) _ hty (by decide)
+    (by simp +decide [sev, Env.get, cwParams, ctxEnv]; exact cellA_add_ofNat C oc 2) ?_
+  have hb1 : C.H[ol]? = some (BitVec.ofNat 64 (cv.levelParams.map Enc.idxW).length) := hbl.1
+  refine UD.specR_heapLoadI' (C := C) cwLn _ ol _ hb1 (by decide)
+    (by simp +decide [Env.get, hwlo]; rfl) ?_
+  refine specR_envBlkI hok hcp cwB cwL cwLn cwR ol _ hbl (by simpa using hlps) (by decide) (by decide)
+    (by decide) (by decide) (by simp +decide [Env.get, hwlo]; rfl) (by simp +decide [Env.get])
+    (fun EH1 w1 hp1 heb1 => ?_)
+  have hok1 := ctxOK_E hok hp1
+  refine specR_envRecI hok1 cwX [vv cwT, vv cwN, vv cwB, vv cwTy, vv cwF4, vv cwF5, vv cwF6, vv cwF7, vv cwF8, vv cwF9]
+    [tg, Enc.idxW cv.name, ecell C C.EH.length, Enc.idxW cv.type, f4, f5, f6, f7, f8, f9]
+    (by decide) rfl (by decide)
+    (fun w j hj hj' => by
+      rcases j with _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | j <;>
+        first | rfl | (simp +decide [sev, Env.get, cwParams, ctxEnv]; done) |
+          (simp +decide [sev, Env.get, cwParams, ctxEnv]; rfl) | (simp at hj; omega))
+    (fun EH2 hp2 hl2 hv2 => ?_)
+  have hp12 : C.EH <+: EH2 := hp1.trans hp2
+  have hlen1 := hp1.length_le
+  have g : ∀ j (hj : j < 10), EH2[EH1.length + j]? = some ([tg, Enc.idxW cv.name, ecell C C.EH.length,
+      Enc.idxW cv.type, f4, f5, f6, f7, f8, f9] : List (BitVec 64))[j] :=
+    fun j hj => hv2 j (by simpa using hj)
+  exact specR_returnI _ (ecell C EH1.length) (by simp [Env.get] <;> rfl)
+    (fun t ht => ⟨rfl, EH2, EH1.length, hp12, hlen1, rfl,
+      ⟨g 1 (by decide), ⟨ecell C C.EH.length, g 2 (by decide), C.EH.length, rfl, eblk_mono heb1 hp2⟩, g 3 (by decide)⟩,
+      g 0 (by decide),
+      fun j hj => by
+        have := g (4 + j) (by simp at hj; omega)
+        rw [show EH1.length + (4 + j) = EH1.length + 4 + j by omega] at this
+        rw [this]; simp at hj
+        rcases j with _ | _ | _ | _ | _ | _ | j <;> first | rfl | omega,
+      sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+end
+
 end ConPanqueque.T.Ind
