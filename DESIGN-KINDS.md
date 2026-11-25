@@ -116,3 +116,15 @@ The port's environment index is a memo table (`MemoAtG`, append-only rows over a
    environment heap's top (`gEt`). Rows past the count are not part of the representation, so the table's memory
    is back to a state the old `MemoAtG` holds for (`memoAtG_frame`-style), and `EnvRel`/`CtxOK` hold for the old
    context. Needed: the memo insert's footprint (which words it writes) and a restore lemma.
+
+**Revision (block-aware finder, supersedes option 3).** The undo log needs the table's row layout to survive
+`recsRead`, but the callee specs only pass `SR` (the table's representation is existential in `MemoAtG`), so the
+temporary rows cannot be shown to still be the last ones at pop time without frame facts through the whole call
+tree. Instead the port does not push at all: the block's records are appended to the environment heap (no index
+insert, so `EnvRel`/`MemoAtG` are untouched and the context only gains heap cells), and the lookups on the
+`recsRead` path (`ruleReads`' constructor, `annIdent`, `annWitness`) go through a finder that scans the block's
+`(name, record)` table first and falls back to the index. That is `feR.find?` exactly, shadowing included, with no
+freshness requirement and nothing to undo. Cost: the functions on that path take the block table's pointer as an
+extra argument, and their specs are stated against a lookup `F : NIdx → Option IConstantInfo` (the twin's `feR`)
+with the finder's spec as a hypothesis instead of `C.fe`. `RowUndo` stays (it is the slot half of any later
+table rollback).
