@@ -7,7 +7,8 @@ import ConPanqueque.T.Ind.IndParams
 value heap, every record a heap block reached by a pointer (`cellA C o`):
 
 * a constant (`IConstantVal`): the environment's own three words (`CVE`: name, level-parameter list, type);
-* a member (`MemberShape`): `[cvT, declared, nIdx, ctors]`, `ctors` a block of `(constant, field count)` pairs;
+* a member (`MemberShape`): `[cvT, declared, nIdx, ctors]`, `ctors` a block of `(constant, field count)` pairs
+  (the index count as a word, its bound not recorded);
 * a recursor (`RecShape`): `[cvR, rP, mI, tgt, rules, isK]`, the rules in the environment's layout (`RulesE`);
 * the shape: `[members, recs, nP, elim, resSort, large, isProp]`, `members` and `recs` blocks of pointers.
 
@@ -38,7 +39,7 @@ def CtorsRep (C : Ctx) (H : List (BitVec 64)) (o : Nat) (cs : List (IConstantVal
 def MemberRep (C : Ctx) (H : List (BitVec 64)) (o : Nat) (m : MemberShape) : Prop :=
   (∃ oc, H[o]? = some (cellA C oc) ∧ CVRep C H oc m.cvT) ∧
   (∃ od, H[o + 1]? = some (cellA C od) ∧ CVRep C H od m.declared) ∧
-  NatE H (o + 2) m.nIdx ∧
+  H[o + 2]? = some (BitVec.ofNat 64 m.nIdx) ∧
   (∃ ol, H[o + 3]? = some (cellA C ol) ∧ CtorsRep C H ol m.ctors)
 
 /-- A recursor at `o`. -/
@@ -72,7 +73,7 @@ theorem ctorsRep_mono {o : Nat} {cs : List (IConstantVal × Nat)} (h : CtorsRep 
 
 theorem memberRep_mono {o : Nat} {m : MemberShape} (h : MemberRep C H o m) : MemberRep C H' o m := by
   obtain ⟨⟨oc, a1, a2⟩, ⟨od, b1, b2⟩, c, ⟨ol, d1, d2⟩⟩ := h
-  exact ⟨⟨oc, get_prefix a1 hp, cvRep_mono hp a2⟩, ⟨od, get_prefix b1 hp, cvRep_mono hp b2⟩, natE_mono hp c,
+  exact ⟨⟨oc, get_prefix a1 hp, cvRep_mono hp a2⟩, ⟨od, get_prefix b1 hp, cvRep_mono hp b2⟩, get_prefix c hp,
     ⟨ol, get_prefix d1 hp, ctorsRep_mono hp d2⟩⟩
 
 theorem recRep_mono {o : Nat} {r : RecShape} (h : RecRep C H o r) : RecRep C H' o r := by
