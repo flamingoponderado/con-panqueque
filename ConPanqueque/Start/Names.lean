@@ -95,4 +95,124 @@ theorem nameOK_of_notMem {n : ConLeche.Name} (h : n ∉ FN) : ConPanqueque.Pipel
     · rfl
     · exfalso; exact nm n (Or.inr (Or.inl (by simpa using hc))) rfl
 
+theorem denoteDecls_mem {st : EStore} : ∀ {hs : List IDeclaration} {ds : List ConLeche.Declaration},
+    denoteDecls st hs = some ds → ∀ d ∈ ds, ∃ dh ∈ hs, denoteDecl st dh = some d
+  | [], ds, h, d, hd => by simp [denoteDecls] at h; subst h; cases hd
+  | x :: xs, ds, h, d, hd => by
+    simp only [denoteDecls] at h
+    split at h
+    · rename_i a as ha has
+      simp only [Option.some.injEq] at h; subst h
+      rcases List.mem_cons.mp hd with rfl | hd
+      · exact ⟨x, List.mem_cons_self .., ha⟩
+      · obtain ⟨dh, hm, e⟩ := denoteDecls_mem has d hd
+        exact ⟨dh, List.mem_cons_of_mem _ hm, e⟩
+    · cases h
+
+/-- A value record's name, read off its denotation. -/
+theorem valName_denote {st : EStore} {dh : IDeclaration} {d : ConLeche.Declaration}
+    (hv : ConPanqueque.Bridge.IsValueDecl dh) (hp : PersDecl dh) (h : denoteDecl st dh = some d) :
+    ∃ nh n, recNameW dh = Enc.idxW nh ∧ PersN nh ∧ denoteN st.ns nh = some n ∧
+      ConPanqueque.Pipeline.valName d = some n := by
+  cases dh with
+  | defnDecl cv e hint =>
+    simp only [denoteDecl] at h
+    split at h
+    · rename_i c x hc hx
+      simp only [Option.some.injEq] at h; subst h
+      simp only [denoteCV] at hc
+      split at hc
+      · rename_i n lps ty hn hl ht
+        simp only [Option.some.injEq] at hc; subst hc
+        exact ⟨cv.name, n, rfl, hp.1.name, hn, rfl⟩
+      · cases hc
+    · cases h
+  | thmDecl cv e =>
+    simp only [denoteDecl] at h
+    split at h
+    · rename_i c x hc hx
+      simp only [Option.some.injEq] at h; subst h
+      simp only [denoteCV] at hc
+      split at hc
+      · rename_i n lps ty hn hl ht
+        simp only [Option.some.injEq] at hc; subst hc
+        exact ⟨cv.name, n, rfl, hp.1.name, hn, rfl⟩
+      · cases hc
+    · cases h
+  | opaqueDecl cv e =>
+    simp only [denoteDecl] at h
+    split at h
+    · rename_i c x hc hx
+      simp only [Option.some.injEq] at h; subst h
+      simp only [denoteCV] at hc
+      split at hc
+      · rename_i n lps ty hn hl ht
+        simp only [Option.some.injEq] at hc; subst hc
+        exact ⟨cv.name, n, rfl, hp.1.name, hn, rfl⟩
+      · cases hc
+    · cases h
+  | _ => exact hv.elim
+
+open ConPanqueque.Front ConPanqueque.T.Decl Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact
+  ConPanqueque.Logic in
+/-- **The verdict with the pass**: when the program returns, con-leche parses the input, its pure
+checker accepts the declarations, and every declaration is a value record at a name outside `FN`. -/
+theorem front_verdict2 {σ : Type} {F rb capD jN cap bufJ : Nat} {b : ByteArray}
+    (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPinSet)
+    (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx)
+    (hok : CtxOK C) (hf : FrontOK C) (fc : FrontCodes σ C) (hc : FoldCodes .verified C)
+    (hs : C.side = false) (hpl : C.saved = none) (hfe : C.fe = feStart C.pins)
+    (hcF : C.code.lookup fFeed = some (feedPs.map (fun p => (p, ShapeHOL.one)), prologue feedL feedCore, .one))
+    (hEB : ∀ j, ecell C j = ecb j)
+    (s : AState) (hst : StateOK s) (hoff : s.store.scratchOn = false) (hpo : PinsOK s) (hpp : PersPins s)
+    (hpins : PinsDenote s.store pins pinsP)
+    (hb : PinBlock C.EH s.pins) (bh : NIdx) (hB : C.EH[138]? = some (Enc.idxW bh))
+    (hbd : denoteN s.store.ns bh = some boolRecName) (hbp : PersN bh)
+    (Γ : Env) (M : Mem) (D : List MlS) (hD : ∀ x ∈ [kZ, kR0, kN0, kR1], x ∈ D) (hDF : ∀ x ∈ forbidVars, x ∈ D)
+    (hfl : FrontLay F rb capD jN (jN + cap) (jN + 2 * cap) cap bufJ b) (hcap1 : 1 ≤ cap) (hcapN : cap ≤ ConPanqueque.Scan.natCap)
+    (hcap8 : 8 * cap < 2 ^ 64) (hcapD8 : 8 * (rb + 1 + capD) < 2 ^ 64) (hFH : F ≤ C.H.length)
+    (hbuf : BufOK C bufJ b)
+    (hZb : Γ.get kZb = some (cellA C jN)) (hZn : Γ.get kZn = some (BitVec.ofNat 64 (3 * cap)))
+    (hTN : Γ.get fTN = some (cellA C jN)) (hTL : Γ.get fTL = some (cellA C (jN + cap)))
+    (hTE : Γ.get fTE = some (cellA C (jN + 2 * cap))) (hC : Γ.get fCap = some (BitVec.ofNat 64 cap))
+    (hBA : Γ.get kBA = some (cellA C bufJ)) (hBN : Γ.get kBN = some (BitVec.ofNat 64 b.size))
+    (hRB : Γ.get kRB = some (cellA C rb)) (hCD : Γ.get kCapD = some (BitVec.ofNat 64 capD))
+    (hZL : Γ.get kZL = some (Enc.idxW s.pins.zeroLevel))
+    (t : PState σ) (ht : Inv C s Γ M D t) :
+    Stop (evaluateHOLFiniteState t mainP2).1 ∨
+      ((∃ w, (evaluateHOLFiniteState t mainP2).1 = some (.returned (.val (.word w)))) ∧
+        ∃ rc, ConLeche.Frontend.parseBytes b = .ok rc ∧
+          (∃ F', ConLeche.checkDeclsPure .verified (ConLeche.fueledOps .verified F') pinsP rc.decls.toList
+            = .ok (ConLeche.streamEnv rc.decls.toList)) ∧
+          ∀ d ∈ rc.decls.toList, ∃ n, ConPanqueque.Pipeline.valName d = some n ∧ n ∉ FN) := by
+  have hsz : b.size < USize.size := by
+    have := hbuf.small
+    simp only [USize.size_eq_two_pow, hbuf.plat.bits]; omega
+  have hcells : ∀ j ∈ cellsF, ∃ w, C.EH[j]? = some w := by
+    intro j hj
+    simp only [cellsF, List.mem_append, List.mem_map, List.mem_range, List.mem_singleton] at hj
+    rcases hj with (⟨i, hi, rfl⟩ | ⟨i, hi, rfl⟩) | rfl
+    · exact ⟨_, hb.names i (by rw [hb.size]; simpa [pinCount] using hi)⟩
+    · exact ⟨_, hb.res i (by rw [(denoteNL_get hpo.reserved).1, reserved_length]; exact hi)⟩
+    · exact ⟨_, hB⟩
+  rcases main_spec2 pins ra C hok hf fc hc hs hpl hfe hcF hEB hcells s hst hoff hpo Γ M D hD hDF hfl hcap1 hcapN hcap8
+      hcapD8 hFH hbuf hZb hZn hTN hTL hTE hC hBA hBN hRB hCD hZL t ht with
+    hstop | ⟨w, hw, a, s'', -, st', s', hrun, hval, hm, hforb⟩
+  · exact Or.inl hstop
+  refine Or.inr ⟨⟨w, hw⟩, ?_⟩
+  obtain ⟨hstep, hpersR, rc, hrc, hden⟩ := parse_twin hst hoff hpo hsz hrun
+  refine ⟨rc, hrc, ConPanqueque.Bridge.seq_bridge' hstep.ok (hpo.mono hstep.ext hstep.pins) (hpp.mono hstep.pins)
+    (PinsDenote.mono hstep.ext _ _ hpins) hden hval hm, fun d hd => ?_⟩
+  obtain ⟨dh, hdm, hdd⟩ := denoteDecls_mem hden d hd
+  obtain ⟨k, hk, rfl⟩ := List.getElem_of_mem hdm
+  have hk' : k < st'.decls.size := by simpa using hk
+  obtain ⟨nh, n, hrw, hpn, hdn, hvn⟩ := valName_denote (hval _ hdm) (hpersR _ (by show st'.decls[k] ∈ st'.decls; exact Array.getElem_mem hk')) hdd
+  refine ⟨n, hvn, ?_⟩
+  have hpo' := hpo.mono hstep.ext hstep.pins
+  have hwf : NStoreWF s'.store.ns := ConRon.Bridge.Frontend.nsWF_of_StateOK hstep.ok
+  refine name_notMem s'.store hwf s.pins C.EH hb (by rw [← hstep.pins]; exact hpo'.names)
+    (by rw [← hstep.pins]; exact hpo'.reserved) hpp.names hpp.reserved bh hB (denoteN_ext hbd hstep.ext) hbp
+    nh n hpn hdn (fun j hj e => hforb k hk' j hj ?_)
+  rw [e]; simp only [Array.getElem_toList] at hrw; rw [hrw]
+
 end ConPanqueque.Start
