@@ -36,7 +36,7 @@ theorem plEntry_tag {b : ByteArray} {wpl ws0 : BitVec 64} {pl : LinePayload} {a 
 theorem lineTblP_tag_lt : ∀ e ∈ lineTblP, e.2.tag < 32 := by
   intro e he; simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at he
   rcases he with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
-    rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> decide
+    rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> decide
 
 /-- A nonzero tag names its entry. -/
 theorem plOK_tag {b : ByteArray} {ws0 : BitVec 64} {pl : LinePayload} {t : Nat} (ht : t < 32) (h0 : t ≠ 0)
@@ -63,102 +63,102 @@ theorem objPl {b : ByteArray} {ws0 : BitVec 64} {pl : LinePayload} {t g : Nat} {
 
 theorem tag_1 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 1) : a = .natP 1 3 (fun n => .expr (.bvar n)) := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem tag_2 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 2) : a = .natP 2 3 (fun n => .expr (.sort n)) := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem tag_3 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 3) : a = .natP 3 2 (fun n => .level (.succ n)) := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem tag_4 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 4) : a = .natP 4 2 (fun n => .level (.param n)) := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem tag_5 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 5) : a = .objP 5 1 fRecStr nameStr := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem tag_6 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 6) : a = .objP 6 1 fRecNum nameNum := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem tag_7 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 7) : a = .objP 7 3 fRecApp exprApp := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem tag_8 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 8) : a = .objP 8 3 fRecLam exprLam := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem tag_9 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 9) : a = .objP 9 3 fRecForall exprForall := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem tag_10 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 10) : a = .objP 10 3 fRecLet exprLet := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem tag_11 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 11) : a = .objP 11 3 fRecConst exprConst := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem tag_12 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 12) : a = .objP 12 3 fRecProj exprProj := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem tag_13 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 13) : a = .strP 13 3 (fun s => .expr (.strVal s)) := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem tag_14 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 14) : a = .objP 14 0 fRecDef declDef := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem tag_15 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 15) : a = .objP 15 0 fRecThm declThm := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem tag_16 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 16) : a = .objP 16 0 fRecOpaque declOpaque := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem tag_17 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 17) : a = .objP 17 0 fRecMeta metaHdr := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem tag_18 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 18) : a = .objP 18 2 fRecMax levMax := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem tag_19 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 19) : a = .objP 19 2 fRecImax levImax := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem tag_20 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 20) : a = .objP 20 3 fRecNatVal natValPl := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 end ConPanqueque.Front

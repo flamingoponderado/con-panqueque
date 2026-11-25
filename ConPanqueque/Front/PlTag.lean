@@ -1,4 +1,5 @@
 import ConPanqueque.Front.Tags
+import ConPanqueque.Scan.ObjInst2
 
 /-! # A payload names its tag
 
@@ -36,6 +37,8 @@ def plTag : LinePayload → Nat
   | .decl (.defn _ _ _ _) => 14
   | .decl (.thm _ _) => 15
   | .decl (.opaq _ _ _) => 16
+  | .decl (.ax _ _) => 21
+  | .decl (.quot _ _) => 22
   | .decl _ => 0
   | .header => 17
 
@@ -66,7 +69,7 @@ theorem plOK_tag_eq {b : ByteArray} {wpl ws : BitVec 64} {pl : LinePayload} (h :
   rcases h with ⟨rfl, rfl⟩ | ⟨k, a, hm, he⟩
   · rfl
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false, Prod.mk.injEq] at hm
-  rcases hm with ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩
+  rcases hm with ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩
   · exact he.elim
   · exact he.elim
   · exact he.elim
@@ -133,6 +136,14 @@ theorem plOK_tag_eq {b : ByteArray} {wpl ws : BitVec 64} {pl : LinePayload} (h :
   · obtain ⟨rfl, v, e, hs, -⟩ := he
     simp only [natValPl] at hs
     obtain ⟨a, rfl⟩ := srMap_ok hs; rfl
+  · obtain ⟨rfl, v, e, hs, -⟩ := he
+    simp only [declAx, ConLeche.Frontend.scanAxiomDecl] at hs
+    rw [scanAxiomDeclLoop_eq b _ (v + 1) true 0 false [] 0 0 rfl] at hs
+    obtain ⟨a, rfl⟩ := srMap_ite hs; rfl
+  · obtain ⟨rfl, v, e, hs, -⟩ := he
+    simp only [declQuot, ConLeche.Frontend.scanQuotDecl] at hs
+    rw [scanQuotDeclLoop_eq b _ (v + 1) true 0 "" [] 0 0 rfl] at hs
+    obtain ⟨a, rfl⟩ := srMap_ite hs; rfl
 
 /-- The payload a record came from. -/
 def recPl : LineRec → LinePayload

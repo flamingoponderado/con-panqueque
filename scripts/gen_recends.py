@@ -61,7 +61,7 @@ for scan,loop,rty,args in kinds:
   unfold RecOut at hro
   rw [{scan}, {loop}_eq b _ (i + 1) true 0 {" ".join(initargs)} rfl]
   split at hro
-  · rename_i hbyte; rw [if_pos hbyte, hro]; exact ⟨_, rfl⟩
+  · rename_i hbyte; rw [ite_eq_left hbyte, hro]; exact ⟨_, rfl⟩
   · simp at hro
 ''')
 print("\n".join(out))

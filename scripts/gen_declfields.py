@@ -81,7 +81,7 @@ for (old,new,scan,spec,n,ks,nkeys,build,slots,*rt) in specs:
   split at hro'
   · rename_i hbyte
     have hs : %s b i = .ok (%s slots') j := by
-      rw [%s, %s, if_pos hbyte, hro']; rfl
+      rw [%s, %s, ite_eq_left hbyte, hro']; rfl
     rw [hd] at hs
     simp only [ScanRes.ok.injEq] at hs
 @@TAIL@@  · simp at hro'

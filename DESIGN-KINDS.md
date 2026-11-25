@@ -44,3 +44,30 @@ So the order is:
    re-prove `main_pipeline_chunks`.
 
 Each step keeps the full build green and the main theorem's statement and axioms.
+
+## The inductive branch, layer by layer
+
+The reachable set from `indParamsOk`, `readBlock`, `blockReadsAt`, `checkBlock` and `basisNamesOk`
+(stopping at the kernel core, `ExprOps`, `Monad`, `Env`, `Pins`) is about 310 functions and 3,240 lines of
+twin code. Leaves first:
+
+| Layer | Functions | Lines | Examples |
+|---|---|---|---|
+| L0 | 104 | ~860 | block-shape accessors, memoised walks (`constsResolveFGo`, `mentionsAnyGo`, `depthGo`, `targetAbsGo`), `lvlEq`, `piTele`, `nameNodup`, `indParamsOk` |
+| L1 | 55 | ~516 | `blockCounts`, `blockCapsAt`, `classReadMinor`, `motiveLevel?`, `replaceFVars` block, `recFire`, `atLps` |
+| L2 | 43 | ~484 | `classGenRule`, `minorTy`, `iotaPartsAt`, `blockSplit`, `checkBlockAgree`, `replaceAppsGo` |
+| L3 | 25 | ~306 | `readBlock`, `classRuleCheck`, `targetRecPins`, `blockTables` |
+| L4–L5 | 38 | ~506 | `checkConstantVal`, `annEq`, `nestInstType`, `targetMajorOf`, `checkSumCtor` |
+| L6 | 13 | ~293 | the positivity mutual block (`nestFields` … `nestPos`), `basisNamesOk` |
+| L7–L14 | 24 | ~277 | `checkBlockCtors`, `genRecCheck`, `recsRead`, `blockReadsAt`, `checkBlockTail`, `checkBlock` |
+
+Awkward parts: about 12 fuelled walkers (fail at 0), ten per-call `HashMap` memos (the port's memo tables
+fit), `flushCaches` at about ten environment transitions, `popTemp` (temporary pushes onto the environment
+index), `Array` growth in the positivity state, and spec-level `Name`/`Level` values read back in
+`allLevelParamsDefined`, `pinLinkOk` and `BasisKind.decls` (which re-interns a whole basis block).
+
+## Progress
+
+- Scanner: the line table accepts `axiom` and `quot` payloads (tags 21, 22; `Scan/ObjInst2`,
+  `Scan/RecEnds2`, `Scan/Line`, `Scan/LineFun`, `Front/PlTag`). The dispatcher has no branch for them yet,
+  so such lines still reject.
