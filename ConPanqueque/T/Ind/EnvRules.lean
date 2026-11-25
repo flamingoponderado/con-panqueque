@@ -350,4 +350,241 @@ theorem rw_spec (C : Ctx) (hok : CtxOK C)
 
 end
 
+def rqR := ofString "rq_r"
+def rqF := ofString "rq_f"
+def rqCv := ofString "rq_cv"
+def rqRp := ofString "rq_rp"
+def rqMi := ofString "rq_mi"
+def rqRw := ofString "rq_rw"
+def rqIk := ofString "rq_ik"
+def rqT3 := ofString "rq_t3"
+def rqTg := ofString "rq_tg"
+def rqLv := ofString "rq_lv"
+def rqPs := ofString "rq_ps"
+def rqRn := ofString "rq_rn"
+def rqD := ofString "rq_d"
+def rqX := ofString "rq_x"
+def rqB := ofString "rq_b"
+def rqO := ofString "rq_o"
+def fRecRec := ofString "recRecW"
+
+def rqParams : List MlS := [rqR, rqF]
+def rqLocals : List MlS := [rqCv, rqRp, rqMi, rqRw, rqIk, rqT3, rqTg, rqLv, rqPs, rqRn, rqD, rqX, rqB, rqO]
+
+/-- A recursor's environment record (`RecShape` at `rqR`, its firing mode's value record at `rqF`). -/
+def rqBody (C : Ctx) : ProgHOL 64 := prologue rqLocals
+  (.seq (.assign .local rqCv (.load .one (vv rqR)))
+  (.seq (.assign .local rqRp (.load .one (.op .add [vv rqR, .const 8])))
+  (.seq (.assign .local rqMi (.load .one (.op .add [vv rqR, .const 16])))
+  (.seq (.assign .local rqRw (.load .one (.op .add [vv rqR, .const 32])))
+  (.seq (.assign .local rqIk (.load .one (.op .add [vv rqR, .const 40])))
+  (.seq (.call (some (some (.local, rqT3), none)) fFireEnv [vv rqF])
+  (.seq (.assign .local rqTg (.load .one (vv rqT3)))
+  (.seq (.assign .local rqLv (.load .one (.op .add [vv rqT3, .const 8])))
+  (.seq (.assign .local rqPs (.load .one (.op .add [vv rqT3, .const 16])))
+  (.seq (.assign .local rqRn (.load .one (vv rqRw)))
+  (guardP rqRn 58
+  (allocP C rqD (.shift .lsl (.op .add [vv rqRn, .const 1]) (.const 3))
+  (.seq (.store (vv rqD) (vv rqRn))
+  (.seq (.call (some (some (.local, rqX), none)) fRuleFill [vv rqRw, vv rqD, .const 0, vv rqRn, vv rqTg, vv rqLv, vv rqPs])
+  (envBlkP C rqB rqD rqRn rqX
+  (.seq (.call (some (some (.local, rqO), none)) fConstRec
+    [vv rqCv, .const 5, vv rqMi, vv rqRp, vv rqIk, vv rqB, .const 0, .const 0])
+    (.return (vv rqO))))))))))))))))))
+
+section
+variable {σ : Type}
+
+/-- A fresh recursor record, past the value heap and the environment heap. -/
+def PostRQ (C : Ctx) (ci : IConstantInfo) (s : AState) (_ : Unit) (w : BitVec 64) (s' : AState) (st : PState σ) :
+    Prop :=
+  s' = s ∧ ∃ H' EH o, C.H <+: H' ∧ C.EH <+: EH ∧ C.EH.length ≤ o ∧ w = ecell C o ∧ CIE C.EB EH o ci ∧
+    SR (ctxE (ctxH C H') EH) s st
+
+theorem postRQ_locals (C : Ctx) (ci : IConstantInfo) (s : AState) : ∀ a w s' (st : PState σ)
+    (L : HolFiniteMapExact MlS (ValueHOL 64)), PostRQ C ci s a w s' st → PostRQ C ci s a w s' { st with locals := L } :=
+  fun _ _ _ _ _ ⟨h0, H', EH, o, h1, h2, h3, h4, h5, h6⟩ => ⟨h0, H', EH, o, h1, h2, h3, h4, h5, sr_of_eq h6 rfl rfl rfl rfl⟩
+
+theorem rq_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ rqLocals → (ctxEnv C ++ rqParams.zip vals).get x = none :=
+  Knot.params_none C rqLocals rqParams vals (by decide) (by decide)
+
+theorem pure_run_unit (s s' : AState) (a : Unit) (h : (pure () : AM Unit) s = .ok (a, s')) : s' = s := by
+  simp only [pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at h
+  exact h.2.symm
+
+/-- **A recursor's record**, its rules firing as `f`. -/
+theorem rq_spec (C : Ctx) (hok : CtxOK C)
+    (hcp : C.code.lookup fCpy = some (cpParams.map (fun p => (p, ShapeHOL.one)), cpyBody, .one))
+    (hcf : C.code.lookup fFireEnv = some (fwParams.map (fun p => (p, ShapeHOL.one)), fwBody C, .one))
+    (hcr : C.code.lookup fRuleFill = some (rwParams.map (fun p => (p, ShapeHOL.one)), rwBody C, .one))
+    (hcw : C.code.lookup fConstRec = some (cwParams.map (fun p => (p, ShapeHOL.one)), cwBody C, .one))
+    (rc : RecShape) (orc : Nat) (hrr : RecRep C C.H orc rc) (hlps : rc.cvR.levelParams.length < 2 ^ 60)
+    (f : IRecRuleFire) (ofi : Nat) (hf : FireE C.HB C.H ofi f) (s : AState) :
+    SpecR (σ := σ) (Pre C s (rqParams.zip [cellA C orc, cellA C ofi])) (rqBody C) s (pure ())
+      (PostRQ C (.recInfo rc.cvR rc.mI rc.rP rc.isK (rc.rules.map ({ · with fire := f }))) s) := by
+  refine specR_prologue (postRQ_locals _ _ _) (rq_none _ _) ?_
+  refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN => ?_)
+  have hHN' : C.H.length ≤ C.HN := hHN
+  have hlay := hok.heapLay
+  obtain ⟨⟨ocv, hocv, hcv⟩, ⟨hrp, hrpb⟩, ⟨hmi, hmib⟩, -, ⟨w, hw, ob, hwob, hrl0, hrls⟩, hik⟩ := hrr
+  refine UD.specR_heapLoadI' (C := C) rqCv _ orc _ hocv (by decide) (by simp +decide [Env.get, rqParams, ctxEnv]) ?_
+  refine UD.specR_heapLoadI' (C := C) rqRp _ (orc + 1) _ hrp (by decide)
+    (by simp +decide [sev, Env.get, rqParams, ctxEnv]; exact cellA_add8 C orc) ?_
+  refine UD.specR_heapLoadI' (C := C) rqMi _ (orc + 2) _ hmi (by decide)
+    (by simp +decide [sev, Env.get, rqParams, ctxEnv]; exact cellA_add_ofNat C orc 2) ?_
+  refine UD.specR_heapLoadI' (C := C) rqRw _ (orc + 4) _ hw (by decide)
+    (by simp +decide [sev, Env.get, rqParams, ctxEnv]; exact cellA_add_ofNat C orc 4) ?_
+  refine UD.specR_heapLoadI' (C := C) rqIk _ (orc + 5) _ hik (by decide)
+    (by simp +decide [sev, Env.get, rqParams, ctxEnv]; exact cellA_add_ofNat C orc 5) ?_
+  -- the firing mode's environment words
+  refine specR_congr (m' := (pure () : AM Unit) >>= fun _ => pure ()) (by simp) ?_
+  refine specR_callNC (C := C) rqT3 fFireEnv fwParams [vv rqF] (fwBody C) [cellA C ofi] (by decide) rfl (by decide) hcf
+    ⟨by simp +decide [sev, Env.get_cons, Env.get, rqParams, ctxEnv], trivial⟩
+    (fun a w s' st => (pure () : AM Unit) s = .ok (a, s') ∧ PostFW C f s a w s' st)
+    (fun a w s' C' => s' = s ∧ ∃ H1 EH1 o3 tg lvw psw, C' = ctxE (ctxH C H1) EH1 ∧ C.H <+: H1 ∧ C.EH <+: EH1 ∧
+      w = cellA C o3 ∧ H1[o3]? = some tg ∧ H1[o3 + 1]? = some lvw ∧ H1[o3 + 2]? = some psw ∧
+      FireW C.EB EH1 tg lvw psw f)
+    (fun a w s' st ⟨hr, h0, H1, EH1, o3, tg, lvw, psw, h1, h2, h3, h4, h5, h6, h7, h8⟩ =>
+      ⟨_, ⟨(pure_run_unit _ _ _ hr), H1, EH1, o3, tg, lvw, psw, rfl, h1, h2, h3, h4, h5, h6, h7⟩,
+        by rw [pure_run_unit _ _ _ hr]; exact h8⟩)
+    (fun u hu _ hlk => specR_run (fun w' hw' => by
+      subst hw'
+      exact fw_spec C hok hcp f ofi hf s _ (pre_of_lookups hu fwParams _ rfl hlk)))
+    (fun _ w3 s1 C1 ⟨hs1, H1, EH1, o3, tg, lvw, psw, eC1, hp1, hpe1, hw3, ht0, ht1, ht2, hfw⟩ => ?_)
+  subst eC1 hw3; subst s1
+  have hok1 : CtxOK (ctxE (ctxH C H1) EH1) := ctxOK_E (ctxOK_H hok H1) hpe1
+  refine UD.specR_heapLoadI' (C := ctxE (ctxH C H1) EH1) rqTg _ o3 _ ht0 (by decide) (by simp +decide [Env.get] <;> rfl) ?_
+  refine UD.specR_heapLoadI' (C := ctxE (ctxH C H1) EH1) rqLv _ (o3 + 1) _ ht1 (by decide)
+    (by simp +decide [sev, Env.get]; exact cellA_add8 C o3) ?_
+  refine UD.specR_heapLoadI' (C := ctxE (ctxH C H1) EH1) rqPs _ (o3 + 2) _ ht2 (by decide)
+    (by simp +decide [sev, Env.get]; exact cellA_add_ofNat C o3 2) ?_
+  have hrl0' := get_prefix hrl0 hp1
+  refine UD.specR_heapLoadI' (C := ctxE (ctxH C H1) EH1) rqRn _ ob _ hrl0' (by decide)
+    (by simp +decide [Env.get, hwob]; rfl) ?_
+  have hrsl : ob + rc.rules.length ≤ C.H.length := by
+    rcases Nat.lt_or_ge 0 rc.rules.length with h | h
+    · obtain ⟨q, hq, -⟩ := hrls (rc.rules.length - 1) (by omega)
+      have := (List.getElem?_eq_some_iff.mp hq).1; omega
+    · have := (List.getElem?_eq_some_iff.mp hrl0).1; omega
+  refine specR_guardI rqRn rc.rules.length 58 (by decide) (by simp [Env.get]) (by omega) (fun hn58 => ?_)
+  refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN1 => ?_)
+  have hHN1' : H1.length ≤ C.HN := hHN1
+  -- the value-heap block of rule pointers
+  refine specR_allocI (C := ctxE (ctxH C H1) EH1) rqD _ (rc.rules.length + 1) (by omega) (by decide) (fun v => ?_)
+    (fun H2 ws hp2 hws hroom => ?_)
+  · simp +decide [sev, Env.get]
+    apply BitVec.eq_of_toNat_eq; simp [BitVec.toNat_add, BitVec.toNat_shiftLeft, Nat.shiftLeft_eq]; omega
+  have hp2' : H1 <+: H2 := hp2
+  change SpecR (Inv (ctxE (ctxH C (H2 ++ ws)) EH1) _ _ _ _) _ _ _ _
+  have hq0 : H2.length < (ctxE (ctxH C (H2 ++ ws)) EH1).H.length := by show H2.length < (H2 ++ ws).length; simp; omega
+  refine specR_heapStoreI (ctxOK_E (ctxOK_H hok (H2 ++ ws)) hpe1) (vv rqD) (vv rqRn) H2.length hq0
+    (BitVec.ofNat 64 rc.rules.length) (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get]) ?_
+  change SpecR (Inv (ctxE (ctxH C ((H2 ++ ws).set H2.length (BitVec.ofNat 64 rc.rules.length))) EH1) _ _ _ _) _ _ _ _
+  generalize hB : (H2 ++ ws).set H2.length (BitVec.ofNat 64 rc.rules.length) = B
+  have hBlen : B.length = H2.length + (rc.rules.length + 1) := by rw [← hB]; simp [hws]
+  have hB0 : B[H2.length]? = some (BitVec.ofNat 64 rc.rules.length) := by
+    rw [← hB, List.getElem?_set_self (by simp; omega)]
+  have hpB : H2 <+: B := by
+    refine prefix_of_get? (by omega) (fun j hj => ?_)
+    rw [← hB, List.getElem?_set_ne (by omega), List.getElem?_append_left hj]
+  let Hc := B.take (H2.length + 1)
+  have hpc : H2 <+: Hc := by
+    refine prefix_of_get? (by simp [Hc]; omega) (fun j hj => ?_)
+    simp only [Hc]; rw [List.getElem?_take_of_lt (by omega), List.getElem?_eq_getElem hj]
+    exact get_prefix (List.getElem?_eq_getElem hj) hpB
+  have hHc0 : Hc[H2.length]? = some (BitVec.ofNat 64 rc.rules.length) := by
+    simp only [Hc]; rw [List.getElem?_take_of_lt (by omega)]; exact hB0
+  have hvr : VRulesAt C C.H ob rc.rules := ⟨hrl0, fun i hi => hrls i hi⟩
+  -- the rules
+  refine specR_congr (m' := (pure () : AM Unit) >>= fun _ => pure ()) (by simp) ?_
+  refine specR_callNC (C := ctxE (ctxH C B) EH1) rqX fRuleFill rwParams
+    [vv rqRw, vv rqD, .const 0, vv rqRn, vv rqTg, vv rqLv, vv rqPs] (rwBody C)
+    [cellA C ob, cellA C H2.length, BitVec.ofNat 64 0, BitVec.ofNat 64 rc.rules.length, tg, lvw, psw]
+    (by decide) rfl (by decide) hcr
+    ⟨by simp +decide [sev, Env.get, hwob]; rfl, by simp +decide [sev, Env.get] <;> rfl, rfl,
+      by simp +decide [sev, Env.get], by simp +decide [sev, Env.get], by simp +decide [sev, Env.get],
+      by simp +decide [sev, Env.get], trivial⟩
+    (fun a w s' st => (pure () : AM Unit) s = .ok (a, s') ∧ PostRW C Hc EH1 H2.length rc.rules f 0 a w s' st)
+    (fun a w s' C' => s' = s ∧ ∃ H3 EH2, C' = ctxE (ctxH C H3) EH2 ∧ Hc <+: H3 ∧ EH1 <+: EH2 ∧
+      ∀ j (hj : j < rc.rules.length), 0 ≤ j → ∃ q, H3[H2.length + 1 + j]? = some (ecell C q) ∧
+        RuleE C.EB EH2 q { rc.rules[j] with fire := f })
+    (fun a w s' st ⟨hr, H3, EH2, h1, h2, h3, h4⟩ =>
+      ⟨_, ⟨pure_run_unit _ _ _ hr, H3, EH2, rfl, h1, h2, h4⟩, h3⟩)
+    (fun u hu _ hlk => specR_run (fun w' hw' => by
+      subst hw'
+      exact rw_spec C hok hcr rc.rules ob H2.length C.H hvr f tg lvw psw _ 0 B Hc EH1 s rfl (Nat.zero_le _)
+        ((hp1.trans hp2').trans hpc) (by simp [Hc]) (List.take_prefix _ _) (by omega) hpe1 hfw _
+        (pre_of_lookups hu rwParams _ rfl hlk)))
+    (fun _ w4 s2 C2 ⟨hs2, H3, EH2, eC2, hp3, hpe2, hrs3⟩ => ?_)
+  subst eC2; subst s2
+  -- the pointer block, copied
+  let xs : List (BitVec 64) := (List.range rc.rules.length).map (fun j => (H3[H2.length + 1 + j]?).getD 0)
+  have hxsl : xs.length = rc.rules.length := by simp [xs]
+  have hxs : ∀ j (hj : j < xs.length), ∃ q, xs[j] = ecell C q ∧ RuleE C.EB EH2 q { rc.rules[j]'(by omega) with fire := f } := by
+    intro j hj
+    obtain ⟨q, hq, hre⟩ := hrs3 j (by omega) (Nat.zero_le _)
+    exact ⟨q, by simp [xs, hq], hre⟩
+  have hbx : BlkAt H3 H2.length xs := by
+    refine ⟨by rw [hxsl]; exact get_prefix hHc0 hp3, fun j hj => ?_⟩
+    obtain ⟨q, hq, -⟩ := hrs3 j (by omega) (Nat.zero_le _)
+    simp [xs, hq]
+  have hok3 : CtxOK (ctxE (ctxH C H3) EH2) := ctxOK_E (ctxOK_H hok H3) (hpe1.trans hpe2)
+  refine specR_envBlkI hok3 hcp rqB rqD rqRn rqX H2.length xs hbx (by omega) (by decide) (by decide)
+    (by decide) (by decide) (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, hxsl])
+    (fun EH3 w5 hpe3 hebx => ?_)
+  -- the constant record
+  have hok4 : CtxOK (ctxE (ctxH C H3) EH3) := ctxOK_E (ctxOK_H hok H3) ((hpe1.trans hpe2).trans hpe3)
+  have hpH3 : C.H <+: H3 := ((hp1.trans hp2').trans hpc).trans hp3
+  refine specR_congr (m' := (pure () : AM Unit) >>= fun _ => pure ()) (by simp) ?_
+  refine specR_callNC (C := ctxE (ctxH C H3) EH3) rqO fConstRec cwParams
+    [vv rqCv, .const 5, vv rqMi, vv rqRp, vv rqIk, vv rqB, .const 0, .const 0] (cwBody C)
+    [cellA C ocv, 5, BitVec.ofNat 64 rc.mI, BitVec.ofNat 64 rc.rP, boolW rc.isK, ecell C EH2.length, 0, 0]
+    (by decide) rfl (by decide) hcw
+    ⟨by simp +decide [sev, Env.get], rfl, by simp +decide [sev, Env.get], by simp +decide [sev, Env.get],
+      by simp +decide [sev, Env.get], by simp +decide [sev, Env.get] <;> rfl, rfl, rfl, trivial⟩
+    (fun a w s' st => (pure () : AM Unit) s = .ok (a, s') ∧
+      PostCW (ctxE (ctxH C H3) EH3) rc.cvR 5 [BitVec.ofNat 64 rc.mI, BitVec.ofNat 64 rc.rP, boolW rc.isK,
+        ecell C EH2.length, 0, 0] s a w s' st)
+    (fun a w s' C' => s' = s ∧ ∃ EH4 o, C' = ctxE (ctxH C H3) EH4 ∧ EH3 <+: EH4 ∧ EH3.length ≤ o ∧ w = ecell C o ∧
+      CVE C.EB EH4 (o + 1) rc.cvR ∧ EH4[o]? = some 5 ∧
+      (∀ j (hj : j < 6), EH4[o + 4 + j]? = some ([BitVec.ofNat 64 rc.mI, BitVec.ofNat 64 rc.rP, boolW rc.isK,
+        ecell C EH2.length, 0, 0] : List (BitVec 64))[j]))
+    (fun a w s' st ⟨hr, h0, EH4, o, h1, h2, h3, h4, h5, h6, h7⟩ =>
+      ⟨_, ⟨pure_run_unit _ _ _ hr, EH4, o, rfl, h1, h2, h3, h4, h5, fun j hj => h6 j (by simpa using hj)⟩,
+        by rw [pure_run_unit _ _ _ hr]; exact h7⟩)
+    (fun u hu _ hlk => specR_run (fun w' hw' => by
+      subst hw'
+      exact cw_spec (ctxE (ctxH C H3) EH3) hok4 hcp rc.cvR ocv (cvRep_mono hpH3 hcv) hlps 5 _ _ _ _ _ _ s _
+        (pre_of_lookups hu cwParams _ rfl hlk)))
+    (fun _ w6 s3 C3 ⟨hs3, EH4, o, eC3, hpe4, hol, hw6, hcve, htg, hfs⟩ => ?_)
+  subst eC3 hw6; subst s3
+  have hpeA : C.EH <+: EH4 := ((hpe1.trans hpe2).trans hpe3).trans hpe4
+  have hl1 := hpe1.length_le
+  have hl2 := hpe2.length_le
+  have hl3 := hpe3.length_le
+  have hol' : EH3.length ≤ o := hol
+  have hl1' : C.EH.length ≤ EH1.length := hl1
+  have hl2' : EH1.length ≤ EH2.length := hl2
+  have hl3' : EH2.length ≤ EH3.length := hl3
+  exact specR_returnI _ _ (by simp +decide [Env.get] <;> rfl)
+    (fun t ht => ⟨rfl, H3, EH4, o, hpH3, hpeA, by omega, rfl,
+      ⟨hcve, htg, ⟨by simpa using hfs 0 (by decide), hmib⟩, ⟨by simpa using hfs 1 (by decide), hrpb⟩,
+        by simpa using hfs 2 (by decide),
+        ⟨ecell C EH2.length, by simpa using hfs 3 (by decide), EH2.length, rfl,
+          by
+            have h0 : EH4[EH2.length]? = some (BitVec.ofNat 64 xs.length) := (eblk_mono hebx hpe4).1
+            simpa [hxsl] using h0,
+          fun i hi => by
+            simp only [List.length_map] at hi
+            obtain ⟨q, hq, hre⟩ := hxs i (by omega)
+            refine ⟨q, ?_, ?_⟩
+            · have this : EH4[EH2.length + 1 + i]? = some xs[i] := (eblk_mono hebx hpe4).2 i (by omega)
+              rw [this, hq]; rfl
+            · simp only [List.getElem_map]
+              exact ruleE_mono' (hpe3.trans hpe4) hre⟩⟩,
+      sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+end
+
 end ConPanqueque.T.Ind
