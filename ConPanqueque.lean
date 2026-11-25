@@ -40,6 +40,7 @@ import ConPanqueque.ConsApp2
 import ConPanqueque.V.Key
 import ConPanqueque.V.Probe
 import ConPanqueque.V.Ins
+import ConPanqueque.V.VTFrame
 import ConPanqueque.V.Intern
 import ConPanqueque.V.ProbeOnly
 import ConPanqueque.V.Two
