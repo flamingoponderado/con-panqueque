@@ -66,19 +66,45 @@ end
 section
 variable {σ : Type}
 
+theorem minorsFrom_bound (pre : List EIdx) (mot : Nat) : ∀ n q (s s' : AState) (r : List Nat), pre.length - q = n →
+    minorsFrom pre mot q s = .ok (r, s') → ∀ x ∈ r, x < pre.length := by
+  intro n
+  induction n with
+  | zero =>
+    intro q s s' r hn hr x hx
+    rw [minorsFrom, if_neg (by omega)] at hr
+    simp only [pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at hr
+    obtain ⟨rfl, -⟩ := hr; simp at hx
+  | succ n ih =>
+    intro q s s' r hn hr x hx
+    rw [minorsFrom, if_pos (by omega)] at hr
+    obtain ⟨b, s1, -, h1⟩ := bind_ok_inv' hr
+    obtain ⟨rest, s2, h2, h3⟩ := bind_ok_inv' h1
+    have ihr := ih (q + 1) s1 s2 rest (by omega) h2
+    cases b
+    · simp only [Bool.false_eq_true, ite_false, pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at h3
+      obtain ⟨rfl, -⟩ := h3; exact ihr x hx
+    · simp only [ite_true, pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at h3
+      obtain ⟨rfl, -⟩ := h3
+      simp only [List.mem_cons] at hx
+      rcases hx with rfl | hx
+      · omega
+      · exact ihr x hx
+
 /-- An `IotaRec` at `o`: the prefix block (`stripPis`'s, its count one more than the prefix), the minors, the
 major's levels and its parameters. -/
 def IotaRecRep (C : Ctx) (H : List (BitVec 64)) (o : Nat) (rr : IotaRec) : Prop :=
   (∃ op, H[o]? = some (cellA C op) ∧ H[op]? = some (BitVec.ofNat 64 (rr.pre.length + 1)) ∧ EElems H op rr.pre) ∧
   (∃ om, H[o + 1]? = some (cellA C om) ∧ BlkAt H om (rr.minors.map (BitVec.ofNat 64))) ∧
   H[o + 2]? = some (Enc.idxW rr.us) ∧
-  (∃ opp, H[o + 3]? = some (cellA C opp) ∧ BlkAt H opp (rr.params.map Enc.idxW))
+  (∃ opp, H[o + 3]? = some (cellA C opp) ∧ BlkAt H opp (rr.params.map Enc.idxW)) ∧
+  ∀ j (hj : j < rr.minors.length), rr.minors[j] < 2 ^ 63
 
 theorem iotaRecRep_mono {C : Ctx} {H H' : List (BitVec 64)} {o : Nat} {rr : IotaRec} (h : IotaRecRep C H o rr)
     (hp : H <+: H') : IotaRecRep C H' o rr := by
-  obtain ⟨⟨op, a1, a2, a3⟩, ⟨om, b1, b2⟩, c, ⟨opp, d1, d2⟩⟩ := h
+  obtain ⟨⟨op, a1, a2, a3⟩, ⟨om, b1, b2⟩, c, ⟨opp, d1, d2⟩, e⟩ := h
   exact ⟨⟨op, get_prefix a1 hp, get_prefix a2 hp, fun j hj => get_prefix (a3 j hj) hp⟩, ⟨om, get_prefix b1 hp,
-    blkAt_mono b2 hp⟩, get_prefix c hp, ⟨opp, get_prefix d1 hp, blkAt_mono d2 hp⟩⟩
+    blkAt_mono b2 hp⟩, get_prefix c hp, ⟨opp, get_prefix d1 hp, blkAt_mono d2 hp⟩, e⟩
 
 /-- An optional `IotaRec`: `0` for none. -/
 def PostIR (C : Ctx) (o : Option IotaRec) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
@@ -195,12 +221,13 @@ theorem irm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
     [cellA C op, BitVec.ofNat 64 pre.length, BitVec.ofNat 64 mot, BitVec.ofNat 64 0] (by decide) rfl
     (by simp +decide [ctxLocals, irmLocals]) hc.mn
     ⟨pk Γ1 hΓ1 irP (by decide) _ vP, pk Γ1 hΓ1 irL (by decide) _ vL, by simp [Γ1, sev, Env.get_cons] <;> rfl, rfl, trivial⟩
-    (PostNL (ctxH C H1)) (fun ms w _ H' => ∃ om, w = cellA C om ∧ BlkAt H' om (ms.map (BitVec.ofNat 64)))
-    (fun ms w s' st ⟨H', hp', hsr, h⟩ => ⟨H', hp', h, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu mnParams _ rfl hlk)
+    (fun ms w s' st => minorsFrom pre mot 0 s = .ok (ms, s') ∧ PostNL (ctxH C H1) ms w s' st)
+    (fun ms w _ H' => (∃ om, w = cellA C om ∧ BlkAt H' om (ms.map (BitVec.ofNat 64))) ∧ ∀ x ∈ ms, x < pre.length)
+    (fun ms w s' st ⟨hr, H', hp', hsr, h⟩ => ⟨H', hp', ⟨h, minorsFrom_bound pre mot _ 0 s s' ms rfl hr⟩, hsr⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu mnParams _ rfl hlk)
       (mn_spec C hok hc.mn hc.im hc.pt hc.ga pre op mot (by omega) (by omega) pre.length 0 H1 s hp01
-        (fun j hj => get_prefix (hpre j hj) hp1) (by omega) (by omega)))
-    (fun minors wm s2 H2 hp2 ⟨om, hwm, hmb⟩ => ?_)
+        (fun j hj => get_prefix (hpre j hj) hp1) (by omega) (by omega))))
+    (fun minors wm s2 H2 hp2 ⟨⟨om, hwm, hmb⟩, hmlt⟩ => ?_)
   subst hwm
   have hp12 : H1 <+: H2 := hp2
   have hHH2 : H <+: H2 := hp1.trans hp12
@@ -334,7 +361,8 @@ theorem irm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       simp only [Option.some.injEq] at e; subst e
       exact ⟨H6.length, rfl, ⟨op, g0, get_prefix hpc hHI, fun j hj => get_prefix (hpre j hj) hHI⟩,
         ⟨om, g1, blkAt_mono hmb h2I⟩, g2,
-        ⟨opp, g3, blkAt_mono hpb (hp56.trans hI)⟩⟩⟩)
+        ⟨opp, g3, blkAt_mono hpb (hp56.trans hI)⟩,
+        fun j hj => by have := hmlt _ (List.getElem_mem hj); omega⟩⟩)
 
 end
 
