@@ -444,3 +444,4 @@ import ConPanqueque.T.Ind.Split
 import ConPanqueque.T.Ind.PiBinders
 import ConPanqueque.T.Ind.NameIdx
 import ConPanqueque.T.Ind.RecTarget
+import ConPanqueque.T.Ind.BlockCounts
