@@ -638,4 +638,41 @@ theorem il_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
 
 end
 
+theorem inst1LClear_run (s : AState) :
+    inst1LClear s = .ok ((), { s with memos := memoUpd .inst1L s.memos ∅ }) := rfl
+
+def fInstLF := ofString "instantiateLift"
+
+def fastBodyIL (C : Ctx) : ProgHOL 64 :=
+  prologue fastLocals (clearCode (C.mg (.e .inst1L))
+    (.seq (.call (some (some (.local, lW), none)) fInstL [vv pVs, vv pVn, vv pFu, vv pH, vv pD])
+      (clearCode (C.mg (.e .inst1L)) (.return (vv lW)))))
+
+section
+variable {σ : Type}
+
+/-- **`instantiateLiftFast`**: the memo fresh before the walk and dropped after. -/
+theorem fastIL_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : CodesIL C)
+    (ov : Nat) (vs : Array EIdx) (hvs : VsAt C ov vs) (s : AState) (fuel : Nat) (e : EIdx) (d : Nat)
+    (hf : fuel < 2 ^ 63) (hd : d < 2 ^ 63) :
+    SpecR (Pre (σ := σ) C s (ilParams.zip [cellA C ov, BitVec.ofNat 64 vs.size, BitVec.ofNat 64 fuel, Enc.idxW e,
+      BitVec.ofNat 64 d])) (fastBodyIL C) s (instantiateLiftFast fuel e vs d) (PostE C) := by
+  refine specR_prologue (postE_locals C) (fun x hx => ?_) ?_
+  · simp only [fastLocals, List.mem_cons, List.not_mem_nil, or_false] at hx
+    rcases hx with rfl | rfl <;> rfl
+  unfold instantiateLiftFast
+  refine specR_memoClearI hok .inst1L inst1LClear inst1LClear_run (by decide) ?_
+  refine ILP.callE_spec lW fInstL ilParams [vv pVs, vv pVn, vv pFu, vv pH, vv pD] (bodyIL C)
+    [cellA C ov, BitVec.ofNat 64 vs.size, BitVec.ofNat 64 fuel, Enc.idxW e, BitVec.ofNat 64 d] (by decide) rfl
+    (by decide) hc.il
+    ⟨by simp +decide [Env.kill, Env.get, ilParams, ctxEnv], by simp +decide [Env.kill, Env.get, ilParams, ctxEnv],
+      by simp +decide [Env.kill, Env.get, ilParams, ctxEnv], by simp +decide [Env.kill, Env.get, ilParams, ctxEnv],
+      by simp +decide [Env.kill, Env.get, ilParams, ctxEnv], trivial⟩
+    (il_spec ra C hok hc ov vs hvs fuel hf e d _ hd) (fun r s' => ?_)
+  refine specR_memoClearI hok .inst1L inst1LClear inst1LClear_run (by decide) ?_
+  exact specR_returnI (vv lW) (Enc.idxW r) (by simp +decide [Env.kill])
+    (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+end
+
 end ConPanqueque.T.ExIL
