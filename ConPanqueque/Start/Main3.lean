@@ -50,7 +50,7 @@ def mainCore2 : ProgHOL 64 :=
       (.seq (.assign .local vBr (vv vPn))
       (pinsP Cprog
         (envAllocP Cprog vPb (.const (BitVec.ofNat 64 8))
-          (.seq (.store (vv vPb) (vv vBr)) (frontAssigns restP2)))))))))
+          (.seq (.store (vv vPb) (vv vBr)) (frontAssigns (restP2 capF))))))))))
 
 def mainBody2 : ProgHOL 64 := decsZ mainLocals2 mainCore2
 
@@ -79,7 +79,7 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
       (nameP Cprog boolRecCs
         (.seq (.assign .local vBr (vv vPn))
         (pinsP Cprog (envAllocP Cprog vPb (.const (BitVec.ofNat 64 8))
-          (.seq (.store (vv vPb) (vv vBr)) (frontAssigns restP2))))))))) = R1
+          (.seq (.store (vv vPb) (vv vBr)) (frontAssigns (restP2 capF)))))))))) = R1
   have e0 : evaluateHOLFiniteState t (.seq (storesP initL) R1) = evaluateHOLFiniteState (tI t) R1 :=
     seq_normal _ (storesP_spec initL t (fun p hp => (hm.zero p.1 (initL_dom p hp).1 (initL_dom p hp).2.1
       (initL_dom p hp).2.2).1))
@@ -121,7 +121,7 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
     nameP_congr (C := Cb emptyCode [] EH0) (C' := Cb codeT H' EH0) rfl rfl]
   have hmono := evaluateHOLFiniteState_ioEvents_mono (nameP (Cb codeT H' EH0) boolRecCs
     (.seq (.assign .local vBr (vv vPn)) (pinsP Cprog (envAllocP Cprog vPb (.const (BitVec.ofNat 64 8))
-      (.seq (.store (vv vPb) (vv vBr)) (frontAssigns restP2)))))) t3 _ _ rfl
+      (.seq (.store (vv vPb) (vv vBr)) (frontAssigns (restP2 capF))))))) t3 _ _ rfl
   have hev : (⟨.extCall fRead, [], bs.zip nb⟩ : _) ∈ t3.ffi.ioEvents := by rw [hio]; simp
   -- after the pins: the `Bool.rec` cell, the frontend's locals, the rest
   have hk2 : ∀ (bh : NIdx) (s1 : AState) (Γ1 : Env), StateOK s1 → s1.store.scratchOn = false →
@@ -131,7 +131,7 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
       PinBlock EH' sP.pins → sP.pins.zeroLevel = default → EH'.length = 138 →
       (∀ y, y ∉ [vPn, vKa, vPb, vRs] → Γ'.get y = Γ1.get y) →
       SpecR (σ := σ) (Inv (C1 codeT H' EH' sP.pins) sP Γ' [] mainLocals2)
-        (envAllocP Cprog vPb (.const (BitVec.ofNat 64 8)) (.seq (.store (vv vPb) (vv vBr)) (frontAssigns restP2)))
+        (envAllocP Cprog vPb (.const (BitVec.ofNat 64 8)) (.seq (.store (vv vPb) (vv vBr)) (frontAssigns (restP2 capF))))
         sP ((fun _ => (pure () : AM Unit)) ()) (fun _ _ _ _ => Verdict2 nb) := by
     intro bh s1 Γ1 hok1 hoff1 hbd1 hbp hbr hag1 sP EH' Γ' hrun hb hz hlen hag
     obtain ⟨hokP, hextP, hpo, hpp, hoff, -, -⟩ := internReservedPins_run hok1 hoff1 hrun
@@ -179,18 +179,14 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
     rcases rest_verdict2 [] [] ra C (ctxOK_C1 _ _ _ _ hb3) (frontOK_C1 _ _ _ _) (front_ok σ C hC) (fold_ok C hC) rfl rfl rfl
         (fun _ => rfl) (feed_ok C hC) sP hokP hoff hpo hpp trivial hb3 bh hB3 hbdP hbp _ [] mainLocals2 (fun x hx => by
           simp only [List.mem_cons, List.not_mem_nil, or_false] at hx
-          rcases hx with rfl | rfl | rfl | rfl | rfl | rfl <;> decide) (fun x hx => by
+          rcases hx with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> decide) (fun x hx => by
           simp only [forbidVars, List.mem_cons, List.not_mem_nil, or_false] at hx
           rcases hx with rfl | rfl | rfl | rfl | rfl | rfl <;> decide)
         rbF capD 0 capF j0F Lw (by simp [rbF]) (by simp [j0F]; omega) Himg (by rw [Himg_length]; simp [NH])
         (by simp [Lw]) (by simp [Lw]) hal (by show (cA j0F).toNat + 8 * Lw + 8 < 2 ^ 64; exact hov) hbits
         (by simp [capF]) (by simp [capF, natCap]) (by simp [capF]) (by simp [rbF, capF, capD])
         (by simp (config := {decide := true}) [T.Env.get_cons]; rfl)
-        (by simp (config := {decide := true}) [T.Env.get_cons])
         (by simp (config := {decide := true}) [T.Env.get_cons]; rfl)
-        (by simp (config := {decide := true}) [T.Env.get_cons]; rfl)
-        (by simp (config := {decide := true}) [T.Env.get_cons]; rfl)
-        (by simp (config := {decide := true}) [T.Env.get_cons])
         (by simp (config := {decide := true}) [T.Env.get_cons]; rfl)
         (by simp (config := {decide := true}) [T.Env.get_cons])
         (by simp (config := {decide := true}) [T.Env.get_cons, hz])
@@ -205,7 +201,7 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
       Γ1.get vPn = some (Enc.idxW bh) → internName boolRecName (sBoot P0) = .ok (bh, s1) →
       SpecR (σ := σ) (Inv (Cb codeT H' EH0) s1 Γ1 [] mainLocals2)
         (.seq (.assign .local vBr (vv vPn)) (pinsP Cprog (envAllocP Cprog vPb (.const (BitVec.ofNat 64 8))
-          (.seq (.store (vv vPb) (vv vBr)) (frontAssigns restP2))))) s1
+          (.seq (.store (vv vPb) (vv vBr)) (frontAssigns (restP2 capF)))))) s1
         ((fun _ => internReservedPins >>= fun _ => (pure () : AM Unit)) bh) (fun _ _ _ _ => Verdict2 nb) := by
     intro bh s1 Γ1 hag1 hpn hr
     obtain ⟨st1, hden1⟩ := ConRon.Bridge.Frontend.internName_sstep (boot_ok P0).1 hr
