@@ -461,3 +461,4 @@ import ConPanqueque.T.Ind.Anon
 import ConPanqueque.T.Ind.Members
 import ConPanqueque.T.Ind.ReadBlockTwin
 import ConPanqueque.T.Ind.ReadBlock
+import ConPanqueque.T.Ind.PiTele
