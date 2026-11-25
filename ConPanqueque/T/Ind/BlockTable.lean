@@ -61,16 +61,16 @@ section
 variable {σ : Type}
 
 /-- Table entries from `i` on: each constant's name and record pointer, its record in the environment heap. -/
-def PostTF (C : Ctx) (Hc EH : List (BitVec 64)) (ob t0 : Nat) (cs : List IConstantInfo) (i : Nat) (_ : Unit)
+def PostTF (C : Ctx) (Hc EH : List (BitVec 64)) (Lh ob t0 : Nat) (cs : List IConstantInfo) (i : Nat) (_ : Unit)
     (_ : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
-  ∃ H' EH', Hc <+: H' ∧ EH <+: EH' ∧ SR (ctxE (ctxH C H') EH') s' st ∧
+  ∃ H' EH', Hc <+: H' ∧ EH <+: EH' ∧ Lh ≤ H'.length ∧ SR (ctxE (ctxH C H') EH') s' st ∧
     ∀ j (hj : j < cs.length), i ≤ j → ∃ o, H'[ob + 1 + 2 * (t0 + j)]? = some (Enc.idxW cs[j].name) ∧
       H'[ob + 2 + 2 * (t0 + j)]? = some (ecell C o) ∧ CIE C.EB EH' o cs[j]
 
-theorem postTF_locals (C : Ctx) (Hc EH : List (BitVec 64)) (ob t0 : Nat) (cs : List IConstantInfo) (i : Nat) :
+theorem postTF_locals (C : Ctx) (Hc EH : List (BitVec 64)) (Lh ob t0 : Nat) (cs : List IConstantInfo) (i : Nat) :
     ∀ a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
-    PostTF C Hc EH ob t0 cs i a w s' st → PostTF C Hc EH ob t0 cs i a w s' { st with locals := L } :=
-  fun _ _ _ _ _ ⟨H', EH', h1, h2, h3, h4⟩ => ⟨H', EH', h1, h2, sr_of_eq h3 rfl rfl rfl rfl, h4⟩
+    PostTF C Hc EH Lh ob t0 cs i a w s' st → PostTF C Hc EH Lh ob t0 cs i a w s' { st with locals := L } :=
+  fun _ _ _ _ _ ⟨H', EH', h1, h2, h0, h3, h4⟩ => ⟨H', EH', h1, h2, h0, sr_of_eq h3 rfl rfl rfl rfl, h4⟩
 
 theorem tf_none (C : Ctx) (vals : List (BitVec 64)) :
     ∀ x, x ∈ tfLocals → (ctxEnv C ++ tfParams.zip vals).get x = none :=
@@ -94,25 +94,25 @@ theorem tf_spec (C : Ctx) (hok : CtxOK C)
       SpecR (Pre (σ := σ) (ctxE (ctxH C H) EH) s (tfParams.zip [cellA C om, cellA C onz, cellA C ob,
         BitVec.ofNat 64 t0, BitVec.ofNat 64 i, BitVec.ofNat 64 p.members.length, boolW isRec, wAll,
         BitVec.ofNat 64 p.nP])) tfBody s (pure ())
-        (PostTF C Hc EH ob t0 (formersOf p isRec p.members nzs) i) := by
+        (PostTF C Hc EH H.length ob t0 (formersOf p isRec p.members nzs) i) := by
   have hfl : (formersOf p isRec p.members nzs).length = p.members.length := by simp [formersOf, hnzl]
   intro k
   induction k with
   | zero =>
     intro i H Hc EH s hk hi h0 hHc hp hl hpe
-    refine specR_prologue (postTF_locals _ _ _ _ _ _ _) (tf_none _ _) ?_
+    refine specR_prologue (postTF_locals _ _ _ _ _ _ _ _) (tf_none _ _) ?_
     refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN => ?_)
     have hHN' : H.length ≤ C.HN := hHN
     have hlay := hok.heapLay
     refine specR_ifI _ 0 (by
         simp +decide [sev, Env.get, tfParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
         rw [Nat.mod_eq_of_lt (by omega), Nat.mod_eq_of_lt (by omega)]; omega) (fun h => absurd rfl h) (fun _ => ?_)
-    exact specR_returnI _ 0 rfl (fun t ht => ⟨H, EH, hp, List.prefix_refl _, sr_of_eq ht.sr rfl rfl rfl rfl,
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨H, EH, hp, List.prefix_refl _, le_refl _, sr_of_eq ht.sr rfl rfl rfl rfl,
       fun j hj hij => by omega⟩)
   | succ k ih =>
     intro i H Hc EH s hk hi h0 hHc hp hl hpe
     have hil : i < p.members.length := by omega
-    refine specR_prologue (postTF_locals _ _ _ _ _ _ _) (tf_none _ _) ?_
+    refine specR_prologue (postTF_locals _ _ _ _ _ _ _ _) (tf_none _ _) ?_
     refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN => ?_)
     have hHN' : H.length ≤ C.HN := hHN
     have hlay := hok.heapLay
@@ -197,16 +197,16 @@ theorem tf_spec (C : Ctx) (hok : CtxOK C)
       [vv tfMs, vv tfNz, vv tfT, vv tfT0, .op .add [vv tfI, .const 1], vv tfK, vv tfIr, vv tfAll, vv tfNp] tfBody
       [cellA C om, cellA C onz, cellA C ob, BitVec.ofNat 64 t0, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 p.members.length,
         boolW isRec, wAll, BitVec.ofNat 64 p.nP] (by decide) rfl (by decide) hcode ?_
-      (PostTF C Hc' EH1 ob t0 (formersOf p isRec p.members nzs) (i + 1))
-      (fun a w s' C' => ∃ H' EH', C' = ctxE (ctxH C H') EH' ∧ Hc' <+: H' ∧ EH1 <+: EH' ∧
+      (PostTF C Hc' EH1 B.length ob t0 (formersOf p isRec p.members nzs) (i + 1))
+      (fun a w s' C' => ∃ H' EH', C' = ctxE (ctxH C H') EH' ∧ Hc' <+: H' ∧ EH1 <+: EH' ∧ B.length ≤ H'.length ∧
         ∀ j (hj : j < (formersOf p isRec p.members nzs).length), i + 1 ≤ j → ∃ o,
           H'[ob + 1 + 2 * (t0 + j)]? = some (Enc.idxW (formersOf p isRec p.members nzs)[j].name) ∧
           H'[ob + 2 + 2 * (t0 + j)]? = some (ecell C o) ∧ CIE C.EB EH' o (formersOf p isRec p.members nzs)[j])
-      (fun a w s' st ⟨H', EH', hp', hpe', hs', hc'⟩ => ⟨_, ⟨H', EH', rfl, hp', hpe', hc'⟩, hs'⟩)
+      (fun a w s' st ⟨H', EH', hp', hpe', hl', hs', hc'⟩ => ⟨_, ⟨H', EH', rfl, hp', hpe', hl', hc'⟩, hs'⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu tfParams _ rfl hlk)
         (ih (i + 1) B Hc' EH1 s1 (by omega) (by omega) (h0.trans hHcc) (by simp [Hc']; omega) hpc' (by omega)
           (hpe.trans hpe1)))
-      (fun a w s2 C2 ⟨H', EH', eC, hp', hpe', hc'⟩ => ?_)
+      (fun a w s2 C2 ⟨H', EH', eC, hp', hpe', hl', hc'⟩ => ?_)
     · exact ⟨by simp +decide [sev, Env.get_cons, Env.get, tfParams, ctxEnv],
         by simp +decide [sev, Env.get_cons, Env.get, tfParams, ctxEnv],
         by simp +decide [sev, Env.get_cons, Env.get, tfParams, ctxEnv],
@@ -217,7 +217,8 @@ theorem tf_spec (C : Ctx) (hok : CtxOK C)
         by simp +decide [sev, Env.get_cons, Env.get, tfParams, ctxEnv],
         by simp +decide [sev, Env.get_cons, Env.get, tfParams, ctxEnv], trivial⟩
     subst eC
-    exact specR_returnI _ 0 rfl (fun t ht => ⟨H', EH', hHcc.trans hp', hpe1.trans hpe', sr_of_eq ht.sr rfl rfl rfl rfl,
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨H', EH', hHcc.trans hp', hpe1.trans hpe', by omega,
+      sr_of_eq ht.sr rfl rfl rfl rfl,
       fun j hj hij => by
         rcases Nat.lt_or_ge i j with h | h
         · exact hc' j hj (by omega)
@@ -290,25 +291,25 @@ theorem tc_spec (C : Ctx) (hok : CtxOK C)
       C.EH <+: EH →
       SpecR (Pre (σ := σ) (ctxE (ctxH C H) EH) s (tcParams.zip [cellA C ol, cellA C ob, BitVec.ofNat 64 t0,
         BitVec.ofNat 64 i, BitVec.ofNat 64 cs.length, BitVec.ofNat 64 np, Enc.idxW ind])) tcBody s (pure ())
-        (PostTF C Hc EH ob t0 (ctorsOf np ind cs) i) := by
+        (PostTF C Hc EH H.length ob t0 (ctorsOf np ind cs) i) := by
   have hfl : (ctorsOf np ind cs).length = cs.length := by simp [ctorsOf]
   intro k
   induction k with
   | zero =>
     intro i H Hc EH s hk hi h0 hHc hp hl hpe
-    refine specR_prologue (postTF_locals _ _ _ _ _ _ _) (tc_none _ _) ?_
+    refine specR_prologue (postTF_locals _ _ _ _ _ _ _ _) (tc_none _ _) ?_
     refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN => ?_)
     have hHN' : H.length ≤ C.HN := hHN
     have hlay := hok.heapLay
     refine specR_ifI _ 0 (by
         simp +decide [sev, Env.get, tcParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
         rw [Nat.mod_eq_of_lt (by omega), Nat.mod_eq_of_lt (by omega)]; omega) (fun h => absurd rfl h) (fun _ => ?_)
-    exact specR_returnI _ 0 rfl (fun t ht => ⟨H, EH, hp, List.prefix_refl _, sr_of_eq ht.sr rfl rfl rfl rfl,
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨H, EH, hp, List.prefix_refl _, le_refl _, sr_of_eq ht.sr rfl rfl rfl rfl,
       fun j hj hij => by omega⟩)
   | succ k ih =>
     intro i H Hc EH s hk hi h0 hHc hp hl hpe
     have hil : i < cs.length := by omega
-    refine specR_prologue (postTF_locals _ _ _ _ _ _ _) (tc_none _ _) ?_
+    refine specR_prologue (postTF_locals _ _ _ _ _ _ _ _) (tc_none _ _) ?_
     refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN => ?_)
     have hHN' : H.length ≤ C.HN := hHN
     have hlay := hok.heapLay
@@ -381,16 +382,16 @@ theorem tc_spec (C : Ctx) (hok : CtxOK C)
       [vv tcL, vv tcT, vv tcT0, .op .add [vv tcI, .const 1], vv tcN, vv tcNp, vv tcInd] tcBody
       [cellA C ol, cellA C ob, BitVec.ofNat 64 t0, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 cs.length,
         BitVec.ofNat 64 np, Enc.idxW ind] (by decide) rfl (by decide) hcode ?_
-      (PostTF C Hc' EH1 ob t0 (ctorsOf np ind cs) (i + 1))
-      (fun a w s' C' => ∃ H' EH', C' = ctxE (ctxH C H') EH' ∧ Hc' <+: H' ∧ EH1 <+: EH' ∧
+      (PostTF C Hc' EH1 B.length ob t0 (ctorsOf np ind cs) (i + 1))
+      (fun a w s' C' => ∃ H' EH', C' = ctxE (ctxH C H') EH' ∧ Hc' <+: H' ∧ EH1 <+: EH' ∧ B.length ≤ H'.length ∧
         ∀ j (hj : j < (ctorsOf np ind cs).length), i + 1 ≤ j → ∃ o,
           H'[ob + 1 + 2 * (t0 + j)]? = some (Enc.idxW (ctorsOf np ind cs)[j].name) ∧
           H'[ob + 2 + 2 * (t0 + j)]? = some (ecell C o) ∧ CIE C.EB EH' o (ctorsOf np ind cs)[j])
-      (fun a w s' st ⟨H', EH', hp', hpe', hs', hc'⟩ => ⟨_, ⟨H', EH', rfl, hp', hpe', hc'⟩, hs'⟩)
+      (fun a w s' st ⟨H', EH', hp', hpe', hl', hs', hc'⟩ => ⟨_, ⟨H', EH', rfl, hp', hpe', hl', hc'⟩, hs'⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu tcParams _ rfl hlk)
         (ih (i + 1) B Hc' EH1 s (by omega) (by omega) (h0.trans hHcc) (by simp [Hc']; omega) hpc' (by omega)
           (hpe.trans hpe1)))
-      (fun a w s2 C2 ⟨H', EH', eC, hp', hpe', hc'⟩ => ?_)
+      (fun a w s2 C2 ⟨H', EH', eC, hp', hpe', hl', hc'⟩ => ?_)
     · exact ⟨by simp +decide [sev, Env.get_cons, Env.get, tcParams, ctxEnv],
         by simp +decide [sev, Env.get_cons, Env.get, tcParams, ctxEnv],
         by simp +decide [sev, Env.get_cons, Env.get, tcParams, ctxEnv],
@@ -399,7 +400,8 @@ theorem tc_spec (C : Ctx) (hok : CtxOK C)
         by simp +decide [sev, Env.get_cons, Env.get, tcParams, ctxEnv],
         by simp +decide [sev, Env.get_cons, Env.get, tcParams, ctxEnv], trivial⟩
     subst eC
-    exact specR_returnI _ 0 rfl (fun t ht => ⟨H', EH', hHcc.trans hp', hpe1.trans hpe', sr_of_eq ht.sr rfl rfl rfl rfl,
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨H', EH', hHcc.trans hp', hpe1.trans hpe', by omega,
+      sr_of_eq ht.sr rfl rfl rfl rfl,
       fun j hj hij => by
         rcases Nat.lt_or_ge i j with h | h
         · exact hc' j hj (by omega)
