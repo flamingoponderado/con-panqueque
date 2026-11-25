@@ -440,3 +440,4 @@ import ConPanqueque.Front.Top
 import ConPanqueque.T.Ind.PiSortTele
 import ConPanqueque.T.Ind.IndParams
 import ConPanqueque.T.Ind.Shape
+import ConPanqueque.T.Ind.Split
