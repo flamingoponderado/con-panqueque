@@ -64,6 +64,50 @@ def beBody : ProgHOL 64 := prologue beLocals
       (.return (.const 0)))
     (.ite (.cmp .lower (vv beI) (vv beNb)) (.return (.const 0)) (.return (.const 1))))))
 
+def prN := ofString "pr_n"
+def prT := ofString "pr_t"
+def prQ := ofString "pr_q"
+def prPp := ofString "pr_pp"
+def prP := ofString "pr_p"
+def prD := ofString "pr_d"
+def prX := ofString "pr_x"
+def prY := ofString "pr_y"
+def prR := ofString "pr_r"
+def prF1 := ofString "pr_f1"
+def prF2 := ofString "pr_f2"
+def prU1 := ofString "pr_u1"
+def prU2 := ofString "pr_u2"
+def prTg := ofString "pr_tg"
+def fIotaPartsRel := ofString "iotaPartsRel"
+
+def prParams : List MlS := [prN, prT, prQ, prPp, prP, prD]
+def prLocals : List MlS := [prX, prY, prR, prF1, prF2, prU1, prU2, prTg]
+
+def prBody : ProgHOL 64 := prologue prLocals
+  (.seq (.assign .local prX (.load .one (.op .add [vv prPp, .const 8])))
+  (.seq (.assign .local prY (.load .one (.op .add [vv prP, .const 8])))
+  (.seq (.call (some (some (.local, prR), none)) fBlkEq [vv prX, vv prY, .const 0])
+  (.ite (veEqC prR 0) (.return (.const 0))
+  (.seq (.assign .local prU1 (.load .one (.op .add [vv prPp, .const 16])))
+  (.seq (.assign .local prU2 (.load .one (.op .add [vv prP, .const 16])))
+  (.ite (.cmp .equal (vv prU1) (vv prU2))
+    (.seq (.assign .local prX (.load .one (.op .add [vv prPp, .const 24])))
+    (.seq (.assign .local prY (.load .one (.op .add [vv prP, .const 24])))
+    (.seq (.call (some (some (.local, prR), none)) fBlkEq [vv prX, vv prY, .const 0])
+    (.ite (veEqC prR 0) (.return (.const 0))
+    (.seq (.assign .local prF1 (.load .one (vv prPp)))
+    (.seq (.assign .local prF2 (.load .one (vv prP)))
+    (.seq (.call (some (some (.local, prR), none)) fListLvlEq [vv prF1, vv prF2, .const 0])
+    (.ite (veEqC prR 0)
+      (.seq (.assign .local prTg (.load .one (.op .add [vv prQ, .const 16])))
+      (.ite (veEqC prTg 0)
+        (.seq (.call (some (some (.local, prR), none)) fParamsAnnEq [vv prN, vv prT, vv prD])
+        (.ite (veEqC prR 0) (.return (.const 0))
+        (.seq (.call (some (some (.local, prR), none)) fListAnnEq [vv prF1, vv prF2, .const 0]) (.return (vv prR)))))
+        (.return (.const 0))))
+      (.return (.const 1))))))))))
+    (.return (.const 0)))))))))
+
 section
 variable {σ : Type}
 
@@ -273,6 +317,214 @@ theorem be_spec (C : Ctx) (hok : CtxOK C)
   | succ k ih =>
     intro i hk hi
     exact be_step C hok hcl pa pb as bs i H s hi hA hB (fun hia => ih (i + 1) (by omega) (by omega))
+
+/-- A `blkEq` call from position `0`: the twin is left unchanged, the answer in `r`. -/
+theorem be_call {β : Type} (C : Ctx) (hok : CtxOK C)
+    (hcb : C.code.lookup fBlkEq = some (beParams.map (fun p => (p, ShapeHOL.one)), beBody, .one))
+    {H : List (BitVec 64)} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64} {m : AM β}
+    {R : β → BitVec 64 → AState → PState σ → Prop} (r x y : MlS) (pa pb : Nat) (as bs : List EIdx) (hr : r ∈ D)
+    (hA : BlkAt H pa (as.map Enc.idxW)) (hB : BlkAt H pb (bs.map Enc.idxW))
+    (gx : Γ.get x = some (cellA C pa)) (gy : Γ.get y = some (cellA C pb))
+    (hk : ∀ H1, H <+: H1 → SpecR (Inv (ctxH C H1) s ((r, boolW (as == bs)) :: Γ) [] D) rest s m R) :
+    SpecR (Inv (ctxH C H) s Γ M D) (.seq (.call (some (some (.local, r), none)) fBlkEq [vv x, vv y, .const 0]) rest)
+      s m R := by
+  refine specR_pureBind (as.drop 0 == bs.drop 0) ?_
+  refine specR_callNIH (C := ctxH C H) r fBlkEq beParams [vv x, vv y, .const 0] beBody
+    [cellA C pa, cellA C pb, BitVec.ofNat 64 0] (by decide) rfl hr hcb
+    ⟨by simp only [sev, sev_vv]; exact gx, by simp only [sev, sev_vv]; exact gy, rfl, trivial⟩
+    (fun a w s' st => (pure (as.drop 0 == bs.drop 0) : AM Bool) s = .ok (a, s') ∧ PostB (ctxH C H) a w s' st)
+    (fun a w s' H' => a = (as.drop 0 == bs.drop 0) ∧ s' = s ∧ w = boolW a)
+    (fun a w s' st ⟨hrun, H', hp, hw, hsr⟩ => by
+      simp only [pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at hrun
+      obtain ⟨rfl, rfl⟩ := hrun
+      exact ⟨H', hp, ⟨rfl, rfl, hw⟩, hsr⟩)
+    (fun u hu _ hlk => specR_run (fun w hw => by
+      subst hw
+      exact be_spec C hok hcb pa pb as bs H s hA hB _ 0 rfl (Nat.zero_le _) _ (pre_of_lookups hu beParams _ rfl hlk)))
+    (fun a w s1 H1 hp1 ⟨ha, hs, hw⟩ => ?_)
+  subst ha hs hw
+  simp only [List.drop_zero]
+  exact hk H1 hp1
+
+theorem pr_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ prLocals → (ctxEnv C ++ prParams.zip vals).get x = none :=
+  Knot.params_none C prLocals prParams vals (by decide) (by decide)
+
+/-- The code `iotaPartsRel` runs. -/
+structure PRCodes (C : Ctx) : Prop where
+  ae : AECodes C
+  sp : C.code.lookup fStripPis = some ([(pFu, .one), (pH, .one)], stripBody C fStripPis 6, .one)
+  la : C.code.lookup fListAnnEq = some (laParams.map (fun p => (p, ShapeHOL.one)), laBody, .one)
+  pq : C.code.lookup fParamsAnnEq = some (pqParams.map (fun p => (p, ShapeHOL.one)), pqBody C, .one)
+  be : C.code.lookup fBlkEq = some (beParams.map (fun p => (p, ShapeHOL.one)), beBody, .one)
+  ll : C.code.lookup fListLvlEq = some (llParams.map (fun p => (p, ShapeHOL.one)), llBody, .one)
+
+/-- **`iotaPartsRel`** against the context's environment. -/
+theorem pr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hf : Front.FrontOK C)
+    (hc : PRCodes C) (hAn : denoteN C.St.ns anonH = some .anonymous)
+    (cnP : Nat) (hcn : cnP < 2 ^ 58) (cv : IConstantVal) (rl : IRecRule) (pp p : IIotaParts) (pd : List EIdx)
+    (oq opp op opd : Nat) (H : List (BitVec 64)) (hq : RuleE C.HB H oq rl) (hpp : PartsRep C H opp pp)
+    (hp : PartsRep C H op p) (hpd : BlkAt H opd (pd.map Enc.idxW)) (s : AState) :
+    SpecR (σ := σ) (Pre (ctxH C H) s (prParams.zip [BitVec.ofNat 64 cnP, Enc.idxW cv.type, cellA C oq, cellA C opp,
+      cellA C op, cellA C opd])) prBody s (iotaPartsRel C.fe cnP cv rl pp p pd) (PostB (ctxH C H)) := by
+  refine specR_prologue (postB_locals _) (pr_none _ _) ?_
+  unfold iotaPartsRel
+  let Γ0 : Env := ctxEnv (ctxH C H) ++ prParams.zip [BitVec.ofNat 64 cnP, Enc.idxW cv.type, cellA C oq, cellA C opp,
+      cellA C op, cellA C opd]
+  have gN : Γ0.get prN = some (BitVec.ofNat 64 cnP) := by simp +decide [Γ0, Env.get, prParams, ctxEnv]
+  have gT : Γ0.get prT = some (Enc.idxW cv.type) := by simp +decide [Γ0, Env.get, prParams, ctxEnv]
+  have gQ : Γ0.get prQ = some (cellA C oq) := by simp +decide [Γ0, Env.get, prParams, ctxEnv]
+  have gPp : Γ0.get prPp = some (cellA C opp) := by simp +decide [Γ0, Env.get, prParams, ctxEnv]
+  have gP : Γ0.get prP = some (cellA C op) := by simp +decide [Γ0, Env.get, prParams, ctxEnv]
+  have gD : Γ0.get prD = some (cellA C opd) := by simp +decide [Γ0, Env.get, prParams, ctxEnv]
+  obtain ⟨⟨f1, hf1, hbf1⟩, ⟨i1, hi1, hbi1⟩, hu1, ⟨q1, hq1, hbq1⟩⟩ := hpp
+  obtain ⟨⟨f2, hf2, hbf2⟩, ⟨i2, hi2, hbi2⟩, hu2, ⟨q2, hq2, hbq2⟩⟩ := hp
+  have ret0 : ∀ (H1 : List (BitVec 64)) (s1 : AState) (Γ : Env) (M : Mem), H <+: H1 →
+      SpecR (σ := σ) (Inv (ctxH C H1) s1 Γ M (ctxLocals ++ prLocals)) (.return (.const 0)) s1 (pure false)
+        (PostB (ctxH C H)) := fun H1 s1 Γ M hp1 =>
+    specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  have addr : ∀ (o k : Nat), cellA C o + BitVec.ofNat 64 (8 * k) = cellA C (o + k) := fun o k => cellA_plus C o k
+  -- the indices
+  refine UD.specR_heapLoadI' (C := ctxH C H) prX _ (opp + 1) _ hi1 (by simp +decide [ctxLocals, prLocals])
+    (by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gPp; rw [gPp]; simp; exact addr opp 1) ?_
+  refine UD.specR_heapLoadI' (C := ctxH C H) prY _ (op + 1) _ hi2 (by simp +decide [ctxLocals, prLocals])
+    (by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gP; rw [gP]; simp; exact addr op 1) ?_
+  refine be_call C hok hc.be prR prX prY i1 i2 pp.idx p.idx (by simp +decide [ctxLocals, prLocals]) hbi1 hbi2
+    (by simp +decide [Env.get_cons]) (by simp [Env.get_cons]) (fun H1 hp1 => ?_)
+  by_cases hidx : pp.idx = p.idx
+  swap
+  · have e : (pp.idx == p.idx) = false := by simpa using hidx
+    rw [e]
+    refine specR_ifI _ 1 (by simp +decide [veEqC, sev, Env.get_cons, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun _ => ?_) (fun h => absurd h (by decide))
+    simp only [Bool.false_eq_true, ite_false]
+    exact ret0 H1 s _ _ hp1
+  have e : (pp.idx == p.idx) = true := by simpa using hidx
+  rw [e]
+  refine specR_ifI _ 0 (by simp +decide [veEqC, sev, Env.get_cons, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+    (fun h => absurd rfl h) (fun _ => ?_)
+  simp only [ite_true]
+  refine UD.specR_heapLoadI' (C := ctxH C H1) prU1 _ (opp + 2) _ (ConPanqueque.T.Decl.get_prefix hu1 hp1)
+    (by simp +decide [ctxLocals, prLocals])
+    (by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gPp; rw [gPp]; simp; exact addr opp 2) ?_
+  refine UD.specR_heapLoadI' (C := ctxH C H1) prU2 _ (op + 2) _ (ConPanqueque.T.Decl.get_prefix hu2 hp1)
+    (by simp +decide [ctxLocals, prLocals])
+    (by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gP; rw [gP]; simp; exact addr op 2) ?_
+  by_cases hus : pp.us = p.us
+  swap
+  · have hne : Enc.idxW pp.us ≠ Enc.idxW p.us := fun h => hus (Enc.idxW_inj h)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    have e : (pp.us == p.us) = false := by simpa using hus
+    simp only [e, Bool.false_eq_true, ite_false]
+    exact ret0 H1 s _ _ hp1
+  refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hus])
+    (fun _ => ?_) (fun h => absurd h (by decide))
+  have e2 : (pp.us == p.us) = true := by simpa using hus
+  simp only [e2, ite_true]
+  refine UD.specR_heapLoadI' (C := ctxH C H1) prX _ (opp + 3) _ (ConPanqueque.T.Decl.get_prefix hq1 hp1)
+    (by simp +decide [ctxLocals, prLocals])
+    (by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gPp; rw [gPp]; simp; exact addr opp 3) ?_
+  refine UD.specR_heapLoadI' (C := ctxH C H1) prY _ (op + 3) _ (ConPanqueque.T.Decl.get_prefix hq2 hp1)
+    (by simp +decide [ctxLocals, prLocals])
+    (by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gP; rw [gP]; simp; exact addr op 3) ?_
+  refine be_call C hok hc.be prR prX prY q1 q2 pp.params p.params (by simp +decide [ctxLocals, prLocals])
+    (blkAt_mono hbq1 hp1) (blkAt_mono hbq2 hp1) (by simp +decide [Env.get_cons]) (by simp [Env.get_cons])
+    (fun H2 hp2 => ?_)
+  have hp12 : H <+: H2 := hp1.trans hp2
+  by_cases hps : pp.params = p.params
+  swap
+  · have e : (pp.params == p.params) = false := by simpa using hps
+    rw [e]
+    refine specR_ifI _ 1 (by simp +decide [veEqC, sev, Env.get_cons, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun _ => ?_) (fun h => absurd h (by decide))
+    simp only [Bool.false_eq_true, ite_false]
+    exact ret0 H2 s _ _ hp12
+  have e3 : (pp.params == p.params) = true := by simpa using hps
+  rw [e3]
+  refine specR_ifI _ 0 (by simp +decide [veEqC, sev, Env.get_cons, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+    (fun h => absurd rfl h) (fun _ => ?_)
+  simp only [ite_true]
+  refine UD.specR_heapLoadI' (C := ctxH C H2) prF1 _ opp _ (ConPanqueque.T.Decl.get_prefix hf1 hp12)
+    (by simp +decide [ctxLocals, prLocals])
+    (by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gPp; rw [gPp]; rfl) ?_
+  refine UD.specR_heapLoadI' (C := ctxH C H2) prF2 _ op _ (ConPanqueque.T.Decl.get_prefix hf2 hp12)
+    (by simp +decide [ctxLocals, prLocals])
+    (by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gP; rw [gP]; rfl) ?_
+  refine specR_congr (m' := listLvlEq (pp.fieldDoms.drop 0) (p.fieldDoms.drop 0) >>= fun r =>
+    if r = true then pure true else match rl.fire with
+      | .plain => do if ← paramsAnnEq C.fe cnP cv pd then listAnnEq C.fe pp.fieldDoms p.fieldDoms else pure false
+      | _ => pure false) (by simp only [List.drop_zero]; rfl) ?_
+  refine specR_callNIH (C := ctxH C H2) prR fListLvlEq llParams [vv prF1, vv prF2, .const 0] llBody
+    [cellA C f1, cellA C f2, BitVec.ofNat 64 0] (by decide) rfl (by simp +decide [ctxLocals, prLocals]) hc.ll
+    ⟨by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], rfl, trivial⟩
+    (PostB (ctxH C H2)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu llParams _ rfl hlk)
+      (ll_spec C hok hc.ae.ve hc.ll f1 f2 pp.fieldDoms p.fieldDoms _ 0 H2 s rfl (Nat.zero_le _)
+        (blkAt_mono hbf1 hp12) (blkAt_mono hbf2 hp12)))
+    (fun r w s3 H3 hp3 hw => ?_)
+  subst hw
+  have hp13 : H <+: H3 := hp12.trans hp3
+  rcases r
+  swap
+  · refine specR_ifI _ 0 (by simp +decide [veEqC, sev, Env.get_cons, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    simp only [ite_true]
+    exact specR_returnI _ 1 rfl (fun t ht => ⟨H3, hp13, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  refine specR_ifI _ 1 (by simp +decide [veEqC, sev, Env.get_cons, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+    (fun _ => ?_) (fun h => absurd h (by decide))
+  simp only [Bool.false_eq_true, ite_false]
+  have hfire := (ConPanqueque.T.Decl.ruleE_mono hp13 hq).2.2.1
+  rcases hfr : rl.fire with _ | ⟨lv, pins⟩ | lv <;> rw [hfr] at hfire <;> simp only []
+  · -- plain
+    refine UD.specR_heapLoadI' (C := ctxH C H3) prTg _ (oq + 2) _ hfire (by simp +decide [ctxLocals, prLocals])
+      (by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gQ; rw [gQ]; simp; exact addr oq 2) ?_
+    refine specR_ifI _ 1 (by simp +decide [veEqC, sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun _ => ?_) (fun h => absurd h (by decide))
+    refine specR_callNIH (C := ctxH C H3) prR fParamsAnnEq pqParams [vv prN, vv prT, vv prD] (pqBody C)
+      [BitVec.ofNat 64 cnP, Enc.idxW cv.type, cellA C opd] (by decide) rfl (by simp +decide [ctxLocals, prLocals]) hc.pq
+      ⟨by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gN; exact gN,
+        by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gT; exact gT,
+        by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gD; exact gD, trivial⟩
+      (PostB (ctxH C H3)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu pqParams _ rfl hlk)
+        (pq_spec ra C hok hf hc.ae hAn hc.sp hc.la cnP hcn cv pd opd H3 (blkAt_mono hpd hp13) s3))
+      (fun r w s4 H4 hp4 hw => ?_)
+    subst hw
+    have hp14 : H <+: H4 := hp13.trans hp4
+    rcases r
+    · refine specR_ifI _ 1 (by simp +decide [veEqC, sev, Env.get_cons, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+        (fun _ => ?_) (fun h => absurd h (by decide))
+      simp only [Bool.false_eq_true, ite_false]
+      exact ret0 H4 s4 _ _ hp14
+    refine specR_ifI _ 0 (by simp +decide [veEqC, sev, Env.get_cons, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    simp only [ite_true]
+    refine specR_congr (m' := listAnnEq C.fe (pp.fieldDoms.drop 0) (p.fieldDoms.drop 0) >>= fun r => pure r)
+      (by simp) ?_
+    refine specR_callNIH (C := ctxH C H4) prR fListAnnEq laParams [vv prF1, vv prF2, .const 0] laBody
+      [cellA C f1, cellA C f2, BitVec.ofNat 64 0] (by decide) rfl (by simp +decide [ctxLocals, prLocals]) hc.la
+      ⟨by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], rfl, trivial⟩
+      (PostB (ctxH C H4)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu laParams _ rfl hlk)
+        (la_spec ra C hok hf hc.ae hAn hc.la f1 f2 pp.fieldDoms p.fieldDoms _ 0 H4 s4 rfl (Nat.zero_le _)
+          (blkAt_mono hbf1 (hp12.trans (hp3.trans hp4))) (blkAt_mono hbf2 (hp12.trans (hp3.trans hp4)))))
+      (fun r w s5 H5 hp5 hw => ?_)
+    subst hw
+    exact specR_returnI _ _ (by simp [sev, Env.get_cons])
+      (fun t ht => ⟨H5, hp14.trans hp5, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  · -- nested
+    refine UD.specR_heapLoadI' (C := ctxH C H3) prTg _ (oq + 2) _ hfire.1 (by simp +decide [ctxLocals, prLocals])
+      (by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gQ; rw [gQ]; simp; exact addr oq 2) ?_
+    refine specR_ifI _ 0 (by simp +decide [veEqC, sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    exact ret0 H3 s3 _ _ hp13
+  · -- recorded levels
+    refine UD.specR_heapLoadI' (C := ctxH C H3) prTg _ (oq + 2) _ hfire.1 (by simp +decide [ctxLocals, prLocals])
+      (by simp +decide [sev, Env.get_cons]; simp only [Γ0] at gQ; rw [gQ]; simp; exact addr oq 2) ?_
+    refine specR_ifI _ 0 (by simp +decide [veEqC, sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    exact ret0 H3 s3 _ _ hp13
 
 end
 
