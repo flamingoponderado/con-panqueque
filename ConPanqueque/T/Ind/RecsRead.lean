@@ -38,6 +38,33 @@ def ulBody : ProgHOL 64 := prologue ulLocals
       [vv ulR, vv ulMI, vv ulRP, vv ulW, vv ulT, .op .add [vv ulI, .const 1]]) (.return (vv ulX))))))
     (.return (.const 1))))
 
+def rkE := ofString "rk_e"
+def rkTg := ofString "rk_tg"
+def rkT := ofString "rk_t"
+def rkMI := ofString "rk_mi"
+def rkRP := ofString "rk_rp"
+def rkW := ofString "rk_w"
+def rkR := ofString "rk_r"
+def rkX := ofString "rk_x"
+def fRecReads := ofString "recReads"
+
+def rkParams : List MlS := [rkE]
+def rkLocals : List MlS := [rkTg, rkT, rkMI, rkRP, rkW, rkR, rkX]
+
+/-- `rkE` points at a stored constant's environment record. -/
+def rkBody : ProgHOL 64 := prologue rkLocals
+  (.seq (.assign .local rkTg (.load .one (vv rkE)))
+  (.ite (veEqC rkTg 5)
+    (.seq (.assign .local rkT (.load .one (.op .add [vv rkE, .const 24])))
+    (.seq (.assign .local rkMI (.load .one (.op .add [vv rkE, .const 32])))
+    (.seq (.assign .local rkRP (.load .one (.op .add [vv rkE, .const 40])))
+    (guardP rkMI 58 (guardP rkRP 58
+    (.seq (.assign .local rkW (.load .one (.op .add [vv rkE, .const 56])))
+    (.seq (.call (some (some (.local, rkR), none)) fIotaRecOf [vv rkT, vv rkMI, vv rkRP])
+    (.seq (.call (some (some (.local, rkX), none)) fRulesRead [vv rkR, vv rkMI, vv rkRP, vv rkW, vv rkT, .const 0])
+      (.return (vv rkX))))))))))
+    (.return (.const 1))))
+
 section
 variable {σ : Type}
 
@@ -184,6 +211,86 @@ theorem ul_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     intro i H s hk hi hp hrs
     exact ul_step ra C hok hf hc hAn hcr hcl cv rr wr mI rP hm hr crec isK rules hrec ow hrl i hi H hp hrn hrs s
       (fun hil H' s' hp' hrs' => ih (i + 1) H' s' (by omega) (by omega) hp' hrs')
+
+theorem rk_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ rkLocals → (ctxEnv C ++ rkParams.zip vals).get x = none :=
+  Knot.params_none C rkLocals rkParams vals (by decide) (by decide)
+
+/-- **`recReads`** at a stored constant. -/
+theorem rk_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hf : Front.FrontOK C)
+    (hc : RDCodes C) (hAn : denoteN C.St.ns anonH = some .anonymous) (hro : ROCodes C)
+    (hcr : C.code.lookup fRuleReads = some (rdParams.map (fun p => (p, ShapeHOL.one)), rdBody C, .one))
+    (hcl : C.code.lookup fRulesRead = some (ulParams.map (fun p => (p, ShapeHOL.one)), ulBody, .one))
+    (cn : NIdx) (ci : IConstantInfo) (hfind : C.fe.find? cn = some ci) (o : Nat) (hcie : CIE C.EB C.EH o ci)
+    (H : List (BitVec 64)) (hp : C.H <+: H) (s : AState) :
+    SpecR (σ := σ) (Pre (ctxH C H) s (rkParams.zip [ecell C o])) rkBody s (recReads C.fe ci) (PostB (ctxH C H)) := by
+  refine specR_prologue (postB_locals _) (rk_none _ _) ?_
+  unfold recReads
+  let Γ0 : Env := ctxEnv (ctxH C H) ++ rkParams.zip [ecell C o]
+  have gE : Γ0.get rkE = some (ecell C o) := by simp +decide [Γ0, Env.get, rkParams, ctxEnv]
+  have addr : ∀ (Γ : Env) (k : Nat), Γ.get rkE = some (ecell C o) →
+      sev Γ (.op .add [vv rkE, .const (BitVec.ofNat 64 (8 * k))]) = some (ecell (ctxH C H) (o + k)) := by
+    intro Γ k h; simp only [sev, sev_vv, h]; simp; exact ecell_add C o k
+  cases ci with
+  | recInfo cv mI rP isK rules =>
+    obtain ⟨hcve, h5, ⟨hmi, hmib⟩, ⟨hrp, hrpb⟩, -, w, hw, hrules⟩ := hcie
+    refine specR_envLoadI (C := ctxH C H) rkTg (vv rkE) o (BitVec.ofNat 64 5) (by decide)
+      (by simp only [sev, sev_vv]; exact gE) h5 ?_
+    refine specR_ifI _ 1 (by simp +decide [veEqC, sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun _ => ?_) (fun h => absurd h (by decide))
+    refine specR_envLoadI (C := ctxH C H) rkT _ (o + 3) (Enc.idxW cv.type) (by decide)
+      (addr _ 3 (by simp +decide [Env.get_cons]; exact gE)) (by rw [show o + 3 = o + 1 + 2 by omega]; exact hcve.2.2) ?_
+    refine specR_envLoadI (C := ctxH C H) rkMI _ (o + 4) (BitVec.ofNat 64 mI) (by decide)
+      (addr _ 4 (by simp +decide [Env.get_cons]; exact gE)) hmi ?_
+    refine specR_envLoadI (C := ctxH C H) rkRP _ (o + 5) (BitVec.ofNat 64 rP) (by decide)
+      (addr _ 5 (by simp +decide [Env.get_cons]; exact gE)) hrp ?_
+    refine specR_guardI rkMI mI 58 (by decide) (by simp +decide [Env.get_cons]) (by omega) (fun hm' => ?_)
+    refine specR_guardI rkRP rP 58 (by decide) (by simp +decide [Env.get_cons]) (by omega) (fun hr' => ?_)
+    obtain ⟨ow, hwo, hl0, hcells⟩ := hrules
+    refine specR_envLoadI (C := ctxH C H) rkW _ (o + 7) w (by decide)
+      (addr _ 7 (by simp +decide [Env.get_cons]; exact gE)) hw ?_
+    have hRA : RulesAt C ow rules := ⟨hl0, fun i hi => by
+      obtain ⟨q, hq, hrq⟩ := hcells i hi; exact ⟨q, hq, hrq⟩⟩
+    refine specR_callNIH (C := ctxH C H) rkR fIotaRecOf roParams [vv rkT, vv rkMI, vv rkRP] roBody
+      [Enc.idxW cv.type, BitVec.ofNat 64 mI, BitVec.ofNat 64 rP] (by decide) rfl (by decide) hro.ro
+      ⟨by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons],
+        trivial⟩
+      (PostIR (ctxH C H))
+      (fun o' w' _ H' => (o' = none → w' = 0) ∧ ∀ rr, o' = some rr → ∃ ob, w' = cellA C ob ∧ IotaRecRep C H' ob rr)
+      (fun o' w' s' st ⟨H', hp', hs', h1, h2⟩ => ⟨H', hp', ⟨h1, h2⟩, hs'⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu roParams _ rfl hlk)
+        (ro_spec ra C hok hro cv mI rP hm' hr' H hp s))
+      (fun rr wr s1 H1 hp1 ⟨hrn, hrs⟩ => ?_)
+    have hp1' : H <+: H1 := hp1
+    refine specR_congr (m' := rulesRead C.fe cv rr mI rP (rules.drop 0) 0 >>= fun r => pure r) (by simp) ?_
+    refine specR_callNIH (C := ctxH C H1) rkX fRulesRead ulParams [vv rkR, vv rkMI, vv rkRP, vv rkW, vv rkT, .const 0]
+      ulBody [wr, BitVec.ofNat 64 mI, BitVec.ofNat 64 rP, ecell C ow, Enc.idxW cv.type, BitVec.ofNat 64 0]
+      (by decide) rfl (by decide) hcl
+      ⟨by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons],
+        by simp +decide [sev, Env.get_cons, hwo]; rfl, by simp +decide [sev, Env.get_cons], rfl, trivial⟩
+      (PostB (ctxH C H1)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ulParams _ rfl hlk)
+        (ul_spec ra C hok hf hc hAn hcr hcl cv rr wr mI rP (by omega) (by omega) cn isK rules hfind ow hRA hrn
+          rules.length 0 H1 s1 (by simp) (Nat.zero_le _) (hp.trans hp1') hrs))
+      (fun r w s2 H2 hp2 hw => ?_)
+    subst hw
+    have hp2' : H1 <+: H2 := hp2
+    exact specR_returnI _ _ (by simp [sev, Env.get_cons])
+      (fun t ht => ⟨H2, hp1'.trans hp2', rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  | _ =>
+    obtain ⟨k, hk, hk1⟩ : ∃ k : Nat, C.EH[o]? = some (BitVec.ofNat 64 k) ∧ k ≠ 5 ∧ k < 16 := by
+      first
+        | exact ⟨0, hcie.2, by decide, by decide⟩
+        | exact ⟨1, hcie.2.1, by decide, by decide⟩
+        | exact ⟨2, hcie.2, by decide, by decide⟩
+        | exact ⟨3, hcie.2.1, by decide, by decide⟩
+        | exact ⟨4, hcie.2.1, by decide, by decide⟩
+    refine specR_envLoadI (C := ctxH C H) rkTg (vv rkE) o (BitVec.ofNat 64 k) (by decide)
+      (by simp only [sev, sev_vv]; exact gE) hk ?_
+    have hne : BitVec.ofNat 64 k ≠ BitVec.ofNat 64 5 := (ofNat_eq_iff (by omega) (by decide)).not.mpr hk1.1
+    refine specR_ifI _ 0 (by simp +decide [veEqC, sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    exact specR_returnI _ 1 rfl (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 end
 
