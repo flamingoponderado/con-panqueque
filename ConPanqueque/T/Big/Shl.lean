@@ -1014,7 +1014,7 @@ theorem shl_spec (C : Ctx) (hok : CtxOK C) (s : AState) (a b : Nat) (oa ob : Nat
     simp [e1, e2, e3, e4, e5, Env.get] at hz
   have hsrc : ∀ j (hj : j < (limbs tt).length), Bz[o2 + 1 + j]? = some (limbs tt)[j] := by
     intro j hj
-    rw [fillI_get?, if_neg (by omega)]
+    rw [fillI_get?, ite_eq_right (by omega)]
     show ((H3 ++ ws3).set H3.length _)[o2 + 1 + j]? = _
     rw [List.getElem?_set_ne (by omega), List.getElem?_append_left (by omega)]
     have h1 := hb2.2 j hj
@@ -1036,16 +1036,16 @@ theorem shl_spec (C : Ctx) (hok : CtxOK C) (s : AState) (a b : Nat) (oa ob : Nat
   · rw [hab, limbs_mul_pow tt q hpos]
     have hlf := fillI_length Bz (limbs tt) (H3.length + 1 + q)
     constructor
-    · rw [fillI_get?, if_neg (by omega), fillI_get?, if_neg (by omega)]
+    · rw [fillI_get?, ite_eq_right (by omega), fillI_get?, ite_eq_right (by omega)]
       show ((H3 ++ ws3).set H3.length _)[H3.length]? = _
       rw [List.getElem?_set_self (by simp; omega)]; simp [Nat.add_comm]
     · intro i hi
       simp only [List.length_append, List.length_replicate] at hi
       by_cases hiq : i < q
-      · rw [fillI_get?, if_neg (by omega), fillI_get?, if_pos ⟨by omega, by omega, by rw [hB1]; omega⟩]
+      · rw [fillI_get?, ite_eq_right (by omega), fillI_get?, ite_eq_left ⟨by omega, by omega, by rw [hB1]; omega⟩]
         simp [List.getElem_append_left (show i < (List.replicate q (0 : BitVec 64)).length by simp; exact hiq),
           List.getD_eq_getElem?_getD, show H3.length + 1 + i - (H3.length + 1) = i by omega, hiq]
-      · rw [fillI_get?, if_pos ⟨by omega, by omega, by rw [hBz, hB1]; omega⟩]
+      · rw [fillI_get?, ite_eq_left ⟨by omega, by omega, by rw [hBz, hB1]; omega⟩]
         rw [List.getElem_append_right (by simp; omega)]
         simp [List.getD_eq_getElem?_getD, show H3.length + 1 + i - (H3.length + 1 + q) = i - q by omega,
           List.getElem?_eq_getElem (show i - q < (limbs tt).length by omega)]

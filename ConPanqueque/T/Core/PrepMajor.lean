@@ -373,13 +373,13 @@ theorem mc_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
     · subst hx
       refine specR_ifI _ 1 (by simp +decide [sev, Env.get, pmParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
         (fun _ => ?_) (fun h => absurd h (by decide))
-      rw [if_pos (by simp)]
+      rw [ite_eq_left (by simp)]
       exact specR_returnI _ (encMV (.stuck x)) (by simp +decide [sev, Env.get, pmParams, ctxEnv, encMV_stuck])
         (fun t ht => ⟨H2, hp1.trans hp2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     · have hne : Enc.idxW x ≠ Enc.idxW m := fun e => hx (Enc.idxW_inj e)
       refine specR_ifI _ 0 (by simp +decide [sev, Env.get, pmParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne])
         (fun h => absurd rfl h) (fun _ => ?_)
-      rw [if_neg (by simpa using hx)]
+      rw [ite_eq_right (by simpa using hx)]
       refine specR_congr (m' := ctorView C.fe x >>= fun r => pure r) (by simp) ?_
       refine specR_callNIH (C := ctxH C H2) mcW fCw [cwE] [vv mcX] (cwBody C) [Enc.idxW x] (by decide) rfl (by decide)
         hc.cw ⟨by simp, trivial⟩ (PostMV (ctxH C H2)) (fun v w _ _ => w = encMV v)

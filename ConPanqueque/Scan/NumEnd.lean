@@ -135,13 +135,13 @@ theorem neFun_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (bs : List
         show ¬ (1 : BitVec 64) = 0 from by decide]
       obtain ⟨r1, r2, r3, r4, r5, r6⟩ := return_vv u2 sI _ li2
       have hv : numEndL bs i0 = i0 := by
-        simp only [numEndL, hei, ↓reduceIte, hgd]; rw [if_pos hz]
+        simp only [numEndL, hei, ↓reduceIte, hgd]; rw [ite_eq_left hz]
       right; refine ⟨by simp only [r1, hv], ?_, ?_, ?_, ?_, ?_⟩ <;>
         simp only [r2, r3, r4, r5, r6, u2] <;> first | exact m1 | exact d1 | exact g1 | exact c1 | exact b1
     · simp only [bw, hz, ↓reduceIte, ne_eq, not_true_eq_false]
       obtain ⟨r1, r2, r3, r4, r5, r6⟩ := return_vv u2 sE2 _ le2
       have hv : numEndL bs i0 = skipDigitsL bs i0 := by
-        simp only [numEndL, hei, ↓reduceIte, hgd]; rw [if_neg hz]
+        simp only [numEndL, hei, ↓reduceIte, hgd]; rw [ite_eq_right hz]
       right; refine ⟨by simp only [r1, hv], ?_, ?_, ?_, ?_, ?_⟩ <;>
         simp only [r2, r3, r4, r5, r6, u2] <;> first | exact m1 | exact d1 | exact g1 | exact c1 | exact b1
 

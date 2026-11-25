@@ -390,9 +390,9 @@ def takeCopyP (C : Ctx) (x src cnt : MlS) (rest : ProgHOL 64) : ProgHOL 64 :=
 theorem blk_of_fillI_hdr (B xs : List (BitVec 64)) (o : Nat) (h0 : B[o]? = some (BitVec.ofNat 64 xs.length))
     (hdst : o + 1 + xs.length ≤ B.length) : BlkAt (fillI B xs (o + 1) xs.length) o xs := by
   constructor
-  · rw [fillI_get?, if_neg (by omega)]; exact h0
+  · rw [fillI_get?, ite_eq_right (by omega)]; exact h0
   · intro i hi
-    rw [fillI_get?, if_pos ⟨by omega, by omega, by omega⟩]
+    rw [fillI_get?, ite_eq_left ⟨by omega, by omega, by omega⟩]
     simp [show o + 1 + i - (o + 1) = i by omega, List.getD_eq_getElem?_getD, hi]
 
 theorem specR_takeCopyI {α : Type} {C : Ctx} (hok : CtxOK C) {H : List (BitVec 64)} {s : AState} {Γ : Env}
@@ -440,7 +440,7 @@ theorem specR_takeCopyI {α : Type} {C : Ctx} (hok : CtxOK C) {H : List (BitVec 
   rw [htk]
   refine hcont _ H2.length ?_ hH12 ?_
   · refine hp2'.trans (prefix_of_get? (by rw [fillI_length, hBlen]; omega) (fun j hj => ?_))
-    rw [fillI_get?, if_neg (by omega), ← hB, List.getElem?_set_ne (by omega), List.getElem?_append_left hj]
+    rw [fillI_get?, ite_eq_right (by omega), ← hB, List.getElem?_set_ne (by omega), List.getElem?_append_left hj]
   · have := blk_of_fillI_hdr B (xs.take k) H2.length
       (by rw [htk, ← hB, List.getElem?_set_self (by simp; omega)]) (by rw [htk, hBlen]; omega)
     rw [htk] at this; exact this

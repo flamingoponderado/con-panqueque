@@ -776,9 +776,9 @@ theorem ds_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
   subst hs'
   refine Knot.specR_tagIteV dsH h 3 (by decide) (by decide) (by simp) (fun htc => ?_) (fun htc => ?_)
   swap
-  · rw [if_neg (show ¬ (h.tag == ETag.const) = true by simpa [ETag.const] using htc)]
+  · rw [ite_eq_right (show ¬ (h.tag == ETag.const) = true by simpa [ETag.const] using htc)]
     exact specR_returnI _ 0 rfl (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_pos (show (h.tag == ETag.const) = true by simp [htc, ETag.const])]
+  rw [ite_eq_left (show (h.tag == ETag.const) = true by simp [htc, ETag.const])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
   refine specR_assignI lDh (vv dsH) (Enc.idxW h) (by decide) (by simp) ?_
   refine specR_viewP h (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
@@ -806,9 +806,9 @@ theorem ds_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
   subst hs'
   refine Knot.specR_tagIteV dsH2 h2 3 (by decide) (by decide) (by simp) (fun htc => ?_) (fun htc => ?_)
   swap
-  · rw [if_neg (show ¬ (h2.tag == ETag.const) = true by simpa [ETag.const] using htc)]
+  · rw [ite_eq_right (show ¬ (h2.tag == ETag.const) = true by simpa [ETag.const] using htc)]
     exact specR_returnI _ 0 rfl (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_pos (show (h2.tag == ETag.const) = true by simp [htc, ETag.const])]
+  rw [ite_eq_left (show (h2.tag == ETag.const) = true by simp [htc, ETag.const])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
   refine specR_assignI lDh (vv dsH2) (Enc.idxW h2) (by decide) (by simp) ?_
   refine specR_viewP h2 (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
@@ -855,7 +855,7 @@ theorem ds_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
   · have hne : Enc.idxW c ≠ Enc.idxW c2 := fun e => hcn (Enc.idxW_inj e)
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, dsParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun _ => ?_)
       (fun h => absurd h (by decide))
-    rw [if_neg (fun h => hcn h.1)]
+    rw [ite_eq_right (fun h => hcn h.1)]
     exact specR_returnI _ 0 rfl (fun t ht => ⟨H2, hp12, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   subst hcn
   refine specR_ifI _ 0 (by simp +decide [sev, Env.get, dsParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -868,10 +868,10 @@ theorem ds_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
       rwa [Nat.mod_eq_of_lt (by omega), Nat.mod_eq_of_lt (by omega)] at this
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, dsParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun _ => ?_)
       (fun h => absurd h (by decide))
-    rw [if_neg (fun h => hln h.2)]
+    rw [ite_eq_right (fun h => hln h.2)]
     exact specR_returnI _ 0 rfl (fun t ht => ⟨H2, hp12, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   refine specR_ifI _ 0 (by simp +decide [sev, Env.get, dsParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hln]) (fun h => absurd rfl h) (fun _ => ?_)
-  rw [if_pos ⟨rfl, hln⟩]
+  rw [ite_eq_left ⟨rfl, hln⟩]
   refine specR_callNIH (C := ctxH C H2) dsQ LLeq.fLsGo LLeq.lsParams [vv dsU, vv dsU2, .const 0] LLeq.lsGoBody
     [Enc.idxW us, Enc.idxW us2, BitVec.ofNat 64 0] (by decide) rfl (by decide) hc.ls
     ⟨by simp +decide [Env.get, dsParams, ctxEnv], by simp +decide [Env.get, dsParams, ctxEnv], rfl, trivial⟩

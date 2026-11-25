@@ -56,10 +56,10 @@ theorem narrow_app_iff {k : IdxKind} (i : Idx k) :
     have hnw : ¬ (i.word / 1073741824 % 2 = 1) := by
       intro c; have := congrArg UInt32.toNat c; simp [UInt32.toNat_div, UInt32.toNat_mod] at this; omega
     refine ⟨by simpa using hnw, ?_⟩
-    rw [if_neg hnw]; apply UInt32.toNat_inj.mp; simp [UInt32.toNat_div, UInt32.toNat_mod]; omega
+    rw [ite_eq_right hnw]; apply UInt32.toNat_inj.mp; simp [UInt32.toNat_div, UInt32.toNat_mod]; omega
   · rintro ⟨h1, h2⟩
     have hnw : ¬ (i.word / 1073741824 % 2 = 1) := by simpa using h1
-    rw [if_neg hnw] at h2
+    rw [ite_eq_right hnw] at h2
     have a := congrArg UInt32.toNat h2
     have b : ¬ (i.word.toNat / 1073741824 % 2 = 1) := by
       intro c; apply hnw; apply UInt32.toNat_inj.mp; simp [UInt32.toNat_div, UInt32.toNat_mod]; omega
@@ -123,13 +123,13 @@ theorem eView_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitVec 
     rcases (by omega : i.tier.toNat = 0 ∨ i.tier.toNat = 1) with h0 | h0
     · have e0 : i.tier = 0 := UInt32.toNat_inj.mp (by rw [h0]; rfl)
       refine ⟨0, st.pers, ?_, ?_⟩
-      · simp only [EStore.view, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
+      · simp only [EStore.view, Idx.isPersistent, beq_iff_eq]; rw [ite_eq_left e0]
       · rw [h0]; exact ⟨hR.p0, hR.p1, hR.p2, hR.p3, hR.p4, hR.p5, hR.p6, hR.p7, hR.p8, hR.p9⟩
     · have hnp : ¬ i.isPersistent = true := by
         simp only [Idx.isPersistent, beq_iff_eq]; intro e; rw [e] at h0; simp at h0
       have hon : st.scratchOn = true := by rcases hlive with h | h; omega; exact h
       refine ⟨1, st.scr, ?_, ?_⟩
-      · simp only [EStore.view]; rw [if_neg hnp, hon]; rfl
+      · simp only [EStore.view]; rw [ite_eq_right hnp, hon]; rfl
       · rw [h0]; exact ⟨hR.s0, hR.s1, hR.s2, hR.s3, hR.s4, hR.s5, hR.s6, hR.s7, hR.s8, hR.s9⟩
   obtain ⟨tr, et, hview, hT0, hT1, hT2, hT3, hT4, hT5, hT6, hT7, hT8, hT9⟩ := pick
   have htl := Idx.tier_lt i

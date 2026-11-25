@@ -312,7 +312,7 @@ theorem isl_spec (C : Ctx) (s : AState) (h : EIdx) :
   unfold isStrLit
   refine Knot.specR_tagIteV isH h 8 (by decide) (by decide) (by simp +decide [Env.get, ctxEnv])
     (fun htg => ?_) (fun htg => ?_)
-  · rw [if_pos (show (h.tag == ETag.lit) = true by simp [htg, ETag.lit])]
+  · rw [ite_eq_left (show (h.tag == ETag.lit) = true by simp [htg, ETag.lit])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
     refine specR_assignI lDh (vv isH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
     refine specR_viewP h (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
@@ -333,7 +333,7 @@ theorem isl_spec (C : Ctx) (s : AState) (h : EIdx) :
         (by simpa [encEView, Enc.encLit] using wordsAt_mem0 P 1 (strW str) []) ?_
       exact specR_returnI _ (boolW true) (by simp [sev, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
         (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  · rw [if_neg (show ¬ (h.tag == ETag.lit) = true by simpa [ETag.lit] using htg)]
+  · rw [ite_eq_right (show ¬ (h.tag == ETag.lit) = true by simpa [ETag.lit] using htg)]
     exact specR_returnI _ (boolW false) (by simp [sev, boolW])
       (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
@@ -347,7 +347,7 @@ theorem ns_spec (C : Ctx) (hok : CtxOK C) (s : AState) (e : EIdx) :
       (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   have hT := sev_tagIs4B (ctxEnv C ++ [(nsE, Enc.idxW e)]) nsE e (by simp +decide [Env.get, ctxEnv])
   by_cases ht : (e.tag == 4) = true
-  · rw [if_pos (show (e.tag == ETag.app) = true from ht)]
+  · rw [ite_eq_left (show (e.tag == ETag.app) = true from ht)]
     refine specR_ifI _ 1 (by rw [hT, ht]; rfl) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
     refine specR_assignI lDh (vv nsE) (Enc.idxW e) (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
@@ -360,7 +360,7 @@ theorem ns_spec (C : Ctx) (hok : CtxOK C) (s : AState) (e : EIdx) :
       (by simpa [encEView, Enc.encApp] using wordsAt_mem0 P (Enc.idxW f) [Enc.idxW a] []) ?_
     refine specR_dropM ?_
     refine Knot.specR_tagIteV nsF f 3 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
-    · rw [if_pos (show (f.tag == ETag.const) = true by simp [htg, ETag.const])]
+    · rw [ite_eq_left (show (f.tag == ETag.const) = true by simp [htg, ETag.const])]
       refine specR_assignI lDh (vv nsF) (Enc.idxW f) (by decide) (by simp) ?_
       refine ILP.specR_viewIv f (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
         (fun v' P' hv' htn' _ => ?_)
@@ -378,9 +378,9 @@ theorem ns_spec (C : Ctx) (hok : CtxOK C) (s : AState) (e : EIdx) :
       refine specR_pinAtI hok PIN_NAT_SUCC (by decide) nsN (by decide) ?_
       exact specR_returnI _ _ (sev_andE (sev_eqIdxB (by simp) (by simp)) (sev_eqIdxB (by simp) (by simp)))
         (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    · rw [if_neg (show ¬ (f.tag == ETag.const) = true by simpa [ETag.const] using htg)]
+    · rw [ite_eq_right (show ¬ (f.tag == ETag.const) = true by simpa [ETag.const] using htg)]
       exact hret0
-  · rw [if_neg (show ¬ (e.tag == ETag.app) = true from ht)]
+  · rw [ite_eq_right (show ¬ (e.tag == ETag.app) = true from ht)]
     refine specR_ifI _ 0 (by rw [hT]; simp at ht; simp [ht, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
     exact hret0
 

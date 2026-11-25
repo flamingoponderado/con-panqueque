@@ -99,7 +99,7 @@ theorem nmStr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
     (by simpa [sev, vv] using hTN) (by simpa [sev, vv] using hC) pre hpre (by simpa [sev, vv] using hU)
     (fun p hp => ?_)
   have g1 : ∀ y, y ≠ fy → Env.get ((fy, Enc.idxW p) :: (fy, Enc.idxW p + 1) :: Γ) y = Env.get Γ y :=
-    fun y h => by simp only [Env.get_cons, if_neg h]
+    fun y h => by simp only [Env.get_cons, ite_eq_right h]
   refine specR_tblFreshI fx (hD fx (by simp)) jN cap st.names hrel hcap (vv fTN) (vv fCap) (vv fI)
     (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hTN)
     (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hC) i hi
@@ -112,8 +112,8 @@ theorem nmStr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
   refine specR_allocI kKA0 (.shift .lsl (.op .add [vv kN, .const 1]) (.const 3)) (len + 1) (by omega)
     (hD kKA0 (by simp)) (fun v => by
       simp only [sev, vv, Env.get_cons, show (kN = kKA0) = False from by decide, show (kN = fx) = False from by decide,
-        show (kN = fy) = False from by decide, if_false, hN, Option.bind_eq_bind, Option.bind_some, Option.pure_def,
-        Option.map_some, show (3 : BitVec 64).toNat = 3 from rfl, show (3 : Nat) < 64 by decide, if_true]
+        show (kN = fy) = False from by decide, ite_false, hN, Option.bind_eq_bind, Option.bind_some, Option.pure_def,
+        Option.map_some, show (3 : BitVec 64).toNat = 3 from rfl, show (3 : Nat) < 64 by decide, ite_true]
       congr 1; apply BitVec.eq_of_toNat_eq
       simp [BitVec.toNat_shiftLeft, BitVec.toNat_add, Nat.shiftLeft_eq]; omega)
     (fun H' ws hpre' hwl hcapH => ?_)
@@ -123,7 +123,7 @@ theorem nmStr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
   have hl1 : (H' ++ ws).length = H'.length + (len + 1) := by simp [hwl]
   have g3 : ∀ y, y ≠ kKA0 → y ≠ fx → y ≠ fy →
       Env.get ((kKA0, cellA C o) :: (fx, 0) :: (fy, Enc.idxW p) :: (fy, Enc.idxW p + 1) :: Γ) y = Env.get Γ y :=
-    fun y h1 h2 h3 => by simp only [Env.get_cons, if_neg h1, if_neg h2, if_neg h3]
+    fun y h1 h2 h3 => by simp only [Env.get_cons, ite_eq_right h1, ite_eq_right h2, ite_eq_right h3]
   refine specR_assignI kKA _ (cellA C (o + 1)) (hD kKA (by simp))
     (by simp [sev, vv, Env.get_cons]; exact cellA_add8 C o) ?_
   refine specR_assignI kK (.const 0) 0 (hD kK (by simp)) rfl ?_
@@ -140,7 +140,7 @@ theorem nmStr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
         (fy, Enc.idxW p + 1) :: Γ) y = Env.get Γ y := by
     intro y hy
     simp only [List.mem_cons, List.not_mem_nil, or_false, not_or] at hy
-    simp only [Env.get_cons, if_neg hy.1, if_neg hy.2.1, if_neg hy.2.2.1, if_neg hy.2.2.2.1, if_neg hy.2.2.2.2]
+    simp only [Env.get_cons, ite_eq_right hy.1, ite_eq_right hy.2.1, ite_eq_right hy.2.2.1, ite_eq_right hy.2.2.2.1, ite_eq_right hy.2.2.2.2]
   refine kc_spec (C := ctxH C1 H2) (ctxOK_H hok _) (fun x hx => hD x (by
       simp only [List.mem_cons, List.not_mem_nil, or_false] at hx ⊢
       rcases hx with rfl|rfl|rfl|rfl|rfl <;> simp)) bufJ (o + 1) q len bs
@@ -148,9 +148,9 @@ theorem nmStr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
     (by simp only [ctxH]; omega) (by have := hok.heapLay; omega)
     (fun k hk i' hi' => by have := Nat.div_le_div_right (c := 8) (Nat.le_of_lt hi'); omega)
     (by rw [g5 _ (by decide)]; exact hBA)
-    (by simp only [Env.get_cons, show (kKA = kK) = False from by decide, if_false, if_true]; rfl)
+    (by simp only [Env.get_cons, show (kKA = kK) = False from by decide, ite_false, ite_true]; rfl)
     (by rw [g5 _ (by decide)]; exact hQ)
-    (by simp only [Env.get_cons, if_true]) (by rw [g5 _ (by decide)]; exact hN) ?_
+    (by simp only [Env.get_cons, ite_true]) (by rw [g5 _ (by decide)]; exact hN) ?_
   -- the key is in place
   let H3 := kcH H2 (o + 1) wsb len
   change SpecR (Inv (ctxH (ctxH C1 H2) H3) s (kcG ((kK, 0) :: (kKA, cellA C (o + 1)) :: (kKA0, cellA C o) ::
@@ -166,11 +166,11 @@ theorem nmStr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
     rw [kcH_get]
     cases j with
     | zero =>
-      rw [if_neg (by omega)]
+      rw [ite_eq_right (by omega)]
       simp [H2, Enc.encStr, List.getElem?_set, hl1]
       show H'.length < H'.length + (len + 1); omega
     | succ k =>
-      rw [if_pos ⟨by omega, by omega, by omega⟩]
+      rw [ite_eq_left ⟨by omega, by omega, by omega⟩]
       have hk1 : k < str.toByteArray.data.toList.length := by omega
       simp only [Enc.encStr, List.getElem_cons_succ, Enc.strW, List.getElem_map]
       simp only [wsb, List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_drop,
@@ -179,7 +179,7 @@ theorem nmStr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
       simp only [Option.map_some, Option.getD_some, Option.some.injEq]
       congr 2
       have := congrArg (fun l => l[k]?) hstr
-      simp only [List.getElem?_take, if_pos (show k < len by omega), List.getElem?_drop] at this
+      simp only [List.getElem?_take, ite_eq_left (show k < len by omega), List.getElem?_drop] at this
       rw [List.getElem?_eq_getElem hk1, List.getElem?_eq_getElem (by omega)] at this
       exact (Option.some.inj this).symm
   have gG : ∀ y, y ∉ [kK, kC, kS, kW, kJ] → y ∉ [kK, kKA, kKA0, fx, fy] →
@@ -193,18 +193,18 @@ theorem nmStr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
         (fy, Enc.idxW p + 1) :: Γ) H2 bufJ (o + 1) q wsb len) fy = some (Enc.idxW p) := by
     rw [kcG_get _ _ _ _ _ _ fy (by decide) len]
     simp only [Env.get_cons, show (fy = kK) = False from by decide, show (fy = kKA) = False from by decide,
-      show (fy = kKA0) = False from by decide, show (fy = fx) = False from by decide, if_false, if_true]
+      show (fy = kKA0) = False from by decide, show (fy = fx) = False from by decide, ite_false, ite_true]
   have hka0 : Env.get (kcG ((kK, 0) :: (kKA, cellA C (o + 1)) :: (kKA0, cellA C o) :: (fx, 0) :: (fy, Enc.idxW p) ::
         (fy, Enc.idxW p + 1) :: Γ) H2 bufJ (o + 1) q wsb len) kKA0 = some (cellA C o) := by
     rw [kcG_get _ _ _ _ _ _ kKA0 (by decide) len]
     simp only [Env.get_cons, show (kKA0 = kK) = False from by decide, show (kKA0 = kKA) = False from by decide,
-      if_false, if_true]
+      ite_false, ite_true]
   refine specR_callNIA fh fInternNStr [pKeyN, lEn, lEp, lHn] [vv kKA0, vv kL1, vv fy, vv kN] nameStrBody
     [cellA C o, BitVec.ofNat 64 (len + 1), Enc.idxW p, BitVec.ofNat 64 len] (by decide) rfl (hD fh (by simp)) hcN
-    ⟨by simp only [sev, vv, Env.get_cons, show (kKA0 = kL1) = False from by decide, if_false]; exact hka0,
+    ⟨by simp only [sev, vv, Env.get_cons, show (kKA0 = kL1) = False from by decide, ite_false]; exact hka0,
      by simp [sev, vv, Env.get_cons],
-     by simp only [sev, vv, Env.get_cons, show (fy = kL1) = False from by decide, if_false]; exact hfy,
-     by simp only [sev, vv, Env.get_cons, show (kN = kL1) = False from by decide, if_false]
+     by simp only [sev, vv, Env.get_cons, show (fy = kL1) = False from by decide, ite_false]; exact hfy,
+     by simp only [sev, vv, Env.get_cons, show (kN = kL1) = False from by decide, ite_false]
         rw [gG _ (by decide) (by decide)]; exact hN, trivial⟩
     (fun a w s' st => internNNode (.str p str) s = .ok (a, s') ∧ PostNm (ctxH (ctxH (ctxH C1 H2) H3) C.H) a w s' st)
     (fun a w s' H' => H' = C.H ∧ internNNode (.str p str) s = .ok (a, s') ∧ w = Enc.idxW a)
@@ -225,7 +225,7 @@ theorem nmStr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
         (fy, Enc.idxW p + 1) :: Γ) H2 bufJ (o + 1) q wsb len) y = Env.get Γ y := by
     intro y h0 h1 h2
     simp only [List.mem_cons, List.not_mem_nil, or_false, not_or] at h0
-    simp only [Env.get_cons, if_neg h0.1, if_neg h0.2]; exact gG y h1 h2
+    simp only [Env.get_cons, ite_eq_right h0.1, ite_eq_right h0.2]; exact gG y h1 h2
   refine specR_tblSetI hok jN cap st.names hrel hcap (vv fTN) (vv fI) (vv fh)
     (by simp only [sev, vv]; rw [gF _ (by decide) (by decide) (by decide)]; exact hTN) i hic h
     (by simp only [sev, vv]; rw [gF _ (by decide) (by decide) (by decide)]; exact hI)
@@ -239,7 +239,7 @@ theorem limbs_small (n : Nat) (h : n < 2 ^ 64) :
   rw [Enc.limbs]
   by_cases h0 : n = 0
   · simp [h0]
-  · simp only [h0, dif_neg, if_false, not_false_eq_true]
+  · simp only [h0, dite_eq_right, ite_false, not_false_eq_true]
     rw [Nat.mod_eq_of_lt h, Nat.div_eq_of_lt h, Enc.limbs]; simp
 
 /-- `num pre n` at index `i`: `fU` the prefix's index, `fV2` the (capped) number. -/
@@ -271,14 +271,14 @@ theorem nmNum_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
     (by simpa [sev, vv] using hTN) (by simpa [sev, vv] using hC) pre hpre (by simpa [sev, vv] using hU)
     (fun p hp => ?_)
   have g1 : ∀ y, y ≠ fy → Env.get ((fy, Enc.idxW p) :: (fy, Enc.idxW p + 1) :: Γ) y = Env.get Γ y :=
-    fun y h => by simp only [Env.get_cons, if_neg h]
+    fun y h => by simp only [Env.get_cons, ite_eq_right h]
   refine specR_tblFreshI fx (hD fx (by simp)) jN cap st.names hrel hcap (vv fTN) (vv fCap) (vv fI)
     (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hTN)
     (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hC) i hi
     (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hI) (fun hic hg => ?_)
   have g2 : ∀ y, y ≠ fx → y ≠ fy →
       Env.get ((fx, 0) :: (fy, Enc.idxW p) :: (fy, Enc.idxW p + 1) :: Γ) y = Env.get Γ y :=
-    fun y h1 h2 => by simp only [Env.get_cons, if_neg h1, if_neg h2]
+    fun y h1 h2 => by simp only [Env.get_cons, ite_eq_right h1, ite_eq_right h2]
   refine specR_ifI _ _ (sev_lower _ (vv fV2) (.const (BitVec.ofNat 64 natCap)) (min n natCap) natCap
     (by simp only [sev, vv]; rw [g2 _ (by decide) (by decide)]; exact hV) rfl (by simp [natCap]; omega)
     (by simp [natCap])) (fun hw => ?_) (fun _ => specR_hangI)
@@ -299,7 +299,7 @@ theorem nmNum_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
   have hl1 : (H' ++ ws).length = H'.length + 2 := by rw [List.length_append, hwl]
   have g3 : ∀ y, y ≠ kKA0 → y ≠ fx → y ≠ fy →
       Env.get ((kKA0, cellA C H'.length) :: (fx, 0) :: (fy, Enc.idxW p) :: (fy, Enc.idxW p + 1) :: Γ) y = Env.get Γ y :=
-    fun y h1 h2 h3 => by simp only [Env.get_cons, if_neg h1, if_neg h2, if_neg h3]
+    fun y h1 h2 h3 => by simp only [Env.get_cons, ite_eq_right h1, ite_eq_right h2, ite_eq_right h3]
   refine specR_heapStoreI (C := C1) (ctxOK_H hok _) (vv kKA0) (vv fy) H'.length (by simp only [C1, ctxH]; omega)
     (Enc.idxW p) (by simp [sev, vv, Env.get_cons]; rfl)
     (by simp [sev, vv, Env.get_cons, show fy ≠ kKA0 from by decide, show fy ≠ fx from by decide]) ?_
@@ -322,9 +322,9 @@ theorem nmNum_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
     · subst h0; simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
     · have : BitVec.ofNat 64 n ≠ 0 := by
         intro e; have := congrArg BitVec.toNat e; simp [natCap] at this hn; omega
-      simp only [h0, if_false, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, Option.bind_eq_bind, Option.bind_some,
+      simp only [h0, ite_false, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, Option.bind_eq_bind, Option.bind_some,
         Option.pure_def]
-      simp only [beq_eq_false_iff_ne.mpr this, Bool.not_false, if_true]; rfl) ?_
+      simp only [beq_eq_false_iff_ne.mpr this, Bool.not_false, ite_true]; rfl) ?_
   have hkey : ∀ j (hj : j < (Enc.encNum ⟨p, n⟩).length), H3[H'.length + j]? = some ((Enc.encNum ⟨p, n⟩)[j]) := by
     intro j hj
     have hj2 : j < 2 := by rw [hkl] at hj; split at hj <;> omega
@@ -334,7 +334,7 @@ theorem nmNum_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
       show ((H' ++ ws).set H'.length (Enc.idxW p))[H'.length + 0]? = _
       rw [Nat.add_zero, List.getElem?_set_self (by rw [hl1]; omega)]
       simp [Enc.encNum]
-    · have h0 : n ≠ 0 := by intro h; rw [hkl, if_pos h] at hj; omega
+    · have h0 : n ≠ 0 := by intro h; rw [hkl, ite_eq_left h] at hj; omega
       show (H2.set (H'.length + 1) _)[H'.length + 1]? = _
       rw [List.getElem?_set_self (by rw [hl2]; omega)]
       simp [Enc.encNum, limbs_small n (by simp [natCap] at hn; omega), h0]
@@ -346,7 +346,7 @@ theorem nmNum_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
      by simp [sev, vv, Env.get_cons, show fy ≠ kL1 from by decide, show fy ≠ kKA0 from by decide,
           show fy ≠ fx from by decide],
      by simp only [sev, vv]
-        rw [Env.get_cons, if_neg (by decide), g3 _ (by decide) (by decide) (by decide), hV]
+        rw [Env.get_cons, ite_eq_right (by decide), g3 _ (by decide) (by decide) (by decide), hV]
         congr 1, trivial⟩
     (fun a w s' st => internNNode (.num p n) s = .ok (a, s') ∧ PostNm (ctxH (ctxH (ctxH C1 H2) H3) C.H) a w s' st)
     (fun a w s' H' => H' = C.H ∧ internNNode (.num p n) s = .ok (a, s') ∧ w = Enc.idxW a)
@@ -362,7 +362,7 @@ theorem nmNum_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
   have gF : ∀ y, y ≠ fh → y ≠ kL1 → y ≠ kKA0 → y ≠ fx → y ≠ fy →
       Env.get ((fh, Enc.idxW h) :: (kL1, BitVec.ofNat 64 (Enc.encNum ⟨p, n⟩).length) ::
         (kKA0, cellA C H'.length) :: (fx, 0) :: (fy, Enc.idxW p) :: (fy, Enc.idxW p + 1) :: Γ) y = Env.get Γ y :=
-    fun y h1 h2 h3 h4 h5 => by simp only [Env.get_cons, if_neg h1, if_neg h2, if_neg h3, if_neg h4, if_neg h5]
+    fun y h1 h2 h3 h4 h5 => by simp only [Env.get_cons, ite_eq_right h1, ite_eq_right h2, ite_eq_right h3, ite_eq_right h4, ite_eq_right h5]
   refine specR_tblSetI hok jN cap st.names hrel hcap (vv fTN) (vv fI) (vv fh)
     (by simp only [sev, vv]; rw [gF _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hTN) i hic h
     (by simp only [sev, vv]; rw [gF _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hI)

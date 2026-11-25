@@ -2822,11 +2822,11 @@ theorem fillI_eq_setR (B0 W : List (BitVec 64)) (o : Nat) (h : o + W.length ≤ 
   intro k
   rw [fillI_get?]
   by_cases h1 : o ≤ k ∧ k < o + W.length
-  · rw [if_pos ⟨h1.1, h1.2, by omega⟩]
+  · rw [ite_eq_left ⟨h1.1, h1.2, by omega⟩]
     obtain ⟨d, rfl⟩ : ∃ d, k = o + d := ⟨k - o, by omega⟩
     rw [setR_get_in _ _ _ _ h (by omega)]
     simp [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem (show d < W.length by omega)]
-  · rw [if_neg (by omega)]
+  · rw [ite_eq_right (by omega)]
     by_cases h2 : k < o
     · rw [setR_get_lo _ _ _ _ (by omega) h2]
     · rw [setR_get_hi _ _ _ _ h (by omega)]

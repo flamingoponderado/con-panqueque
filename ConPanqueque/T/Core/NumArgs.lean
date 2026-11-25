@@ -148,9 +148,9 @@ theorem na_spec (C : Ctx) (hcf : C.code.lookup fNa = some (naParams.map (fun p =
       (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_tag4IteE naH h (by simp +decide [Env.get, naParams, ctxEnv]) (fun ht4 => ?_) (fun ht4 => ?_)
     swap
-    · rw [if_neg (show ¬ (h.tag == ETag.app) = true by simpa [ETag.app] using ht4)]
+    · rw [ite_eq_right (show ¬ (h.tag == ETag.app) = true by simpa [ETag.app] using ht4)]
       exact specR_returnI _ 0 rfl (fun t ht => ⟨rfl, by omega, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    rw [if_pos (show (h.tag == ETag.app) = true by simp [ht4, ETag.app])]
+    rw [ite_eq_left (show (h.tag == ETag.app) = true by simp [ht4, ETag.app])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
     refine specR_assignI lDh (vv naH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, naParams, ctxEnv]) ?_
     refine specR_viewAppI h ht4 (by simp) (by simp +decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)

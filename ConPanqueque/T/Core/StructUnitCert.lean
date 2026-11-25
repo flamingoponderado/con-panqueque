@@ -80,7 +80,7 @@ theorem suc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
   have hp02 : H <+: H2 := hp1.trans hp2
   refine Knot.specR_tagIteV sucWa wa 6 (by decide) (by decide) (by simp) (fun htga => ?_) (fun htga => ?_)
   swap
-  · rw [if_neg (show ¬ isForallE wa = true by simpa [isForallE, ETag.forallE] using htga)]
+  · rw [ite_eq_right (show ¬ isForallE wa = true by simpa [isForallE, ETag.forallE] using htga)]
     try simp only [pure_bind, Bool.not_true, Bool.false_eq_true, ↓reduceIte]
     refine specR_callNIH (C := ctxH C H2) sucU fUll ullParams [vv kFu, vv kD, .const (BitVec.ofNat 64 unitLikeFuel), vv sucWa]
       ullBody [BitVec.ofNat 64 n, BitVec.ofNat 64 d, BitVec.ofNat 64 unitLikeFuel, Enc.idxW wa] (by decide) rfl (by decide) hc.ull
@@ -105,7 +105,7 @@ theorem suc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
       have hp06 : H <+: H6 := hp05.trans hp6
       refine Knot.specR_tagIteV sucWb wb 6 (by decide) (by decide) (by simp) (fun htgb => ?_) (fun htgb => ?_)
       swap
-      · rw [if_neg (show ¬ isForallE wb = true by simpa [isForallE, ETag.forallE] using htgb)]
+      · rw [ite_eq_right (show ¬ isForallE wb = true by simpa [isForallE, ETag.forallE] using htgb)]
         try simp only [pure_bind, Bool.not_true, Bool.false_eq_true, ↓reduceIte]
         refine specR_congr (m' := (knot mode C n).defeq d wa wb >>= fun r => pure r) (by simp) ?_
         refine specR_callNIH (C := ctxH C H6) sucR fD dParams [vv kFu, vv kD, vv sucWa, vv sucWb] (dE C)
@@ -116,7 +116,7 @@ theorem suc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
           (fun r w7 s7 H7 hp7 hw => ?_)
         exact specR_returnI _ w7 (by simp) (fun t ht => ⟨H7, hp06.trans hp7, hw, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
-      rw [if_pos (show isForallE wb = true by simp [isForallE, htgb, ETag.forallE])]
+      rw [ite_eq_left (show isForallE wb = true by simp [isForallE, htgb, ETag.forallE])]
       refine specR_callNIH (C := ctxH C H6) sucG2 fNu [nuE] [vv (ofString "suc_b")] nuBody [Enc.idxW b] (by decide) rfl (by decide) hc.nu
         ⟨by simp +decide [Env.get, sucParams, ctxEnv], trivial⟩
         (fun g w' s' st => ioNeutral b s6 = .ok (g, s') ∧ PostB (ctxH C H6) g w' s' st)
@@ -146,7 +146,7 @@ theorem suc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     simp only [Bool.false_eq_true, ↓reduceIte]
     exact specR_returnI _ 0 rfl (fun t ht => ⟨H4, hp04, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
-  rw [if_pos (show isForallE wa = true by simp [isForallE, htga, ETag.forallE])]
+  rw [ite_eq_left (show isForallE wa = true by simp [isForallE, htga, ETag.forallE])]
   refine specR_callNIH (C := ctxH C H2) sucG fNu [nuE] [vv (ofString "suc_a")] nuBody [Enc.idxW a] (by decide) rfl (by decide) hc.nu
     ⟨by simp +decide [Env.get, sucParams, ctxEnv], trivial⟩
     (fun g w' s' st => ioNeutral a s2 = .ok (g, s') ∧ PostB (ctxH C H2) g w' s' st)
@@ -184,7 +184,7 @@ theorem suc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
       have hp06 : H <+: H6 := hp05.trans hp6
       refine Knot.specR_tagIteV sucWb wb 6 (by decide) (by decide) (by simp) (fun htgb => ?_) (fun htgb => ?_)
       swap
-      · rw [if_neg (show ¬ isForallE wb = true by simpa [isForallE, ETag.forallE] using htgb)]
+      · rw [ite_eq_right (show ¬ isForallE wb = true by simpa [isForallE, ETag.forallE] using htgb)]
         try simp only [pure_bind, Bool.not_true, Bool.false_eq_true, ↓reduceIte]
         refine specR_congr (m' := (knot mode C n).defeq d wa wb >>= fun r => pure r) (by simp) ?_
         refine specR_callNIH (C := ctxH C H6) sucR fD dParams [vv kFu, vv kD, vv sucWa, vv sucWb] (dE C)
@@ -195,7 +195,7 @@ theorem suc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
           (fun r w7 s7 H7 hp7 hw => ?_)
         exact specR_returnI _ w7 (by simp) (fun t ht => ⟨H7, hp06.trans hp7, hw, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
-      rw [if_pos (show isForallE wb = true by simp [isForallE, htgb, ETag.forallE])]
+      rw [ite_eq_left (show isForallE wb = true by simp [isForallE, htgb, ETag.forallE])]
       refine specR_callNIH (C := ctxH C H6) sucG2 fNu [nuE] [vv (ofString "suc_b")] nuBody [Enc.idxW b] (by decide) rfl (by decide) hc.nu
         ⟨by simp +decide [Env.get, sucParams, ctxEnv], trivial⟩
         (fun g w' s' st => ioNeutral b s6 = .ok (g, s') ∧ PostB (ctxH C H6) g w' s' st)

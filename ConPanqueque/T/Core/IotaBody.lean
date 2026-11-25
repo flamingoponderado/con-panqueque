@@ -2316,8 +2316,8 @@ theorem encMV_toNat (mv : MajorView) :
     rw [BitVec.toNat_shiftLeft, Nat.shiftLeft_eq, Nat.mod_eq_of_lt (by omega)]; ring
   unfold encMV
   cases mv.isCtor
-  · rw [if_neg (by decide), show (0 : BitVec 64) = 0#64 from rfl, BitVec.add_zero, h2]; simp
-  · rw [if_pos rfl, BitVec.toNat_add, h2, show (1 : BitVec 64).toNat = 1 from rfl]; simp; omega
+  · rw [ite_eq_right (by decide), show (0 : BitVec 64) = 0#64 from rfl, BitVec.add_zero, h2]; simp
+  · rw [ite_eq_left rfl, BitVec.toNat_add, h2, show (1 : BitVec 64).toNat = 1 from rfl]; simp; omega
 
 theorem encMV_and1 (mv : MajorView) : encMV mv &&& 1#64 = if mv.isCtor then 1#64 else 0#64 := by
   apply BitVec.eq_of_toNat_eq
@@ -2361,10 +2361,10 @@ theorem min_word (a b : Nat) (ha : a < 2 ^ 63) (hb : b < 2 ^ 63) :
       BitVec.ofNat 64 (if a < b then a else b) := by
   have hlt := word_lt_iff a b (by unfold B; omega) (by unfold B; omega)
   by_cases h : a < b
-  · rw [if_pos (hlt.mpr h), if_pos h, show (0#64 : BitVec 64) - 1#64 = BitVec.allOnes 64 from by decide,
+  · rw [ite_eq_left (hlt.mpr h), ite_eq_left h, show (0#64 : BitVec 64) - 1#64 = BitVec.allOnes 64 from by decide,
       BitVec.and_allOnes]
     bv_omega
-  · rw [if_neg (fun x => h (hlt.mp x)), if_neg h, show (0#64 : BitVec 64) - 0#64 = 0#64 from by decide,
+  · rw [ite_eq_right (fun x => h (hlt.mp x)), ite_eq_right h, show (0#64 : BitVec 64) - 0#64 = 0#64 from by decide,
       BitVec.and_zero, BitVec.add_zero]
 
 theorem cellA_shl (C : Ctx) (o k : Nat) (hk : k < 2 ^ 60) :
@@ -2610,11 +2610,11 @@ theorem io_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
   swap
   · refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact fun e => hal (hweq.mp e))
       (fun _ => ?_) (fun h => absurd h (by decide))
-    rw [if_neg hal]
+    rw [ite_eq_right hal]
     exact hret0 hp15
   refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hweq.mpr hal)
     (fun h => absurd rfl h) (fun _ => ?_)
-  rw [if_pos hal]
+  rw [ite_eq_left hal]
   have hargs : (takeEidx sargs.toArray (mI + 1)).toList = sargs.take (mI + 1) := by
     rw [ConRon.Bridge.ExprOps.takeEidx_toList]
   rw [hargs]

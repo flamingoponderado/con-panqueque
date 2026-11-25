@@ -1050,10 +1050,10 @@ theorem wst_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
   refine Knot.specR_tagIteV sH h 3 (by decide) (by decide) (by simp +decide [Env.get, stParams, ctxEnv])
     (fun htg => ?_) (fun htg => ?_)
   swap
-  · rw [if_neg (show ¬ (h.tag == ETag.const) = true by simpa [ETag.const] using htg)]
+  · rw [ite_eq_right (show ¬ (h.tag == ETag.const) = true by simpa [ETag.const] using htg)]
     refine hdone (H' := C.H) (List.prefix_refl _) ?_
     simp +decide [Env.get, stParams, ctxEnv]
-  rw [if_pos (show (h.tag == ETag.const) = true by simp [htg, ETag.const])]
+  rw [ite_eq_left (show (h.tag == ETag.const) = true by simp [htg, ETag.const])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
   refine specR_assignI lDh (vv sH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, stParams, ctxEnv]) ?_
   refine specR_viewP h (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
@@ -1109,7 +1109,7 @@ theorem wst_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
       have h2 := ht.sr.env.1.len; have h3 := hok.envLay
       simp only [List.length_map] at h1; omega
     by_cases hl : vl.length = cv.levelParams.length
-    · rw [if_neg (by simpa using hl)]
+    · rw [ite_eq_right (by simpa using hl)]
       refine specR_ifI _ 0 (by simp [sev, hl, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
         (fun _ => ?_)
       refine specR_envLoadI tM (.op .add [vv tQ, .const 32]) (o + 4) _ (by decide)
@@ -1137,7 +1137,7 @@ theorem wst_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
       have hwlt := word_lt_iff args.length (mI + 1) (by unfold B; omega) (by unfold B; omega)
       have hadd : BitVec.ofNat 64 mI + 1#64 = BitVec.ofNat 64 (mI + 1) := word_add1_eq mI
       by_cases hle : mI + 1 ≤ args.length
-      · rw [if_pos (by simpa using hle)]
+      · rw [ite_eq_left (by simpa using hle)]
         refine specR_ifI _ 0 (by simp [sev, hadd, Flapjack.Compiler.Encoders.Asm.wordCmpHOL,
           (not_congr hwlt).mpr (by omega)]) (fun h => absurd rfl h) (fun _ => ?_)
         refine specR_callNIH (C := ctxH C H2) tO fIota ioParams
@@ -1168,12 +1168,12 @@ theorem wst_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
             (fun e3 s4 => ?_)
           exact specR_returnI _ (encWS (.cont e3)) (by simp [sev, vv, encWS]) (fun t ht =>
             ⟨H3, hp2.trans hp3, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-      · rw [if_neg (by simpa using hle)]
+      · rw [ite_eq_right (by simpa using hle)]
         refine specR_ifI _ 1 (by simp [sev, hadd, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hwlt.mpr (by omega)])
           (fun _ => ?_) (fun h => absurd h (by decide))
         refine hdone (H' := H2) hp2 ?_
         simp +decide [Env.get, stParams, ctxEnv]
-    · rw [if_pos (by simpa using hl)]
+    · rw [ite_eq_left (by simpa using hl)]
       have hne : BitVec.ofNat 64 vl.length ≠ BitVec.ofNat 64 cv.levelParams.length := fun x =>
         hl ((UD.ofNat_eq_iff_small _ _ (by omega) (by omega)).mp x)
       refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun _ => ?_)

@@ -71,7 +71,7 @@ theorem numLine_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
   refine specR_fieldI fU (fNumF 1) _ bufJ b pos _ (hD _ (by simp)) (hcT 1 (by decide)) hBA hBN hP (hS 1 (by decide))
     (fun w1 ⟨s1, hK1, hr1, hs1⟩ => ?_)
   have hn1 := slotN hK1 rfl hs1
-  have g1 : ∀ y, y ≠ fU → Env.get ((fU, w1) :: Γ) y = Γ.get y := fun y h => by simp only [Env.get_cons, if_neg h]
+  have g1 : ∀ y, y ≠ fU → Env.get ((fU, w1) :: Γ) y = Γ.get y := fun y h => by simp only [Env.get_cons, ite_eq_right h]
   refine specR_fieldI fV2 (fNumF 0) _ bufJ b pos _ (hD _ (by simp)) (hcT 0 (by decide))
     (by rw [g1 _ (by decide)]; exact hBA) (by rw [g1 _ (by decide)]; exact hBN) (by rw [g1 _ (by decide)]; exact hP)
     (hS 0 (by decide)) (fun w2 ⟨s2, hK2, hr2, hs2⟩ => ?_)
@@ -82,16 +82,16 @@ theorem numLine_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
   rw [hr2]
   let Γ2 : Env := (fV2, w2) :: (fU, w1) :: Γ
   have g2 : ∀ y, y ≠ fV2 → y ≠ fU → Γ2.get y = Γ.get y := fun y h h' => by
-    simp only [Γ2, Env.get_cons, if_neg h, if_neg h']
+    simp only [Γ2, Env.get_cons, ite_eq_right h, ite_eq_right h']
   refine specR_capG fI i (by rw [g2 _ (by decide) (by decide)]; exact hI) (fun hiN hI' => ?_)
-  refine specR_capG fU _ (by simp only [Γ2, Env.get_cons, if_neg (show fU ≠ fV2 by decide), if_pos]; rw [hn1])
+  refine specR_capG fU _ (by simp only [Γ2, Env.get_cons, ite_eq_right (show fU ≠ fV2 by decide), ite_eq_left]; rw [hn1])
     (fun haN hU' => ?_)
   have := natCap_lt
   exact nmNum_spec ra C hok hf hcN s Γ2 M D (fun x hx => hD x (by
       simp only [List.mem_cons, List.not_mem_nil, or_false] at hx ⊢; rcases hx with rfl | rfl | rfl | rfl | rfl <;> simp))
     st jN cap hrel hcap i _ _ (by omega) (by omega)
     (by rw [g2 _ (by decide) (by decide)]; exact hTN) (by rw [g2 _ (by decide) (by decide)]; exact hC) hI' hU'
-    (by simp only [Γ2, Env.get_cons, if_pos]; rw [hn2])
+    (by simp only [Γ2, Env.get_cons, ite_eq_left]; rw [hn2])
 
 def strInits : List (BitVec 64) := [0, BitVec.ofNat 64 listSentinel]
 def fStrF (k : Nat) : MlS := ofString ("strf" ++ toString k)
@@ -137,7 +137,7 @@ theorem strLine_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
   refine specR_fieldI fU (fStrF 0) _ bufJ b pos _ (hD _ (by simp)) (hcT 0 (by decide)) hBA hBN hP (hS 0 (by decide))
     (fun w1 ⟨s1, hK1, hr1, hs1⟩ => ?_)
   have hn1 := slotN hK1 rfl hs1
-  have g1 : ∀ y, y ≠ fU → Env.get ((fU, w1) :: Γ) y = Γ.get y := fun y h => by simp only [Env.get_cons, if_neg h]
+  have g1 : ∀ y, y ≠ fU → Env.get ((fU, w1) :: Γ) y = Γ.get y := fun y h => by simp only [Env.get_cons, ite_eq_right h]
   refine specR_fieldI kQ (fStrF 1) _ bufJ b pos _ (hD _ (by simp)) (hcT 1 (by decide))
     (by rw [g1 _ (by decide)]; exact hBA) (by rw [g1 _ (by decide)]; exact hBN) (by rw [g1 _ (by decide)]; exact hP)
     (hS 1 (by decide)) (fun w2 ⟨s2, hK2, hr2, hs2⟩ => ?_)
@@ -148,8 +148,8 @@ theorem strLine_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
   rw [hr2]
   let Γ2 : Env := (kQ, w2) :: (fU, w1) :: Γ
   have g2 : ∀ y, y ≠ kQ → y ≠ fU → Γ2.get y = Γ.get y := fun y h h' => by
-    simp only [Γ2, Env.get_cons, if_neg h, if_neg h']
-  refine specR_ifI _ _ (sev_eq_c' Γ2 kQ w2 (BitVec.ofNat 64 listSentinel) (by simp only [Γ2, Env.get_cons, if_pos]))
+    simp only [Γ2, Env.get_cons, ite_eq_right h, ite_eq_right h']
+  refine specR_ifI _ _ (sev_eq_c' Γ2 kQ w2 (BitVec.ofNat 64 listSentinel) (by simp only [Γ2, Env.get_cons, ite_eq_left]))
     (fun _ => specR_hangI) (fun hw => ?_)
   have hw' : w2 ≠ BitVec.ofNat 64 listSentinel := by intro h; simp [bw, h] at hw
   obtain ⟨p, e0, hwp, hsc0⟩ := hst.resolve_right (fun ⟨_, h⟩ => hw' h)
@@ -158,29 +158,29 @@ theorem strLine_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
     (BitVec.ofNat 64 p.toNat) _ (by decide) (by decide) (by decide) (hD _ (by simp)) hcS
     (by simp only [sev, vv]; rw [g2 _ (by decide) (by decide)]; exact hBA)
     (by simp only [sev, vv]; rw [g2 _ (by decide) (by decide)]; exact hBN)
-    (by simp only [sev, vv, Γ2, Env.get_cons, if_pos]; rw [hwp])
+    (by simp only [sev, vv, Γ2, Env.get_cons, ite_eq_left]; rw [hwp])
     (fun t callee ht c1 c2 c3 => slotCall (s := s) (D := D) hok hbuf hsc p ssFun _ (fun u hb hc l1 l2 l3 =>
       ssFun_sound2 u (cellA C bufJ) b hplat hb p (Nat.le_of_lt hpb) hc.2.2.2.1 l1 l2 l3) t callee _ _ ht c1 c2 c3)
     (fun w3 ⟨ee, hw3, hee, hpe, s', hs', hutf⟩ => ?_)
   have hstr : (s2.getD 1 default).str = s' := scanString_det hsc0 hs'
   let Γ3 : Env := (kSE, w3) :: Γ2
   have g3 : ∀ y, y ≠ kSE → y ≠ kQ → y ≠ fU → Γ3.get y = Γ.get y := fun y h0 h h' => by
-    simp only [Γ3, Env.get_cons, if_neg h0]; exact g2 y h h'
+    simp only [Γ3, Env.get_cons, ite_eq_right h0]; exact g2 y h h'
   refine specR_assignI kQ _ (BitVec.ofNat 64 (p.toNat + 1)) (hD _ (by simp))
-    (by simp only [sev, vv, Γ3, Γ2, Env.get_cons, if_neg (show kQ ≠ kSE by decide), if_pos, hwp]
+    (by simp only [sev, vv, Γ3, Γ2, Env.get_cons, ite_eq_right (show kQ ≠ kSE by decide), ite_eq_left, hwp]
         simp only [Option.bind_eq_bind, Option.bind_some, Option.pure_def]
         rw [show (1 : BitVec 64) = BitVec.ofNat 64 1 from rfl, ofNat_add64]) ?_
   let Γ4 : Env := (kQ, BitVec.ofNat 64 (p.toNat + 1)) :: Γ3
   refine specR_assignI kN _ (BitVec.ofNat 64 (ee.toNat - (p.toNat + 1))) (hD _ (by simp))
-    (by simp only [sev, vv, Γ4, Γ3, Env.get_cons, if_neg (show kSE ≠ kQ by decide), if_pos, hw3]
+    (by simp only [sev, vv, Γ4, Γ3, Env.get_cons, ite_eq_right (show kSE ≠ kQ by decide), ite_eq_left, hw3]
         simp only [Option.bind_eq_bind, Option.bind_some, Option.pure_def]
         rw [BitVec.ofNat_sub_ofNat_of_le _ _ (by omega) (by omega)]) ?_
   let Γ5 : Env := (kN, BitVec.ofNat 64 (ee.toNat - (p.toNat + 1))) :: Γ4
   have g5 : ∀ y, y ≠ kN → y ≠ kQ → y ≠ kSE → y ≠ fU → Γ5.get y = Γ.get y := fun y hn hq hs hu => by
-    simp only [Γ5, Γ4, Env.get_cons, if_neg hn, if_neg hq]; exact g3 y hs hq hu
+    simp only [Γ5, Γ4, Env.get_cons, ite_eq_right hn, ite_eq_right hq]; exact g3 y hs hq hu
   refine specR_capG fI i (by rw [g5 _ (by decide) (by decide) (by decide) (by decide)]; exact hI) (fun hiN hI' => ?_)
-  refine specR_capG fU _ (by simp only [Γ5, Γ4, Γ3, Γ2, Env.get_cons, if_neg (show fU ≠ kN by decide),
-    if_neg (show fU ≠ kQ by decide), if_neg (show fU ≠ kSE by decide), if_pos]; rw [hn1]) (fun haN hU' => ?_)
+  refine specR_capG fU _ (by simp only [Γ5, Γ4, Γ3, Γ2, Env.get_cons, ite_eq_right (show fU ≠ kN by decide),
+    ite_eq_right (show fU ≠ kQ by decide), ite_eq_right (show fU ≠ kSE by decide), ite_eq_left]; rw [hn1]) (fun haN hU' => ?_)
   have := natCap_lt
   have hp1 : (p + 1).toNat = p.toNat + 1 := ConLeche.Frontend.usizeStep b p ((hplat.lt_iff p).mpr hpb)
   refine nmStr_spec ra C hok hf hcN s _ M D (fun x hx => hD x (by
@@ -191,8 +191,8 @@ theorem strLine_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
     (by omega) (by omega) ?_
     (by rw [g5 _ (by decide) (by decide) (by decide) (by decide)]; exact hTN)
     (by rw [g5 _ (by decide) (by decide) (by decide) (by decide)]; exact hC) hI' hU'
-    (by simp only [Γ5, Γ4, Env.get_cons, if_neg (show kQ ≠ kN by decide), if_pos])
-    (by simp only [Γ5, Env.get_cons, if_pos])
+    (by simp only [Γ5, Γ4, Env.get_cons, ite_eq_right (show kQ ≠ kN by decide), ite_eq_left])
+    (by simp only [Γ5, Env.get_cons, ite_eq_left])
     (by rw [g5 _ (by decide) (by decide) (by decide) (by decide)]; exact hBA)
   rw [hstr]
   show s'.toUTF8.data.toList = _

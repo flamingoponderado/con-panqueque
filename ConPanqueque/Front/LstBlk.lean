@@ -69,7 +69,7 @@ theorem fillG_step {k : IdxKind} (fT kb : MlS) (C : Ctx) (hok : CtxOK C) (hnc : 
       hbuf.plat (bytesAt_congr (bufOK_bytes hok hbuf ht hpk (by have := hpi.length_le; omega)) rfl rfl rfl)
       (hnc _ (by show t.code = C.code; exact ht.sr.code)) pos hpos i (by omega) us e0 hs h1 h2 h3 h4))) ?_
   have hnr : nnRes us i = BitVec.ofNat 64 (min us[i] natCap) := by simp [nnRes, hi]
-  have g1 : ∀ y, y ≠ kX → Env.get ((kX, nnRes us i) :: Γ) y = Env.get Γ y := fun y h => by rw [Env.get_cons, if_neg h]
+  have g1 : ∀ y, y ≠ kX → Env.get ((kX, nnRes us i) :: Γ) y = Env.get Γ y := fun y h => by rw [Env.get_cons, ite_eq_right h]
   refine step_tblGetI (C := ctxH C (kcH H1 o ws i)) kY (hD kY (by simp)) jL cap tbl
     (tblRel_prefix hrel hpi) hcap (vv fT) (vv fCap) (vv kX)
     (by simp only [sev, vv]; rw [g1 _ hfX]; exact hTL) (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hC)
@@ -84,13 +84,13 @@ theorem fillG_step {k : IdxKind} (fT kb : MlS) (C : Ctx) (hok : CtxOK C) (hnc : 
   have hws : ws.getD i 0 = Enc.idxW h := by rw [tWords_getD tbl us i hi, hh]; rfl
   have g2 : ∀ y, y ≠ kY → y ≠ kX →
       Env.get ((kY, Enc.idxW h) :: (kY, Enc.idxW h + 1) :: (kX, nnRes us i) :: Γ) y = Env.get Γ y :=
-    fun y h1 h2 => by simp only [Env.get_cons, if_neg h1, if_neg h2]
+    fun y h1 h2 => by simp only [Env.get_cons, ite_eq_right h1, ite_eq_right h2]
   refine step_seq (step_heapStoreI (C := ctxH C (kcH H1 o ws i)) (ctxOK_H hok _) _ (vv kY) (o + i)
     (by simp only [ctxH]; omega) (Enc.idxW h)
     (by
       simp only [sev, vv]; rw [g2 _ hbY hbX, hKA, g2 _ (by decide) (by decide), hK]
       simp only [Option.bind_eq_bind, Option.bind_some, Option.pure_def, Option.map_some,
-        show (3 : BitVec 64).toNat = 3 from rfl, show (3 : Nat) < 64 by decide, if_true]
+        show (3 : BitVec 64).toNat = 3 from rfl, show (3 : Nat) < 64 by decide, ite_true]
       rw [shl3 i (by have := hi; have := hk62; omega), ← cellA_add]; rfl)
     (by simp [sev, vv, Env.get_cons])) ?_
   intro t ht
@@ -113,7 +113,7 @@ def Keep (Γ Γ' : Env) : Prop := ∀ y, y ∉ lbMods → Env.get Γ' y = Env.ge
 theorem keep_cons {Γ Γ' : Env} (h : Keep Γ Γ') (x : MlS) (v : BitVec 64) (hx : x ∈ lbMods) :
     Keep Γ ((x, v) :: Γ') := fun y hy => by
   have : y ≠ x := fun e => hy (by rw [e]; exact hx)
-  rw [Env.get_cons, if_neg this]; exact h y hy
+  rw [Env.get_cons, ite_eq_right this]; exact h y hy
 
 /-- The block: allocate `L + 1` cells, the length first, then the handles. -/
 def blkTail (C : Ctx) (fT : MlS) (rest : ProgHOL 64) : ProgHOL 64 :=
@@ -157,9 +157,9 @@ theorem blkTail_spec {k : IdxKind} {α : Type} (C : Ctx) (hok : CtxOK C)
   unfold blkTail
   refine specR_allocI kKA0 (.shift .lsl (.op .add [vv kK, .const 1]) (.const 3)) (L + 1) (by omega)
     (hD kKA0 (by simp [lbMods])) (fun v => by
-      simp only [sev, vv, Env.get_cons, show (kK = kKA0) = False from by decide, if_false, hK,
+      simp only [sev, vv, Env.get_cons, show (kK = kKA0) = False from by decide, ite_false, hK,
         Option.bind_eq_bind, Option.bind_some, Option.pure_def, Option.map_some,
-        show (3 : BitVec 64).toNat = 3 from rfl, show (3 : Nat) < 64 by decide, if_true]
+        show (3 : BitVec 64).toNat = 3 from rfl, show (3 : Nat) < 64 by decide, ite_true]
       congr 1; apply BitVec.eq_of_toNat_eq
       simp [BitVec.toNat_shiftLeft, BitVec.toNat_add, Nat.shiftLeft_eq]; omega)
     (fun H' wsA hp' hwl hcapH => ?_)
@@ -167,7 +167,7 @@ theorem blkTail_spec {k : IdxKind} {α : Type} (C : Ctx) (hok : CtxOK C)
   let o := H'.length
   have hl0 : (H' ++ wsA).length = H'.length + (L + 1) := by simp [hwl]
   have g0 : ∀ y, y ≠ kKA0 → Env.get ((kKA0, cellA C o) :: Γ) y = Env.get Γ y := fun y h => by
-    rw [Env.get_cons, if_neg h]
+    rw [Env.get_cons, ite_eq_right h]
   refine specR_heapStoreI (C := ctxH C (H' ++ wsA)) (ctxOK_H hok _) (vv kKA0) (vv kK) o
     (by simp only [ctxH]; omega) (BitVec.ofNat 64 L) (by simp [sev, vv, Env.get_cons]; rfl)
     (by simp only [sev, vv]; rw [g0 _ (by decide)]; exact hK) ?_
@@ -178,7 +178,7 @@ theorem blkTail_spec {k : IdxKind} {α : Type} (C : Ctx) (hok : CtxOK C)
     (by simp [sev, vv, Env.get_cons]; exact cellA_add8 C o) ?_
   refine specR_assignI kN (vv kK) (BitVec.ofNat 64 L) (hD kN (by simp [lbMods]))
     (by simp only [sev, vv, Env.get_cons, show (kK = kKA) = False from by decide,
-          show (kK = kKA0) = False from by decide, if_false]; exact hK) ?_
+          show (kK = kKA0) = False from by decide, ite_false]; exact hK) ?_
   refine specR_assignI kK (.const 0) 0 (hD kK (by simp [lbMods])) rfl ?_
   let Γ5 : Env := (kK, 0) :: (kN, BitVec.ofNat 64 L) :: (kKA, cellA C (o + 1)) :: (kKA0, cellA C o) :: Γ
   have hk5 : Keep Γ Γ5 :=
@@ -209,12 +209,12 @@ theorem blkTail_spec {k : IdxKind} {α : Type} (C : Ctx) (hok : CtxOK C)
     rw [hpC, hps, hpm]
     refine hk (kcH H1 (o + 1) ws us.length) o p.Γ (prefix_kcH hp1 (o + 1) (by omega) ws _) hCH ⟨?_, ?_⟩
       (fun j hj => hall j hj hj) hpa0 hkp
-    · rw [kcH_get, if_neg (by omega)]
+    · rw [kcH_get, ite_eq_right (by omega)]
       simp [H1, List.getElem?_set, hl0, ws, tWords]
       exact ⟨show H'.length < H'.length + (L + 1) by omega, rfl⟩
     · intro j hj
       have hj' : j < us.length := by simpa [ws, tWords] using hj
-      rw [kcH_get, if_pos ⟨by omega, by omega, by show o + 1 + j < H1.length; omega⟩,
+      rw [kcH_get, ite_eq_left ⟨by omega, by omega, by show o + 1 + j < H1.length; omega⟩,
         show o + 1 + j - (o + 1) = j by omega, List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hj]
       rfl
   · -- one more handle
@@ -277,7 +277,7 @@ theorem lstBlk_spec {k : IdxKind} {α : Type} (C : Ctx) (hok : CtxOK C)
   have hfG : fT ≠ kG2 := fun e => hfT (by rw [e]; simp [lbMods])
   unfold lstBlkP
   refine specR_assignI kK (.const 0) 0 (hD kK (by simp [lbMods])) rfl ?_
-  have g1 : ∀ y, y ≠ kK → Env.get ((kK, 0) :: Γ) y = Env.get Γ y := fun y h => by rw [Env.get_cons, if_neg h]
+  have g1 : ∀ y, y ≠ kK → Env.get ((kK, 0) :: Γ) y = Env.get Γ y := fun y h => by rw [Env.get_cons, ite_eq_right h]
   have hk1 : Keep Γ ((kK, 0) :: Γ) := keep_cons (fun _ _ => rfl) _ _ (by simp [lbMods])
   have hsent : ∀ (pos : USize) (e0 : USize), scanNatList b pos = .ok us e0 →
       BitVec.ofNat 64 pos.toNat ≠ BitVec.ofNat 64 listSentinel := by
@@ -339,7 +339,7 @@ theorem lstBlk_spec {k : IdxKind} {α : Type} (C : Ctx) (hok : CtxOK C)
       · have hcl : c = L := by
           by_cases h : c < L
           · have : nnRes us c ≠ BitVec.ofNat 64 nnSent := by
-              simp only [nnRes, dif_pos (show c < us.length from h)]; intro e
+              simp only [nnRes, dite_eq_left (show c < us.length from h)]; intro e
               have := congrArg BitVec.toNat e
               have h2 : min us[c] natCap ≤ natCap := Nat.min_le_right _ _
               have h1 : min us[c] natCap < 2 ^ 64 := Nat.lt_of_le_of_lt h2 (by unfold natCap; decide)
@@ -363,7 +363,7 @@ theorem lstBlk_spec {k : IdxKind} {α : Type} (C : Ctx) (hok : CtxOK C)
         intro t ht
         rcases step_assignI (C := C) (Γ := (kX, nnRes us c) :: p.Γ) kK (.op .add [vv kK, .const 1])
           (BitVec.ofNat 64 (c + 1)) (hD kK (by simp [lbMods])) (by
-            simp only [sev, vv, Env.get_cons, show (kK = kX) = False from by decide, if_false, hpk,
+            simp only [sev, vv, Env.get_cons, show (kK = kX) = False from by decide, ite_false, hpk,
               Option.bind_eq_bind, Option.bind_some, Option.pure_def]
             congr 1; apply BitVec.eq_of_toNat_eq; simp [BitVec.toNat_add]) t ht with hs' | ⟨hn', hq⟩
         · exact Or.inl hs'

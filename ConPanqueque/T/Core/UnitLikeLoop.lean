@@ -71,7 +71,7 @@ theorem ull_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     have hq1 := hQw _ _ _ _ _ hq hr1
     refine Knot.specR_tagIteV ullW w 6 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
     swap
-    · rw [if_neg (show ¬ (w.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
+    · rw [ite_eq_right (show ¬ (w.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
       refine specR_congr (m' := unitLikeStruct (knot mode C n) (unitLikeLoop (knot mode C n) C.fe F) C.fe d w >>= fun r => pure r)
         (by simp) ?_
       refine specR_callNIH (C := ctxH C H1) ullR fUls ulsParams [vv kFu, vv kD, .op .sub [vv ullF, .const 1], vv ullW] (ulsBody C)
@@ -83,7 +83,7 @@ theorem ull_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
             (fun H' s' d' T' hp' hq' hd' => ih (by omega) H' s' d' T' hp' hq' hd') H1 s1 d w (hpH.trans hp1) hq1 hd))
         (fun r w2 s2 H2 hp2 hw => ?_)
       exact specR_returnI _ w2 (by simp) (fun t ht => ⟨H2, hp1.trans hp2, hw, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    rw [if_pos (show (w.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
+    rw [ite_eq_left (show (w.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
     refine specR_assignI lDh (vv ullW) (Enc.idxW w) (by decide) (by simp) ?_
     refine specR_viewP (C := ctxH C H1) w (by simp) (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)

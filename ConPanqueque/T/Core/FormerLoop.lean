@@ -388,7 +388,7 @@ theorem fq_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, fqParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
       (fun _ => ?_) (fun h => absurd h (by decide))
     refine Knot.specR_tagIteV fqW w 2 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
-    · rw [if_pos (show (w.tag == ETag.sort) = true by simp [htg, ETag.sort])]
+    · rw [ite_eq_left (show (w.tag == ETag.sort) = true by simp [htg, ETag.sort])]
       refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
       refine specR_assignI lDh (vv fqW) (Enc.idxW w) (by decide) (by simp) ?_
       refine specR_viewP (C := ctxH C H1) w (by simp) (by simp +decide [Env.get] <;> rfl)
@@ -403,7 +403,7 @@ theorem fq_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
         (by simpa [encEView, Enc.encSort] using wordsAt_mem0 P (Enc.idxW u) [] []) ?_
       exact specR_returnI _ (optWG Enc.idxW (some u)) (by simp [sev, optWG])
         (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    · rw [if_neg (show ¬ (w.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
+    · rw [ite_eq_right (show ¬ (w.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
       exact specR_returnI _ (optWG Enc.idxW none) (by simp [optWG]; rfl)
         (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   | succ k ih =>
@@ -421,7 +421,7 @@ theorem fq_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, fqParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
       (fun h => absurd rfl h) (fun _ => ?_)
     refine Knot.specR_tagIteV fqW w 6 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
-    · rw [if_pos (show (w.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
+    · rw [ite_eq_left (show (w.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
       refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
       refine specR_assignI lDh (vv fqW) (Enc.idxW w) (by decide) (by simp) ?_
       refine specR_viewP (C := ctxH C H1) w (by simp) (by simp +decide [Env.get] <;> rfl)
@@ -459,7 +459,7 @@ theorem fq_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       subst hw
       exact specR_returnI _ (optWG Enc.idxW o) (by simp)
         (fun t ht => ⟨H4, hp1.trans hp4, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    · rw [if_neg (show ¬ (w.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
+    · rw [ite_eq_right (show ¬ (w.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
       exact specR_returnI _ (optWG Enc.idxW none) (by simp [optWG]; rfl)
         (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 

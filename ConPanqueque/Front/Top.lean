@@ -43,9 +43,9 @@ theorem header_value (H : List (BitVec 64)) (A0 : BitVec 64) (j0 : Nat) (hal : A
   · intro k hk
     simp only [List.length_take, show min 8 nb.length = 8 by omega] at hk
     have hb := writeH_byte H A0 j0 hal nb 0 k (by omega) (by omega)
-    rw [show k / 8 = 0 by omega, show k % 8 = k by omega, Nat.add_zero, if_pos ⟨by omega, by omega⟩,
+    rw [show k / 8 = 0 by omega, show k % 8 = k by omega, Nat.add_zero, ite_eq_left ⟨by omega, by omega⟩,
       Nat.sub_zero] at hb
-    rw [List.getElem?_take, if_pos hk]
+    rw [List.getElem?_take, ite_eq_left hk]
     exact hb
 
 def fRead := ofString "read"
@@ -127,14 +127,14 @@ theorem top_verdict (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPinSe
   let Γ2 : Env := (kBN, w) :: Γ
   have hg : sev Γ2 (.cmp .lower (vv kBN) (vv kRM)) = some (bw (w.toNat < 8 * Lw - 16)) :=
     sev_lower Γ2 (vv kBN) (vv kRM) w.toNat (8 * Lw - 16) (by simp [Γ2, sev, vv, Env.get_cons]) (by
-      simp only [sev, vv, Γ2, Env.get_cons, if_neg (show kRM ≠ kBN by decide)]; exact hRM) w.isLt (by omega)
+      simp only [sev, vv, Γ2, Env.get_cons, ite_eq_right (show kRM ≠ kBN by decide)]; exact hRM) w.isLt (by omega)
   rw [ite_word t2 _ _ _ _ (inv_ev hinv1 hg)] at hio' ⊢
   by_cases hgd : w.toNat < 8 * Lw - 16
   swap
-  · rw [if_neg (by simp [bw, hgd])]; exact Or.inl (stop_hang _)
-  rw [if_pos (by simp [bw, hgd])] at hio' ⊢
+  · rw [ite_eq_right (by simp [bw, hgd])]; exact Or.inl (stop_hang _)
+  rw [ite_eq_left (by simp [bw, hgd])] at hio' ⊢
   rcases step_assignI (C := C1) kBA (.op .add [vv kRA, .const 8]) (cellA C1 (j0 + 1)) (hD _ (by simp)) (by
-      simp only [sev, vv, Γ2, Env.get_cons, if_neg (show kRA ≠ kBN by decide), hRA, Option.bind_eq_bind,
+      simp only [sev, vv, Γ2, Env.get_cons, ite_eq_right (show kRA ≠ kBN by decide), hRA, Option.bind_eq_bind,
         Option.bind_some, Option.pure_def]
       rw [show cellA C1 (j0 + 1) = cellA C j0 + BitVec.ofNat 64 (8 * 1) from cellA_add C j0 1]; rfl) t2 hinv1 with
     hs3 | ⟨hn3, hinv3⟩
@@ -148,7 +148,7 @@ theorem top_verdict (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPinSe
   have hbuf : BufOK C1 (j0 + 1) b := bufOK_of_read C j0 Lw hal hcells (by omega) h59 hbits nb hl _ (by omega)
   let Γ3 : Env := (kBA, cellA C1 (j0 + 1)) :: Γ2
   have g3 : ∀ y, y ≠ kBA → y ≠ kBN → Γ3.get y = Γ.get y := fun y h1 h2 => by
-    simp only [Γ3, Γ2, Env.get_cons, if_neg h1, if_neg h2]
+    simp only [Γ3, Γ2, Env.get_cons, ite_eq_right h1, ite_eq_right h2]
   rcases front_verdict (F := j0 + Lw) (rb := rb) (capD := capD) (jN := jN) (cap := cap) (bufJ := j0 + 1) (b := b)
       pins pinsP ra C1 (ctxOK_ctxH hok) (frontOK_ctxH hf) (frontCodes_ctxH fc) (foldCodes_ctxH hc H') hs hpl hfe hcF
       s hst hoff hpo hpp hpins Γ3 [] D (fun x hx => hD x (by
@@ -160,7 +160,7 @@ theorem top_verdict (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPinSe
       (by rw [g3 _ (by decide) (by decide)]; exact hTN) (by rw [g3 _ (by decide) (by decide)]; exact hTL)
       (by rw [g3 _ (by decide) (by decide)]; exact hTE) (by rw [g3 _ (by decide) (by decide)]; exact hC)
       (by simp [Γ3, Env.get_cons])
-      (by simp only [Γ3, Γ2, Env.get_cons, if_neg (show kBN ≠ kBA by decide), if_pos]; rw [hbsz, ← hw])
+      (by simp only [Γ3, Γ2, Env.get_cons, ite_eq_right (show kBN ≠ kBA by decide), ite_eq_left]; rw [hbsz, ← hw])
       (by rw [g3 _ (by decide) (by decide)]; exact hRB) (by rw [g3 _ (by decide) (by decide)]; exact hCD)
       (by rw [g3 _ (by decide) (by decide)]; exact hZL) t3 hinv3 with hs4 | ⟨hret, rc, hrc, hacc⟩
   · exact Or.inl hs4

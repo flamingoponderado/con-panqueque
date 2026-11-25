@@ -59,7 +59,7 @@ theorem parseP_spec {β : Type} {k : StateD → AM β} {R : β → BitVec 64 →
       FrontSt C F rb capD jN (jN + cap) (jN + 2 * cap) cap bufJ b H'' st')
     (fun a w s' t ⟨hr, H'', h1, h2⟩ => ⟨H'', ⟨hr, frontSt_of_ctxH h2⟩, h1⟩)
     (fun a w s' H'' ⟨hr, hq⟩ => hk a s' H'' _ hr
-      (fun y h1 h2 => by simp only [Env.get_cons, if_neg h2]; exact g y h1) hq)
+      (fun y h1 h2 => by simp only [Env.get_cons, ite_eq_right h2]; exact g y h1) hq)
   simp only [EvAll, feedVs, feedArgs0, sev, vv]
   refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, rfl, rfl, trivial⟩
   · rw [g _ (by decide)]; exact hTN

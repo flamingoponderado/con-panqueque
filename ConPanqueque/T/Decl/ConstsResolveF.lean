@@ -122,7 +122,7 @@ theorem crRep_insert {C : Ctx} {H : List (BitVec 64)} {p' : BitVec 64} {memo : S
   simp only [List.lookup]
   by_cases e : h = h'
   · subst e; simp
-  · rw [if_neg (by simpa using e)]
+  · rw [ite_eq_right (by simpa using e)]
     have : ¬ ((Enc.idxW h', BitVec.ofNat 64 0) == (Enc.idxW h, BitVec.ofNat 64 0)) = true := by
       simp only [beq_iff_eq, Prod.mk.injEq, not_and]
       intro e1 _
@@ -181,7 +181,7 @@ theorem specR_crfInsI {C : Ctx} (hok : CtxOK C) {H0 H : List (BitVec 64)} {s : A
     (fun w => by simp [Env.get, hH]; try (intro e; exact absurd e (by decide))) (fun w => rfl) (fun w => by simp [Env.get, hR]; try (intro e; exact absurd e (by decide)))
     (fun w => by simp [Env.get, hM]; try (intro e; exact absurd e (by decide))) hm (fun H' o hp' hm' => ?_)
   exact specR_crfRetI hok (vv crfR) (vv crfN) r (cellA C o) (memo.insert h r) hD.2
-    (fun w => by simp [Env.get, hR]; rw [if_neg (by decide), if_neg (by decide)]) (fun w => by simp [Env.get]; try (intro e; exact absurd e (by decide))) (crRep_insert he h r hm') (h0.trans hp')
+    (fun w => by simp [Env.get, hR]; rw [ite_eq_right (by decide), ite_eq_right (by decide)]) (fun w => by simp [Env.get]; try (intro e; exact absurd e (by decide))) (crRep_insert he h r hm') (h0.trans hp')
 
 theorem crf_none (C : Ctx) (vals : List (BitVec 64)) :
     ∀ x, x ∈ crfLocals → (ctxEnv C ++ crfParams.zip vals).get x = none :=

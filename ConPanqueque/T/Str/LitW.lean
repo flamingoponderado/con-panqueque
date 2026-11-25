@@ -74,7 +74,7 @@ theorem lw_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       refine ⟨?_, fun i hi => by simp at hi⟩
       show (((H3 ++ ws).set H3.length w0).set (H3.length + 1) _)[H3.length]? = _
       rw [List.getElem?_set_ne (by omega), List.getElem?_set_self (by simp; omega)]; simp [w0]
-    · rw [if_neg h0]
+    · rw [ite_eq_right h0]
       refine ⟨?_, fun i hi => ?_⟩
       · show (((H3 ++ ws).set H3.length w0).set (H3.length + 1) _)[H3.length]? = _
         rw [List.getElem?_set_ne (by omega), List.getElem?_set_self (by simp; omega)]; simp [w0, h0]

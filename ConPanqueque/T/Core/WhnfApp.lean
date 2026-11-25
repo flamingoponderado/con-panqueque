@@ -829,7 +829,7 @@ theorem wap_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     intro H s v hd va ov same i hpre hbv hvs hk hi
     refine specR_prologue (postWS_locals _) (wap_none _ _) ?_
     unfold wapCore
-    rw [whnfApp, dif_neg (by omega)]
+    rw [whnfApp, dite_eq_right (by omega)]
     have hlw := word_lt_iff i args.size (by unfold B; omega) (by unfold B; omega)
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, wapParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL,
       (not_congr hlw).mpr (by omega)]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -841,7 +841,7 @@ theorem wap_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     have hok' := ctxOK_H hok H
     refine specR_prologue (postWS_locals _) (wap_none _ _) ?_
     unfold wapCore
-    rw [whnfApp, dif_pos hlt]
+    rw [whnfApp, dite_eq_left hlt]
     have hlw := word_lt_iff i args.size (by unfold B; omega) (by unfold B; omega)
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, wapParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL,
       hlw.mpr hlt]) (fun _ => ?_) (fun h => absurd h (by decide))
@@ -924,7 +924,7 @@ theorem wap_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
           ⟨H3, hp2.trans hp3, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     refine Knot.specR_tagIteV yV v 5 (by decide) (by decide) (by simp +decide [Env.get, wapParams, ctxEnv])
       (fun htg => ?_) (fun htg => ?_)
-    · rw [if_pos (show (v.tag == ETag.lam) = true by simp [htg, ETag.lam])]
+    · rw [ite_eq_left (show (v.tag == ETag.lam) = true by simp [htg, ETag.lam])]
       refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]; rfl) ?_
       refine specR_assignI lDh (vv yV) (Enc.idxW v) (by decide) (by simp +decide [Env.get, wapParams, ctxEnv]) ?_
       refine specR_viewP v (by simp) (by simp +decide [Env.get]; rfl) (by simp +decide [Env.get, ctxEnv]) (by decide)
@@ -944,7 +944,7 @@ theorem wap_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
           by simp +decide [sev, Env.get, wapParams, ctxEnv]; exact word_add1_eq i,
           by simp +decide [Env.get, wapParams, ctxEnv], trivial⟩
         (hBp H s b i hpre (by omega) (i + 1) (by omega))
-    · rw [if_neg (show ¬ (v.tag == ETag.lam) = true by simpa [ETag.lam] using htg)]
+    · rw [ite_eq_right (show ¬ (v.tag == ETag.lam) = true by simpa [ETag.lam] using htg)]
       cases same
       · refine specR_ifI _ 0 (by simp +decide [sev, Env.get, wapParams, ctxEnv, boolW]) (fun h => absurd rfl h)
           (fun _ => ?_)

@@ -204,12 +204,12 @@ theorem tag_bits_iff (h : EIdx) (k : Nat) (hk : k < 16) (hk4 : k ≠ 4) :
   · intro e
     have hnw : ¬ (h.word / 1073741824 % 2 = 1) := by
       intro c; have := congrArg UInt32.toNat c; simp [UInt32.toNat_div, UInt32.toNat_mod] at this; omega
-    rw [if_neg hnw]; apply UInt32.toNat_inj.mp; simp [UInt32.toNat_div, UInt32.toNat_mod]; omega
+    rw [ite_eq_right hnw]; apply UInt32.toNat_inj.mp; simp [UInt32.toNat_div, UInt32.toNat_mod]; omega
   · intro e
     by_cases hnw : h.word / 1073741824 % 2 = 1
-    · rw [if_pos hnw] at e
+    · rw [ite_eq_left hnw] at e
       have := congrArg UInt32.toNat e; simp at this; omega
-    · rw [if_neg hnw] at e
+    · rw [ite_eq_right hnw] at e
       have a := congrArg UInt32.toNat e
       have b : ¬ (h.word.toNat / 1073741824 % 2 = 1) := by
         intro c; apply hnw; apply UInt32.toNat_inj.mp; simp [UInt32.toNat_div, UInt32.toNat_mod]; omega

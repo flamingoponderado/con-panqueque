@@ -980,13 +980,13 @@ theorem rd_chain (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx} (hok : CtxOK C)
     by_cases hce : c = C.pins.names[e.i]
     · refine specR_ifI _ 1 (by simp [sev, hC, hce, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
         (fun h => absurd h (by decide))
-      rw [if_pos hce]
+      rw [ite_eq_left hce]
       exact rd_leaf mode n hok hc hcr hcw Q hQ hW e.op e.fn (e.body C) hcf hfn hs hp0 d hd a b (by simp [hFu])
         (by simp [hD0]) (by simp [hA]) (by simp [hB]) ⟨hDD.1, hDD.2.1, hDD.2.2.1, hDD.2.2.2.1⟩ (by simp [hnX])
     · have hne : Enc.idxW c ≠ Enc.idxW C.pins.names[e.i] := fun h => hce (Enc.idxW_inj h)
       refine specR_ifI _ 0 (by simp [sev, hC, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne])
         (fun h => absurd rfl h) (fun _ => ?_)
-      rw [if_neg hce]
+      rw [ite_eq_right hce]
       exact rd_chain mode n hok hc hcr hcw Q hQ hW hs hp0 d hd a b c hDD L _
         (fun e' he' => hL e' (List.mem_cons_of_mem _ he')) (by simp [hFu]) (by simp [hD0]) (by simp [hA])
         (by simp [hB]) (by simp [hC]) (by simp [hnX])
@@ -1283,7 +1283,7 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
   refine specR_viewP e (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
     (fun v P hv htn _ => ?_)
   by_cases h4 : v.tagN = 4
-  · rw [if_pos (show (e.tag == ETag.app) = true from (tag_of_tagN htn 4 (by decide)).mpr h4)]
+  · rw [ite_eq_left (show (e.tag == ETag.app) = true from (tag_of_tagN htn 4 (by decide)).mpr h4)]
     refine specR_congr (view_bind_eq e v _ s hv) ?_
     refine specR_ifI _ 1 (by simp [sev, h4, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
       (fun h => absurd h (by decide))
@@ -1311,7 +1311,7 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       by_cases hue : us = C.pins.emptyLevels
       · refine specR_ifI _ 1 (by simp [sev, hue, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
           (fun h => absurd h (by decide))
-        rw [if_neg (by simp [hue])]
+        rw [ite_eq_right (by simp [hue])]
         refine specR_pinAtI hok PIN_NAT_SUCC (by decide) zN (by decide) ?_
         refine specR_gLitI zL (by decide) ?_
         by_cases hcn : c = C.pins.names[PIN_NAT_SUCC]'(by rw [hok.pinsRel.1]; decide)
@@ -1320,23 +1320,23 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
           by_cases hnl : C.fe.natLit = true
           · refine specR_ifI _ 1 (by simp [sev, litW_and1, hnl, boolW]) (fun _ => ?_)
               (fun h => absurd h (by decide))
-            rw [if_pos (by simp [hcn, hnl])]
+            rw [ite_eq_left (by simp [hcn, hnl])]
             exact rd_succ ra mode n hok hc hr.raw hr.w (hr.nb ⟨15, .add, fNbAdd, nbAddBody⟩ (by simp [rdTab])) Q hW hs
               (List.prefix_refl _) d hd b (by simp +decide [Env.get, kParams, ctxEnv])
               (by simp +decide [Env.get, kParams, ctxEnv]) (by simp) (by decide)
           · refine specR_ifI _ 0 (by simp [sev, litW_and1, hnl, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
-            rw [if_neg (by simp [hnl])]
+            rw [ite_eq_right (by simp [hnl])]
             exact hret0
         · have hne : Enc.idxW c ≠ Enc.idxW (C.pins.names[PIN_NAT_SUCC]'(by rw [hok.pinsRel.1]; decide)) :=
             fun h => hcn (Enc.idxW_inj h)
           refine specR_ifI _ 0 (by simp [sev, hne, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
             (fun h => absurd rfl h) (fun _ => ?_)
-          rw [if_neg (by simp [hcn])]
+          rw [ite_eq_right (by simp [hcn])]
           exact hret0
       · have hne : Enc.idxW us ≠ Enc.idxW C.pins.emptyLevels := fun h => hue (Enc.idxW_inj h)
         refine specR_ifI _ 0 (by simp [sev, hne, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
           (fun h => absurd rfl h) (fun _ => ?_)
-        rw [if_pos (by simp [hue])]
+        rw [ite_eq_left (by simp [hue])]
         exact hret0
     refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, (not_congr (tagW_eq vf 3 (by decide))).mpr h3])
       (fun h => absurd rfl h) (fun _ => ?_)
@@ -1354,7 +1354,7 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
         (fun vg Pg hvg htng _ => ?_)
       by_cases h3g : vg.tagN = 3
       · dsimp only
-        rw [if_pos (show (g.tag == ETag.const) = true from (tag_of_tagN htng 3 (by decide)).mpr h3g)]
+        rw [ite_eq_left (show (g.tag == ETag.const) = true from (tag_of_tagN htng 3 (by decide)).mpr h3g)]
         refine specR_congr (view_bind_eq g vg _ s hvg) ?_
         refine specR_ifI _ 1 (by simp [sev, h3g, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
           (fun h => absurd h (by decide))
@@ -1370,7 +1370,7 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
         by_cases hue : us = C.pins.emptyLevels
         · refine specR_ifI _ 1 (by simp [sev, hue, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
             (fun h => absurd h (by decide))
-          rw [if_neg (by simp [hue])]
+          rw [ite_eq_right (by simp [hue])]
           refine specR_atEntry fun t0 ht0 => ?_
           refine specR_runBind (natBinOpOfName_run hok s ht0.sr.pins c) ?_
           rw [← rdTab_ops]
@@ -1381,17 +1381,17 @@ theorem rd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
         · have hne : Enc.idxW us ≠ Enc.idxW C.pins.emptyLevels := fun h => hue (Enc.idxW_inj h)
           refine specR_ifI _ 0 (by simp [sev, hne, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
             (fun h => absurd rfl h) (fun _ => ?_)
-          rw [if_pos (by simp [hue])]
+          rw [ite_eq_left (by simp [hue])]
           exact hret0
       · dsimp only
-        rw [if_neg (show ¬ (g.tag == ETag.const) = true from fun h => h3g ((tag_of_tagN htng 3 (by decide)).mp h))]
+        rw [ite_eq_right (show ¬ (g.tag == ETag.const) = true from fun h => h3g ((tag_of_tagN htng 3 (by decide)).mp h))]
         refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL,
           (not_congr (tagW_eq vg 3 (by decide))).mpr h3g]) (fun h => absurd rfl h) (fun _ => ?_)
         exact hret0
     refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, (not_congr (tagW_eq vf 4 (by decide))).mpr h4f])
       (fun h => absurd rfl h) (fun _ => ?_)
     cases vf <;> simp [ENodeView.tagN] at h3 h4f ⊢ <;> exact hret0
-  · rw [if_neg (show ¬ (e.tag == ETag.app) = true from fun h => h4 ((tag_of_tagN htn 4 (by decide)).mp h))]
+  · rw [ite_eq_right (show ¬ (e.tag == ETag.app) = true from fun h => h4 ((tag_of_tagN htn 4 (by decide)).mp h))]
     refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL,
       (not_congr (tagW_eq v 4 (by decide))).mpr h4]) (fun h => absurd rfl h) (fun _ => ?_)
     exact hret0

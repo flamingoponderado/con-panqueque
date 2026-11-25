@@ -277,7 +277,7 @@ theorem wsRep_insert {C : Ctx} {H : List (BitVec 64)} {p p' : BitVec 64} {memo :
   by_cases e : (h, d) = (h', d')
   · obtain ⟨rfl, rfl⟩ := Prod.mk.inj e
     simp
-  · rw [if_neg (by simpa using e)]
+  · rw [ite_eq_right (by simpa using e)]
     have : ¬ ((Enc.idxW h', BitVec.ofNat 64 d') == (Enc.idxW h, BitVec.ofNat 64 d)) = true := by
       simp only [beq_iff_eq, Prod.mk.injEq, not_and]
       intro e1 e2
@@ -328,7 +328,7 @@ theorem lbRep_insert {C : Ctx} {H : List (BitVec 64)} {p' : BitVec 64} {memo : S
   simp only [List.lookup]
   by_cases e : h = h'
   · subst e; simp
-  · rw [if_neg (by simpa using e)]
+  · rw [ite_eq_right (by simpa using e)]
     have : ¬ ((Enc.idxW h', (0 : BitVec 64)) == (Enc.idxW h, 0)) = true := by
       simp only [beq_iff_eq, Prod.mk.injEq, and_true]
       intro e1; exact e (idxW_inj e1).symm
@@ -388,7 +388,7 @@ theorem seenRep_insert {C : Ctx} {H : List (BitVec 64)} {p' : BitVec 64} {seen :
   simp only [List.lookup]
   by_cases e : h = h'
   · subst e; simp
-  · rw [if_neg (by simpa using e)]
+  · rw [ite_eq_right (by simpa using e)]
     have : ¬ ((Enc.idxW h', (0 : BitVec 64)) == (Enc.idxW h, 0)) = true := by
       simp only [beq_iff_eq, Prod.mk.injEq, and_true]
       intro e1; exact e (idxW_inj e1).symm

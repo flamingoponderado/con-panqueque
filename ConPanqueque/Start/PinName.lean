@@ -59,7 +59,7 @@ theorem bytesP_spec {α : Type} (C : Ctx) (hok : CtxOK C) (s : AState) (Γ : Env
     · refine bytesP_spec C hok s Γ [] D o hka bs (i + 1) (ctxH C' (C'.H.set (o + i) _)) (by rw [hC]; rfl)
         (by simp only [ctxH, List.length_set]; omega) (fun H' hl h1 h2 => hk H' (by simpa [ctxH] using hl)
           (fun j hj => by
-            rw [h1 j (by omega)]; simp only [ctxH]; rw [List.getElem?_set, if_neg (by omega)])
+            rw [h1 j (by omega)]; simp only [ctxH]; rw [List.getElem?_set, ite_eq_right (by omega)])
           (fun j hj => by
             cases j with
             | zero =>
@@ -119,7 +119,7 @@ theorem strStep_spec {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (C 
   have hagree : ∀ j, j < C.H.length → H3[j]? = H'[j]? := by
     intro j hj
     rw [h1 j (by omega)]
-    simp only [H2]; rw [List.getElem?_set, if_neg (by omega), List.getElem?_append_left (by omega)]
+    simp only [H2]; rw [List.getElem?_set, ite_eq_right (by omega), List.getElem?_append_left (by omega)]
   have hp3 : C.H <+: H3 := prefix_of_agree hpre (by omega) hagree
   have hkl : (Enc.encStr ⟨p, str⟩).length = n + 1 := by simp [Enc.encStr, Enc.strW, n, strBytes]
   have hkey : ∀ j (hj : j < (Enc.encStr ⟨p, str⟩).length), H3[o + j]? = some ((Enc.encStr ⟨p, str⟩)[j]) := by

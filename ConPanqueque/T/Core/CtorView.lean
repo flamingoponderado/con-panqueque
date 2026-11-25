@@ -234,9 +234,9 @@ theorem cw_spec (C : Ctx) (hok : CtxOK C)
   subst hs'
   refine Knot.specR_tagIteV cwH hh 3 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
   swap
-  · rw [if_neg (show ¬ (hh.tag == ETag.const) = true by simpa [ETag.const] using htg)]
+  · rw [ite_eq_right (show ¬ (hh.tag == ETag.const) = true by simpa [ETag.const] using htg)]
     exact hstuck (by simp +decide [Env.get, ctxEnv])
-  rw [if_pos (show (hh.tag == ETag.const) = true by simp [htg, ETag.const])]
+  rw [ite_eq_left (show (hh.tag == ETag.const) = true by simp [htg, ETag.const])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
   refine specR_assignI lDh (vv cwH) (Enc.idxW hh) (by decide) (by simp) ?_
   refine specR_viewP hh (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)

@@ -1403,14 +1403,14 @@ theorem dj_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
   refine Knot.specR_tagIteV djA a 9 (by decide) (by decide) (by simp +decide [Env.get, djParams, ctxEnv])
     (fun hA => ?_) (fun hA => ?_)
   swap
-  · rw [if_neg (by simp only [Bool.and_eq_true, beq_iff_eq]; exact fun h => hA (by rw [h.1]; rfl))]
+  · rw [ite_eq_right (by simp only [Bool.and_eq_true, beq_iff_eq]; exact fun h => hA (by rw [h.1]; rfl))]
     exact ret0
   refine Knot.specR_tagIteV djB b 9 (by decide) (by decide) (by simp +decide [Env.get, djParams, ctxEnv])
     (fun hB => ?_) (fun hB => ?_)
   swap
-  · rw [if_neg (by simp only [Bool.and_eq_true, beq_iff_eq]; exact fun h => hB (by rw [h.2]; rfl))]
+  · rw [ite_eq_right (by simp only [Bool.and_eq_true, beq_iff_eq]; exact fun h => hB (by rw [h.2]; rfl))]
     exact ret0
-  rw [if_pos (by simp only [Bool.and_eq_true, beq_iff_eq]; exact ⟨by rw [hA]; rfl, by rw [hB]; rfl⟩)]
+  rw [ite_eq_left (by simp only [Bool.and_eq_true, beq_iff_eq]; exact ⟨by rw [hA]; rfl, by rw [hB]; rfl⟩)]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
   refine specR_assignI lDh (vv djA) (Enc.idxW a) (by decide) (by simp +decide [Env.get, djParams, ctxEnv]) ?_
   refine specR_viewP a (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)

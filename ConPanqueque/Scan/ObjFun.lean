@@ -355,7 +355,7 @@ theorem act_natSet (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) 
     rw [← hR]; unfold contAfter stepVal; simp only [← hE]
     have : (E == v) = false := beq_eq_false_iff_ne.mpr (fun h => hEv (by rw [h]))
     rw [this]; simp only [Bool.false_eq_true, ↓reduceIte, applyUpd]
-    rw [if_pos (USize.lt_iff_toNat_lt.mpr hjE)]
+    rw [ite_eq_left (USize.lt_iff_toNat_lt.mpr hjE)]
   have hlo : ∀ y, y ≠ slotName sl → y ≠ sE2 → u2.locals.lookup y = u.locals.lookup y := fun y h1 h2 => by
     rw [lo2 y h1, lo1 y h2]
   obtain ⟨u3, hu3, hI⟩ := advance_spec sp nS t A b R u2 E seen bit _ (m2.trans (m1.trans hk.mem))
@@ -491,7 +491,7 @@ theorem act_natDrop (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ)
     rw [← hR]; unfold contAfter stepVal; simp only [← hE]
     have : (E == v) = false := beq_eq_false_iff_ne.mpr (fun h => hEv (by rw [h]))
     rw [this]; simp only [Bool.false_eq_true, ↓reduceIte, applyUpd]
-    rw [if_pos (USize.lt_iff_toNat_lt.mpr hjE)]
+    rw [ite_eq_left (USize.lt_iff_toNat_lt.mpr hjE)]
   obtain ⟨u3, hu3, hI⟩ := adv_from_ctx sp nS t A b R u u1 j v E seen bit slots slots hk m1 d1 k1 g1 b1
     (fun y _ hy => lo1 y hy) le1
     (fun k hk' => by
@@ -549,7 +549,7 @@ theorem act_binder (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) 
     rw [← hR]; unfold contAfter stepVal; simp only [hbi]
     have : (E == 0) = false := beq_eq_false_iff_ne.mpr hE0
     rw [this]; simp only [Bool.false_eq_true, ↓reduceIte, applyUpd]
-    rw [if_pos (USize.lt_iff_toNat_lt.mpr hjE)]
+    rw [ite_eq_left (USize.lt_iff_toNat_lt.mpr hjE)]
   obtain ⟨u3, hu3, hI⟩ := adv_from_ctx sp nS t A b R u u1 j v E seen bit slots slots hk m1 d1 k1 g1 b1
     (fun y _ hy => lo1 y hy) le1
     (fun k hk' => by
@@ -595,7 +595,7 @@ theorem act_natListDrop (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64
   simp only [bw, hjE, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
   have hR' : objLoop sp b E false (seen ||| bit) slots = R := by
     rw [← hR]; unfold contAfter stepVal; simp only [hnl, applyUpd]
-    rw [if_pos (USize.lt_iff_toNat_lt.mpr hjE)]
+    rw [ite_eq_left (USize.lt_iff_toNat_lt.mpr hjE)]
   obtain ⟨u3, hu3, hI⟩ := adv_from_ctx sp nS t A b R u u1 j v E seen bit slots slots hk m1 d1 k1 g1 b1
     (fun y _ hy => lo1 y hy) le1
     (fun k hk' => by
@@ -637,7 +637,7 @@ theorem act_natList (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ)
   simp only [bw, hjE, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
   have hR' : objLoop sp b E false (seen ||| bit) (slots.set sl (.l xs)) = R := by
     rw [← hR]; unfold contAfter stepVal; simp only [hnl, applyUpd]
-    rw [if_pos (USize.lt_iff_toNat_lt.mpr hjE)]
+    rw [ite_eq_left (USize.lt_iff_toNat_lt.mpr hjE)]
   have hfx : ∀ x ∈ fixedLocals, slotName sl ≠ x := slotName_fixed sl (by have := hk.short; omega)
   obtain ⟨ws, lws⟩ : ∃ w, u1.locals.lookup (slotName sl) = some (.val (.word w)) := by
     obtain ⟨w, hw, -⟩ := hk.slotsOK sl hsl
@@ -704,7 +704,7 @@ theorem act_hints (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) (
   simp only [bw, hjE, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
   have hR' : objLoop sp b E false (seen ||| bit) (slots.set sl (.h xs)) = R := by
     rw [← hR]; unfold contAfter stepVal; simp only [hnl, applyUpd]
-    rw [if_pos (USize.lt_iff_toNat_lt.mpr hjE)]
+    rw [ite_eq_left (USize.lt_iff_toNat_lt.mpr hjE)]
   have hfx : ∀ x ∈ fixedLocals, slotName sl ≠ x := slotName_fixed sl (by have := hk.short; omega)
   obtain ⟨ws, lws⟩ : ∃ w, u1.locals.lookup (slotName sl) = some (.val (.word w)) := by
     obtain ⟨w, hw, -⟩ := hk.slotsOK sl hsl
@@ -776,7 +776,7 @@ theorem act_boolDrop (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ
   simp only [bw, hjE, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
   have hR' : objLoop sp b E false (seen ||| bit) slots = R := by
     rw [← hR]; unfold contAfter stepVal; simp only [hsb, applyUpd]
-    rw [if_pos (USize.lt_iff_toNat_lt.mpr hjE)]
+    rw [ite_eq_left (USize.lt_iff_toNat_lt.mpr hjE)]
   obtain ⟨u3, hu3, hI⟩ := adv_from_ctx sp nS t A b R u u1 j v E seen bit slots slots hk m1 d1 k1 g1 b1
     (fun y _ hy => lo1 y hy) le1
     (fun k hk' => by
@@ -818,7 +818,7 @@ theorem act_bool (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) (A
   simp only [bw, hjE, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
   have hR' : objLoop sp b E false (seen ||| bit) (slots.set sl (.b x)) = R := by
     rw [← hR]; unfold contAfter stepVal; simp only [hsb, applyUpd]
-    rw [if_pos (USize.lt_iff_toNat_lt.mpr hjE)]
+    rw [ite_eq_left (USize.lt_iff_toNat_lt.mpr hjE)]
   have hfx : ∀ x ∈ fixedLocals, slotName sl ≠ x := slotName_fixed sl (by have := hk.short; omega)
   obtain ⟨ws, lws⟩ : ∃ w, u1.locals.lookup (slotName sl) = some (.val (.word w)) := by
     obtain ⟨w, hw, -⟩ := hk.slotsOK sl hsl
@@ -907,7 +907,7 @@ theorem act_str (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) (A 
   simp only [bw, hjE, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
   have hR' : objLoop sp b E false (seen ||| bit) (slots.set sl (.s str)) = R := by
     rw [← hR]; unfold contAfter stepVal; simp only [hss, applyUpd, ← hE]
-    rw [if_pos (USize.lt_iff_toNat_lt.mpr hjE)]
+    rw [ite_eq_left (USize.lt_iff_toNat_lt.mpr hjE)]
   have hfx : ∀ x ∈ fixedLocals, slotName sl ≠ x := slotName_fixed sl (by have := hk.short; omega)
   obtain ⟨ws, lws⟩ : ∃ w, u1'.locals.lookup (slotName sl) = some (.val (.word w)) := by
     obtain ⟨w, hw, -⟩ := hk.slotsOK sl hsl
@@ -1079,7 +1079,7 @@ theorem obj_step (sp : ObjSpec) (nS : Nat) (t : PanSemStateFiniteExact 64 σ) (A
   have lg1 : v1.locals.lookup sG = some (.val (.word 1)) := by lk [v1, v0]; exact hg
   have hct : c.toNat < 256 := UInt8.toNat_lt c
   have hstep := objLoop.eq_1 sp b j wm seen slots
-  rw [dif_pos hju, uget_eq b j hjl hju, ← hcx] at hstep
+  rw [dite_eq_left hju, uget_eq b j hjl hju, ← hcx] at hstep
   simp only at hstep
   have hfx : ∀ k, k < nS → ∀ x ∈ fixedLocals, slotName k ≠ x := fun k hk => slotName_fixed k (by omega)
   -- slots survive assignments to fixed locals

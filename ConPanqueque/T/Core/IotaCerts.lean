@@ -683,7 +683,7 @@ theorem ic_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     show H[oac]? = _; rw [List.getElem?_eq_getElem hlo, hlv]; simp
   by_cases hlt : i < args.length
   · have hlt' : i < args.toArray.size := by simpa using hlt
-    rw [dif_pos hlt']
+    rw [dite_eq_left hlt']
     have hw : BitVec.ofNat 64 i < BitVec.ofNat 64 args.length :=
       (Big.word_lt_iff i args.length (by unfold B; omega) (by unfold B; omega)).mpr hlt
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, icParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hw])
@@ -778,7 +778,7 @@ theorem ic_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
         rw [show acc.length - 1 + 1 = acc.length by omega] at hne
         refine specR_ifI _ 0 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
           (fun h => absurd rfl h) (fun _ => ?_)
-        rw [if_neg (by simpa using hal)]
+        rw [ite_eq_right (by simpa using hal)]
         simp only [instantiateListFast, List.size_toArray]
         refine ILP.callE_spec (C := ctxH C H) icT2 ExQ.fIrr ExQ.irrParams
           [vv icAc, .const 0, vv icL, .const (BitVec.ofNat 64 coreWalkFuel), vv icH, .const 0] (ExQ.irrBody C)
@@ -800,7 +800,7 @@ theorem ic_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
             by simp +decide [Env.get, icParams, ctxEnv], trivial⟩
           (PostB (ctxH C H')) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H'', hp'', hw, hsr⟩ => ⟨H'', hp'', hw, hsr⟩)
           (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu icParams _ rfl hlk)
-            (ih (2 * (args.length - i)) (by rw [← hm, if_neg hae]; omega) i [] ty2 o H' s1
+            (ih (2 * (args.length - i)) (by rw [← hm, ite_eq_right hae]; omega) i [] ty2 o H' s1
               (by simp) (hp.trans hp') (fun j hj => pfx_get hp' (ha j hj)) (by simpa using hb') (by simp) hi))
           (fun r w s5 H5 hp5 hw => ?_)
         subst hw
@@ -811,7 +811,7 @@ theorem ic_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
         cases v <;> (try simp [ENodeView.tagN] at hn6 hn0) <;>
           exact specR_returnI _ 0 rfl (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   · have hlt' : ¬ i < args.toArray.size := by simpa using hlt
-    rw [dif_neg hlt']
+    rw [dite_eq_right hlt']
     have hw : ¬ BitVec.ofNat 64 i < BitVec.ofNat 64 args.length := fun x =>
       hlt ((Big.word_lt_iff i args.length (by unfold B; omega) (by unfold B; omega)).mp x)
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, icParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hw])

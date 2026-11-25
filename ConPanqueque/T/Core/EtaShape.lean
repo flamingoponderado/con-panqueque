@@ -1860,9 +1860,9 @@ theorem es_spec (C : Ctx) (hok : CtxOK C) (hc : EsCodes C) (s : AState) (a : EId
   subst hs'
   refine Knot.specR_tagIteV esH h 3 (by decide) (by decide) (by simp) (fun htc => ?_) (fun htc => ?_)
   swap
-  · rw [if_neg (show ¬ (h.tag == ETag.const) = true by simpa [ETag.const] using htc)]
+  · rw [ite_eq_right (show ¬ (h.tag == ETag.const) = true by simpa [ETag.const] using htc)]
     exact specR_returnI _ 0 rfl (fun t ht => ⟨C.H, (List.prefix_refl _), rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_pos (show (h.tag == ETag.const) = true by simp [htc, ETag.const])]
+  rw [ite_eq_left (show (h.tag == ETag.const) = true by simp [htc, ETag.const])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
   refine specR_assignI lDh (vv esH) (Enc.idxW h) (by decide) (by simp) ?_
   refine specR_viewP (C := C) h (by simp) (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)
@@ -1959,9 +1959,9 @@ theorem ep_spec (C : Ctx) (hok : CtxOK C) (hc : EsCodes C) (s : AState) (a : EId
   subst hs'
   refine Knot.specR_tagIteV epH h 3 (by decide) (by decide) (by simp) (fun htc => ?_) (fun htc => ?_)
   swap
-  · rw [if_neg (show ¬ (h.tag == ETag.const) = true by simpa [ETag.const] using htc)]
+  · rw [ite_eq_right (show ¬ (h.tag == ETag.const) = true by simpa [ETag.const] using htc)]
     exact specR_returnI _ 0 rfl (fun t ht => ⟨C.H, (List.prefix_refl _), rfl, (fun _ h => by cases h), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_pos (show (h.tag == ETag.const) = true by simp [htc, ETag.const])]
+  rw [ite_eq_left (show (h.tag == ETag.const) = true by simp [htc, ETag.const])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
   refine specR_assignI lDh (vv epH) (Enc.idxW h) (by decide) (by simp) ?_
   refine specR_viewP (C := C) h (by simp) (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)
@@ -2032,10 +2032,10 @@ theorem ep_spec (C : Ctx) (hok : CtxOK C) (hc : EsCodes C) (s : AState) (a : EId
     by_cases hlt : aargs.length < np + nf
     swap
     · refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hsum, hltw, hlt]) (fun h => absurd rfl h) (fun _ => ?_)
-      rw [if_neg hlt]
+      rw [ite_eq_right hlt]
       exact specR_returnI _ 0 rfl (fun t ht => ⟨H1, hp1, rfl, (fun _ h => by cases h), sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hsum, hltw, hlt]) (fun _ => ?_) (fun h => absurd h (by decide))
-    rw [if_pos hlt]
+    rw [ite_eq_left hlt]
     unfold etaCtorPartialFam
     refine specR_envFindI (C := ctxH C H1) (ctxOK_H hok H1) hc.mg hc.mp epP2 (vv epT) ind (by decide) (by simp) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
     have hrel := find_rel hok ind

@@ -59,7 +59,7 @@ theorem keyEndL_lt (bs : List UInt8) (j : Nat) (h : keyEndL bs j ≠ 0) : keyEnd
   unfold keyEndL at *; simp only at *
   split at h
   · rename_i hq
-    rw [if_pos hq]
+    rw [ite_eq_left hq]
     refine ⟨?_, hge⟩
     by_cases hl : skipL isKeyN bs j < bs.length
     · exact hl
@@ -87,8 +87,8 @@ theorem numEndL_skip (bs : List UInt8) (i : Nat) (h : numEndL bs i ≠ i) : numE
   unfold numEndL at *; simp only at *
   split at h
   · exact absurd rfl h
-  · rename_i h1; rw [if_neg h1]; split at h
+  · rename_i h1; rw [ite_eq_right h1]; split at h
     · exact absurd rfl h
-    · rename_i h2; rw [if_neg h2]
+    · rename_i h2; rw [ite_eq_right h2]
 
 end ConPanqueque.Scan

@@ -162,8 +162,8 @@ theorem specR_ifI {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : L
   intro t ht
   rw [ite_word t e c1 c2 w (inv_ev ht he)]
   by_cases hw : w ≠ 0
-  · rw [if_pos hw]; exact h1 hw t ht
-  · rw [if_neg hw]; exact h2 (by simpa using hw) t ht
+  · rw [ite_eq_left hw]; exact h1 hw t ht
+  · rw [ite_eq_right hw]; exact h2 (by simpa using hw) t ht
 
 /-- A runtime test of the eager side: `gEo` holds `C.eo` (`EO` when eager, `0` when plain). -/
 theorem specR_iteSide {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {c1 c2 : ProgHOL 64}
@@ -174,9 +174,9 @@ theorem specR_iteSide {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D
   rw [ite_word t _ c1 c2 C.eo (eval_gv t gEo C.eo ht.sr.mode.1)]
   cases hs : C.side
   · have e0 : C.eo = 0 := by simp only [Ctx.eo]; rw [show C.saved.isSome = C.side from rfl, hs]; rfl
-    rw [if_neg (by rw [e0]; simp)]; exact h2 hs t ht
+    rw [ite_eq_right (by rw [e0]; simp)]; exact h2 hs t ht
   · have e0 : C.eo = C.EO := by simp only [Ctx.eo]; rw [show C.saved.isSome = C.side from rfl, hs]; rfl
-    rw [if_pos (by rw [e0]; exact hEO)]; exact h1 hs t ht
+    rw [ite_eq_left (by rw [e0]; exact hEO)]; exact h1 hs t ht
 
 theorem specR_iteI {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {c1 c2 : ProgHOL 64}
     {b : Bool} {m1 m2 : AM α} {R : α → BitVec 64 → AState → PState σ → Prop} (e : ExpHOL 64) (w : BitVec 64)

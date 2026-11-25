@@ -1444,10 +1444,10 @@ theorem bd_spec (C : Ctx) (hcb : C.code.lookup fBd = some (bdParams.map (fun p =
     refine Knot.specR_tagIteV bdH h 6 (by decide) (by decide) (by simp +decide [Env.get, bdParams, ctxEnv])
       (fun htg => ?_) (fun htg => ?_)
     swap
-    · rw [if_neg (show ¬ (h.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
+    · rw [ite_eq_right (show ¬ (h.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
       exact specR_returnI _ (optW none) (by simp [optWG]; rfl)
         (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    rw [if_pos (show (h.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
+    rw [ite_eq_left (show (h.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
     refine specR_assignI lDh (vv bdH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, bdParams, ctxEnv]) ?_
     refine specR_viewP h (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
@@ -1474,10 +1474,10 @@ theorem bd_spec (C : Ctx) (hcb : C.code.lookup fBd = some (bdParams.map (fun p =
     refine Knot.specR_tagIteV bdH h 6 (by decide) (by decide) (by simp +decide [Env.get, bdParams, ctxEnv])
       (fun htg => ?_) (fun htg => ?_)
     swap
-    · rw [if_neg (show ¬ (h.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
+    · rw [ite_eq_right (show ¬ (h.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
       exact specR_returnI _ (optW none) (by simp [optWG]; rfl)
         (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    rw [if_pos (show (h.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
+    rw [ite_eq_left (show (h.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
     refine specR_assignI lDh (vv bdH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, bdParams, ctxEnv]) ?_
     refine specR_viewP h (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
@@ -1535,7 +1535,7 @@ theorem lj_spec (C : Ctx) (hok : CtxOK C)
     rw [lamProj?]
     refine Knot.specR_tagIteV ljH h 5 (by decide) (by decide) (by simp +decide [Env.get, ljParams, ctxEnv])
       (fun htg => ?_) (fun htg => ?_)
-    · rw [if_pos (show (h.tag == ETag.lam) = true by simp [htg, ETag.lam])]
+    · rw [ite_eq_left (show (h.tag == ETag.lam) = true by simp [htg, ETag.lam])]
       refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
       refine specR_assignI lDh (vv ljH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, ljParams, ctxEnv]) ?_
       refine specR_viewP h (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
@@ -1557,13 +1557,13 @@ theorem lj_spec (C : Ctx) (hok : CtxOK C)
         (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ljParams _ rfl hlk) (ih (k + 1) b s (by omega)))
         (fun r w s1 H1 hp1 hw => ?_)
       exact specR_returnI _ w (by simp) (fun t ht => ⟨H1, hp1, hw, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    rw [if_neg (show ¬ (h.tag == ETag.lam) = true by simpa [ETag.lam] using htg)]
+    rw [ite_eq_right (show ¬ (h.tag == ETag.lam) = true by simpa [ETag.lam] using htg)]
     refine Knot.specR_tagIteV ljH h 0 (by decide) (by decide) (by simp +decide [Env.get, ljParams, ctxEnv])
       (fun htb => ?_) (fun htb => ?_)
     swap
-    · rw [if_neg (show ¬ (h.tag == ETag.bvar) = true by simpa [ETag.bvar] using htb)]
+    · rw [ite_eq_right (show ¬ (h.tag == ETag.bvar) = true by simpa [ETag.bvar] using htb)]
       exact specR_returnI _ 0 rfl (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    rw [if_pos (show (h.tag == ETag.bvar) = true by simp [htb, ETag.bvar])]
+    rw [ite_eq_left (show (h.tag == ETag.bvar) = true by simp [htb, ETag.bvar])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
     refine specR_assignI lDh (vv ljH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, ljParams, ctxEnv]) ?_
     refine specR_viewP h (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
@@ -1681,9 +1681,9 @@ theorem uw_spec (C : Ctx) (hok : CtxOK C) (hc : UwCodes C) (fuel : Nat) (hf : fu
     subst hs'
     refine Knot.specR_tagIteV uwH hh 3 (by decide) (by decide) (by simp) (fun htc => ?_) (fun htc => ?_)
     swap
-    · rw [if_neg (show ¬ (hh.tag == ETag.const) = true by simpa [ETag.const] using htc)]
+    · rw [ite_eq_right (show ¬ (hh.tag == ETag.const) = true by simpa [ETag.const] using htc)]
       exact specR_returnI _ (Enc.idxW e) (by simp +decide [Env.get, uwParams, ctxEnv]) (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    rw [if_pos (show (hh.tag == ETag.const) = true by simp [htc, ETag.const])]
+    rw [ite_eq_left (show (hh.tag == ETag.const) = true by simp [htc, ETag.const])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
     refine specR_assignI lDh (vv uwH) (Enc.idxW hh) (by decide) (by simp) ?_
     refine specR_viewP (C := ctxH C H) hh (by simp) (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)
@@ -1767,10 +1767,10 @@ theorem uw_spec (C : Ctx) (hok : CtxOK C) (hc : UwCodes C) (fuel : Nat) (hf : fu
           simp only [BitVec.toNat_ofNat] at this
           rwa [Nat.mod_eq_of_lt (by omega), Nat.mod_eq_of_lt (by omega)] at this
         refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun _ => ?_) (fun h => absurd h (by decide))
-        rw [if_neg (by simp [hln])]
+        rw [ite_eq_right (by simp [hln])]
         exact specR_returnI _ (Enc.idxW e) (by simp +decide [Env.get, uwParams, ctxEnv]) (fun t ht => ⟨H2, hp1.trans hp2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
       refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hln]) (fun h => absurd rfl h) (fun _ => ?_)
-      rw [if_pos (by simp [hln])]
+      rw [ite_eq_left (by simp [hln])]
       have hidx : kk - 1 - j < args.length := by omega
       have hget : args.getD (kk - 1 - j) e = args[kk - 1 - j] := by simp [List.getD, hidx]
       rw [hget]
@@ -1836,7 +1836,7 @@ theorem pv_spec (C : Ctx) (hok : CtxOK C) (hc : PvCodes C) (fuel : Nat) (hf : fu
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, pvParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne) (fun h => absurd rfl h) (fun _ => ?_)
     rw [peelPisW]
     refine Knot.specR_tagIteV pvE e 6 (by decide) (by decide) (by simp +decide [Env.get, pvParams, ctxEnv]) (fun htg => ?_) (fun htg => ?_)
-    · rw [if_pos (show (e.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
+    · rw [ite_eq_left (show (e.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
       refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
       refine specR_assignI lDh (vv pvE) (Enc.idxW e) (by decide) (by simp +decide [Env.get, pvParams, ctxEnv]) ?_
       refine specR_viewP (C := ctxH C H) e (by simp) (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)
@@ -1859,7 +1859,7 @@ theorem pv_spec (C : Ctx) (hok : CtxOK C) (hc : PvCodes C) (fuel : Nat) (hf : fu
       subst hw
       exact specR_returnI _ (optW r) (by simp) (fun t ht => ⟨H2, hp2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
-    rw [if_neg (show ¬ (e.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
+    rw [ite_eq_right (show ¬ (e.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
     refine specR_callNIH (C := ctxH C H) pvU fUw uwParams [vv pvF, .const 4, vv pvE] (uwBody C) [BitVec.ofNat 64 fuel, BitVec.ofNat 64 4, Enc.idxW e]
       (by decide) rfl (by decide) hc.uw.self ⟨by simp +decide [Env.get, pvParams, ctxEnv], rfl, by simp +decide [Env.get, pvParams, ctxEnv], trivial⟩
       (PostK (ctxH C H)) (fun r_ w _ _ => w = Enc.idxW r_) (fun r_ w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
@@ -1868,7 +1868,7 @@ theorem pv_spec (C : Ctx) (hok : CtxOK C) (hc : PvCodes C) (fuel : Nat) (hf : fu
     subst hw1
 
     refine Knot.specR_tagIteV pvU u 6 (by decide) (by decide) (by simp) (fun htu => ?_) (fun htu => ?_)
-    · rw [if_pos (show (u.tag == ETag.forallE) = true by simp [htu, ETag.forallE])]
+    · rw [ite_eq_left (show (u.tag == ETag.forallE) = true by simp [htu, ETag.forallE])]
       refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
       refine specR_assignI lDh (vv pvU) (Enc.idxW u) (by decide) (by simp +decide [Env.get, pvParams, ctxEnv]) ?_
       refine specR_viewP (C := ctxH C H1) u (by simp) (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)
@@ -1891,7 +1891,7 @@ theorem pv_spec (C : Ctx) (hok : CtxOK C) (hc : PvCodes C) (fuel : Nat) (hf : fu
       subst hw
       exact specR_returnI _ (optW r) (by simp) (fun t ht => ⟨H2, hp1.trans hp2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
-    rw [if_neg (show ¬ (u.tag == ETag.forallE) = true by simpa [ETag.forallE] using htu)]
+    rw [ite_eq_right (show ¬ (u.tag == ETag.forallE) = true by simpa [ETag.forallE] using htu)]
     exact specR_returnI _ (optW none) (by simp [optWG]; rfl) (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 

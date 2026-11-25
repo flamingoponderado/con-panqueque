@@ -771,14 +771,14 @@ theorem wcl_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
           (PostWS (ctxH (ctxH C H) H')) :=
       fun H' s1 hp' hq' => hStep H' s1 (hpre.trans hp') hq'
     by_cases hst : whnfCoreStuckTag e = true
-    · rw [if_pos hst]
+    · rw [ite_eq_left hst]
       refine specR_ifI _ 1 (by rw [sev_stuckTag _ kE e hE0, hst]; rfl) (fun _ => ?_) (fun h => absurd h (by decide))
       refine specR_assignI cV (vv kE) (Enc.idxW e) (by decide) (by simp [hE0]) ?_
       exact scRet_spec (σ := σ) (C0 := ctxH C H) (D := wclD) hok' hcf hcc hcodeS hcodeI (List.prefix_refl _) cheap xs ys
         p q e (lstAt_H.mpr hp) (lstAt_H.mpr hqL) (by simp +decide [Env.get, wclParams, ctxEnv])
         (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp +decide [Env.get, wclParams, ctxEnv]) (by simp)
         (by decide)
-    rw [if_neg hst]
+    rw [ite_eq_right hst]
     refine specR_ifI _ 0 (by rw [sev_stuckTag _ kE e hE0]; simp [hst, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_callNIM (C := ctxH C H) cH fGetAppFn [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv kE]
       getAppFnBody [BitVec.ofNat 64 coreWalkFuel, Enc.idxW e] (by decide) rfl (by decide) hcaf

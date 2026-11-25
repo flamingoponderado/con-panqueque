@@ -145,7 +145,7 @@ theorem ud_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (by unfold unfoldD; simp only [bind, StateT.bind]; rw [viewLs_run us s v hv]; rfl) ?_
   have hvl' : v.length < 2 ^ 61 := by simpa using hvl
   by_cases hl : v.length = cv.levelParams.length
-  · rw [if_pos hl]
+  · rw [ite_eq_left hl]
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hl])
       (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_callNIH uCv fCV cvParams [vv uN, vv uLp, vv uV, vv uUs] (cvBody C)
@@ -187,7 +187,7 @@ theorem ud_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       (fun r s3 => ?_)
     refine specR_returnI _ (Enc.idxW r + 1) (by simp +decide [sev, Env.get]) (fun t ht => ?_)
     exact ⟨H2, hp1.trans hp2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
-  · rw [if_neg hl]
+  · rw [ite_eq_right hl]
     have hne : BitVec.ofNat 64 v.length ≠ BitVec.ofNat 64 cv.levelParams.length := fun x =>
       hl ((ofNat_eq_iff_small _ _ (by omega) (by omega)).mp x)
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne])
@@ -273,7 +273,7 @@ theorem uf_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
   subst hs'
   refine Knot.specR_tagIteV uH hh 3 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
   · have hb : (hh.tag == ETag.const) = true := by simp [htg, ETag.const]
-    rw [if_pos hb]
+    rw [ite_eq_left hb]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
     refine specR_assignI lDh (vv uH) (Enc.idxW hh) (by decide) (by simp +decide [Env.get]) ?_
     refine ILP.specR_viewIv hh (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
@@ -330,7 +330,7 @@ theorem uf_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
         refine specR_returnI _ 0 rfl (fun t ht => ?_)
         exact ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
   · have hb : ¬ (hh.tag == ETag.const) = true := by simpa [ETag.const] using htg
-    rw [if_neg hb]
+    rw [ite_eq_right hb]
     refine specR_returnI _ 0 rfl (fun t ht => ?_)
     exact ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩
 

@@ -133,7 +133,7 @@ theorem eInternLet_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSemS
   have m3 : ∀ c, c ≠ KB → c ≠ KB + 8 → c ≠ KB + 16 → t3.memory c = t.memory c := by
     intro c h1 h2 h3
     show (if c = KB + 16 then _ else if c = KB + 8 then _ else if c = KB then _ else _) = _
-    rw [if_neg h3, if_neg h2, if_neg h1]
+    rw [ite_eq_right h3, ite_eq_right h2, ite_eq_right h1]
   have hR3 : SRep t3 L FLn FLl FLs FLe st := srep_frame hR
     ⟨m3 _ (flne _ (Or.inl rfl)).1 (flne _ (Or.inl rfl)).2.1 (flne _ (Or.inl rfl)).2.2,
      m3 _ (flne _ (Or.inr (Or.inl rfl))).1 (flne _ (Or.inr (Or.inl rfl))).2.1 (flne _ (Or.inr (Or.inl rfl))).2.2,

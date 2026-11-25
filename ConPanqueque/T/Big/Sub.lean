@@ -765,7 +765,7 @@ theorem len_mod_succ (n k : Nat) :
   rw [@Nat.mod_pow_succ n B k]
   by_cases hd : n / B ^ k % B = 0
   · simp [hd]
-  · rw [if_pos hd]
+  · rw [ite_eq_left hd]
     apply limbs_len_eq
     · have := Nat.mod_lt n (pow_pos' k)
       have hd2 := Nat.mod_lt (n / B ^ k) Bpos
@@ -1068,7 +1068,7 @@ theorem sub_spec (C : Ctx) (hok : CtxOK C) (s : AState) (x y : Nat) (oa ob : Nat
   have hlf := fillI_length B0 (subW x y (limbs x).length) (H'.length + 1)
   have hWf : ∀ k, k < (limbs x).length → Bf[H'.length + 1 + k]? = some (BitVec.ofNat 64 ((x - y) / B ^ k % B)) := by
     intro k hk
-    rw [fillI_get?, if_pos ⟨by omega, by omega, by rw [hB0]; omega⟩]
+    rw [fillI_get?, ite_eq_left ⟨by omega, by omega, by rw [hB0]; omega⟩]
     simp [show H'.length + 1 + k - (H'.length + 1) = k by omega, List.getD_eq_getElem?_getD, subW_get x y _ k hk]
   refine specR_envWeak (Γb := subG3 Γ0 C H'.length (x - y) 0) (fun z v hz => ?_) ?_
   · simp only [subG3, subG2, Γ0, Env.get_cons, Nat.pow_zero, Nat.mod_one, Nat.add_zero] at hz ⊢

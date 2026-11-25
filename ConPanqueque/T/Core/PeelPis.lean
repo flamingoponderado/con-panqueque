@@ -196,7 +196,7 @@ theorem pp_spec (C : Ctx) (hok : CtxOK C)
       (fun h => absurd rfl h) (fun _ => ?_)
     refine Knot.specR_tagIteV ppH h 6 (by decide) (by decide) (by simp +decide [Env.get, ppParams, ctxEnv])
       (fun htg => ?_) (fun htg => ?_)
-    · rw [if_pos (show (h.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
+    · rw [ite_eq_left (show (h.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
       refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
       refine specR_assignI lDh (vv ppH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, ppParams, ctxEnv]) ?_
       refine specR_viewP h (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
@@ -213,7 +213,7 @@ theorem pp_spec (C : Ctx) (hok : CtxOK C)
         [BitVec.ofNat 64 k, Enc.idxW b] (by decide) rfl (by decide) hcp
         ⟨by simp +decide [sev, Env.get, ppParams, ctxEnv]; exact Ex.ofNat_succ_sub_one _, by simp, trivial⟩
         (ih b s (by omega))
-    · rw [if_neg (show ¬ (h.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
+    · rw [ite_eq_right (show ¬ (h.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
       exact specR_returnI _ (optW none) (by simp [optWG]; rfl)
         (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 

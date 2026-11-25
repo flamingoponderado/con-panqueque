@@ -1528,11 +1528,11 @@ theorem ra_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       fun e => hTa (Enc.idxW_inj e)
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, rkParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne])
       (fun _ => ?_) (fun h => absurd h (by decide))
-    rw [if_neg hTa]
+    rw [ite_eq_right hTa]
     exact hretM (List.prefix_refl _) (by simp +decide [Env.get, rkParams, ctxEnv])
   refine specR_ifI _ 0 (by simp +decide [sev, Env.get, rkParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hTa])
     (fun h => absurd rfl h) (fun _ => ?_)
-  rw [if_pos hTa]
+  rw [ite_eq_left hTa]
   refine Big.specR_callKC aq1 fIO kParams [vv kFu, vv kD, vv rkM] (inferIOE C fIOB)
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW m] (by decide) rfl (by decide) hc.io
     ⟨by simp +decide [Env.get, rkParams, ctxEnv], by simp +decide [Env.get, rkParams, ctxEnv],
@@ -1559,9 +1559,9 @@ theorem ra_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
   subst hs'
   refine Knot.specR_tagIteV aqHh hh 3 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
   swap
-  · rw [if_neg (show ¬ (hh.tag == ETag.const) = true by simpa [ETag.const] using htg)]
+  · rw [ite_eq_right (show ¬ (hh.tag == ETag.const) = true by simpa [ETag.const] using htg)]
     exact hretM hp12 (by simp +decide [Env.get, rkParams, ctxEnv])
-  rw [if_pos (show (hh.tag == ETag.const) = true by simp [htg, ETag.const])]
+  rw [ite_eq_left (show (hh.tag == ETag.const) = true by simp [htg, ETag.const])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
   refine specR_assignI lDh (vv aqHh) (Enc.idxW hh) (by decide) (by simp) ?_
   refine ILP.specR_viewIv (C := ctxH C H2) hh (by simp) (by simp +decide [Env.get, ctxEnv] <;> rfl)
@@ -1627,7 +1627,7 @@ theorem ra_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
   · have hne : Enc.idxW T' ≠ Enc.idxW T := fun e => hT (Enc.idxW_inj e)
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, rkParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne])
       (fun _ => ?_) (fun h => absurd h (by decide))
-    rw [if_neg (by simp [hT])]
+    rw [ite_eq_right (by simp [hT])]
     exact hretM hp14 (by simp +decide [Env.get, rkParams, ctxEnv])
   refine specR_ifI _ 0 (by simp +decide [sev, Env.get, rkParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hT])
     (fun h => absurd rfl h) (fun _ => ?_)
@@ -1637,7 +1637,7 @@ theorem ra_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       intro e; have := congrArg BitVec.toNat e; simp at this; omega
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun _ => ?_)
       (fun h => absurd h (by decide))
-    rw [if_neg (by simp [hA])]
+    rw [ite_eq_right (by simp [hA])]
     exact hretM hp14 (by simp +decide [Env.get, rkParams, ctxEnv])
   refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hA]) (fun h => absurd rfl h)
     (fun _ => ?_)
@@ -1647,18 +1647,18 @@ theorem ra_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       intro e; have := congrArg BitVec.toNat e; simp at this; omega
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun _ => ?_)
       (fun h => absurd h (by decide))
-    rw [if_neg (by simp [hL])]
+    rw [ite_eq_right (by simp [hL])]
     exact hretM hp14 (by simp +decide [Env.get, rkParams, ctxEnv])
   refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hL]) (fun h => absurd rfl h)
     (fun _ => ?_)
   cases ars
   · refine specR_ifI _ 1 (by simp [sev, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
       (fun h => absurd h (by decide))
-    rw [if_neg (by simp)]
+    rw [ite_eq_right (by simp)]
     exact hretM hp14 (by simp +decide [Env.get, rkParams, ctxEnv])
   refine specR_ifI _ 0 (by simp [sev, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
     (fun _ => ?_)
-  rw [if_pos ⟨hT, hA, hL, rfl⟩]
+  rw [ite_eq_left ⟨hT, hA, hL, rfl⟩]
   refine specR_internProjI (C := ctxH C H4) ra hok4 hc.ip aqP0 (vv rkT) (vv rkM) (.const 0) T 0 m (by decide)
     (by decide) (by simp +decide [Env.get, rkParams, ctxEnv]) (by simp +decide [Env.get, rkParams, ctxEnv]) rfl
     (fun p0 s5 => ?_)

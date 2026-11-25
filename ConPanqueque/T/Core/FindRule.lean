@@ -155,12 +155,12 @@ theorem fr_spec (C : Ctx) (hok : CtxOK C)
     rw [List.drop_eq_getElem_cons hjl]
     simp only [findRule]
     by_cases hc : rules[j].ctor = c
-    · rw [if_pos (by simp [hc])]
+    · rw [ite_eq_left (by simp [hc])]
       refine specR_ifI _ 1 (by simp +decide [sev, Env.get, frParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hc])
         (fun _ => ?_) (fun h => absurd h (by decide))
       exact specR_returnI _ (ecell C q + 1) (by simp [sev]; rfl)
         (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl, q, rfl, hqE, hrule⟩)
-    · rw [if_neg (by simp [hc])]
+    · rw [ite_eq_right (by simp [hc])]
       have hne2 : Enc.idxW rules[j].ctor ≠ Enc.idxW c := fun e => hc (Enc.idxW_inj e)
       refine specR_ifI _ 0 (by simp +decide [sev, Env.get, frParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne2])
         (fun h => absurd rfl h) (fun _ => ?_)

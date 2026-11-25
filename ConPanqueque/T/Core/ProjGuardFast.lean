@@ -258,9 +258,9 @@ theorem pf_spec (C : Ctx) (hok : CtxOK C) (hc : PfCodes C) :
     rw [projGuardFast]
     refine Knot.specR_tagIteV pfH h 6 (by decide) (by decide) (by simp +decide [Env.get, pfParams, ctxEnv]) (fun htg => ?_) (fun htg => ?_)
     swap
-    · rw [if_neg (show ¬ (h.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
+    · rw [ite_eq_right (show ¬ (h.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
       exact hnone
-    rw [if_pos (show (h.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
+    rw [ite_eq_left (show (h.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
     refine specR_assignI lDh (vv pfH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, pfParams, ctxEnv]) ?_
     refine specR_viewP (C := ctxH C H) h (by simp) (by simp +decide [Env.get] <;> rfl)
@@ -299,9 +299,9 @@ theorem pf_spec (C : Ctx) (hok : CtxOK C) (hc : PfCodes C) :
     rw [projGuardFast]
     refine Knot.specR_tagIteV pfH h 6 (by decide) (by decide) (by simp +decide [Env.get, pfParams, ctxEnv]) (fun htg => ?_) (fun htg => ?_)
     swap
-    · rw [if_neg (show ¬ (h.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
+    · rw [ite_eq_right (show ¬ (h.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
       exact hnone
-    rw [if_pos (show (h.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
+    rw [ite_eq_left (show (h.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
     refine specR_assignI lDh (vv pfH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, pfParams, ctxEnv]) ?_
     refine specR_viewP (C := ctxH C H) h (by simp) (by simp +decide [Env.get] <;> rfl)

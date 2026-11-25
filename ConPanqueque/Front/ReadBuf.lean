@@ -45,7 +45,7 @@ theorem bufOK_of_read (C : Ctx) (j0 Lw : Nat) (hal : (cellA C j0).toNat % 8 = 0)
     refine ⟨_, List.getElem?_eq_getElem hidx, ?_⟩
     have hb := writeH_byte C.H (cellA C j0) j0 hal nb 0 (8 + i) (by omega) (by omega)
     rw [show (8 + i) / 8 = 1 + i / 8 by omega, show (8 + i) % 8 = i % 8 by omega, ← Nat.add_assoc,
-      List.getElem?_eq_getElem hidx, Option.getD_some, if_pos ⟨by omega, by omega⟩, Nat.sub_zero] at hb
+      List.getElem?_eq_getElem hidx, Option.getD_some, ite_eq_left ⟨by omega, by omega⟩, Nat.sub_zero] at hb
     show byteW ((writeH C.H (cellA C j0) j0 0 nb)[j0 + 1 + i / 8]) (i % 8) = _
     rw [hb, inputOf_get nb n i (by omega) hi]
   · show j0 + 1 + (inputOf nb n).size / 8 < (writeH C.H (cellA C j0) j0 0 nb).length

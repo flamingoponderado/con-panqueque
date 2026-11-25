@@ -140,7 +140,7 @@ theorem lsg_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
     refine specR_prologue (postLsG_locals _ _) (params_noneLsg _ _) ?_
     refine specR_ifI _ 0 (by simp +decide [sev, ctxEnv, lsgParams, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, word_eq_iff (k + 1) 0 (by omega) (by decide)])
       (fun h => absurd rfl h) (fun _ => ?_)
-    rw [List.take_succ, List.getElem?_eq_getElem hkl, Option.toList_some, List.map_append, List.map_singleton,
+    rw [List.take_add_one, List.getElem?_eq_getElem hkl, Option.toList_some, List.map_append, List.map_singleton,
       internLevelList_append]
     refine specR_callNIH lY fLsGoS lsgParams [vv pVs, vv pKp, vv pUs, .op .sub [vv pGi, .const 1]] (lsgBody C)
       [Enc.idxW vsH, cellA C ko, Enc.idxW usH, BitVec.ofNat 64 k] (by decide) rfl (by decide) hcL
@@ -238,11 +238,11 @@ theorem lsg_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       by have := hp1.length_le; have := hp2.length_le; show H.length ≤ H3.length; omega, rfl, ?_,
       sr_of_eq ht.sr rfl rfl rfl rfl, wf2, ext1.trans x2, ⟨_, rfl, g1.trans g2⟩⟩
     · refine hp1.trans (hp2.trans (hp3'.trans (prefix_of_get? (by simp; omega) (fun k hk => ?_))))
-      rw [List.getElem?_set_ne (by simp; omega), hFg k, if_neg (by omega), ← hB]
+      rw [List.getElem?_set_ne (by simp; omega), hFg k, ite_eq_right (by omega), ← hB]
       show ((H3 ++ ws).set _ _)[k]? = _
       rw [List.getElem?_set_ne (by omega), List.getElem?_append_left hk]
     · refine ⟨?_, fun i hi => ?_⟩
-      · rw [List.getElem?_set_ne (by simp <;> omega), hFg, if_neg (by omega), ← hB]
+      · rw [List.getElem?_set_ne (by simp <;> omega), hFg, ite_eq_right (by omega), ← hB]
         show ((H3 ++ ws).set _ _)[H3.length]? = _
         rw [List.getElem?_set_self (by simp; omega)]; simp
       · simp only [List.length_map, List.length_append, List.length_cons, List.length_nil] at hi
@@ -251,7 +251,7 @@ theorem lsg_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
           rw [show H3.length + 1 + hs1.length = H3.length + 1 + (hs1.map Enc.idxW).length by simp,
             List.getElem?_set_self (by simp; omega)]
           simp
-        · rw [List.getElem?_set_ne (by simp; omega), hFg, if_pos ⟨by omega, by omega, by omega⟩]
+        · rw [List.getElem?_set_ne (by simp; omega), hFg, ite_eq_left ⟨by omega, by omega, by omega⟩]
           simp [List.getD_eq_getElem?_getD, show i < hs1.length by omega, List.getElem_append_left]
 
 end

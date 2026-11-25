@@ -247,7 +247,7 @@ theorem inferSpineIO_ioView (r : CoreFnsA) (fe : IFEnv) (d : Nat) : ∀ k ty acc
   induction k with
   | zero =>
     intro ty acc args i h; rw [inferSpineIO]; conv => rhs; rw [inferSpineIO]
-    rw [dif_neg (by omega), dif_neg (by omega)]
+    rw [dite_eq_right (by omega), dite_eq_right (by omega)]
   | succ k ih =>
     intro ty acc args i h; rw [inferSpineIO]; conv => rhs; rw [inferSpineIO]
     simp only [ioView_whnf, ih _ _ args (i + 1) (by omega)]
@@ -305,7 +305,7 @@ theorem qao_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
   have hT := sev_tagIs4B (ctxEnv C ++ kParams.zip [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW e]) kE e
     (by simp +decide [Env.get, kParams, ctxEnv])
   by_cases ht : (e.tag == 4) = true
-  · rw [if_pos (show (e.tag == ETag.app) = true from ht)]
+  · rw [ite_eq_left (show (e.tag == ETag.app) = true from ht)]
     simp only [bind_assoc, pure_bind]
     refine specR_ifI _ 1 (by rw [hT, ht]; rfl) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_callNIM (C := C) qaoHd fGetAppFn [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv kE]
@@ -331,7 +331,7 @@ theorem qao_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
       (fun va w s3 H3 hp3 ⟨o3, hw, hb3⟩ => ?_)
     subst hw
     refine rest hd va o3 H3 s3 _ hp3 hb3 ?_ ?_ ?_ ?_ <;> first | (simp +decide [Env.get, kParams, ctxEnv]; done) | (simp; rfl) | simp +decide [Env.get, kParams, ctxEnv] <;> rfl
-  · rw [if_neg (show ¬ (e.tag == ETag.app) = true from ht)]
+  · rw [ite_eq_right (show ¬ (e.tag == ETag.app) = true from ht)]
     refine specR_ifI _ 0 (by rw [hT]; simp [ht, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_assignI qaoHd (vv kE) (Enc.idxW e) (by decide) (by simp +decide [Env.get, kParams, ctxEnv]) ?_
     simp only [pure_bind]

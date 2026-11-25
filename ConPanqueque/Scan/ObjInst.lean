@@ -18,7 +18,7 @@ theorem scanStrNameLoop_eq (b : ByteArray) :
     intro i wm seen pre s hn
     rw [scanStrNameLoop, objLoop]
     by_cases h : i < b.usize
-    · rw [dif_pos h, dif_pos h]
+    · rw [dite_eq_left h, dite_eq_left h]
       have hs := usizeStep b i h
       have hb := usizeInBounds b i h
       generalize b.uget i (usizeInBounds b i h) = c
@@ -67,11 +67,11 @@ theorem scanStrNameLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kStr =>
           split
           · simp [srMap]
@@ -81,14 +81,14 @@ theorem scanStrNameLoop_eq (b : ByteArray) :
           | ok x e =>
             simp only
             by_cases hie : i < e
-            · rw [dif_pos hie, dif_pos hie]
+            · rw [dite_eq_left hie, dite_eq_left hie]
               have := USize.lt_iff_toNat_lt.mp hie
               rw [ih _ (by omega) e false _ _ _ rfl]
               simp only [applyUpd, List.set] <;> rfl
-            · rw [dif_neg hie, dif_neg hie]; rfl
+            · rw [dite_eq_right hie, dite_eq_right hie]; rfl
       have n34 : (c == 34) = false := beq_eq_false_iff_ne.mpr h34
       simp [n34, srMap]
-    · rw [dif_neg h, dif_neg h]; rfl
+    · rw [dite_eq_right h, dite_eq_right h]; rfl
 
 def scanNumNameSpec : ObjSpec := ⟨[(.kI, 1, .natSet 0), (.kPre, 2, .natSet 1)], 3⟩
 
@@ -102,7 +102,7 @@ theorem scanNumNameLoop_eq (b : ByteArray) :
     intro i wm seen n pre hn
     rw [scanNumNameLoop, objLoop]
     by_cases h : i < b.usize
-    · rw [dif_pos h, dif_pos h]
+    · rw [dite_eq_left h, dite_eq_left h]
       have hs := usizeStep b i h
       have hb := usizeInBounds b i h
       generalize b.uget i (usizeInBounds b i h) = c
@@ -151,11 +151,11 @@ theorem scanNumNameLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kPre =>
           split
           · simp [srMap]
@@ -165,14 +165,14 @@ theorem scanNumNameLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
       have n34 : (c == 34) = false := beq_eq_false_iff_ne.mpr h34
       simp [n34, srMap]
-    · rw [dif_neg h, dif_neg h]; rfl
+    · rw [dite_eq_right h, dite_eq_right h]; rfl
 
 def scanLamExprSpec : ObjSpec := ⟨[(.kBinderInfo, 1, .binder), (.kBody, 2, .natSet 0), (.kName, 4, .natDrop), (.kType, 8, .natSet 1)], 15⟩
 
@@ -186,7 +186,7 @@ theorem scanLamExprLoop_eq (b : ByteArray) :
     intro i wm seen bd ty hn
     rw [scanLamExprLoop, objLoop]
     by_cases h : i < b.usize
-    · rw [dif_pos h, dif_pos h]
+    · rw [dite_eq_left h, dite_eq_left h]
       have hs := usizeStep b i h
       have hb := usizeInBounds b i h
       generalize b.uget i (usizeInBounds b i h) = c
@@ -235,11 +235,11 @@ theorem scanLamExprLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kBody =>
           split
           · simp [srMap]
@@ -249,11 +249,11 @@ theorem scanLamExprLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kName =>
           split
           · simp [srMap]
@@ -263,11 +263,11 @@ theorem scanLamExprLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kType =>
           split
           · simp [srMap]
@@ -277,14 +277,14 @@ theorem scanLamExprLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
       have n34 : (c == 34) = false := beq_eq_false_iff_ne.mpr h34
       simp [n34, srMap]
-    · rw [dif_neg h, dif_neg h]; rfl
+    · rw [dite_eq_right h, dite_eq_right h]; rfl
 
 def scanForallExprSpec : ObjSpec := ⟨[(.kBinderInfo, 1, .binder), (.kBody, 2, .natSet 0), (.kName, 4, .natDrop), (.kType, 8, .natSet 1)], 15⟩
 
@@ -298,7 +298,7 @@ theorem scanForallExprLoop_eq (b : ByteArray) :
     intro i wm seen bd ty hn
     rw [scanForallExprLoop, objLoop]
     by_cases h : i < b.usize
-    · rw [dif_pos h, dif_pos h]
+    · rw [dite_eq_left h, dite_eq_left h]
       have hs := usizeStep b i h
       have hb := usizeInBounds b i h
       generalize b.uget i (usizeInBounds b i h) = c
@@ -347,11 +347,11 @@ theorem scanForallExprLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kBody =>
           split
           · simp [srMap]
@@ -361,11 +361,11 @@ theorem scanForallExprLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kName =>
           split
           · simp [srMap]
@@ -375,11 +375,11 @@ theorem scanForallExprLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kType =>
           split
           · simp [srMap]
@@ -389,14 +389,14 @@ theorem scanForallExprLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
       have n34 : (c == 34) = false := beq_eq_false_iff_ne.mpr h34
       simp [n34, srMap]
-    · rw [dif_neg h, dif_neg h]; rfl
+    · rw [dite_eq_right h, dite_eq_right h]; rfl
 
 def scanLetExprSpec : ObjSpec := ⟨[(.kBody, 1, .natSet 0), (.kName, 2, .natDrop), (.kNondep, 4, .boolDrop), (.kType, 8, .natSet 1), (.kValue, 16, .natSet 2)], 27⟩
 
@@ -410,7 +410,7 @@ theorem scanLetExprLoop_eq (b : ByteArray) :
     intro i wm seen bd ty vl hn
     rw [scanLetExprLoop, objLoop]
     by_cases h : i < b.usize
-    · rw [dif_pos h, dif_pos h]
+    · rw [dite_eq_left h, dite_eq_left h]
       have hs := usizeStep b i h
       have hb := usizeInBounds b i h
       generalize b.uget i (usizeInBounds b i h) = c
@@ -459,11 +459,11 @@ theorem scanLetExprLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kName =>
           split
           · simp [srMap]
@@ -473,11 +473,11 @@ theorem scanLetExprLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kNondep =>
           split
           · simp [srMap]
@@ -487,11 +487,11 @@ theorem scanLetExprLoop_eq (b : ByteArray) :
           | ok x e =>
             simp only
             by_cases hie : i < e
-            · rw [dif_pos hie, dif_pos hie]
+            · rw [dite_eq_left hie, dite_eq_left hie]
               have := USize.lt_iff_toNat_lt.mp hie
               rw [ih _ (by omega) e false _ _ _ _ rfl]
               simp only [applyUpd, List.set] <;> rfl
-            · rw [dif_neg hie, dif_neg hie]; rfl
+            · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kType =>
           split
           · simp [srMap]
@@ -501,11 +501,11 @@ theorem scanLetExprLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kValue =>
           split
           · simp [srMap]
@@ -515,14 +515,14 @@ theorem scanLetExprLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
       have n34 : (c == 34) = false := beq_eq_false_iff_ne.mpr h34
       simp [n34, srMap]
-    · rw [dif_neg h, dif_neg h]; rfl
+    · rw [dite_eq_right h, dite_eq_right h]; rfl
 
 def scanConstExprSpec : ObjSpec := ⟨[(.kName, 1, .natSet 0), (.kUs, 2, .natList 1)], 3⟩
 
@@ -536,7 +536,7 @@ theorem scanConstExprLoop_eq (b : ByteArray) :
     intro i wm seen nm us hn
     rw [scanConstExprLoop, objLoop]
     by_cases h : i < b.usize
-    · rw [dif_pos h, dif_pos h]
+    · rw [dite_eq_left h, dite_eq_left h]
       have hs := usizeStep b i h
       have hb := usizeInBounds b i h
       generalize b.uget i (usizeInBounds b i h) = c
@@ -585,11 +585,11 @@ theorem scanConstExprLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kUs =>
           split
           · simp [srMap]
@@ -599,14 +599,14 @@ theorem scanConstExprLoop_eq (b : ByteArray) :
           | ok x e =>
             simp only
             by_cases hie : i < e
-            · rw [dif_pos hie, dif_pos hie]
+            · rw [dite_eq_left hie, dite_eq_left hie]
               have := USize.lt_iff_toNat_lt.mp hie
               rw [ih _ (by omega) e false _ _ _ rfl]
               simp only [applyUpd, List.set] <;> rfl
-            · rw [dif_neg hie, dif_neg hie]; rfl
+            · rw [dite_eq_right hie, dite_eq_right hie]; rfl
       have n34 : (c == 34) = false := beq_eq_false_iff_ne.mpr h34
       simp [n34, srMap]
-    · rw [dif_neg h, dif_neg h]; rfl
+    · rw [dite_eq_right h, dite_eq_right h]; rfl
 
 def scanProjExprSpec : ObjSpec := ⟨[(.kIdx, 1, .natSet 0), (.kStruct, 2, .natSet 1), (.kTypeName, 4, .natSet 2)], 7⟩
 
@@ -620,7 +620,7 @@ theorem scanProjExprLoop_eq (b : ByteArray) :
     intro i wm seen ix st tn hn
     rw [scanProjExprLoop, objLoop]
     by_cases h : i < b.usize
-    · rw [dif_pos h, dif_pos h]
+    · rw [dite_eq_left h, dite_eq_left h]
       have hs := usizeStep b i h
       have hb := usizeInBounds b i h
       generalize b.uget i (usizeInBounds b i h) = c
@@ -669,11 +669,11 @@ theorem scanProjExprLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kStruct =>
           split
           · simp [srMap]
@@ -683,11 +683,11 @@ theorem scanProjExprLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kTypeName =>
           split
           · simp [srMap]
@@ -697,14 +697,14 @@ theorem scanProjExprLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
       have n34 : (c == 34) = false := beq_eq_false_iff_ne.mpr h34
       simp [n34, srMap]
-    · rw [dif_neg h, dif_neg h]; rfl
+    · rw [dite_eq_right h, dite_eq_right h]; rfl
 
 def scanDefDeclSpec : ObjSpec := ⟨[(.kAll, 1, .natListDrop), (.kHints, 2, .hints 0), (.kLevelParams, 4, .natList 1), (.kName, 8, .natSet 2), (.kSafety, 16, .str 3), (.kType, 32, .natSet 4), (.kValue, 64, .natSet 5)], 124⟩
 
@@ -718,7 +718,7 @@ theorem scanDefDeclLoop_eq (b : ByteArray) :
     intro i wm seen hints lps nm safety ty vl hn
     rw [scanDefDeclLoop, objLoop]
     by_cases h : i < b.usize
-    · rw [dif_pos h, dif_pos h]
+    · rw [dite_eq_left h, dite_eq_left h]
       have hs := usizeStep b i h
       have hb := usizeInBounds b i h
       generalize b.uget i (usizeInBounds b i h) = c
@@ -767,11 +767,11 @@ theorem scanDefDeclLoop_eq (b : ByteArray) :
           | ok x e =>
             simp only
             by_cases hie : i < e
-            · rw [dif_pos hie, dif_pos hie]
+            · rw [dite_eq_left hie, dite_eq_left hie]
               have := USize.lt_iff_toNat_lt.mp hie
               rw [ih _ (by omega) e false _ _ _ _ _ _ _ rfl]
               simp only [applyUpd, List.set] <;> rfl
-            · rw [dif_neg hie, dif_neg hie]; rfl
+            · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kHints =>
           split
           · simp [srMap]
@@ -781,11 +781,11 @@ theorem scanDefDeclLoop_eq (b : ByteArray) :
           | ok x e =>
             simp only
             by_cases hie : i < e
-            · rw [dif_pos hie, dif_pos hie]
+            · rw [dite_eq_left hie, dite_eq_left hie]
               have := USize.lt_iff_toNat_lt.mp hie
               rw [ih _ (by omega) e false _ _ _ _ _ _ _ rfl]
               simp only [applyUpd, List.set] <;> rfl
-            · rw [dif_neg hie, dif_neg hie]; rfl
+            · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kLevelParams =>
           split
           · simp [srMap]
@@ -795,11 +795,11 @@ theorem scanDefDeclLoop_eq (b : ByteArray) :
           | ok x e =>
             simp only
             by_cases hie : i < e
-            · rw [dif_pos hie, dif_pos hie]
+            · rw [dite_eq_left hie, dite_eq_left hie]
               have := USize.lt_iff_toNat_lt.mp hie
               rw [ih _ (by omega) e false _ _ _ _ _ _ _ rfl]
               simp only [applyUpd, List.set] <;> rfl
-            · rw [dif_neg hie, dif_neg hie]; rfl
+            · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kName =>
           split
           · simp [srMap]
@@ -809,11 +809,11 @@ theorem scanDefDeclLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ _ _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kSafety =>
           split
           · simp [srMap]
@@ -823,11 +823,11 @@ theorem scanDefDeclLoop_eq (b : ByteArray) :
           | ok x e =>
             simp only
             by_cases hie : i < e
-            · rw [dif_pos hie, dif_pos hie]
+            · rw [dite_eq_left hie, dite_eq_left hie]
               have := USize.lt_iff_toNat_lt.mp hie
               rw [ih _ (by omega) e false _ _ _ _ _ _ _ rfl]
               simp only [applyUpd, List.set] <;> rfl
-            · rw [dif_neg hie, dif_neg hie]; rfl
+            · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kType =>
           split
           · simp [srMap]
@@ -837,11 +837,11 @@ theorem scanDefDeclLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ _ _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kValue =>
           split
           · simp [srMap]
@@ -851,14 +851,14 @@ theorem scanDefDeclLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ _ _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
       have n34 : (c == 34) = false := beq_eq_false_iff_ne.mpr h34
       simp [n34, srMap]
-    · rw [dif_neg h, dif_neg h]; rfl
+    · rw [dite_eq_right h, dite_eq_right h]; rfl
 
 def scanThmDeclSpec : ObjSpec := ⟨[(.kAll, 1, .natListDrop), (.kLevelParams, 2, .natList 0), (.kName, 4, .natSet 1), (.kType, 8, .natSet 2), (.kValue, 16, .natSet 3)], 30⟩
 
@@ -872,7 +872,7 @@ theorem scanThmDeclLoop_eq (b : ByteArray) :
     intro i wm seen lps nm ty vl hn
     rw [scanThmDeclLoop, objLoop]
     by_cases h : i < b.usize
-    · rw [dif_pos h, dif_pos h]
+    · rw [dite_eq_left h, dite_eq_left h]
       have hs := usizeStep b i h
       have hb := usizeInBounds b i h
       generalize b.uget i (usizeInBounds b i h) = c
@@ -921,11 +921,11 @@ theorem scanThmDeclLoop_eq (b : ByteArray) :
           | ok x e =>
             simp only
             by_cases hie : i < e
-            · rw [dif_pos hie, dif_pos hie]
+            · rw [dite_eq_left hie, dite_eq_left hie]
               have := USize.lt_iff_toNat_lt.mp hie
               rw [ih _ (by omega) e false _ _ _ _ _ rfl]
               simp only [applyUpd, List.set] <;> rfl
-            · rw [dif_neg hie, dif_neg hie]; rfl
+            · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kLevelParams =>
           split
           · simp [srMap]
@@ -935,11 +935,11 @@ theorem scanThmDeclLoop_eq (b : ByteArray) :
           | ok x e =>
             simp only
             by_cases hie : i < e
-            · rw [dif_pos hie, dif_pos hie]
+            · rw [dite_eq_left hie, dite_eq_left hie]
               have := USize.lt_iff_toNat_lt.mp hie
               rw [ih _ (by omega) e false _ _ _ _ _ rfl]
               simp only [applyUpd, List.set] <;> rfl
-            · rw [dif_neg hie, dif_neg hie]; rfl
+            · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kName =>
           split
           · simp [srMap]
@@ -949,11 +949,11 @@ theorem scanThmDeclLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kType =>
           split
           · simp [srMap]
@@ -963,11 +963,11 @@ theorem scanThmDeclLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kValue =>
           split
           · simp [srMap]
@@ -977,14 +977,14 @@ theorem scanThmDeclLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
       have n34 : (c == 34) = false := beq_eq_false_iff_ne.mpr h34
       simp [n34, srMap]
-    · rw [dif_neg h, dif_neg h]; rfl
+    · rw [dite_eq_right h, dite_eq_right h]; rfl
 
 def scanOpaqueDeclSpec : ObjSpec := ⟨[(.kAll, 1, .natListDrop), (.kIsUnsafe, 2, .bool 0), (.kLevelParams, 4, .natList 1), (.kName, 8, .natSet 2), (.kType, 16, .natSet 3), (.kValue, 32, .natSet 4)], 62⟩
 
@@ -998,7 +998,7 @@ theorem scanOpaqueDeclLoop_eq (b : ByteArray) :
     intro i wm seen isUns lps nm ty vl hn
     rw [scanOpaqueDeclLoop, objLoop]
     by_cases h : i < b.usize
-    · rw [dif_pos h, dif_pos h]
+    · rw [dite_eq_left h, dite_eq_left h]
       have hs := usizeStep b i h
       have hb := usizeInBounds b i h
       generalize b.uget i (usizeInBounds b i h) = c
@@ -1047,11 +1047,11 @@ theorem scanOpaqueDeclLoop_eq (b : ByteArray) :
           | ok x e =>
             simp only
             by_cases hie : i < e
-            · rw [dif_pos hie, dif_pos hie]
+            · rw [dite_eq_left hie, dite_eq_left hie]
               have := USize.lt_iff_toNat_lt.mp hie
               rw [ih _ (by omega) e false _ _ _ _ _ _ rfl]
               simp only [applyUpd, List.set] <;> rfl
-            · rw [dif_neg hie, dif_neg hie]; rfl
+            · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kIsUnsafe =>
           split
           · simp [srMap]
@@ -1061,11 +1061,11 @@ theorem scanOpaqueDeclLoop_eq (b : ByteArray) :
           | ok x e =>
             simp only
             by_cases hie : i < e
-            · rw [dif_pos hie, dif_pos hie]
+            · rw [dite_eq_left hie, dite_eq_left hie]
               have := USize.lt_iff_toNat_lt.mp hie
               rw [ih _ (by omega) e false _ _ _ _ _ _ rfl]
               simp only [applyUpd, List.set] <;> rfl
-            · rw [dif_neg hie, dif_neg hie]; rfl
+            · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kLevelParams =>
           split
           · simp [srMap]
@@ -1075,11 +1075,11 @@ theorem scanOpaqueDeclLoop_eq (b : ByteArray) :
           | ok x e =>
             simp only
             by_cases hie : i < e
-            · rw [dif_pos hie, dif_pos hie]
+            · rw [dite_eq_left hie, dite_eq_left hie]
               have := USize.lt_iff_toNat_lt.mp hie
               rw [ih _ (by omega) e false _ _ _ _ _ _ rfl]
               simp only [applyUpd, List.set] <;> rfl
-            · rw [dif_neg hie, dif_neg hie]; rfl
+            · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kName =>
           split
           · simp [srMap]
@@ -1089,11 +1089,11 @@ theorem scanOpaqueDeclLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kType =>
           split
           · simp [srMap]
@@ -1103,11 +1103,11 @@ theorem scanOpaqueDeclLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kValue =>
           split
           · simp [srMap]
@@ -1117,14 +1117,14 @@ theorem scanOpaqueDeclLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
       have n34 : (c == 34) = false := beq_eq_false_iff_ne.mpr h34
       simp [n34, srMap]
-    · rw [dif_neg h, dif_neg h]; rfl
+    · rw [dite_eq_right h, dite_eq_right h]; rfl
 
 def scanAxiomDeclSpec : ObjSpec := ⟨[(.kIsUnsafe, 1, .bool 0), (.kLevelParams, 2, .natList 1), (.kName, 4, .natSet 2), (.kType, 8, .natSet 3)], 15⟩
 
@@ -1138,7 +1138,7 @@ theorem scanAxiomDeclLoop_eq (b : ByteArray) :
     intro i wm seen isUns lps nm ty hn
     rw [scanAxiomDeclLoop, objLoop]
     by_cases h : i < b.usize
-    · rw [dif_pos h, dif_pos h]
+    · rw [dite_eq_left h, dite_eq_left h]
       have hs := usizeStep b i h
       have hb := usizeInBounds b i h
       generalize b.uget i (usizeInBounds b i h) = c
@@ -1187,11 +1187,11 @@ theorem scanAxiomDeclLoop_eq (b : ByteArray) :
           | ok x e =>
             simp only
             by_cases hie : i < e
-            · rw [dif_pos hie, dif_pos hie]
+            · rw [dite_eq_left hie, dite_eq_left hie]
               have := USize.lt_iff_toNat_lt.mp hie
               rw [ih _ (by omega) e false _ _ _ _ _ rfl]
               simp only [applyUpd, List.set] <;> rfl
-            · rw [dif_neg hie, dif_neg hie]; rfl
+            · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kLevelParams =>
           split
           · simp [srMap]
@@ -1201,11 +1201,11 @@ theorem scanAxiomDeclLoop_eq (b : ByteArray) :
           | ok x e =>
             simp only
             by_cases hie : i < e
-            · rw [dif_pos hie, dif_pos hie]
+            · rw [dite_eq_left hie, dite_eq_left hie]
               have := USize.lt_iff_toNat_lt.mp hie
               rw [ih _ (by omega) e false _ _ _ _ _ rfl]
               simp only [applyUpd, List.set] <;> rfl
-            · rw [dif_neg hie, dif_neg hie]; rfl
+            · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kName =>
           split
           · simp [srMap]
@@ -1215,11 +1215,11 @@ theorem scanAxiomDeclLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
         case kType =>
           split
           · simp [srMap]
@@ -1229,14 +1229,14 @@ theorem scanAxiomDeclLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ _ _ rfl]
             simp only [applyUpd, List.set] <;> rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
       have n34 : (c == 34) = false := beq_eq_false_iff_ne.mpr h34
       simp [n34, srMap]
-    · rw [dif_neg h, dif_neg h]; rfl
+    · rw [dite_eq_right h, dite_eq_right h]; rfl
 
 
 end ConPanqueque.Scan

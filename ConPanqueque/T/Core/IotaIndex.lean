@@ -1049,7 +1049,7 @@ theorem px_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       (fun h => absurd rfl h) (fun _ => ?_)
     refine Knot.specR_tagIteV pxH h 6 (by decide) (by decide) (by simp +decide [Env.get, pxParams, ctxEnv])
       (fun htg => ?_) (fun htg => ?_)
-    · rw [if_pos (show (h.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
+    · rw [ite_eq_left (show (h.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
       refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
       refine specR_assignI lDh (vv pxH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, pxParams, ctxEnv]) ?_
       refine specR_viewP (C := ctxH C H) h (by simp) (by simp +decide [Env.get] <;> rfl)
@@ -1087,7 +1087,7 @@ theorem px_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       subst hw
       exact specR_returnI _ (optW o) (by simp)
         (fun t ht => ⟨H4, hp4, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    · rw [if_neg (show ¬ (h.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
+    · rw [ite_eq_right (show ¬ (h.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
       exact specR_returnI _ (optW none) (by simp [optWG]; rfl)
         (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
@@ -1121,12 +1121,12 @@ theorem ix_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
   refine specR_prologue (postB_locals _) (ix_none _ _) ?_
   unfold ixCore iotaIndexOk
   by_cases he : mI = rP
-  · rw [if_pos he]
+  · rw [ite_eq_left he]
     subst he
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, ixParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
       (fun _ => ?_) (fun h => absurd h (by decide))
     exact specR_returnI _ 1 rfl (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_neg he]
+  rw [ite_eq_right he]
   have hne : BitVec.ofNat 64 mI ≠ BitVec.ofNat 64 rP := fun x =>
     he ((UD.ofNat_eq_iff_small _ _ (by omega) (by omega)).mp x)
   refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ixParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne])

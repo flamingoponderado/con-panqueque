@@ -18,7 +18,7 @@ theorem parseBytes_of_feedAll {s s' : AState} (hok : StateOK s) (hoff : s.store.
   have ht := feedAll_tail b _ 0 (stInit s) 0 s s' st' rfl h
   unfold tailRun at ht
   obtain ⟨x, s1, hfc, hrest⟩ := AM.bind_ok ht
-  rw [parseBytes, if_neg (by omega)]
+  rw [parseBytes, ite_eq_right (by omega)]
   rw [bind_ok_apply (show (pure PUnit.unit : AM PUnit) s = .ok (PUnit.unit, s) from rfl)]
   simp only
   rw [bind_ok_apply (stateD_init_probe hok hoff hp)]
@@ -29,9 +29,9 @@ theorem parseBytes_of_feedAll {s s' : AState} (hok : StateOK s) (hoff : s.store.
     obtain ⟨st1, ln, tail⟩ := p
     simp only at hrest ⊢
     by_cases htl : tail < b.usize
-    · rw [if_pos htl] at hrest ⊢
+    · rw [ite_eq_left htl] at hrest ⊢
       rw [bind_ok_apply hrest]; rfl
-    · rw [if_neg htl] at hrest ⊢
+    · rw [ite_eq_right htl] at hrest ⊢
       obtain ⟨h1, rfl⟩ := AM.pure_ok hrest
       simp only [Except.ok.injEq] at h1; subst h1; rfl
 

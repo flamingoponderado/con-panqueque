@@ -184,7 +184,7 @@ theorem pl_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   refine Knot.specR_tagIteV kE h 8 (by decide) (by decide) (by simp +decide [Env.get, kParams, ctxEnv])
     (fun htg => ?_) (fun htg => ?_)
-  · rw [if_pos (show (h.tag == ETag.lit) = true by simp [htg, ETag.lit])]
+  · rw [ite_eq_left (show (h.tag == ETag.lit) = true by simp [htg, ETag.lit])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
     refine specR_assignI lDh (vv kE) (Enc.idxW h) (by decide) (by simp +decide [Env.get, kParams, ctxEnv]) ?_
     refine ILP.specR_viewIv h (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
@@ -208,7 +208,7 @@ theorem pl_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       by_cases hsl : C.fe.strLit = true
       · refine specR_ifI _ 2 (by simp [sev, litW_and2, hsl, boolW]) (fun _ => ?_)
           (fun h => absurd h (by decide))
-        rw [if_pos hsl]
+        rw [ite_eq_left hsl]
         refine specR_dropM ?_
         refine specR_callKH plC fTc [tcH] [vv kE] (tcBody C) [Enc.idxW h] (by decide) rfl (by decide) hct
           ⟨by simp +decide [Env.get, kParams, ctxEnv], trivial⟩ (tc_spec ra C hok hc s h str hv)
@@ -222,9 +222,9 @@ theorem pl_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
           (fun t ht => ⟨H2, hp1.trans hp2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
       · have hf : C.fe.strLit = false := by simpa using hsl
         refine specR_ifI _ 0 (by simp [sev, litW_and2, hf, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
-        rw [if_neg hsl]
+        rw [ite_eq_right hsl]
         exact hret (by simp +decide [Env.get, kParams, ctxEnv])
-  · rw [if_neg (show ¬ (h.tag == ETag.lit) = true by simpa [ETag.lit] using htg)]
+  · rw [ite_eq_right (show ¬ (h.tag == ETag.lit) = true by simpa [ETag.lit] using htg)]
     exact hret (by simp +decide [Env.get, kParams, ctxEnv])
 
 end

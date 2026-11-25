@@ -86,25 +86,25 @@ theorem initP_spec {α : Type} {m : AM α} {R : α → BitVec 64 → AState → 
       by_cases h0 : i = 0
       · subst h0; simp [show jN ≠ rb by omega, show jN + 0 ≠ jN + cap by omega, show jN < C.H.length by omega,
           show cap ≠ 0 by omega, tblW, idxW_default]
-      · rw [if_neg (by omega), if_neg (by omega), if_neg (by omega), if_neg h0, hKg, if_pos ⟨by omega, by omega, by omega⟩]
+      · rw [ite_eq_right (by omega), ite_eq_right (by omega), ite_eq_right (by omega), ite_eq_right h0, hKg, ite_eq_left ⟨by omega, by omega, by omega⟩]
         rfl
-    · rw [singleton_get, if_neg (by omega)]
+    · rw [singleton_get, ite_eq_right (by omega)]
   · refine ⟨fun i hi => ?_, fun i hi => ?_⟩
     · rw [hK3, singleton_get]
       by_cases h0 : i = 0
       · subst h0; simp [show jN + cap ≠ rb by omega, show jN + cap < C.H.length by omega, tblW]
-      · rw [if_neg (by omega), if_neg (by omega), if_neg (by omega), if_neg h0, hKg, if_pos ⟨by omega, by omega, by omega⟩]
+      · rw [ite_eq_right (by omega), ite_eq_right (by omega), ite_eq_right (by omega), ite_eq_right h0, hKg, ite_eq_left ⟨by omega, by omega, by omega⟩]
         rfl
-    · rw [singleton_get, if_neg (by omega)]
+    · rw [singleton_get, ite_eq_right (by omega)]
   · refine ⟨fun i hi => ?_, fun i _ => empty_get i⟩
-    rw [hK3, if_neg (by omega), if_neg (by omega), if_neg (by omega), hKg, if_pos ⟨by omega, by omega, by omega⟩,
+    rw [hK3, ite_eq_right (by omega), ite_eq_right (by omega), ite_eq_right (by omega), hKg, ite_eq_left ⟨by omega, by omega, by omega⟩,
       empty_get]; rfl
   · refine ⟨?_, by simp, by omega, by simp [K3, K2, K1, hKl]; omega, fun k hk => by simp at hk⟩
-    rw [hK3, if_pos rfl, if_pos (by omega)]; rfl
+    rw [hK3, ite_eq_left rfl, ite_eq_left (by omega)]; rfl
   · refine ⟨fun i hi => ?_, hbuf.al, by simp [ctxH, K3, K2, K1, hKl]; exact hbuf.len, hbuf.plat, hbuf.small⟩
     obtain ⟨w, hw, hbw⟩ := hbuf.pk i hi
     refine ⟨w, ?_, hbw⟩
     show K3[bufJ + i / 8]? = some w
-    rw [hK3, if_neg (by omega), if_neg (by omega), if_neg (by omega), hKg, if_neg (by omega)]; exact hw
+    rw [hK3, ite_eq_right (by omega), ite_eq_right (by omega), ite_eq_right (by omega), hKg, ite_eq_right (by omega)]; exact hw
 
 end ConPanqueque.Front

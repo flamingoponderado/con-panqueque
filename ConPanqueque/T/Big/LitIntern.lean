@@ -255,9 +255,9 @@ theorem litBlk_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
     intro k hk
     rw [fillI_get?]
     rcases k with _ | k
-    · rw [if_neg (by omega), Nat.add_zero]
+    · rw [ite_eq_right (by omega), Nat.add_zero]
       exact List.getElem?_set_self (by simp; omega)
-    · rw [if_pos ⟨by omega, by omega, by rw [hB0]; omega⟩]
+    · rw [ite_eq_left ⟨by omega, by omega, by rw [hB0]; omega⟩]
       simp [show H'.length + (k + 1) - (H'.length + 1) = k by omega, List.getD_eq_getElem?_getD,
         List.getElem?_eq_getElem (show k < (limbs n).length by omega)]
   have hK' : Words t (cellA C H'.length) (0 :: limbs n) := by

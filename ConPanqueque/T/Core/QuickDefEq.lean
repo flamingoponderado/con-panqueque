@@ -448,10 +448,10 @@ theorem qd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
   · refine Knot.specR_tagIteV qdB b 2 (by decide) (by decide) (by simp +decide [Env.get, qdParams, ctxEnv]) (fun hB2 => ?_) (fun hB2 => ?_)
     swap
     · have hbn : (a.tag != b.tag) = true := by rw [bne_iff_ne, hA2]; exact fun h => hB2 h.symm
-      rw [if_pos hbn]
+      rw [ite_eq_left hbn]
       exact specR_returnI _ (LLeq.obW none) rfl (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     have hbn : ¬ (a.tag != b.tag) = true := by rw [bne_iff_ne, hA2, hB2]; simp
-    rw [if_neg hbn, if_pos (by simp [hA2, ETag.sort, ETag.lit, ETag.forallE, ETag.lam])]
+    rw [ite_eq_right hbn, ite_eq_left (by simp [hA2, ETag.sort, ETag.lit, ETag.forallE, ETag.lam])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
     refine specR_assignI lDh (vv qdA) (Enc.idxW a) (by decide) (by simp +decide [Env.get, qdParams, ctxEnv]) ?_
     refine specR_viewP a (by simp) (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl)
@@ -494,10 +494,10 @@ theorem qd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
   · refine Knot.specR_tagIteV qdB b 8 (by decide) (by decide) (by simp +decide [Env.get, qdParams, ctxEnv]) (fun hB8 => ?_) (fun hB8 => ?_)
     swap
     · have hbn : (a.tag != b.tag) = true := by rw [bne_iff_ne, hA8]; exact fun h => hB8 h.symm
-      rw [if_pos hbn]
+      rw [ite_eq_left hbn]
       exact specR_returnI _ (LLeq.obW none) rfl (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     have hbn : ¬ (a.tag != b.tag) = true := by rw [bne_iff_ne, hA8, hB8]; simp
-    rw [if_neg hbn, if_pos (by simp [hA8, ETag.sort, ETag.lit, ETag.forallE, ETag.lam])]
+    rw [ite_eq_right hbn, ite_eq_left (by simp [hA8, ETag.sort, ETag.lit, ETag.forallE, ETag.lam])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
     refine specR_assignI lDh (vv qdA) (Enc.idxW a) (by decide) (by simp +decide [Env.get, qdParams, ctxEnv]) ?_
     refine specR_viewP a (by simp) (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl)
@@ -530,10 +530,10 @@ theorem qd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
   · refine Knot.specR_tagIteV qdB b 6 (by decide) (by decide) (by simp +decide [Env.get, qdParams, ctxEnv]) (fun hB6 => ?_) (fun hB6 => ?_)
     swap
     · have hbn : (a.tag != b.tag) = true := by rw [bne_iff_ne, hA6]; exact fun h => hB6 h.symm
-      rw [if_pos hbn]
+      rw [ite_eq_left hbn]
       exact specR_returnI _ (LLeq.obW none) rfl (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     have hbn : ¬ (a.tag != b.tag) = true := by rw [bne_iff_ne, hA6, hB6]; simp
-    rw [if_neg hbn, if_pos (by simp [hA6, ETag.sort, ETag.lit, ETag.forallE, ETag.lam])]
+    rw [ite_eq_right hbn, ite_eq_left (by simp [hA6, ETag.sort, ETag.lit, ETag.forallE, ETag.lam])]
     by_cases hd2 : d < 2 ^ 61
     swap
     · have hl : ¬ (BitVec.ofNat 64 d < BitVec.ofNat 64 (2 ^ 61)) := by
@@ -590,10 +590,10 @@ theorem qd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
   · refine Knot.specR_tagIteV qdB b 5 (by decide) (by decide) (by simp +decide [Env.get, qdParams, ctxEnv]) (fun hB5 => ?_) (fun hB5 => ?_)
     swap
     · have hbn : (a.tag != b.tag) = true := by rw [bne_iff_ne, hA5]; exact fun h => hB5 h.symm
-      rw [if_pos hbn]
+      rw [ite_eq_left hbn]
       exact specR_returnI _ (LLeq.obW none) rfl (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     have hbn : ¬ (a.tag != b.tag) = true := by rw [bne_iff_ne, hA5, hB5]; simp
-    rw [if_neg hbn, if_pos (by simp [hA5, ETag.sort, ETag.lit, ETag.forallE, ETag.lam])]
+    rw [ite_eq_right hbn, ite_eq_left (by simp [hA5, ETag.sort, ETag.lit, ETag.forallE, ETag.lam])]
     by_cases hd2 : d < 2 ^ 61
     swap
     · have hl : ¬ (BitVec.ofNat 64 d < BitVec.ofNat 64 (2 ^ 61)) := by
@@ -647,9 +647,9 @@ theorem qd_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     exact specR_returnI _ (LLeq.obW (some ok)) (by simp [sev, obW_some])
       (fun t ht => ⟨H2, hp1.trans hp2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   by_cases htt : (a.tag != b.tag) = true
-  · rw [if_pos htt]
+  · rw [ite_eq_left htt]
     exact specR_returnI _ (LLeq.obW none) rfl (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_neg htt, if_neg (by simp [ETag.sort, ETag.lit, ETag.forallE, ETag.lam]; exact ⟨⟨⟨hA2, hA8⟩, hA6⟩, hA5⟩)]
+  rw [ite_eq_right htt, ite_eq_right (by simp [ETag.sort, ETag.lit, ETag.forallE, ETag.lam]; exact ⟨⟨⟨hA2, hA8⟩, hA6⟩, hA5⟩)]
   exact specR_returnI _ (LLeq.obW none) rfl (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 end

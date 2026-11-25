@@ -135,9 +135,9 @@ theorem names_spec {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (code
     rw [ctxE_Cb, Cb_EH, namesP_congr (Cb_HB code H EH H (EH.set (b + i) (Enc.idxW h)))
       (Cb_HN code H EH H (EH.set (b + i) (Enc.idxW h))) bv]
     refine names_spec ra code hcN D hPn hKa H b hb bv hbv1 hbv2 ns css (i + 1) _ s1 Γ1 [] _ hrest
-      (fun j hj => by rw [List.getElem?_set, if_neg (by omega)]; exact hEH j hj) (by rw [hpb1]; rfl)
+      (fun j hj => by rw [List.getElem?_set, ite_eq_right (by omega)]; exact hEH j hj) (by rw [hpb1]; rfl)
       (by simp only [List.length_set]; omega) (fun hs s2 EH2 Γ2 hl2 h1 h2 hag2 hr2 => ?_)
-    refine hk (h :: hs) s2 EH2 Γ2 (by rw [hl2]; simp) (fun j hj => by rw [h1 j (by omega), List.getElem?_set, if_neg (by omega)])
+    refine hk (h :: hs) s2 EH2 Γ2 (by rw [hl2]; simp) (fun j hj => by rw [h1 j (by omega), List.getElem?_set, ite_eq_right (by omega)])
       (fun j hj => ?_) (fun y h1' h2' => by rw [hag2 y h1' h2', hag y h1' h2']) ?_
     · cases j with
       | zero =>

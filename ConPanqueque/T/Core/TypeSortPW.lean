@@ -360,7 +360,7 @@ theorem tg_spec (C : Ctx) (hok : CtxOK C) (hc : TgCodes C) (s : AState) (hwf : L
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, tgParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne) (fun h => absurd rfl h) (fun _ => ?_)
     rw [typeSortPWGo]
     refine Knot.specR_tagIteV tgE R 6 (by decide) (by decide) (by simp +decide [Env.get, tgParams, ctxEnv]) (fun htg => ?_) (fun htg => ?_)
-    · rw [if_pos (show (R.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
+    · rw [ite_eq_left (show (R.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
       refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
       refine specR_assignI lDh (vv tgE) (Enc.idxW R) (by decide) (by simp +decide [Env.get, tgParams, ctxEnv]) ?_
       refine specR_viewP (C := ctxH C H) R (by simp) (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)
@@ -382,11 +382,11 @@ theorem tg_spec (C : Ctx) (hok : CtxOK C) (hc : TgCodes C) (s : AState) (hwf : L
         (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu tgParams _ rfl hlk) (ih root b (d + 1) H hpH (by omega) (by omega)))
         (fun r w s1 H1 hp1 ⟨hst, hw⟩ => ?_)
       exact specR_returnI _ w (by simp) (fun t ht => ⟨hst, H1, hp1, hw, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    rw [if_neg (show ¬ (R.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
+    rw [ite_eq_right (show ¬ (R.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
     refine Knot.specR_tagIteV tgE R 2 (by decide) (by decide) (by simp +decide [Env.get, tgParams, ctxEnv]) (fun hts => ?_) (fun hts => ?_)
-    · rw [if_pos (show (R.tag == ETag.sort) = true by simp [hts, ETag.sort])]
+    · rw [ite_eq_left (show (R.tag == ETag.sort) = true by simp [hts, ETag.sort])]
       exact specR_returnI _ 1 rfl (fun t ht => ⟨rdStep_refl hrd, H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    rw [if_neg (show ¬ (R.tag == ETag.sort) = true by simpa [ETag.sort] using hts)]
+    rw [ite_eq_right (show ¬ (R.tag == ETag.sort) = true by simpa [ETag.sort] using hts)]
     refine specR_callNIM (C := ctxH C H) tgH fGetAppFn [pFu, pH] [.op .sub [vv tgF, .const 1], vv tgE]
       getAppFnBody [BitVec.ofNat 64 F, Enc.idxW R] (by decide) rfl (by decide) hc.gaf
       ⟨by simp +decide [sev, Env.get, tgParams, ctxEnv]; exact Ex.ofNat_succ_sub_one _, by simp +decide [Env.get, tgParams, ctxEnv], trivial⟩

@@ -598,7 +598,7 @@ theorem pq_spec (C : Ctx) (hok : CtxOK C) (hc : PqCodes C) (s : AState) (hwf : L
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, pqParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne) (fun h => absurd rfl h) (fun _ => ?_)
     rw [proofPW]
     refine Knot.specR_tagIteV pqE e 5 (by decide) (by decide) (by simp +decide [Env.get, pqParams, ctxEnv]) (fun htg => ?_) (fun htg5 => ?_)
-    · rw [if_pos (show (e.tag == ETag.lam) = true by simp [htg, ETag.lam])]
+    · rw [ite_eq_left (show (e.tag == ETag.lam) = true by simp [htg, ETag.lam])]
       refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
       refine specR_assignI lDh (vv pqE) (Enc.idxW e) (by decide) (by simp +decide [Env.get, pqParams, ctxEnv]) ?_
       refine specR_viewP (C := ctxH C H) e (by simp) (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)
@@ -621,9 +621,9 @@ theorem pq_spec (C : Ctx) (hok : CtxOK C) (hc : PqCodes C) (s : AState) (hwf : L
         (fun r w s1 H1 hp1 ⟨hst, hw⟩ => ?_)
       exact specR_returnI _ w (by simp) (fun t ht => ⟨hst, H1, hp1, hw, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
-    rw [if_neg (show ¬ (e.tag == ETag.lam) = true by simpa [ETag.lam] using htg5)]
+    rw [ite_eq_right (show ¬ (e.tag == ETag.lam) = true by simpa [ETag.lam] using htg5)]
     refine Knot.specR_tagIteV pqE e 7 (by decide) (by decide) (by simp +decide [Env.get, pqParams, ctxEnv]) (fun htg => ?_) (fun htg7 => ?_)
-    · rw [if_pos (show (e.tag == ETag.letE) = true by simp [htg, ETag.letE])]
+    · rw [ite_eq_left (show (e.tag == ETag.letE) = true by simp [htg, ETag.letE])]
       refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
       refine specR_assignI lDh (vv pqE) (Enc.idxW e) (by decide) (by simp +decide [Env.get, pqParams, ctxEnv]) ?_
       refine specR_viewP (C := ctxH C H) e (by simp) (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)
@@ -647,9 +647,9 @@ theorem pq_spec (C : Ctx) (hok : CtxOK C) (hc : PqCodes C) (s : AState) (hwf : L
         (fun r w s1 H1 hp1 ⟨hst, hw⟩ => ?_)
       exact specR_returnI _ w (by simp) (fun t ht => ⟨hst, H1, hp1, hw, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
-    rw [if_neg (show ¬ (e.tag == ETag.letE) = true by simpa [ETag.letE] using htg7)]
+    rw [ite_eq_right (show ¬ (e.tag == ETag.letE) = true by simpa [ETag.letE] using htg7)]
     refine specR_appIteX pqE e (by simp +decide [Env.get, pqParams, ctxEnv]) (fun htg => ?_) (fun htg4 => ?_)
-    · rw [if_pos (show (e.tag == ETag.app) = true by simp [htg, ETag.app])]
+    · rw [ite_eq_left (show (e.tag == ETag.app) = true by simp [htg, ETag.app])]
       refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
       refine specR_assignI lDh (vv pqE) (Enc.idxW e) (by decide) (by simp +decide [Env.get, pqParams, ctxEnv]) ?_
       refine specR_viewP (C := ctxH C H) e (by simp) (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)
@@ -672,7 +672,7 @@ theorem pq_spec (C : Ctx) (hok : CtxOK C) (hc : PqCodes C) (s : AState) (hwf : L
         (fun r w s1 H1 hp1 ⟨hst, hw⟩ => ?_)
       exact specR_returnI _ w (by simp) (fun t ht => ⟨hst, H1, hp1, hw, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
-    rw [if_neg (show ¬ (e.tag == ETag.app) = true by simpa [ETag.app] using htg4)]
+    rw [ite_eq_right (show ¬ (e.tag == ETag.app) = true by simpa [ETag.app] using htg4)]
     refine specR_congr (m' := headProofPW C.fe F e >>= fun r => pure r) (by simp) ?_
     refine specR_callNIH (C := ctxH C H) pqS fHq hqParams [.op .sub [vv pqF, .const 1], vv pqE] (hqBody C)
       [BitVec.ofNat 64 F, Enc.idxW e] (by decide) rfl (by decide) hc.hq

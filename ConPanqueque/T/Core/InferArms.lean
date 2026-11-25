@@ -575,7 +575,7 @@ theorem ik_spec (C : Ctx) (hok : CtxOK C)
     have := eblk_small hok ht.sr (show EBlk C.EH ok (ci.toConstantVal.levelParams.map Enc.idxW) from hblk)
     simpa using this
   by_cases hl : vl.length = ci.toConstantVal.levelParams.length
-  · rw [if_neg (by simpa using hl)]
+  · rw [ite_eq_right (by simpa using hl)]
     refine specR_ifI _ 0 (by simp [sev, hl, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
       (fun _ => ?_)
     refine specR_envLoadI ikNm (.op .add [vv ikQ, .const 8]) (o + 1) _ (by decide)
@@ -586,7 +586,7 @@ theorem ik_spec (C : Ctx) (hok : CtxOK C)
       [Enc.idxW ci.toConstantVal.name, ecell C ok, Enc.idxW ci.toConstantVal.type, Enc.idxW us] (by decide) rfl
       (by decide) hct ⟨by simp, by simp; rfl, by simp, by simp +decide [Env.get, ibcParams, ctxEnv], trivial⟩
       (hCt ci o ok hfind hci hblk)
-  · rw [if_pos (by simpa using hl)]
+  · rw [ite_eq_left (by simpa using hl)]
     have hne : BitVec.ofNat 64 vl.length ≠ BitVec.ofNat 64 ci.toConstantVal.levelParams.length := fun x =>
       hl ((UD.ofNat_eq_iff_small _ _ (by omega) (by omega)).mp x)
     exact specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun _ => specR_hangI)
@@ -629,7 +629,7 @@ theorem lt_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     (hW H1 s1 hp1 tty) (fun hh s2 H2 hp2 _ => ?_)
   have hp12 : C.H <+: H2 := hp1.trans hp2
   refine Knot.specR_tagIteV ltH hh 2 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
-  · rw [if_pos (show (hh.tag == ETag.sort) = true by simp [htg, ETag.sort])]
+  · rw [ite_eq_left (show (hh.tag == ETag.sort) = true by simp [htg, ETag.sort])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
     refine specR_assignI lDh (vv ltH) (Enc.idxW hh) (by decide) (by simp) ?_
     refine specR_viewP (C := ctxH C H2) hh (by simp) (by simp +decide [Env.get] <;> rfl)
@@ -674,7 +674,7 @@ theorem lt_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
       (hI H4 s5 hp14 ob) (fun r s6 H5 hp5 _ => ?_)
     exact specR_returnI _ (Enc.idxW r) (by simp)
       (fun t ht => ⟨H5, hp14.trans hp5, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  · rw [if_neg (show ¬ (hh.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
+  · rw [ite_eq_right (show ¬ (hh.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
     exact specR_hangI
 
 end

@@ -630,10 +630,10 @@ theorem pi_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
   have hpX : C.H <+: H3 := hp12.trans hp3
   refine Knot.specR_tagIteV piH hh 2 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
   swap
-  · rw [if_neg (show ¬ (hh.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
+  · rw [ite_eq_right (show ¬ (hh.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
     exact specR_returnI _ (boolW false) (by simp [boolW]; rfl)
       (fun t ht => ⟨H3, hpX, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_pos (show (hh.tag == ETag.sort) = true by simp [htg, ETag.sort])]
+  rw [ite_eq_left (show (hh.tag == ETag.sort) = true by simp [htg, ETag.sort])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
   refine specR_assignI lDh (vv piH) (Enc.idxW hh) (by decide) (by simp) ?_
   refine ILP.specR_viewIv (C := ctxH C H3) hh (by simp) (by simp +decide [Env.get, ctxEnv] <;> rfl)
@@ -679,10 +679,10 @@ theorem pi_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
   have hpY : C.H <+: H7 := hp56.trans hp7
   refine Knot.specR_tagIteV piH2 hh 2 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
   swap
-  · rw [if_neg (show ¬ (hh.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
+  · rw [ite_eq_right (show ¬ (hh.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
     exact specR_returnI _ (boolW false) (by simp [boolW]; rfl)
       (fun t ht => ⟨H7, hpY, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_pos (show (hh.tag == ETag.sort) = true by simp [htg, ETag.sort])]
+  rw [ite_eq_left (show (hh.tag == ETag.sort) = true by simp [htg, ETag.sort])]
   skip
   refine specR_assignI lDh (vv piH2) (Enc.idxW hh) (by decide) (by simp) ?_
   refine ILP.specR_viewIv (C := ctxH C H7) hh (by simp) (by simp +decide [Env.get, ctxEnv] <;> rfl)

@@ -161,7 +161,7 @@ theorem lb_spec (C : Ctx) (hok : CtxOK C)
       (fun h => absurd rfl h) (fun _ => ?_)
     refine Knot.specR_tagIteV lbH h 5 (by decide) (by decide) (by simp +decide [Env.get, lbParams, ctxEnv])
       (fun htg => ?_) (fun htg => ?_)
-    · rw [if_pos (show (h.tag == ETag.lam) = true by simp [htg, ETag.lam])]
+    · rw [ite_eq_left (show (h.tag == ETag.lam) = true by simp [htg, ETag.lam])]
       refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
       refine specR_assignI lDh (vv lbH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, lbParams, ctxEnv]) ?_
       refine specR_viewP h (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
@@ -180,7 +180,7 @@ theorem lb_spec (C : Ctx) (hok : CtxOK C)
         ⟨by simp +decide [sev, Env.get, lbParams, ctxEnv]; exact Ex.ofNat_succ_sub_one _, by simp, trivial⟩
         (ih b s (by omega)) (fun r s' H' hp => ?_)
       exact specR_returnI _ (Enc.idxW r) (by simp) (fun t ht => ⟨H', hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    · rw [if_neg (show ¬ (h.tag == ETag.lam) = true by simpa [ETag.lam] using htg)]
+    · rw [ite_eq_right (show ¬ (h.tag == ETag.lam) = true by simpa [ETag.lam] using htg)]
       exact specR_returnI _ (Enc.idxW h) (by simp +decide [Env.get, lbParams, ctxEnv])
         (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 

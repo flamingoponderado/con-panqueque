@@ -339,11 +339,11 @@ theorem of_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
   simp only [hzf, Bool.false_eq_true, ↓reduceIte]
   refine Knot.specR_tagIteV ofA a 8 (by decide) (by decide) (by simp +decide [Env.get, ofParams, ctxEnv]) (fun hta => ?_) (fun hta => ?_)
   · refine Knot.specR_tagIteV ofB b 8 (by decide) (by decide) (by simp +decide [Env.get, ofParams, ctxEnv]) (fun htb => ?_) (fun htb => ?_)
-    · rw [if_pos (by simp [hta, htb, ETag.lit])]
+    · rw [ite_eq_left (by simp [hta, htb, ETag.lit])]
       exact specR_returnI _ (LLeq.obW none) rfl (fun t ht => ⟨H2, hp12, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    · rw [if_neg (by intro h; simp [ETag.lit] at h; exact htb h.2)]
+    · rw [ite_eq_right (by intro h; simp [ETag.lit] at h; exact htb h.2)]
       exact hrest H2 s2 _ hp12 (by simp +decide [Env.get, ofParams, ctxEnv]) (by simp +decide [Env.get, ofParams, ctxEnv]) (by simp +decide [Env.get, ofParams, ctxEnv]) (by simp +decide [Env.get, ofParams, ctxEnv])
-  · rw [if_neg (by intro h; simp [ETag.lit] at h; exact hta h.1)]
+  · rw [ite_eq_right (by intro h; simp [ETag.lit] at h; exact hta h.1)]
     exact hrest H2 s2 _ hp12 (by simp +decide [Env.get, ofParams, ctxEnv]) (by simp +decide [Env.get, ofParams, ctxEnv]) (by simp +decide [Env.get, ofParams, ctxEnv]) (by simp +decide [Env.get, ofParams, ctxEnv])
 
 end

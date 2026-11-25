@@ -510,14 +510,14 @@ theorem wcs_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
       (ctxEnv C ++ wcsParams.zip [BitVec.ofNat 64 n, boolW cheap, BitVec.ofNat 64 d, Enc.idxW h, Enc.idxW e])) sH h
       (by simp +decide [Env.get, wcsParams, ctxEnv])
     by_cases hstk : isStuckHead h = true
-    · rw [if_pos hstk]
+    · rw [ite_eq_left hstk]
       refine specR_ifI _ 1 (by rw [hsh, hstk]; rfl) (fun _ => ?_) (fun h => absurd h (by decide))
       refine Big.specR_dropM ?_
       exact specR_callWS zX2 fStuck stParams [vv kFu, vv kD, vv sH, vv sE] Bst
         [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW h, Enc.idxW e] (by decide) rfl (by decide) hcst
         ⟨by simp +decide [Env.get, wcsParams, ctxEnv], by simp +decide [Env.get, wcsParams, ctxEnv],
           by simp +decide [Env.get, wcsParams, ctxEnv], by simp +decide [Env.get, wcsParams, ctxEnv], trivial⟩ hSt
-    · rw [if_neg hstk]
+    · rw [ite_eq_right hstk]
       refine specR_ifI _ 0 (by rw [hsh]; simp [hstk, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
       refine Big.specR_dropM ?_
       exact specR_callWS zX2 fStepApp apParams [vv kFu, vv kC, vv kD, vv sE] Bap

@@ -198,7 +198,7 @@ theorem eInternApp_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSemS
   let t2 : PanSemStateFiniteExact 64 σ :=
     { t1 with memory := fun c => if c = KB + 8 then .word (Enc.idxW a) else t1.memory c }
   have m2 : ∀ c, c ≠ KB → c ≠ KB + 8 → t2.memory c = t.memory c := by
-    intro c h1 h2; show (if c = KB + 8 then _ else if c = KB then _ else _) = _; rw [if_neg h2, if_neg h1]
+    intro c h1 h2; show (if c = KB + 8 then _ else if c = KB then _ else _) = _; rw [ite_eq_right h2, ite_eq_right h1]
   have hR2 : ERep t2 L FL st := erep_frame hR (m2 _ hflO.2.2.1 hflO.2.2.2) rfl (fun k tier h1 h2 h3 =>
     ⟨fun m hm => m2 _ (hdirO k tier m h1 h2 h3 hm).2.2.1 (hdirO k tier m h1 h2 h3 hm).2.2.2,
      fun c hc => m2 c (fun e => (hkbO k tier h1 h2 h3).1 (e ▸ hc)) (fun e => (hkbO k tier h1 h2 h3).2 (e ▸ hc))⟩)

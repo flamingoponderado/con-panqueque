@@ -831,7 +831,7 @@ theorem ib_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (Bs Bc Bl Bfa Bl
       unfold ibFvK
       have hlt := Big.word_lt_iff idx d (by unfold B; omega) (by unfold B; omega)
       by_cases hid : idx < d
-      · rw [if_pos hid]
+      · rw [ite_eq_left hid]
         refine specR_ifI _ 1 (by simp [sev, hI, hD, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlt.mpr hid]) (fun _ => ?_)
           (fun h => absurd h (by decide))
         exact specR_returnI _ (Enc.idxW ty) (by simp [hA]) (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)

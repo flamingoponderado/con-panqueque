@@ -32,8 +32,8 @@ theorem step_ifI {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {c1 
   intro t ht
   rw [ite_word t e c1 c2 w (inv_ev ht he)]
   by_cases hw : w ≠ 0
-  · rw [if_pos hw]; exact h1 hw t ht
-  · rw [if_neg hw]; exact h2 (by simpa using hw) t ht
+  · rw [ite_eq_left hw]; exact h1 hw t ht
+  · rw [ite_eq_right hw]; exact h2 (by simpa using hw) t ht
 
 /-- `x := f(a₁, …, a₄)` at a pure callee with a determined answer. -/
 theorem step_call4I {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS}

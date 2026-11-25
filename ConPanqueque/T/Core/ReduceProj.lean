@@ -938,7 +938,7 @@ theorem rpc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
   refine specR_envLoadI (C := ctxH C H1) rqNf (.op .add [vv rqQ, .const 32]) (o + 4) _ (by decide)
     (by simp [sev, vv]; exact UD.ecell_add32 C o) hnf.1 ?_
   by_cases hin : i < tb.numFields
-  · rw [if_pos hin]
+  · rw [ite_eq_left hin]
     have hlw := word_lt_iff i tb.numFields (by unfold B; omega) (by unfold B; have := hnf.2; omega)
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, rpcParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw.mpr hin]) (fun _ => ?_)
       (fun h => absurd h (by decide))
@@ -962,9 +962,9 @@ theorem rpc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
         (fun t ht => ⟨_, hp1.trans hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     refine Knot.specR_tagIteV rqHh hh 3 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
     swap
-    · rw [if_neg (show ¬ (hh.tag == ETag.const) = true by simpa [ETag.const] using htg)]
+    · rw [ite_eq_right (show ¬ (hh.tag == ETag.const) = true by simpa [ETag.const] using htg)]
       exact hret0 (List.prefix_refl _)
-    rw [if_pos (show (hh.tag == ETag.const) = true by simp [htg, ETag.const])]
+    rw [ite_eq_left (show (hh.tag == ETag.const) = true by simp [htg, ETag.const])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
     refine specR_assignI lDh (vv rqHh) (Enc.idxW hh) (by decide) (by simp) ?_
     refine ILP.specR_viewIv hh (by simp) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)
@@ -1013,7 +1013,7 @@ theorem rpc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     · have hne : Enc.idxW k ≠ Enc.idxW tb.ctor := fun e => hk (Enc.idxW_inj e)
       refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun _ => ?_)
         (fun h => absurd h (by decide))
-      rw [if_neg (by simp [IProjTable.entry, hk])]
+      rw [ite_eq_right (by simp [IProjTable.entry, hk])]
       exact hret0 hp12
     refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hk]) (fun h => absurd rfl h)
       (fun _ => ?_)
@@ -1027,7 +1027,7 @@ theorem rpc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     swap
     · refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact fun e => hal (hweq.mp e))
         (fun _ => ?_) (fun h => absurd h (by decide))
-      rw [if_neg (by simp [IProjTable.entry, hal])]
+      rw [ite_eq_right (by simp [IProjTable.entry, hal])]
       exact hret0 hp12
     refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hweq.mpr hal)
       (fun h => absurd rfl h) (fun _ => ?_)
@@ -1045,11 +1045,11 @@ theorem rpc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     swap
     · refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact fun e => hul (hweq2.mp e))
         (fun _ => ?_) (fun h => absurd h (by decide))
-      rw [if_neg (by simp [IProjTable.entry, hul])]
+      rw [ite_eq_right (by simp [IProjTable.entry, hul])]
       exact hret0 hp12
     refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hweq2.mpr hul)
       (fun h => absurd rfl h) (fun _ => ?_)
-    rw [if_pos (by simp [IProjTable.entry, hk, hin, hal, hul])]
+    rw [ite_eq_left (by simp [IProjTable.entry, hk, hin, hal, hul])]
     refine specR_internBVarI (C := ctxH C H2) ra hok2 hc.bv rqB0 (.const 0) 0 (by decide) (by decide) rfl
       (fun b0 s3 => ?_)
     have hj : tb.numParams + i < args.length := by omega
@@ -1085,7 +1085,7 @@ theorem rpc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
         simp only [ite_true]
         exact specR_returnI _ (optW (some args[tb.numParams + i])) (by simp [sev, vv, optWG])
           (fun t ht => ⟨H4, hp1.trans (hp12.trans hp4), rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  · rw [if_neg hin]
+  · rw [ite_eq_right hin]
     have hlw := word_lt_iff i tb.numFields (by unfold B; omega) (by unfold B; have := hnf.2; omega)
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, rpcParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; have := hnf.2; omega)
       (fun h => absurd rfl h) (fun _ => ?_)

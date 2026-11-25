@@ -51,21 +51,21 @@ theorem bor_succ (x y i : Nat) :
     · have : a + P * dx < b + P * dy := by
         have : P * dx ≤ P * dy := Nat.mul_le_mul_left _ (by omega)
         omega
-      rw [if_pos this, if_pos h2]
+      rw [ite_eq_left this, ite_eq_left h2]
     · have : ¬ a + P * dx < b + P * dy := by
         have : P * (dy + 1) ≤ P * dx := Nat.mul_le_mul_left _ (by omega)
         rw [Nat.mul_succ] at this; omega
-      rw [if_neg this, if_neg h2]
+      rw [ite_eq_right this, ite_eq_right h2]
   · simp only [h1, ite_false] at hb ⊢
     by_cases h2 : dx < dy + 0
     · have : a + P * dx < b + P * dy := by
         have : P * (dx + 1) ≤ P * dy := Nat.mul_le_mul_left _ (by omega)
         rw [Nat.mul_succ] at this; omega
-      rw [if_pos this, if_pos h2]
+      rw [ite_eq_left this, ite_eq_left h2]
     · have : ¬ a + P * dx < b + P * dy := by
         have : P * dy ≤ P * dx := Nat.mul_le_mul_left _ (by omega)
         omega
-      rw [if_neg this, if_neg h2]
+      rw [ite_eq_right this, ite_eq_right h2]
 
 theorem sub_div (x y i : Nat) (hxy : y ≤ x) :
     (x - y) / B ^ i = x / B ^ i - y / B ^ i - bor x y i := by

@@ -87,7 +87,7 @@ theorem foldCall_spec (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.Runtime
   refine specR_callRet (C := C') kR1 fFold foParams [vv kRB, .const 0, vv kN0] foldBody
     [cellA C' rb, BitVec.ofNat 64 0, BitVec.ofNat 64 rs.length] (by decide) rfl (hD _ (by simp))
     (foldCodes_St hc s.store).fold ?_ PostFold (fun u hu hlk t ht => ?_)
-  · simp only [EvAll, sev, vv, Env.get_cons, if_neg (show kRB ≠ kN0 by decide), if_pos, hcnt]
+  · simp only [EvAll, sev, vv, Env.get_cons, ite_eq_right (show kRB ≠ kN0 by decide), ite_eq_left, hcnt]
     exact ⟨by rw [hRB]; rfl, rfl, trivial, trivial⟩
   · subst ht
     exact checkDeclsPure_spec .verified pins ra rs rb (by omega) C' s (ctxOK_St hok _) (foldCodes_St hc s.store)

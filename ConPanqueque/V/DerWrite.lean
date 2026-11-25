@@ -33,7 +33,7 @@ theorem vt_setDer {t : PanSemStateFiniteExact 64 σ} {enc : α → List (BitVec 
   have hA : (g.D + BitVec.ofNat 64 (16 * i)).toNat = g.D.toNat + 16 * i := toNat_add_of_lt _ _ (by omega)
   have keep : ∀ c, c.toNat ≠ g.D.toNat + 16 * i →
       (if c = g.D + BitVec.ofNat 64 (16 * i) then HolWordLab.word w else t.memory c) = t.memory c :=
-    fun c hc => by rw [if_neg (ne_of_toNat_ne (by rw [hA]; exact hc))]
+    fun c hc => by rw [ite_eq_right (ne_of_toNat_ne (by rw [hA]; exact hc))]
   refine ⟨fun j hj => ?_, fun k hk => ?_, h.short, ?_, ?_, hule, by simp [h.dlen], fun k hk => ?_, hle, h.room,
     h.hroom, lC, lS, lR, lD, lK⟩
   · obtain ⟨v, a, b, c, d⟩ := h.slot j hj

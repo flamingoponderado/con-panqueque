@@ -54,7 +54,7 @@ theorem defSlot_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : By
   split at hro'
   · rename_i hbyte
     have hs : scanDefDecl b i = .ok ((fun sl => (DeclRec.defn ⟨(sl.getD 2 default).nat, (sl.getD 1 default).list, (sl.getD 4 default).nat⟩ (sl.getD 5 default).nat (sl.getD 0 default).hint (sl.getD 3 default).str)) slots') j := by
-      rw [scanDefDecl, scanDefDeclLoop_eq b _ (i + 1) true 0 (.regular 0) [] 0 "" 0 0 rfl, if_pos hbyte, hro']; rfl
+      rw [scanDefDecl, scanDefDeclLoop_eq b _ (i + 1) true 0 (.regular 0) [] 0 "" 0 0 rfl, ite_eq_left hbyte, hro']; rfl
     rw [hd] at hs
     simp only [ScanRes.ok.injEq] at hs
     have hsp : SpecKinds scanDefDeclSpec [4, 1, 0, 2, 0, 0] := by
@@ -105,7 +105,7 @@ theorem thmSlot_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : By
   split at hro'
   · rename_i hbyte
     have hs : scanThmDecl b i = .ok ((fun sl => (DeclRec.thm ⟨(sl.getD 1 default).nat, (sl.getD 0 default).list, (sl.getD 2 default).nat⟩ (sl.getD 3 default).nat)) slots') j := by
-      rw [scanThmDecl, scanThmDeclLoop_eq b _ (i + 1) true 0 [] 0 0 0 rfl, if_pos hbyte, hro']; rfl
+      rw [scanThmDecl, scanThmDeclLoop_eq b _ (i + 1) true 0 [] 0 0 0 rfl, ite_eq_left hbyte, hro']; rfl
     rw [hd] at hs
     simp only [ScanRes.ok.injEq] at hs
     have hsp : SpecKinds scanThmDeclSpec [1, 0, 0, 0] := by
@@ -157,7 +157,7 @@ theorem opaqueSlot_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
   split at hro'
   · rename_i hbyte
     have hs : scanOpaqueDecl b i = .ok ((fun sl => (DeclRec.opaq ⟨(sl.getD 2 default).nat, (sl.getD 1 default).list, (sl.getD 3 default).nat⟩ (sl.getD 4 default).nat (sl.getD 0 default).bool)) slots') j := by
-      rw [scanOpaqueDecl, scanOpaqueDeclLoop_eq b _ (i + 1) true 0 false [] 0 0 0 rfl, if_pos hbyte, hro']; rfl
+      rw [scanOpaqueDecl, scanOpaqueDeclLoop_eq b _ (i + 1) true 0 false [] 0 0 0 rfl, ite_eq_left hbyte, hro']; rfl
     rw [hd] at hs
     simp only [ScanRes.ok.injEq] at hs
     have hsp : SpecKinds scanOpaqueDeclSpec [3, 1, 0, 0, 0] := by
@@ -206,7 +206,7 @@ theorem strNameSlot_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b 
   split at hro'
   · rename_i hbyte
     have hs : scanStrName b i = .ok ((fun sl => (NameRec.str (sl.getD 0 default).nat (sl.getD 1 default).str)) slots') j := by
-      rw [scanStrName, scanStrNameLoop_eq b _ (i + 1) true 0 0 "" rfl, if_pos hbyte, hro']; rfl
+      rw [scanStrName, scanStrNameLoop_eq b _ (i + 1) true 0 0 "" rfl, ite_eq_left hbyte, hro']; rfl
     rw [hd] at hs
     simp only [ScanRes.ok.injEq] at hs
     have hsp : SpecKinds scanStrNameSpec [0, 2] := by
@@ -255,7 +255,7 @@ theorem numNameSlot_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b 
   split at hro'
   · rename_i hbyte
     have hs : scanNumName b i = .ok ((fun sl => (NameRec.num (sl.getD 1 default).nat (sl.getD 0 default).nat)) slots') j := by
-      rw [scanNumName, scanNumNameLoop_eq b _ (i + 1) true 0 0 0 rfl, if_pos hbyte, hro']; rfl
+      rw [scanNumName, scanNumNameLoop_eq b _ (i + 1) true 0 0 0 rfl, ite_eq_left hbyte, hro']; rfl
     rw [hd] at hs
     simp only [ScanRes.ok.injEq] at hs
     have hsp : SpecKinds scanNumNameSpec [0, 0] := by
@@ -306,7 +306,7 @@ theorem appSlot_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : By
   split at hro'
   · rename_i hbyte
     have hs : scanAppExpr b i = .ok ((fun sl => ExprRec.app (sl.getD 1 default).nat (sl.getD 0 default).nat) slots') j := by
-      rw [scanAppExpr, scanAppExprLoop_eq b _ (i + 1) true 0 0 0 rfl, if_pos hbyte, hro']; rfl
+      rw [scanAppExpr, scanAppExprLoop_eq b _ (i + 1) true 0 0 0 rfl, ite_eq_left hbyte, hro']; rfl
     rw [hd] at hs
     simp only [ScanRes.ok.injEq] at hs
     have hsp : SpecKinds appSpec [0, 0] := by
@@ -355,7 +355,7 @@ theorem lamSlot_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : By
   split at hro'
   · rename_i hbyte
     have hs : scanLamExpr b i = .ok ((fun sl => (ExprRec.lam (sl.getD 1 default).nat (sl.getD 0 default).nat)) slots') j := by
-      rw [scanLamExpr, scanLamExprLoop_eq b _ (i + 1) true 0 0 0 rfl, if_pos hbyte, hro']; rfl
+      rw [scanLamExpr, scanLamExprLoop_eq b _ (i + 1) true 0 0 0 rfl, ite_eq_left hbyte, hro']; rfl
     rw [hd] at hs
     simp only [ScanRes.ok.injEq] at hs
     have hsp : SpecKinds scanLamExprSpec [0, 0] := by
@@ -404,7 +404,7 @@ theorem forallSlot_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
   split at hro'
   · rename_i hbyte
     have hs : scanForallExpr b i = .ok ((fun sl => (ExprRec.forallE (sl.getD 1 default).nat (sl.getD 0 default).nat)) slots') j := by
-      rw [scanForallExpr, scanForallExprLoop_eq b _ (i + 1) true 0 0 0 rfl, if_pos hbyte, hro']; rfl
+      rw [scanForallExpr, scanForallExprLoop_eq b _ (i + 1) true 0 0 0 rfl, ite_eq_left hbyte, hro']; rfl
     rw [hd] at hs
     simp only [ScanRes.ok.injEq] at hs
     have hsp : SpecKinds scanForallExprSpec [0, 0] := by
@@ -454,7 +454,7 @@ theorem letSlot_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : By
   split at hro'
   · rename_i hbyte
     have hs : scanLetExpr b i = .ok ((fun sl => (ExprRec.letE (sl.getD 1 default).nat (sl.getD 2 default).nat (sl.getD 0 default).nat)) slots') j := by
-      rw [scanLetExpr, scanLetExprLoop_eq b _ (i + 1) true 0 0 0 0 rfl, if_pos hbyte, hro']; rfl
+      rw [scanLetExpr, scanLetExprLoop_eq b _ (i + 1) true 0 0 0 0 rfl, ite_eq_left hbyte, hro']; rfl
     rw [hd] at hs
     simp only [ScanRes.ok.injEq] at hs
     have hsp : SpecKinds scanLetExprSpec [0, 0, 0] := by
@@ -503,7 +503,7 @@ theorem constSlot_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : 
   split at hro'
   · rename_i hbyte
     have hs : scanConstExpr b i = .ok ((fun sl => (ExprRec.const (sl.getD 0 default).nat (sl.getD 1 default).list)) slots') j := by
-      rw [scanConstExpr, scanConstExprLoop_eq b _ (i + 1) true 0 0 [] rfl, if_pos hbyte, hro']; rfl
+      rw [scanConstExpr, scanConstExprLoop_eq b _ (i + 1) true 0 0 [] rfl, ite_eq_left hbyte, hro']; rfl
     rw [hd] at hs
     simp only [ScanRes.ok.injEq] at hs
     have hsp : SpecKinds scanConstExprSpec [0, 1] := by
@@ -553,7 +553,7 @@ theorem projSlot_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : B
   split at hro'
   · rename_i hbyte
     have hs : scanProjExpr b i = .ok ((fun sl => (ExprRec.proj (sl.getD 2 default).nat (sl.getD 0 default).nat (sl.getD 1 default).nat)) slots') j := by
-      rw [scanProjExpr, scanProjExprLoop_eq b _ (i + 1) true 0 0 0 0 rfl, if_pos hbyte, hro']; rfl
+      rw [scanProjExpr, scanProjExprLoop_eq b _ (i + 1) true 0 0 0 0 rfl, ite_eq_left hbyte, hro']; rfl
     rw [hd] at hs
     simp only [ScanRes.ok.injEq] at hs
     have hsp : SpecKinds scanProjExprSpec [0, 0, 0] := by

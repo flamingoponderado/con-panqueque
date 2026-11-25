@@ -70,9 +70,9 @@ theorem clearLoop_spec (u : PState σ) (g : VGeo) (hn : g.n ≤ 2 ^ 56) (hS : g.
           · have hne : g.S + BitVec.ofNat 64 (8 * j') ≠ g.S + BitVec.ofNat 64 (8 * j) := by
               intro x; have := congrArg BitVec.toNat x
               rw [toNat_add_of_lt _ _ (by omega), toNat_add_of_lt _ _ (by omega)] at this; omega
-            rw [if_neg hne]; exact hz j' (by omega)
+            rw [ite_eq_right hne]; exact hz j' (by omega)
         · show (if c = g.S + BitVec.ofNat 64 (8 * j) then _ else s.memory c) = _
-          rw [if_neg (hc' j (by omega))]; exact hfr c (fun j' hj' => hc' j' (by omega))
+          rw [ite_eq_right (hc' j (by omega))]; exact hfr c (fun j' hj' => hc' j' (by omega))
       · have hjn' : j = g.n := by omega
         subst hjn'
         exact ⟨0, by rw [hcmp]; simp [bw, h], fun _ => ⟨⟨g.n, hjn, hj, hz, hfr, hd, hc, hg, hta, hl⟩, hj⟩,
@@ -177,15 +177,15 @@ theorem clearCode_core {K V : Type} [BEq K] [LawfulBEq K] [Hashable K] [Decidabl
     intro c hc
     have hc1 : c ≠ g.C + 8 := fun e => hc (by rw [e]; refine ⟨?_, ?_⟩ <;> rw [toNat_add8 _ hCval] <;> omega)
     have hc2 : c ≠ g.C := fun e => hc (by rw [e]; exact ⟨Nat.le_refl _, by omega⟩)
-    rw [m4, if_neg hc1, if_neg hc2, hfr c (fun j hj' e => hc (by
+    rw [m4, ite_eq_right hc1, ite_eq_right hc2, hfr c (fun j hj' e => hc (by
       rw [e]; refine ⟨?_, ?_⟩ <;> rw [toNat_add_of_lt _ _ (by omega)] <;> omega))]
   have hVT : VT t4 enc [] [] (List.replicate g.n 0) g 0 := by
     refine ⟨fun j hj' => ⟨0, by simp [hj'], by decide, ?_, ?_⟩, fun i hi => absurd hi (by simp),
       fun i hi => absurd hi (by simp), ⟨by show t2.memaddrs _; exact hCd, ?_⟩, ⟨hC8, ?_⟩, Nat.zero_le _, rfl,
       fun i hi => absurd hi (by simp), Nat.zero_le _, fun i hi => ?_, fun i hi => ?_, lC, lS, lR, lD, lK⟩
     · show t2.memaddrs _; rw [hd2]; exact hdom j hj'
-    · rw [m4, if_neg (hSne j hj').2, if_neg (hSne j hj').1, hz j hj']; rfl
-    · rw [m4, if_neg hCne]; simp
+    · rw [m4, ite_eq_right (hSne j hj').2, ite_eq_right (hSne j hj').1, hz j hj']; rfl
+    · rw [m4, ite_eq_right hCne]; simp
     · rw [m4]; simp
     · have := hT.room i hi; show t2.memaddrs _ ∧ _; rw [hd2]; exact this
     · have := hT.hroom i hi; show t2.memaddrs _; rw [hd2]; exact this

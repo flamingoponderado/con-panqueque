@@ -144,13 +144,13 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
     have hb2 := pinBlock_agree hb hr16 hag2
     have hl2 : (EH' ++ ws).length = 139 := by simp [hlen, hws]
     refine specR_envStoreI (ctxOK_C1 _ _ _ _ hb2) (vv vPb) (vv vBr) 138 (by rw [C1_EH, hl2]; omega) (Enc.idxW bh)
-      (by simp only [sev, vv, T.Env.get_cons, if_true, C1_EH, hlen]; rfl)
-      (by simp only [sev, vv, T.Env.get_cons, show vBr ≠ vPb by decide, if_false]
+      (by simp only [sev, vv, T.Env.get_cons, ite_true, C1_EH, hlen]; rfl)
+      (by simp only [sev, vv, T.Env.get_cons, show vBr ≠ vPb by decide, ite_false]
           rw [hag _ (by decide), hbr]) ?_
     show SpecR (Inv (C1 codeT H' ((EH' ++ ws).set 138 (Enc.idxW bh)) sP.pins) sP _ [] mainLocals2) _ sP _ _
     let EH3 := (EH' ++ ws).set 138 (Enc.idxW bh)
     have hb3 : PinBlock EH3 sP.pins := pinBlock_agree hb2 hr16 (fun j hj => by
-      simp only [EH3]; rw [List.getElem?_set, if_neg (by omega)])
+      simp only [EH3]; rw [List.getElem?_set, ite_eq_right (by omega)])
     have hB3 : EH3[138]? = some (Enc.idxW bh) := List.getElem?_set_self (by omega)
     have hbdP : denoteN sP.store.ns bh = some boolRecName := denoteN_ext hbd1 hextP
     let C := C1 codeT H' EH3 sP.pins
@@ -159,7 +159,7 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
         = Γ2.get y := by
       intro y hy
       simp only [List.mem_cons, List.not_mem_nil, or_false, not_or] at hy
-      simp only [T.Env.get_cons, if_neg hy.2.2.1]
+      simp only [T.Env.get_cons, ite_eq_right hy.2.2.1]
       rw [hag y (by simp [hy.1, hy.2.1, hy.2.2.1, hy.2.2.2.1]), hag1 y (by simp [hy.1, hy.2.1, hy.2.2.2.2])]
     unfold frontAssigns
     refine specR_assignI kZb _ (cA 0) (by decide) rfl ?_
@@ -215,7 +215,7 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
       (fun sP EH' Γ' hrun hb hz hlen hag => hk2 bh s1 _ st1.ok hoff1 hden1 hbp (by simp [T.Env.get_cons])
         (fun y hy => by
           simp only [List.mem_cons, List.not_mem_nil, or_false, not_or] at hy
-          simp only [T.Env.get_cons, if_neg hy.2.2]; exact hag1 y hy.1 hy.2.1) sP EH' Γ' hrun hb hz hlen hag)
+          simp only [T.Env.get_cons, ite_eq_right hy.2.2]; exact hag1 y hy.1 hy.2.1) sP EH' Γ' hrun hb hz hlen hag)
   rcases name_spec ra (Cb codeT H' EH0) (ctxOK_Cb codeT H' EH0 (fun _ _ => rfl)) (frontOK_Cb codeT H' EH0)
       pinCodes_T.nstr mainLocals2 (hD _ (by decide)) (hD _ (by decide)) boolRecName boolRecCs (by decide)
       (fun c hc => by simp only [boolRecCs, List.mem_cons, List.not_mem_nil, or_false] at hc

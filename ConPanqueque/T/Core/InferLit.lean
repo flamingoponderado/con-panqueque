@@ -322,7 +322,7 @@ theorem il_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       refine specR_ifI _ 0 (by simp [sev, litW_and1, hf, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
       exact specR_hangI
     refine specR_ifI _ 1 (by simp [sev, litW_and1, hnl, boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
-    rw [if_pos hnl]
+    rw [ite_eq_left hnl]
     have hlen' : (limbs m).length + 1 < 2 ^ 61 := by simpa [encEView, Enc.encLit] using hlen
     refine specR_assignI ilN _ (BitVec.ofNat 64 (limbs m).length) (by decide)
       (by simp [sev, encEView, Enc.encLit]; exact Ex.ofNat_succ_sub_one _) ?_
@@ -352,7 +352,7 @@ theorem il_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     dsimp only
     by_cases hsl : C.fe.strLit = true
     · refine specR_ifI _ 2 (by simp [sev, litW_and2, hsl, boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
-      rw [if_pos hsl]
+      rw [ite_eq_left hsl]
       unfold pinString
       refine specR_pinAtI hok PIN_STRING (by decide) ilS (by decide) ?_
       exact il_const ra hok hcic _ (by simp) ⟨by decide, by decide⟩

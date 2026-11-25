@@ -76,11 +76,11 @@ theorem exBVar_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
     simp [parseExprEntryD, StateD.freshExpr, IdTable.bound_eq, hg, internBVarE]
   rw [hm]
   refine specR_internBVarI ra hok hcB fh (vv fU) k hk (hD fh (by simp))
-    (by simp only [sev, vv]; rw [Env.get_cons, if_neg (by decide)]; exact hU) (fun h s' => ?_)
+    (by simp only [sev, vv]; rw [Env.get_cons, ite_eq_right (by decide)]; exact hU) (fun h s' => ?_)
   refine specR_tblSetI hok jE cap st.exprs hrel hcap (vv fTE) (vv fI) (vv fh)
-    (by simp only [sev, vv, Env.get_cons, if_neg (show fTE ≠ fh by decide), if_neg (show fTE ≠ fx by decide)]
+    (by simp only [sev, vv, Env.get_cons, ite_eq_right (show fTE ≠ fh by decide), ite_eq_right (show fTE ≠ fx by decide)]
         exact hTE) i hic h
-    (by simp only [sev, vv, Env.get_cons, if_neg (show fI ≠ fh by decide), if_neg (show fI ≠ fx by decide)]
+    (by simp only [sev, vv, Env.get_cons, ite_eq_right (show fI ≠ fh by decide), ite_eq_right (show fI ≠ fx by decide)]
         exact hI)
     (by simp [sev, vv, Env.get_cons]) (fun hrel' => ?_)
   exact specR_returnI (.const 0) 0 rfl (fun t ht => ⟨_, sr_of_eq ht.sr rfl rfl rfl rfl, hrel', rfl, rfl, rfl⟩)
@@ -103,7 +103,7 @@ theorem exSort_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
     SpecR (Inv (σ := σ) C s Γ M D) exSortP s (parseExprEntryD st i (.sort u)) (ExPost C jE cap st i) := by
   unfold exSortP
   refine specR_exFresh (hD fx (by simp)) st jE cap hrel hcap i hi hTE hC hI (fun hic hg => ?_)
-  have g1 : ∀ y, y ≠ fx → Env.get ((fx, 0) :: Γ) y = Env.get Γ y := fun y h => by rw [Env.get_cons, if_neg h]
+  have g1 : ∀ y, y ≠ fx → Env.get ((fx, 0) :: Γ) y = Env.get Γ y := fun y h => by rw [Env.get_cons, ite_eq_right h]
   refine specR_tblGetI fy (hD fy (by simp)) jL cap st.levels hrell hcap (vv fTL) (vv fCap) (vv fU)
     (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hTL)
     (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hC) u hu
@@ -116,7 +116,7 @@ theorem exSort_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
     ⟨by simp [sev, vv, Env.get_cons], trivial⟩ (sort_body_spec ra C hok s lu) (fun h s' _ => ?_)
   have g2 : ∀ y, y ≠ fh → y ≠ fy → y ≠ fx →
       Env.get ((fh, Enc.idxW h) :: (fy, Enc.idxW lu) :: (fy, Enc.idxW lu + 1) :: (fx, 0) :: Γ) y = Env.get Γ y :=
-    fun y h1 h2 h3 => by simp only [Env.get_cons, if_neg h1, if_neg h2, if_neg h3]
+    fun y h1 h2 h3 => by simp only [Env.get_cons, ite_eq_right h1, ite_eq_right h2, ite_eq_right h3]
   refine specR_tblSetI hok jE cap st.exprs hrel hcap (vv fTE) (vv fI) (vv fh)
     (by simp only [sev, vv]; rw [g2 _ (by decide) (by decide) (by decide)]; exact hTE) i hic h
     (by simp only [sev, vv]; rw [g2 _ (by decide) (by decide) (by decide)]; exact hI)
@@ -150,14 +150,14 @@ theorem exBin_spec (C : Ctx) (hok : CtxOK C) (f : MlS) (op : EIdx → EIdx → A
     SpecR (Inv (σ := σ) C s Γ M D) (exBinP f) s (parseExprEntryD st i (rmk a b)) (ExPost C jE cap st i) := by
   unfold exBinP
   refine specR_exFresh (hD fx (by simp)) st jE cap hrel hcap i hi hTE hC hI (fun hic hg => ?_)
-  have g1 : ∀ y, y ≠ fx → Env.get ((fx, 0) :: Γ) y = Env.get Γ y := fun y h => by rw [Env.get_cons, if_neg h]
+  have g1 : ∀ y, y ≠ fx → Env.get ((fx, 0) :: Γ) y = Env.get Γ y := fun y h => by rw [Env.get_cons, ite_eq_right h]
   refine specR_tblGetI fy (hD fy (by simp)) jE cap st.exprs hrel hcap (vv fTE) (vv fCap) (vv fU)
     (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hTE)
     (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hC) a ha
     (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hU) (fun ea hea => ?_)
   have g2 : ∀ y, y ≠ fy → y ≠ fx →
       Env.get ((fy, Enc.idxW ea) :: (fy, Enc.idxW ea + 1) :: (fx, 0) :: Γ) y = Env.get Γ y :=
-    fun y h1 h2 => by simp only [Env.get_cons, if_neg h1, if_neg h2]
+    fun y h1 h2 => by simp only [Env.get_cons, ite_eq_right h1, ite_eq_right h2]
   refine specR_tblGetI fz (hD fz (by simp)) jE cap st.exprs hrel hcap (vv fTE) (vv fCap) (vv fV2)
     (by simp only [sev, vv]; rw [g2 _ (by decide) (by decide)]; exact hTE)
     (by simp only [sev, vv]; rw [g2 _ (by decide) (by decide)]; exact hC) b hb
@@ -169,7 +169,7 @@ theorem exBin_spec (C : Ctx) (hok : CtxOK C) (f : MlS) (op : EIdx → EIdx → A
   have g3 : ∀ y, y ≠ fh → y ≠ fz → y ≠ fy → y ≠ fx →
       Env.get ((fh, Enc.idxW h) :: (fz, Enc.idxW eb) :: (fz, Enc.idxW eb + 1) :: (fy, Enc.idxW ea) ::
         (fy, Enc.idxW ea + 1) :: (fx, 0) :: Γ) y = Env.get Γ y :=
-    fun y h1 h2 h3 h4 => by simp only [Env.get_cons, if_neg h1, if_neg h2, if_neg h3, if_neg h4]
+    fun y h1 h2 h3 h4 => by simp only [Env.get_cons, ite_eq_right h1, ite_eq_right h2, ite_eq_right h3, ite_eq_right h4]
   refine specR_tblSetI hok jE cap st.exprs hrel hcap (vv fTE) (vv fI) (vv fh)
     (by simp only [sev, vv]; rw [g3 _ (by decide) (by decide) (by decide) (by decide)]; exact hTE) i hic h
     (by simp only [sev, vv]; rw [g3 _ (by decide) (by decide) (by decide) (by decide)]; exact hI)
@@ -243,14 +243,14 @@ theorem exLet_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
     SpecR (Inv (σ := σ) C s Γ M D) exLetP s (parseExprEntryD st i (.letE a b c)) (ExPost C jE cap st i) := by
   unfold exLetP
   refine specR_exFresh (hD fx (by simp)) st jE cap hrel hcap i hi hTE hC hI (fun hic hg => ?_)
-  have g1 : ∀ y, y ≠ fx → Env.get ((fx, 0) :: Γ) y = Env.get Γ y := fun y h => by rw [Env.get_cons, if_neg h]
+  have g1 : ∀ y, y ≠ fx → Env.get ((fx, 0) :: Γ) y = Env.get Γ y := fun y h => by rw [Env.get_cons, ite_eq_right h]
   refine specR_tblGetI fy (hD fy (by simp)) jE cap st.exprs hrel hcap (vv fTE) (vv fCap) (vv fU)
     (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hTE)
     (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hC) a ha
     (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hU) (fun ea hea => ?_)
   have g2 : ∀ y, y ≠ fy → y ≠ fx →
       Env.get ((fy, Enc.idxW ea) :: (fy, Enc.idxW ea + 1) :: (fx, 0) :: Γ) y = Env.get Γ y :=
-    fun y h1 h2 => by simp only [Env.get_cons, if_neg h1, if_neg h2]
+    fun y h1 h2 => by simp only [Env.get_cons, ite_eq_right h1, ite_eq_right h2]
   refine specR_tblGetI fz (hD fz (by simp)) jE cap st.exprs hrel hcap (vv fTE) (vv fCap) (vv fV2)
     (by simp only [sev, vv]; rw [g2 _ (by decide) (by decide)]; exact hTE)
     (by simp only [sev, vv]; rw [g2 _ (by decide) (by decide)]; exact hC) b hb
@@ -258,7 +258,7 @@ theorem exLet_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
   have g3 : ∀ y, y ≠ fz → y ≠ fy → y ≠ fx →
       Env.get ((fz, Enc.idxW eb) :: (fz, Enc.idxW eb + 1) :: (fy, Enc.idxW ea) :: (fy, Enc.idxW ea + 1) ::
         (fx, 0) :: Γ) y = Env.get Γ y :=
-    fun y h1 h2 h3 => by simp only [Env.get_cons, if_neg h1, if_neg h2, if_neg h3]
+    fun y h1 h2 h3 => by simp only [Env.get_cons, ite_eq_right h1, ite_eq_right h2, ite_eq_right h3]
   refine specR_tblGetI fW3 (hD fW3 (by simp)) jE cap st.exprs hrel hcap (vv fTE) (vv fCap) (vv fTN)
     (by simp only [sev, vv]; rw [g3 _ (by decide) (by decide) (by decide)]; exact hTE)
     (by simp only [sev, vv]; rw [g3 _ (by decide) (by decide) (by decide)]; exact hC) c hc
@@ -274,7 +274,7 @@ theorem exLet_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
   have g4 : ∀ y, y ≠ fh → y ≠ fW3 → y ≠ fz → y ≠ fy → y ≠ fx →
       Env.get ((fh, Enc.idxW h) :: (fW3, Enc.idxW ec) :: (fW3, Enc.idxW ec + 1) :: (fz, Enc.idxW eb) ::
         (fz, Enc.idxW eb + 1) :: (fy, Enc.idxW ea) :: (fy, Enc.idxW ea + 1) :: (fx, 0) :: Γ) y = Env.get Γ y :=
-    fun y h1 h2 h3 h4 h5 => by simp only [Env.get_cons, if_neg h1, if_neg h2, if_neg h3, if_neg h4, if_neg h5]
+    fun y h1 h2 h3 h4 h5 => by simp only [Env.get_cons, ite_eq_right h1, ite_eq_right h2, ite_eq_right h3, ite_eq_right h4, ite_eq_right h5]
   refine specR_tblSetI hok jE cap st.exprs hrel hcap (vv fTE) (vv fI) (vv fh)
     (by simp only [sev, vv]; rw [g4 _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hTE) i hic h
     (by simp only [sev, vv]; rw [g4 _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hI)
@@ -303,14 +303,14 @@ theorem exProj_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
     SpecR (Inv (σ := σ) C s Γ M D) exProjP s (parseExprEntryD st i (.proj tn ix e)) (ExPost C jE cap st i) := by
   unfold exProjP
   refine specR_exFresh (hD fx (by simp)) st jE cap hrel hcap i hi hTE hC hI (fun hic hg => ?_)
-  have g1 : ∀ y, y ≠ fx → Env.get ((fx, 0) :: Γ) y = Env.get Γ y := fun y h => by rw [Env.get_cons, if_neg h]
+  have g1 : ∀ y, y ≠ fx → Env.get ((fx, 0) :: Γ) y = Env.get Γ y := fun y h => by rw [Env.get_cons, ite_eq_right h]
   refine specR_tblGetI fy (hD fy (by simp)) jN cap st.names hreln hcap (vv fTN) (vv fCap) (vv fU)
     (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hTN)
     (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hC) tn htn
     (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hU) (fun n hn => ?_)
   have g2 : ∀ y, y ≠ fy → y ≠ fx →
       Env.get ((fy, Enc.idxW n) :: (fy, Enc.idxW n + 1) :: (fx, 0) :: Γ) y = Env.get Γ y :=
-    fun y h1 h2 => by simp only [Env.get_cons, if_neg h1, if_neg h2]
+    fun y h1 h2 => by simp only [Env.get_cons, ite_eq_right h1, ite_eq_right h2]
   refine specR_tblGetI fz (hD fz (by simp)) jE cap st.exprs hrel hcap (vv fTE) (vv fCap) (vv fW3)
     (by simp only [sev, vv]; rw [g2 _ (by decide) (by decide)]; exact hTE)
     (by simp only [sev, vv]; rw [g2 _ (by decide) (by decide)]; exact hC) e he
@@ -322,7 +322,7 @@ theorem exProj_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
   have g3 : ∀ y, y ≠ fz → y ≠ fy → y ≠ fx →
       Env.get ((fz, Enc.idxW ee) :: (fz, Enc.idxW ee + 1) :: (fy, Enc.idxW n) :: (fy, Enc.idxW n + 1) ::
         (fx, 0) :: Γ) y = Env.get Γ y :=
-    fun y h1 h2 h3 => by simp only [Env.get_cons, if_neg h1, if_neg h2, if_neg h3]
+    fun y h1 h2 h3 => by simp only [Env.get_cons, ite_eq_right h1, ite_eq_right h2, ite_eq_right h3]
   refine specR_internProjI ra hok hcP fh (vv fy) (vv fz) (vv fV2) n ix ee hix (hD fh (by simp))
     (by simp [sev, vv, Env.get_cons, show fy ≠ fz from by decide]) (by simp [sev, vv, Env.get_cons])
     (by simp only [sev, vv]; rw [g3 _ (by decide) (by decide) (by decide)]; exact hV)
@@ -330,7 +330,7 @@ theorem exProj_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
   have g4 : ∀ y, y ≠ fh → y ≠ fz → y ≠ fy → y ≠ fx →
       Env.get ((fh, Enc.idxW h) :: (fz, Enc.idxW ee) :: (fz, Enc.idxW ee + 1) :: (fy, Enc.idxW n) ::
         (fy, Enc.idxW n + 1) :: (fx, 0) :: Γ) y = Env.get Γ y :=
-    fun y h1 h2 h3 h4 => by simp only [Env.get_cons, if_neg h1, if_neg h2, if_neg h3, if_neg h4]
+    fun y h1 h2 h3 h4 => by simp only [Env.get_cons, ite_eq_right h1, ite_eq_right h2, ite_eq_right h3, ite_eq_right h4]
   refine specR_tblSetI hok jE cap st.exprs hrel hcap (vv fTE) (vv fI) (vv fh)
     (by simp only [sev, vv]; rw [g4 _ (by decide) (by decide) (by decide) (by decide)]; exact hTE) i hic h
     (by simp only [sev, vv]; rw [g4 _ (by decide) (by decide) (by decide) (by decide)]; exact hI)

@@ -239,13 +239,13 @@ theorem matchLit_L {b : ByteArray} (hp : Plat b) (lit : ByteArray) (hl : lit.siz
   induction n with
   | zero =>
     intro i k hn hi hk
-    rw [ConLeche.Frontend.matchLit, dif_neg (fun h => by have := (hpl.lt_iff k).mp h; omega)]
+    rw [ConLeche.Frontend.matchLit, dite_eq_right (fun h => by have := (hpl.lt_iff k).mp h; omega)]
     rw [List.drop_eq_nil_of_le (by simp; omega)]; rfl
   | succ n ih =>
     intro i k hn hi hk
     have hkl : k.toNat < lit.size := by omega
     have hkl' : k.toNat < lit.data.toList.length := by simpa using hkl
-    rw [ConLeche.Frontend.matchLit, dif_pos ((hpl.lt_iff k).mpr hkl), List.drop_eq_getElem_cons hkl']
+    rw [ConLeche.Frontend.matchLit, dite_eq_left ((hpl.lt_iff k).mpr hkl), List.drop_eq_getElem_cons hkl']
     simp only [litsL]
     have hk1 : (k + 1).toNat = k.toNat + 1 := ConLeche.Frontend.usizeStep lit k ((hpl.lt_iff k).mpr hkl)
     have hc : lit.data.toList[k.toNat] ≠ 0 := hz _ (List.getElem_mem _)

@@ -62,7 +62,7 @@ theorem chk_step {C : Ctx} {s : AState} {D : List MlS} (hEB : ∀ j, ecell C j =
     obtain ⟨w, hw⟩ := hc j (List.mem_cons_self ..)
     refine step_seq (step_envLoadI vFw _ j w hFw (by simp [sev, hEB]) hw) ?_
     have hn' : T.Env.get ((vFw, w) :: Γ) vFn = some nm := by
-      simp only [T.Env.get_cons, show vFn ≠ vFw by decide, if_false]; exact hn
+      simp only [T.Env.get_cons, show vFn ≠ vFw by decide, ite_false]; exact hn
     refine step_seq (Q := fun t => nm ≠ w ∧ Inv C s ((vFw, w) :: Γ) [] D t)
       (step_ifI _ _ (sev_eqW _ (vv vFn) (vv vFw) nm w hn' (by simp [vv, sev, T.Env.get_cons]))
         (fun _ => step_hangI) (fun h0 => fun t ht => by
@@ -199,9 +199,9 @@ theorem forbid_spec {β : Type} {C : Ctx} {s : AState} {Γ0 : Env} {M : Mem} {D 
       · intro y hy
         have hy' := hy
         simp only [forbidVars, List.mem_cons, List.not_mem_nil, or_false, not_or] at hy'
-        simp only [T.Env.get_cons, if_neg hy'.2.2.2.2.2, if_neg hy'.1]
+        simp only [T.Env.get_cons, ite_eq_right hy'.2.2.2.2.2, ite_eq_right hy'.1]
         rw [hagc y hy'.2.2.2.2.1]
-        simp only [T.Env.get_cons, if_neg hy'.2.2.2.1, if_neg hy'.2.2.1]
+        simp only [T.Env.get_cons, ite_eq_right hy'.2.2.2.1, ite_eq_right hy'.2.2.1]
         exact gag y hy
       · intro k' hk'n hk'k j hj
         by_cases e : k' = k

@@ -20,18 +20,18 @@ theorem eidxCopyUpto_eq (xs : Array EIdx) (k : Nat) :
   induction n with
   | zero =>
     intro i out h
-    rw [eidxCopyUpto, dif_neg (by omega)]
+    rw [eidxCopyUpto, dite_eq_right (by omega)]
     have : (xs.toList.take k).drop i = [] := by
       apply List.drop_eq_nil_of_le; simp; omega
     rw [this]; simp
   | succ n ih =>
     intro i out h
     by_cases hi : i < xs.size
-    · rw [eidxCopyUpto, dif_pos ⟨by omega, hi⟩, ih (i + 1) _ (by omega)]
+    · rw [eidxCopyUpto, dite_eq_left ⟨by omega, hi⟩, ih (i + 1) _ (by omega)]
       have hik : i < (xs.toList.take k).length := by simp; omega
       rw [List.drop_eq_getElem_cons hik]
       simp [Array.push, List.getElem_take]
-    · rw [eidxCopyUpto, dif_neg (by omega)]
+    · rw [eidxCopyUpto, dite_eq_right (by omega)]
       have : (xs.toList.take k).drop i = [] := by
         apply List.drop_eq_nil_of_le; simp; omega
       rw [this]; simp
@@ -314,7 +314,7 @@ theorem iv_spec (C : Ctx) (hok : CtxOK C) (args margs : List EIdx) (oa om p q : 
     simp [e1, e2, e3, e4, e5, Env.get] at hz
   have hsrc2 : ∀ j (hj : j < ws2.length), B1[om + 1 + q + j]? = some ws2[j] := by
     intro j hj
-    rw [fillI_get?, if_neg (by omega), hB0get _ (by omega)]
+    rw [fillI_get?, ite_eq_right (by omega), hB0get _ (by omega)]
     have := hbm.2 (q + j) (by simp; omega)
     rw [show om + 1 + q + j = om + 1 + (q + j) by omega, this]; simp [ws2]
   refine specR_copyI (C := C) hok B1 ws2 (om + 1 + q) (H3.length + 1 + p) (by decide) hsrc2 (by omega)
@@ -326,7 +326,7 @@ theorem iv_spec (C : Ctx) (hok : CtxOK C) (args margs : List EIdx) (oa om p q : 
         (prefix_set_ge (hpre.trans (List.prefix_append _ _)) _ hpl _) _) _
   · have hlf := fillI_length B1 ws2 (H3.length + 1 + p)
     constructor
-    · rw [fillI_get?, if_neg (by omega), fillI_get?, if_neg (by omega)]
+    · rw [fillI_get?, ite_eq_right (by omega), fillI_get?, ite_eq_right (by omega)]
       show ((H3 ++ ws).set H3.length _)[H3.length]? = _
       rw [List.getElem?_set_self (by simp; omega)]
       simp [hL, Nat.min_eq_left hp]
@@ -334,11 +334,11 @@ theorem iv_spec (C : Ctx) (hok : CtxOK C) (args margs : List EIdx) (oa om p q : 
       rw [← List.getElem?_eq_getElem]
       simp only [List.length_map, List.length_append, List.length_take, List.length_drop] at hi
       by_cases hip : i < p
-      · rw [fillI_get?, if_neg (by omega), fillI_get?, if_pos ⟨by omega, by omega, by rw [hB0]; omega⟩]
+      · rw [fillI_get?, ite_eq_right (by omega), fillI_get?, ite_eq_left ⟨by omega, by omega, by rw [hB0]; omega⟩]
         rw [List.map_append, List.getElem?_append_left (by simp; omega)]
         simp [ws1, List.getD_eq_getElem?_getD, show H3.length + 1 + i - (H3.length + 1) = i by omega, hip,
           List.getElem?_eq_getElem (show i < args.length by omega)]
-      · rw [fillI_get?, if_pos ⟨by omega, by omega, by rw [hB1, hB0]; omega⟩]
+      · rw [fillI_get?, ite_eq_left ⟨by omega, by omega, by rw [hB1, hB0]; omega⟩]
         rw [List.map_append, List.getElem?_append_right (by simp; omega)]
         simp only [ws2, List.getD_eq_getElem?_getD, show H3.length + 1 + i - (H3.length + 1 + p) = i - p by omega,
           List.length_map, List.length_take, Nat.min_eq_left hp, List.getElem?_drop, List.getElem?_map]

@@ -52,11 +52,11 @@ termination_by bs.length - i
 
 theorem skipL_step (p : Nat → Bool) (bs : List UInt8) (j : Nat) (hj : j < bs.length) :
     skipL p bs j = if p bs[j].toNat then skipL p bs (j + 1) else j := by
-  rw [skipL, dif_pos hj]
+  rw [skipL, dite_eq_left hj]
 
 theorem skipL_end (p : Nat → Bool) (bs : List UInt8) (j : Nat) (hj : ¬ j < bs.length) :
     skipL p bs j = j := by
-  rw [skipL, dif_neg hj]
+  rw [skipL, dite_eq_right hj]
 
 /-- `skipWs`, on a list. -/
 abbrev skipWsL := skipL isWsN
@@ -81,14 +81,14 @@ theorem skipWs_eq {b : ByteArray} (hp : Plat b) :
     by_cases h : i < b.usize
     · have hl : i.toNat < b.size := (hp.lt_iff i).mp h
       have hl' : i.toNat < b.data.toList.length := by simpa using hl
-      rw [dif_pos h, dif_pos hl', uget_eq b i hl h, isWs_eq]
+      rw [dite_eq_left h, dite_eq_left hl', uget_eq b i hl h, isWs_eq]
       split
       · have hs := ConLeche.Frontend.usizeStep b i h
         rw [ih (b.size - (i + 1).toNat) (by omega) (i + 1) rfl, hs]
       · rfl
     · have hl : ¬ i.toNat < b.data.toList.length := by
         have : ¬ i.toNat < b.size := fun h' => h ((hp.lt_iff i).mpr h'); simpa using this
-      rw [dif_neg h, dif_neg hl]
+      rw [dite_eq_right h, dite_eq_right hl]
 
 theorem skipDigits_eq {b : ByteArray} (hp : Plat b) :
     ∀ n (i : USize), b.size - i.toNat = n →
@@ -101,14 +101,14 @@ theorem skipDigits_eq {b : ByteArray} (hp : Plat b) :
     by_cases h : i < b.usize
     · have hl : i.toNat < b.size := (hp.lt_iff i).mp h
       have hl' : i.toNat < b.data.toList.length := by simpa using hl
-      rw [dif_pos h, dif_pos hl', uget_eq b i hl h, isDigit_eq]
+      rw [dite_eq_left h, dite_eq_left hl', uget_eq b i hl h, isDigit_eq]
       split
       · have hs := ConLeche.Frontend.usizeStep b i h
         rw [ih (b.size - (i + 1).toNat) (by omega) (i + 1) rfl, hs]
       · rfl
     · have hl : ¬ i.toNat < b.data.toList.length := by
         have : ¬ i.toNat < b.size := fun h' => h ((hp.lt_iff i).mpr h'); simpa using this
-      rw [dif_neg h, dif_neg hl]
+      rw [dite_eq_right h, dite_eq_right hl]
 
 /-- The decimal value of the digits in `[i, e)` accumulated onto `acc`: con-leche's `readNat64`
 and `readNat` on a digit run, on a list. -/
@@ -118,10 +118,10 @@ termination_by bs.length - i
 
 theorem readL_step (bs : List UInt8) (i e acc : Nat) (h : i < e) (h' : i < bs.length) :
     readL bs i e acc = readL bs (i + 1) e (acc * 10 + (bs[i].toNat - 48)) := by
-  rw [readL, dif_pos ⟨h, h'⟩]
+  rw [readL, dite_eq_left ⟨h, h'⟩]
 
 theorem readL_end (bs : List UInt8) (i e acc : Nat) (h : ¬ i < e) : readL bs i e acc = acc := by
-  rw [readL, dif_neg (fun h' => h h'.1)]
+  rw [readL, dite_eq_right (fun h' => h h'.1)]
 
 /-- The saturation bound of the Pancake numeral reader: indices at or above it are no table's. -/
 def natCap : Nat := 2 ^ 62
@@ -152,7 +152,7 @@ theorem readNat64_eq {b : ByteArray} (hp : Plat b) (e : USize) (he : e.toNat ≤
     intro i acc hn _ _
     rw [ConLeche.Frontend.readNat64, readL_end _ _ _ _ (by omega)]
     split
-    · rw [if_neg (by rw [USize.lt_iff_toNat_lt]; omega)]
+    · rw [ite_eq_right (by rw [USize.lt_iff_toNat_lt]; omega)]
     · rfl
   | succ n ih =>
     intro i acc hn hd hb
@@ -160,7 +160,7 @@ theorem readNat64_eq {b : ByteArray} (hp : Plat b) (e : USize) (he : e.toNat ≤
     have hl : i.toNat < b.size := by omega
     have hl' : i.toNat < b.data.toList.length := by simpa using hl
     have h : i < b.usize := (hp.lt_iff i).mpr hl
-    rw [ConLeche.Frontend.readNat64, dif_pos h, if_pos (USize.lt_iff_toNat_lt.mpr hie),
+    rw [ConLeche.Frontend.readNat64, dite_eq_left h, ite_eq_left (USize.lt_iff_toNat_lt.mpr hie),
       readL_step _ _ _ _ hie hl', uget_eq b i hl h]
     have hdig := hd i.toNat hl' (Nat.le_refl _) hie
     have hds := digit_sub _ hdig
@@ -251,23 +251,23 @@ theorem readNat_eq {b : ByteArray} (hp : Plat b) :
     by_cases h : i < b.usize
     · have hl : i.toNat < b.size := (hp.lt_iff i).mp h
       have hl' : i.toNat < b.data.toList.length := by simpa using hl
-      rw [dif_pos h]
+      rw [dite_eq_left h]
       simp only
       rw [uget_eq b i hl h, isDigit_eq]
       have hsk := skipL_step isDigitN b.data.toList i.toNat hl'
       split
       · rename_i hd
-        rw [if_pos hd] at hsk
+        rw [ite_eq_left hd] at hsk
         have hs := ConLeche.Frontend.usizeStep b i h
         have hge := skipL_ge isDigitN b.data.toList _ (i.toNat + 1) rfl
         rw [ih (b.size - (i + 1).toNat) (by omega) (i + 1) _ rfl, hs, skipDigitsL, hsk,
           readL_step _ _ _ _ (by omega) hl']
       · rename_i hd
-        rw [if_neg hd] at hsk
+        rw [ite_eq_right hd] at hsk
         rw [skipDigitsL, hsk, readL_end _ _ _ _ (Nat.lt_irrefl _)]
     · have hl : ¬ i.toNat < b.data.toList.length := by
         have : ¬ i.toNat < b.size := fun h' => h ((hp.lt_iff i).mpr h'); simpa using this
-      rw [dif_neg h, skipDigitsL, skipL_end _ _ _ hl, readL_end _ _ _ _ (Nat.lt_irrefl _)]
+      rw [dite_eq_right h, skipDigitsL, skipL_end _ _ _ hl, readL_end _ _ _ _ (Nat.lt_irrefl _)]
 
 /-- **con-leche's `readNatAt` on a digit run is `readL`**: at the end `e` of the digit run at `i`. -/
 theorem readNatAt_eq {b : ByteArray} (hp : Plat b) (i e : USize)
@@ -296,7 +296,7 @@ theorem readNatAt_eq {b : ByteArray} (hp : Plat b) (i e : USize)
     · have hn : ¬ i.toNat < b.data.toList.length := by simp; omega
       have he' : e.toNat = i.toNat := by
         rw [he, skipDigitsL, skipL_end _ _ _ hn]
-      rw [ConLeche.Frontend.readNat64, dif_neg (fun h => hn (by simpa using (hp.lt_iff i).mp h)),
+      rw [ConLeche.Frontend.readNat64, dite_eq_right (fun h => hn (by simpa using (hp.lt_iff i).mp h)),
         readL_end _ _ _ _ (by omega)]
       rfl
   · rw [readNat_eq hp _ i 0 rfl, ← he]
@@ -374,7 +374,7 @@ theorem keyEnd_eq {b : ByteArray} (hp : Plat b) :
     by_cases h : j < b.usize
     · have hl : j.toNat < b.size := (hp.lt_iff j).mp h
       have hl' : j.toNat < b.data.toList.length := by simpa using hl
-      rw [dif_pos h, dif_pos hl']
+      rw [dite_eq_left h, dite_eq_left hl']
       simp only
       rw [uget_eq b j hl h]
       generalize hc : b.data.toList[j.toNat] = c
@@ -394,7 +394,7 @@ theorem keyEnd_eq {b : ByteArray} (hp : Plat b) :
           simp only [q, this, hlt, beq_iff_eq, ↓reduceIte, Bool.false_eq_true, decide_eq_true_eq]
           have hb' : (decide (c.toNat < 32) || c.toNat == 92) = true := by
             rcases bad with h | h <;> simp [h]
-          rw [if_pos hb', List.getElem?_eq_getElem hl', hc]
+          rw [ite_eq_left hb', List.getElem?_eq_getElem hl', hc]
           simp [q]
         · have : isKeyN c.toNat = true := by simp [isKeyN, q]; omega
           have hlt : (c < UInt8.ofNat 32) = decide (c.toNat < 32) := by
@@ -402,11 +402,11 @@ theorem keyEnd_eq {b : ByteArray} (hp : Plat b) :
           have hs := ConLeche.Frontend.usizeStep b j h
           simp only [q, this, hlt, beq_iff_eq, decide_eq_true_eq, ↓reduceIte, Bool.not_eq_true',
             Bool.false_eq_true, Bool.or_eq_true, decide_eq_false_iff_not]
-          rw [if_neg (by omega), ih (b.size - (j + 1).toNat) (by omega) (j + 1) rfl, hs]
+          rw [ite_eq_right (by omega), ih (b.size - (j + 1).toNat) (by omega) (j + 1) rfl, hs]
           rfl
     · have hl : ¬ j.toNat < b.data.toList.length := by
         have : ¬ j.toNat < b.size := fun h' => h ((hp.lt_iff j).mpr h'); simpa using this
-      rw [dif_neg h, dif_neg hl, List.getElem?_eq_none (by omega)]
+      rw [dite_eq_right h, dite_eq_right hl, List.getElem?_eq_none (by omega)]
       simp
 
 /-- `valueAt`, on a list: past the colon after the key's closing quote `ke`, whitespace skipped on

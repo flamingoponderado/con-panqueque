@@ -52,7 +52,7 @@ theorem LStore.intern_of_find' {st : LStore} {v : LNodeView} {h : LIdx}
   · simp only [Option.some.injEq] at hf; rw [hf]
   · split at hf
     · rename_i hon
-      rw [if_pos hon]
+      rw [ite_eq_left hon]
       cases hs : st.scr.find? v with
       | some i => simp only [hs, Option.some.injEq] at hf; rw [hf]
       | none => simp only [hs] at hf; simp at hf
@@ -68,7 +68,7 @@ theorem internLNode_ok (s : AState) (v : LNodeView) (hcap : LCap s.store.ls v) :
     simp only [hf]
     rw [LStore.intern_of_find' hf]; rfl
   | none =>
-    simp only [hf, if_pos (hcap hf)]
+    simp only [hf, ite_eq_left (hcap hf)]
     rfl
 
 variable {σ : Type}

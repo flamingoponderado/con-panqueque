@@ -480,7 +480,7 @@ theorem cg_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
   | zero =>
     intro i H s hp hk hi
     refine specR_prologue (postU_locals _) (cg_none _ _) ?_
-    rw [checkGuardRows, dif_neg (by simp; omega)]
+    rw [checkGuardRows, dite_eq_right (by simp; omega)]
     have hlw := word_lt_iff i rows.length (by unfold B; omega) (by unfold B; omega)
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, cgParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL,
       (not_congr hlw).mpr (by omega)]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -489,7 +489,7 @@ theorem cg_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
     intro i H s hp hk hi
     have hlt : i < rows.length := by omega
     refine specR_prologue (postU_locals _) (cg_none _ _) ?_
-    rw [checkGuardRows, dif_pos (by simpa using hlt)]
+    rw [checkGuardRows, dite_eq_left (by simpa using hlt)]
     have hlw := word_lt_iff i rows.length (by unfold B; omega) (by unfold B; omega)
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, cgParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL,
       hlw.mpr hlt]) (fun _ => ?_) (fun h => absurd h (by decide))
@@ -518,9 +518,9 @@ theorem cg_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
       ⟨by simp +decide [Env.get, cgParams, ctxEnv], by simp, by simp, trivial⟩ (hW H2 s2 d t (hp0.trans (hp.trans hp2)) hd63) (fun w s3 H3 hp3 hrun3 => ?_)
     refine Knot.specR_tagIteV cgW w 2 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
     swap
-    · rw [if_neg (show ¬ (w.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
+    · rw [ite_eq_right (show ¬ (w.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
       exact specR_hangI
-    rw [if_pos (show (w.tag == ETag.sort) = true by simp [htg, ETag.sort])]
+    rw [ite_eq_left (show (w.tag == ETag.sort) = true by simp [htg, ETag.sort])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
     refine specR_assignI lDh (vv cgW) (Enc.idxW w) (by decide) (by simp) ?_
     refine specR_viewP (C := ctxH C H3) w (by simp) (by simp +decide [Env.get] <;> rfl)

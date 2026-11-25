@@ -96,7 +96,7 @@ theorem fold_leaf {σ : Type} (s : PanSemStateFiniteExact 64 σ) (h : Heap) (p t
     let s1 := setVarHOLFinite nT (.val (.word 0)) s
     have lt : s1.locals.lookup nT = some (.val (.word 0)) := by simp [s1]
     rw [hdec, ite_word s1 _ _ _ 1 (by simp [evalHOLExact, vT, lt, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])]
-    rw [if_pos (by decide : (1 : BitVec 64) ≠ 0), evaluateHOLFiniteState_eq_evaluate_def]
+    rw [ite_eq_left (by decide : (1 : BitVec 64) ≠ 0), evaluateHOLFiniteState_eq_evaluate_def]
     simp only
     rw [he s1]
     refine ⟨_, Prod.ext (by simp [shapeOfHOLExact]) rfl, ?_⟩
@@ -108,7 +108,7 @@ theorem fold_leaf {σ : Type} (s : PanSemStateFiniteExact 64 σ) (h : Heap) (p t
     rw [hdec, ite_word s1 _ _ _ 0 (by simp [evalHOLExact, vT, lt, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]),
       ite_word s1 _ _ _ 1 (by simp [evalHOLExact, vT, lt, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])]
     simp only [ne_eq, not_true_eq_false, ite_false]
-    rw [if_pos (by decide : (1 : BitVec 64) ≠ 0), evaluateHOLFiniteState_eq_evaluate_def]
+    rw [ite_eq_left (by decide : (1 : BitVec 64) ≠ 0), evaluateHOLFiniteState_eq_evaluate_def]
     simp only
     rw [he s1]
     refine ⟨_, Prod.ext (by simp [shapeOfHOLExact]) rfl, ?_⟩
@@ -262,7 +262,7 @@ theorem fold_inner {σ : Type} (sp : FoldSpec fn cz cp gs gm gi f) (h : Heap) (p
   rcases htg with rfl | htg23
   · -- succ
     rw [ite_word s3 _ _ _ 1 (by simp [evalHOLExact, vT, lt3, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])]
-    rw [if_pos (by decide : (1 : BitVec 64) ≠ 0), evaluateHOLFiniteState_eq_evaluate_def]
+    rw [ite_eq_left (by decide : (1 : BitVec 64) ≠ 0), evaluateHOLFiniteState_eq_evaluate_def]
     simp only
     rw [hres.1 rfl, sp.hs s3 u la3]
     simp only [shapeOfHOLExact, sizeOfShapeWithContextHOL]
@@ -311,7 +311,7 @@ theorem fold_inner {σ : Type} (sp : FoldSpec fn cz cp gs gm gi f) (h : Heap) (p
       omega
     rcases htg23 with rfl | rfl
     · rw [ite_word s5 _ _ _ 1 (by simp [evalHOLExact, vT, lt5, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])]
-      rw [if_pos (by decide : (1 : BitVec 64) ≠ 0), evaluateHOLFiniteState_eq_evaluate_def]
+      rw [ite_eq_left (by decide : (1 : BitVec 64) ≠ 0), evaluateHOLFiniteState_eq_evaluate_def]
       simp only
       rw [hres.2.1 rfl, sp.hm s5 u v la5 lb5]
       exact ⟨_, Prod.ext (by simp [shapeOfHOLExact]) rfl, post _ (by simp [shapeOfHOLExact])⟩

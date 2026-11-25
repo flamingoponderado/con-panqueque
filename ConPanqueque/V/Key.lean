@@ -326,7 +326,7 @@ theorem wr_out (m : BitVec 64 → HolWordLab 64) (B : BitVec 64) (ys : List (Bit
   | cons z zs ih =>
     simp only [wr]
     rw [ih _ _ (fun j hj => by rw [addr_shift]; exact hc (j + 1) (by simp; omega))]
-    simp only [upd]; rw [if_neg (by simpa using hc 0 (by simp))]
+    simp only [upd]; rw [ite_eq_right (by simpa using hc 0 (by simp))]
 
 theorem addr_inj (B : BitVec 64) (i j : Nat) (hi : i < 2 ^ 61) (hj : j < 2 ^ 61)
     (h : B + BitVec.ofNat 64 (8 * i) = B + BitVec.ofNat 64 (8 * j)) : i = j := by
@@ -353,10 +353,10 @@ theorem wr_at (m : BitVec 64 → HolWordLab 64) (B : BitVec 64) (ys : List (BitV
     | cons z zs ih =>
       intro pre hp hl'
       rw [show pre ++ z :: zs = (pre ++ [z]) ++ zs by simp, ih (pre ++ [z]) (by simp; omega) (by simp at hl' ⊢; omega),
-        wr_snoc, upd, if_neg]
+        wr_snoc, upd, ite_eq_right]
       intro h; have := addr_inj B _ _ (by omega) (by simp at hl'; omega) h; omega
   rw [gen zs _ (by rw [hlen]; exact Nat.le_refl _) (by rw [hlen]; omega), wr_snoc, upd,
-    if_pos (by rw [show (ys.take k).length = k by simp; omega])]
+    ite_eq_left (by rw [show (ys.take k).length = k by simp; omega])]
 
 def copyBody : ProgHOL 64 :=
   .ite (.cmp .equal (vv lWn) (.const 0)) (.assign .local lWg (.const 0))

@@ -1073,10 +1073,10 @@ theorem hq_spec (C : Ctx) (hok : CtxOK C) (hc : HqCodes C) (fuel : Nat) (hf : fu
         have : vl.length < 2 ^ 61 := by simpa using hvll
         intro e; have := congrArg BitVec.toNat e; simp at this; omega
       refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun _ => ?_) (fun h => absurd h (by decide))
-      rw [if_neg hlen]
+      rw [ite_eq_right hlen]
       exact specR_returnI _ 0 rfl (fun t ht => ⟨rdStep_refl hrd, H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlen]) (fun h => absurd rfl h) (fun _ => ?_)
-    rw [if_pos hlen]
+    rw [ite_eq_left hlen]
     unfold typeSortPW
     refine specR_callNIH (C := ctxH C H) hqW fTg tgParams [vv hqF, vv hqT, vv hqT, .const 0] (tgBody C)
       [BitVec.ofNat 64 fuel, Enc.idxW ci.toConstantVal.type, Enc.idxW ci.toConstantVal.type, BitVec.ofNat 64 0] (by decide) rfl (by decide) hc.tg
@@ -1197,10 +1197,10 @@ theorem hq_spec (C : Ctx) (hok : CtxOK C) (hc : HqCodes C) (fuel : Nat) (hf : fu
     by_cases hin : pi < tb.numFields
     swap
     · refine specR_ifI _ 0 (by simp +decide [sev, Env.get, hqParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw, hin]) (fun h => absurd rfl h) (fun _ => ?_)
-      rw [if_neg hin]
+      rw [ite_eq_right hin]
       exact specR_returnI _ 0 rfl (fun t ht => ⟨rdStep_refl hrd, H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, hqParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw, hin]) (fun _ => ?_) (fun h => absurd h (by decide))
-    rw [if_pos hin]
+    rw [ite_eq_left hin]
     dsimp only
     refine specR_envLoadI hqBp (.op .add [vv hqTq, .const 40]) (ot + 5) _ (by decide)
       (by simp [sev, vv, ecell_ctxH]; simpa using ecell_add C ot 5) hwb ?_
@@ -1215,7 +1215,7 @@ theorem hq_spec (C : Ctx) (hok : CtxOK C) (hc : HqCodes C) (fuel : Nat) (hf : fu
           rw [← ecell_shl3 C (ob + 1) pi (by omega), ← ecell_add C ob 1]; simp [ecell]) hel ?_
     have hget : (tb.entry pi).body = tb.bodies.toList[pi] := by
       have hbs' : pi < tb.bodies.size := by simpa using hbs
-      simp only [IProjTable.entry, Array.getD]; rw [dif_pos hbs']; simp
+      simp only [IProjTable.entry, Array.getD]; rw [dite_eq_left hbs']; simp
     rw [hget]
     unfold typeSortPW
     refine specR_callNIH (C := ctxH C H) hqW fTg tgParams [vv hqF, vv hqBd, vv hqBd, .const 0] (tgBody C)

@@ -729,7 +729,7 @@ theorem specR_storeKB2I {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ :
   simp only [List.mem_cons, List.not_mem_nil, or_false, Prod.mk.injEq] at ha
   rcases ha with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
   · obtain ⟨h1, h2⟩ := ht.mem _ _ (List.mem_singleton_self _)
-    exact ⟨h1, by simp only; rw [if_neg hne]; exact h2⟩
+    exact ⟨h1, by simp only; rw [ite_eq_right hne]; exact h2⟩
   · exact ⟨hdom, by simp⟩
 
 /-! ## The binder wrappers -/
@@ -1232,9 +1232,9 @@ theorem specR_storeKB3I {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ :
   simp only [List.mem_cons, List.not_mem_nil, or_false, Prod.mk.injEq] at ha
   rcases ha with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
   · obtain ⟨h1, h2⟩ := ht.mem _ _ (List.mem_cons_self ..)
-    exact ⟨h1, by simp only; rw [if_neg (kb_word_ne C.KB 0 2 (by decide) (by decide) (by decide))]; exact h2⟩
+    exact ⟨h1, by simp only; rw [ite_eq_right (kb_word_ne C.KB 0 2 (by decide) (by decide) (by decide))]; exact h2⟩
   · obtain ⟨h1, h2⟩ := ht.mem _ _ (List.mem_cons_of_mem _ (List.mem_cons_self ..))
-    exact ⟨h1, by simp only; rw [if_neg (kb_word_ne C.KB 1 2 (by decide) (by decide) (by decide))]; exact h2⟩
+    exact ⟨h1, by simp only; rw [ite_eq_right (kb_word_ne C.KB 1 2 (by decide) (by decide) (by decide))]; exact h2⟩
   · exact ⟨hdom, by simp⟩
 
 def fInternProj := ofString "internProj"

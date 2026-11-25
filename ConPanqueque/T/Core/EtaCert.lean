@@ -885,9 +885,9 @@ theorem ec_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
   have hp13 : C.H <+: H3 := hp12.trans hp3
   refine Knot.specR_tagIteV ecH hh 6 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
   swap
-  · rw [if_neg (show ¬ (hh.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
+  · rw [ite_eq_right (show ¬ (hh.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
     exact specR_returnI _ 0 rfl (fun t ht => ⟨H3, hp13, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_pos (show (hh.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
+  rw [ite_eq_left (show (hh.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
   refine specR_assignI lDh (vv ecH) (Enc.idxW hh) (by decide) (by simp) ?_
   refine specR_viewP (C := ctxH C H3) hh (by simp) (by simp +decide [Env.get] <;> rfl)

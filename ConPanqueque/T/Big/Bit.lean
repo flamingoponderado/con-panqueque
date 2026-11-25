@@ -1051,7 +1051,7 @@ theorem bit_spec (o : BitOp) (C : Ctx) (hok : CtxOK C) (s : AState) (x y : Nat) 
   have hlf := fillI_length B0 (bitW o x y (limbs x).length) (H'.length + 1)
   have hWf : ∀ k, k < (limbs x).length → Bf[H'.length + 1 + k]? = some (BitVec.ofNat 64 ((o.f x y) / B ^ k % B)) := by
     intro k hk
-    rw [fillI_get?, if_pos ⟨by omega, by omega, by rw [hB0]; omega⟩]
+    rw [fillI_get?, ite_eq_left ⟨by omega, by omega, by rw [hB0]; omega⟩]
     simp [show H'.length + 1 + k - (H'.length + 1) = k by omega, List.getD_eq_getElem?_getD, bitW_get o x y _ k hk]
   refine specR_envWeak (Γb := bitG3 Γ0 C H'.length (o.f x y) 0) (fun z v hz => ?_) ?_
   · simp only [bitG3, bitG2, Γ0, Env.get_cons, Nat.pow_zero, Nat.mod_one, Nat.add_zero] at hz ⊢

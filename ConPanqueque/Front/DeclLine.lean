@@ -138,20 +138,20 @@ theorem thLine_spec (C : Ctx) (hok : CtxOK C)
   subst hd0
   have hl0 := slotL hK0 rfl hs0
   let Γ1 : Env := (fV2, w0) :: Γ
-  have g1 : ∀ y, y ≠ fV2 → Γ1.get y = Γ.get y := fun y h => by simp only [Γ1, Env.get_cons, if_neg h]
+  have g1 : ∀ y, y ≠ fV2 → Γ1.get y = Γ.get y := fun y h => by simp only [Γ1, Env.get_cons, ite_eq_right h]
   refine call Γ1 fU 1 (by decide) _ (hD _ (by simp)) (by rw [g1 _ (by decide)]; exact hBA)
     (by rw [g1 _ (by decide)]; exact hBN) (by rw [g1 _ (by decide)]; exact hP) (fun w1 s1 hK1 hd1 hs1 => ?_)
   have hn1 := slotN hK1 rfl hs1
   let Γ2 : Env := (fU, w1) :: Γ1
   have g2 : ∀ y, y ≠ fU → y ≠ fV2 → Γ2.get y = Γ.get y := fun y h h' => by
-    simp only [Γ2, Env.get_cons, if_neg h]; exact g1 y h'
+    simp only [Γ2, Env.get_cons, ite_eq_right h]; exact g1 y h'
   refine call Γ2 fW3 2 (by decide) _ (hD _ (by simp)) (by rw [g2 _ (by decide) (by decide)]; exact hBA)
     (by rw [g2 _ (by decide) (by decide)]; exact hBN) (by rw [g2 _ (by decide) (by decide)]; exact hP)
     (fun w2 s2 hK2 hd2 hs2 => ?_)
   have hn2 := slotN hK2 rfl hs2
   let Γ3 : Env := (fW3, w2) :: Γ2
   have g3 : ∀ y, y ≠ fW3 → y ≠ fU → y ≠ fV2 → Γ3.get y = Γ.get y := fun y h h1 h2 => by
-    simp only [Γ3, Env.get_cons, if_neg h]; exact g2 y h1 h2
+    simp only [Γ3, Env.get_cons, ite_eq_right h]; exact g2 y h1 h2
   refine call Γ3 kVl 3 (by decide) _ (hD _ (by simp)) (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hBA)
     (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hBN)
     (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hP) (fun w3 s3 hK3 hd3 hs3 => ?_)
@@ -162,7 +162,7 @@ theorem thLine_spec (C : Ctx) (hok : CtxOK C)
   rw [← hd3.2] at hn3
   let Γ4 : Env := (kVl, w3) :: Γ3
   have g4 : ∀ y, y ≠ kVl → y ≠ fW3 → y ≠ fU → y ≠ fV2 → Γ4.get y = Γ.get y := fun y h h1 h2 h3 => by
-    simp only [Γ4, Env.get_cons, if_neg h]; exact g3 y h1 h2 h3
+    simp only [Γ4, Env.get_cons, ite_eq_right h]; exact g3 y h1 h2 h3
   have hus : (s0.getD 0 default).list.length < 2 ^ 59 := by
     have := hbuf.small
     rcases hl0 with ⟨p, e', -, hsc'⟩ | ⟨h0, -⟩
@@ -181,12 +181,12 @@ theorem thLine_spec (C : Ctx) (hok : CtxOK C)
     (by rw [g4 _ (by decide) (by decide) (by decide) (by decide)]; exact hTN)
     (by rw [g4 _ (by decide) (by decide) (by decide) (by decide)]; exact hTE)
     (by rw [g4 _ (by decide) (by decide) (by decide) (by decide)]; exact hC)
-    (by simp only [Γ4, Γ3, Γ2, Env.get_cons, if_neg (show fU ≠ kVl by decide), if_neg (show fU ≠ fW3 by decide), if_pos]
+    (by simp only [Γ4, Γ3, Γ2, Env.get_cons, ite_eq_right (show fU ≠ kVl by decide), ite_eq_right (show fU ≠ fW3 by decide), ite_eq_left]
         rw [hn1])
-    (by simp only [Γ4, Γ3, Env.get_cons, if_neg (show fW3 ≠ kVl by decide), if_pos]; rw [hn2])
-    (by simp only [Γ4, Env.get_cons, if_pos]; rw [hn3])
-    (by simp only [Γ4, Γ3, Γ2, Γ1, Env.get_cons, if_neg (show fV2 ≠ kVl by decide), if_neg (show fV2 ≠ fW3 by decide),
-          if_neg (show fV2 ≠ fU by decide), if_pos])
+    (by simp only [Γ4, Γ3, Env.get_cons, ite_eq_right (show fW3 ≠ kVl by decide), ite_eq_left]; rw [hn2])
+    (by simp only [Γ4, Env.get_cons, ite_eq_left]; rw [hn3])
+    (by simp only [Γ4, Γ3, Γ2, Γ1, Env.get_cons, ite_eq_right (show fV2 ≠ kVl by decide), ite_eq_right (show fV2 ≠ fW3 by decide),
+          ite_eq_right (show fV2 ≠ fU by decide), ite_eq_left])
     (by rw [g4 _ (by decide) (by decide) (by decide) (by decide)]; exact hBA)
     (by rw [g4 _ (by decide) (by decide) (by decide) (by decide)]; exact hBN)
     (by rw [g4 _ (by decide) (by decide) (by decide) (by decide)]; exact hRB)
@@ -247,27 +247,27 @@ theorem opLine_spec (C : Ctx) (hok : CtxOK C)
   subst hd0
   have hl0 := slotL hK0 rfl hs0
   let Γ1 : Env := (fV2, w0) :: Γ
-  have g1 : ∀ y, y ≠ fV2 → Γ1.get y = Γ.get y := fun y h => by simp only [Γ1, Env.get_cons, if_neg h]
+  have g1 : ∀ y, y ≠ fV2 → Γ1.get y = Γ.get y := fun y h => by simp only [Γ1, Env.get_cons, ite_eq_right h]
   refine call Γ1 fU 2 (by decide) _ (hD _ (by simp)) (by rw [g1 _ (by decide)]; exact hBA)
     (by rw [g1 _ (by decide)]; exact hBN) (by rw [g1 _ (by decide)]; exact hP) (fun w1 s1 hK1 hd1 hs1 => ?_)
   have hn1 := slotN hK1 rfl hs1
   let Γ2 : Env := (fU, w1) :: Γ1
   have g2 : ∀ y, y ≠ fU → y ≠ fV2 → Γ2.get y = Γ.get y := fun y h h' => by
-    simp only [Γ2, Env.get_cons, if_neg h]; exact g1 y h'
+    simp only [Γ2, Env.get_cons, ite_eq_right h]; exact g1 y h'
   refine call Γ2 fW3 3 (by decide) _ (hD _ (by simp)) (by rw [g2 _ (by decide) (by decide)]; exact hBA)
     (by rw [g2 _ (by decide) (by decide)]; exact hBN) (by rw [g2 _ (by decide) (by decide)]; exact hP)
     (fun w2 s2 hK2 hd2 hs2 => ?_)
   have hn2 := slotN hK2 rfl hs2
   let Γ3 : Env := (fW3, w2) :: Γ2
   have g3 : ∀ y, y ≠ fW3 → y ≠ fU → y ≠ fV2 → Γ3.get y = Γ.get y := fun y h h1 h2 => by
-    simp only [Γ3, Env.get_cons, if_neg h]; exact g2 y h1 h2
+    simp only [Γ3, Env.get_cons, ite_eq_right h]; exact g2 y h1 h2
   refine call Γ3 kVl 4 (by decide) _ (hD _ (by simp)) (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hBA)
     (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hBN)
     (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hP) (fun w3 s3 hK3 hd3 hs3 => ?_)
   have hn3 := slotN hK3 rfl hs3
   let Γ4 : Env := (kVl, w3) :: Γ3
   have g4 : ∀ y, y ≠ kVl → y ≠ fW3 → y ≠ fU → y ≠ fV2 → Γ4.get y = Γ.get y := fun y h h1 h2 h3 => by
-    simp only [Γ4, Env.get_cons, if_neg h]; exact g3 y h1 h2 h3
+    simp only [Γ4, Env.get_cons, ite_eq_right h]; exact g3 y h1 h2 h3
   refine call Γ4 kUs 0 (by decide) _ (hD _ (by simp))
     (by rw [g4 _ (by decide) (by decide) (by decide) (by decide)]; exact hBA)
     (by rw [g4 _ (by decide) (by decide) (by decide) (by decide)]; exact hBN)
@@ -280,8 +280,8 @@ theorem opLine_spec (C : Ctx) (hok : CtxOK C)
   rw [← hd4.2.2] at hb4
   let Γ5 : Env := (kUs, w4) :: Γ4
   have g5 : ∀ y, y ≠ kUs → y ≠ kVl → y ≠ fW3 → y ≠ fU → y ≠ fV2 → Γ5.get y = Γ.get y := fun y h0 h h1 h2 h3 => by
-    simp only [Γ5, Env.get_cons, if_neg h0]; exact g4 y h h1 h2 h3
-  refine opP_ifun C s Γ5 M D w4 (by simp only [Γ5, Env.get_cons, if_pos]) (fun hz => ?_)
+    simp only [Γ5, Env.get_cons, ite_eq_right h0]; exact g4 y h h1 h2 h3
+  refine opP_ifun C s Γ5 M D w4 (by simp only [Γ5, Env.get_cons, ite_eq_left]) (fun hz => ?_)
   have hsafe : (s0.getD 0 default).bool = false := by
     cases hbv : (s0.getD 0 default).bool
     · rfl
@@ -305,14 +305,14 @@ theorem opLine_spec (C : Ctx) (hok : CtxOK C)
     (by rw [g5 _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hTN)
     (by rw [g5 _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hTE)
     (by rw [g5 _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hC)
-    (by simp only [Γ5, Γ4, Γ3, Γ2, Env.get_cons, if_neg (show fU ≠ kUs by decide), if_neg (show fU ≠ kVl by decide),
-          if_neg (show fU ≠ fW3 by decide), if_pos]
+    (by simp only [Γ5, Γ4, Γ3, Γ2, Env.get_cons, ite_eq_right (show fU ≠ kUs by decide), ite_eq_right (show fU ≠ kVl by decide),
+          ite_eq_right (show fU ≠ fW3 by decide), ite_eq_left]
         rw [hn1])
-    (by simp only [Γ5, Γ4, Γ3, Env.get_cons, if_neg (show fW3 ≠ kUs by decide), if_neg (show fW3 ≠ kVl by decide),
-          if_pos]; rw [hn2])
-    (by simp only [Γ5, Γ4, Env.get_cons, if_neg (show kVl ≠ kUs by decide), if_pos]; rw [hn3])
-    (by simp only [Γ5, Γ4, Γ3, Γ2, Γ1, Env.get_cons, if_neg (show fV2 ≠ kUs by decide),
-          if_neg (show fV2 ≠ kVl by decide), if_neg (show fV2 ≠ fW3 by decide), if_neg (show fV2 ≠ fU by decide), if_pos])
+    (by simp only [Γ5, Γ4, Γ3, Env.get_cons, ite_eq_right (show fW3 ≠ kUs by decide), ite_eq_right (show fW3 ≠ kVl by decide),
+          ite_eq_left]; rw [hn2])
+    (by simp only [Γ5, Γ4, Env.get_cons, ite_eq_right (show kVl ≠ kUs by decide), ite_eq_left]; rw [hn3])
+    (by simp only [Γ5, Γ4, Γ3, Γ2, Γ1, Env.get_cons, ite_eq_right (show fV2 ≠ kUs by decide),
+          ite_eq_right (show fV2 ≠ kVl by decide), ite_eq_right (show fV2 ≠ fW3 by decide), ite_eq_right (show fV2 ≠ fU by decide), ite_eq_left])
     (by rw [g5 _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hBA)
     (by rw [g5 _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hBN)
     (by rw [g5 _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hRB)
@@ -379,27 +379,27 @@ theorem dfLine_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
   subst hd0
   have hl0 := slotL hK0 rfl hs0
   let Γ1 : Env := (fV2, w0) :: Γ
-  have g1 : ∀ y, y ≠ fV2 → Γ1.get y = Γ.get y := fun y h => by simp only [Γ1, Env.get_cons, if_neg h]
+  have g1 : ∀ y, y ≠ fV2 → Γ1.get y = Γ.get y := fun y h => by simp only [Γ1, Env.get_cons, ite_eq_right h]
   refine call Γ1 fU 2 (by decide) _ (hD _ (by simp)) (by rw [g1 _ (by decide)]; exact hBA)
     (by rw [g1 _ (by decide)]; exact hBN) (by rw [g1 _ (by decide)]; exact hP) (fun w1 s1 hK1 hd1 hs1 => ?_)
   have hn1 := slotN hK1 rfl hs1
   let Γ2 : Env := (fU, w1) :: Γ1
   have g2 : ∀ y, y ≠ fU → y ≠ fV2 → Γ2.get y = Γ.get y := fun y h h' => by
-    simp only [Γ2, Env.get_cons, if_neg h]; exact g1 y h'
+    simp only [Γ2, Env.get_cons, ite_eq_right h]; exact g1 y h'
   refine call Γ2 fW3 4 (by decide) _ (hD _ (by simp)) (by rw [g2 _ (by decide) (by decide)]; exact hBA)
     (by rw [g2 _ (by decide) (by decide)]; exact hBN) (by rw [g2 _ (by decide) (by decide)]; exact hP)
     (fun w2 s2 hK2 hd2 hs2 => ?_)
   have hn2 := slotN hK2 rfl hs2
   let Γ3 : Env := (fW3, w2) :: Γ2
   have g3 : ∀ y, y ≠ fW3 → y ≠ fU → y ≠ fV2 → Γ3.get y = Γ.get y := fun y h h1 h2 => by
-    simp only [Γ3, Env.get_cons, if_neg h]; exact g2 y h1 h2
+    simp only [Γ3, Env.get_cons, ite_eq_right h]; exact g2 y h1 h2
   refine call Γ3 kVl 5 (by decide) _ (hD _ (by simp)) (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hBA)
     (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hBN)
     (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hP) (fun w3 s3 hK3 hd3 hs3 => ?_)
   have hn3 := slotN hK3 rfl hs3
   let Γ4 : Env := (kVl, w3) :: Γ3
   have g4 : ∀ y, y ≠ kVl → y ≠ fW3 → y ≠ fU → y ≠ fV2 → Γ4.get y = Γ.get y := fun y h h1 h2 h3 => by
-    simp only [Γ4, Env.get_cons, if_neg h]; exact g3 y h1 h2 h3
+    simp only [Γ4, Env.get_cons, ite_eq_right h]; exact g3 y h1 h2 h3
   refine call Γ4 kHn 0 (by decide) _ (hD _ (by simp))
     (by rw [g4 _ (by decide) (by decide) (by decide) (by decide)]; exact hBA)
     (by rw [g4 _ (by decide) (by decide) (by decide) (by decide)]; exact hBN)
@@ -407,7 +407,7 @@ theorem dfLine_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
   have hh4 := slotH hK4 rfl hs4
   let Γ5 : Env := (kHn, w4) :: Γ4
   have g5 : ∀ y, y ≠ kHn → y ≠ kVl → y ≠ fW3 → y ≠ fU → y ≠ fV2 → Γ5.get y = Γ.get y := fun y h0 h h1 h2 h3 => by
-    simp only [Γ5, Env.get_cons, if_neg h0]; exact g4 y h h1 h2 h3
+    simp only [Γ5, Env.get_cons, ite_eq_right h0]; exact g4 y h h1 h2 h3
   refine call Γ5 kSf 3 (by decide) _ (hD _ (by simp))
     (by rw [g5 _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hBA)
     (by rw [g5 _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hBN)
@@ -421,7 +421,7 @@ theorem dfLine_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
   rw [← hd5.2.2.2] at hs5'
   let Γ6 : Env := (kSf, w5) :: Γ5
   have g6 : ∀ y, y ≠ kSf → y ≠ kHn → y ≠ kVl → y ≠ fW3 → y ≠ fU → y ≠ fV2 → Γ6.get y = Γ.get y :=
-    fun y h00 h0 h h1 h2 h3 => by simp only [Γ6, Env.get_cons, if_neg h00]; exact g5 y h0 h h1 h2 h3
+    fun y h00 h0 h h1 h2 h3 => by simp only [Γ6, Env.get_cons, ite_eq_right h00]; exact g5 y h0 h h1 h2 h3
   have hus : (s0.getD 1 default).list.length < 2 ^ 59 := by
     have := hbuf.small
     rcases hl0 with ⟨p, e', -, hsc'⟩ | ⟨h0, -⟩
@@ -439,18 +439,18 @@ theorem dfLine_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
     (by rw [g6 _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hTN)
     (by rw [g6 _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hTE)
     (by rw [g6 _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hC)
-    (by simp only [Γ6, Γ5, Γ4, Γ3, Γ2, Env.get_cons, if_neg (show fU ≠ kSf by decide), if_neg (show fU ≠ kHn by decide),
-          if_neg (show fU ≠ kVl by decide), if_neg (show fU ≠ fW3 by decide), if_pos]
+    (by simp only [Γ6, Γ5, Γ4, Γ3, Γ2, Env.get_cons, ite_eq_right (show fU ≠ kSf by decide), ite_eq_right (show fU ≠ kHn by decide),
+          ite_eq_right (show fU ≠ kVl by decide), ite_eq_right (show fU ≠ fW3 by decide), ite_eq_left]
         rw [hn1])
-    (by simp only [Γ6, Γ5, Γ4, Γ3, Env.get_cons, if_neg (show fW3 ≠ kSf by decide), if_neg (show fW3 ≠ kHn by decide),
-          if_neg (show fW3 ≠ kVl by decide), if_pos]; rw [hn2])
-    (by simp only [Γ6, Γ5, Γ4, Env.get_cons, if_neg (show kVl ≠ kSf by decide), if_neg (show kVl ≠ kHn by decide),
-          if_pos]; rw [hn3])
-    (by simp only [Γ6, Γ5, Γ4, Γ3, Γ2, Γ1, Env.get_cons, if_neg (show fV2 ≠ kSf by decide),
-          if_neg (show fV2 ≠ kHn by decide), if_neg (show fV2 ≠ kVl by decide), if_neg (show fV2 ≠ fW3 by decide),
-          if_neg (show fV2 ≠ fU by decide), if_pos])
-    (by simp only [Γ6, Γ5, Env.get_cons, if_neg (show kHn ≠ kSf by decide), if_pos])
-    (by simp only [Γ6, Env.get_cons, if_pos])
+    (by simp only [Γ6, Γ5, Γ4, Γ3, Env.get_cons, ite_eq_right (show fW3 ≠ kSf by decide), ite_eq_right (show fW3 ≠ kHn by decide),
+          ite_eq_right (show fW3 ≠ kVl by decide), ite_eq_left]; rw [hn2])
+    (by simp only [Γ6, Γ5, Γ4, Env.get_cons, ite_eq_right (show kVl ≠ kSf by decide), ite_eq_right (show kVl ≠ kHn by decide),
+          ite_eq_left]; rw [hn3])
+    (by simp only [Γ6, Γ5, Γ4, Γ3, Γ2, Γ1, Env.get_cons, ite_eq_right (show fV2 ≠ kSf by decide),
+          ite_eq_right (show fV2 ≠ kHn by decide), ite_eq_right (show fV2 ≠ kVl by decide), ite_eq_right (show fV2 ≠ fW3 by decide),
+          ite_eq_right (show fV2 ≠ fU by decide), ite_eq_left])
+    (by simp only [Γ6, Γ5, Env.get_cons, ite_eq_right (show kHn ≠ kSf by decide), ite_eq_left])
+    (by simp only [Γ6, Env.get_cons, ite_eq_left])
     (by rw [g6 _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hBA)
     (by rw [g6 _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hBN)
     (by rw [g6 _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hRB)

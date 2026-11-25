@@ -579,17 +579,17 @@ theorem view_app_some (st : EStore) (i : EIdx) (f a : EIdx) (h4 : i.tag = 4) (hv
   simp only [EStore.view] at hv
   simp only [EStore.viewApp, EStore.persGetApp]
   split
-  · rename_i hp; rw [if_pos hp] at hv
+  · rename_i hp; rw [ite_eq_left hp] at hv
     simp only [ETables.get, h4, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, hw] at hv
     simp only [ETables.getApp, hw, ↓reduceIte]
     revert hv; cases st.pers.apps.node? i.idxNat <;> simp
-  · rename_i hp; rw [if_neg hp] at hv
+  · rename_i hp; rw [ite_eq_right hp] at hv
     split
-    · rename_i hon; rw [if_pos hon] at hv
+    · rename_i hon; rw [ite_eq_left hon] at hv
       simp only [ETables.get, h4, ETag.bvar, ETag.fvar, ETag.sort, ETag.const, ETag.app, hw] at hv
       simp only [ETables.getApp, hw, ↓reduceIte]
       revert hv; cases st.scr.apps.node? i.idxNat <;> simp
-    · rename_i hon; rw [if_neg hon] at hv; exact absurd hv (by simp)
+    · rename_i hon; rw [ite_eq_right hon] at hv; exact absurd hv (by simp)
 
 theorem viewApp_run (h : EIdx) (s : AState) : ConRon.Arena.viewApp h s = .ok (s.store.viewApp h, s) := rfl
 

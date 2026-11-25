@@ -163,7 +163,7 @@ theorem specR_enterPlainI {β : Type} {C : Ctx} (hok : CtxOK C) (hsv : C.saved =
     rw [ConsLoop.assign_local t lEo _ 0 w0 (eval_gv t gEo 0 g) h0]
     exact Or.inr ⟨rfl, inv_set ht lEo 0⟩
   intro t ht
-  rw [ite_word t (vv lEo) _ _ 0 (inv_ev ht (by simp [sev, Env.get])), if_neg (by simp)]
+  rw [ite_word t (vv lEo) _ _ 0 (inv_ev ht (by simp [sev, Env.get])), ite_eq_right (by simp)]
   refine step_seq (step_setEo (s := s) (s' := eagerIn s) (some s.caches.modeMemos) C.EO rfl rfl rfl ⟨rfl, rfl, rfl⟩ (fun h => cachesOK_congr h rfl ⟨rfl, rfl, rfl, rfl, rfl⟩) (fun u hu => ?_))
     (step_assignI x (.const 1) 1 hx rfl) t ht
   obtain ⟨_, h1, h2⟩ := modeAt_none hsv hu.mode
@@ -185,7 +185,7 @@ theorem specR_enterEagerI {β : Type} {C : Ctx} (hok : CtxOK C) {mm : ModeMemos}
     rw [ConsLoop.assign_local t lEo _ C.EO w0 (eval_gv t gEo _ g) h0]
     exact Or.inr ⟨rfl, inv_set ht lEo C.EO⟩
   intro t ht
-  rw [ite_word t (vv lEo) _ _ C.EO (inv_ev ht (by simp [sev, Env.get])), if_pos hok.eoNe]
+  rw [ite_word t (vv lEo) _ _ C.EO (inv_ev ht (by simp [sev, Env.get])), ite_eq_left hok.eoNe]
   exact step_assignI x (.const 0) 0 hx rfl t ht
 
 /-- `leaveEager (some mm)` back to plain mode. -/
@@ -197,7 +197,7 @@ theorem specR_leaveSomeI {β : Type} {C : Ctx} (hok : CtxOK C) {mm : ModeMemos} 
     SpecR (Inv C s Γ M D) (.seq (leaveBlk e) rest) s (leaveEager (some mm) >>= k) R := by
   refine specR_runBind (leaveEager_some_run s mm) (specR_step ?_ hk)
   intro t ht
-  rw [leaveBlk, ite_word t e _ _ w (inv_ev ht he), if_pos hw]
+  rw [leaveBlk, ite_word t e _ _ w (inv_ev ht he), ite_eq_left hw]
   refine step_setEo (s := s) (s' := eagerOut s mm) none 0 rfl rfl rfl ⟨rfl, rfl, rfl⟩ (fun h => cachesOK_congr h rfl ⟨rfl, rfl, rfl, rfl, rfl⟩) (fun u hu => ?_) t ht
   obtain ⟨_, h1, h2, _⟩ := modeAt_some hsv hu.mode
   refine ⟨setG_same u _ _, ?_, ?_⟩
@@ -211,7 +211,7 @@ theorem specR_leaveNoneI {β : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem}
     SpecR (Inv C s Γ M D) (.seq (leaveBlk e) rest) s (leaveEager none >>= k) R := by
   refine specR_runBind (leaveEager_none_run s) (specR_step ?_ hk)
   intro t ht
-  rw [leaveBlk, ite_word t e _ _ 0 (inv_ev ht he), if_neg (by simp)]
+  rw [leaveBlk, ite_word t e _ _ 0 (inv_ev ht he), ite_eq_right (by simp)]
   exact Or.inr ⟨by rw [evaluateHOLFiniteState_eq_evaluate_def], by rw [evaluateHOLFiniteState_eq_evaluate_def]; exact ht⟩
 
 end

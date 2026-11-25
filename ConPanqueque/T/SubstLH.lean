@@ -29,8 +29,8 @@ theorem internNNode_frameC (v : NNodeView) (s : AState) (c : Caches) :
     simp only
     by_cases hc : (if s.store.ns.scratchOn = true then s.store.ns.scr.sizeOf v else s.store.ns.pers.sizeOf v) <
         Idx.idxCap
-    · rw [if_pos hc, if_pos hc]; rfl
-    · rw [if_neg hc, if_neg hc]; rfl
+    · rw [ite_eq_left hc, ite_eq_left hc]; rfl
+    · rw [ite_eq_right hc, ite_eq_right hc]; rfl
 
 theorem internLNode_frameC (v : LNodeView) (s : AState) (c : Caches) :
     internLNode v (withC s c) = (internLNode v s).map (fun p => (p.1, withC p.2 c)) := by
@@ -43,8 +43,8 @@ theorem internLNode_frameC (v : LNodeView) (s : AState) (c : Caches) :
     simp only
     by_cases hc : (if s.store.ls.scratchOn = true then s.store.ls.scr.sizeOf v else s.store.ls.pers.sizeOf v) <
         Idx.idxCap
-    · rw [if_pos hc, if_pos hc]; rfl
-    · rw [if_neg hc, if_neg hc]; rfl
+    · rw [ite_eq_left hc, ite_eq_left hc]; rfl
+    · rw [ite_eq_right hc, ite_eq_right hc]; rfl
 
 theorem internName_frameC (c : Caches) : ∀ (n : ConLeche.Name) (s : AState),
     internName n (withC s c) = (internName n s).map (fun p => (p.1, withC p.2 c)) := by

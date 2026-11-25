@@ -66,16 +66,16 @@ theorem lvPairLine_spec {α : Type} (C : Ctx) (hok : CtxOK C)
   unfold lvPairLineP
   refine specR_step (nth Γ fU 0 (by decide) (hD _ (by simp)) hBA hBN hP) ?_
   have g1 : ∀ y, y ≠ fU → Env.get ((fU, nnRes [a, d] 0) :: Γ) y = Γ.get y := fun y h => by
-    simp only [Env.get_cons, if_neg h]
+    simp only [Env.get_cons, ite_eq_right h]
   refine specR_step (nth _ fV2 1 (by decide) (hD _ (by simp)) (by rw [g1 _ (by decide)]; exact hBA)
     (by rw [g1 _ (by decide)]; exact hBN) (by rw [g1 _ (by decide)]; exact hP)) ?_
   let Γ2 : Env := (fV2, nnRes [a, d] 1) :: (fU, nnRes [a, d] 0) :: Γ
   have g2 : ∀ y, y ≠ fV2 → y ≠ fU → Γ2.get y = Γ.get y := fun y h h' => by
-    simp only [Γ2, Env.get_cons, if_neg h, if_neg h']
+    simp only [Γ2, Env.get_cons, ite_eq_right h, ite_eq_right h']
   refine specR_capG fI i (by rw [g2 _ (by decide) (by decide)]; exact hI) (fun hiN hI' => ?_)
-  refine specR_capG fU a (by simp only [Γ2, Env.get_cons, if_neg (show fU ≠ fV2 by decide), if_pos]; rfl)
+  refine specR_capG fU a (by simp only [Γ2, Env.get_cons, ite_eq_right (show fU ≠ fV2 by decide), ite_eq_left]; rfl)
     (fun haN hU' => ?_)
-  refine specR_capG fV2 d (by simp only [Γ2, Env.get_cons, if_pos]; rfl) (fun hdN hV' => ?_)
+  refine specR_capG fV2 d (by simp only [Γ2, Env.get_cons, ite_eq_left]; rfl) (fun hdN hV' => ?_)
   exact hspec Γ2 hiN haN hdN hI' hU' hV' (fun y h h' => g2 y h' h)
 
 end ConPanqueque.Front

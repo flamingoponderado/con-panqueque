@@ -215,8 +215,8 @@ theorem fetch1_gen {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env}
   refine hk _ M2 P2 wa wx (fun z hz => ?_) ?_ ra (by simp +decide [hy2]) (by simp) qx
   · simp only [fScr, List.mem_append, List.mem_cons, List.not_mem_nil, or_false, not_or] at hz
     obtain ⟨hz1, hz2, hz3, hz4, hz5⟩ := hz
-    simp only [Env.get_cons, hz4, if_false]
-    rw [hp2 _ hz1]; simp only [Env.get_cons, hz2, hz3, if_false]; rw [hp1 _ hz1]; simp [hz2]
+    simp only [Env.get_cons, hz4, ite_false]
+    rw [hp2 _ hz1]; simp only [Env.get_cons, hz2, hz3, ite_false]; rw [hp1 _ hz1]; simp [hz2]
   · simp +decide; rw [hp2 _ (by decide)]; simp +decide
 
 /-- `fetch1` at `imax a (param p)`: the name handle lands in `bx`. -/
@@ -257,7 +257,7 @@ theorem fetch2_spec {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env
     (by simp +decide [sev, gy]) (by simp) my ?_
   refine hk _ M' wa wx wy (fun z hz => ?_) (by simp +decide [ga]) ra (by simp +decide [gx]) rx (by simp) ry
   simp only [fScr, List.mem_append, List.mem_cons, List.not_mem_nil, or_false, not_or] at hz
-  simp only [Env.get_cons, hz.2.2.2.2, if_false]; exact hp z (by
+  simp only [Env.get_cons, hz.2.2.2.2, ite_false]; exact hp z (by
     simp only [fScr, List.mem_append, List.mem_cons, List.not_mem_nil, or_false, not_or]; exact hz)
 
 end
@@ -419,7 +419,7 @@ theorem im_spec (C : Ctx) (hok : CtxOK C)
     refine callLv_spec (C := ctxH C H3) lW fSimp [pLa] [vv lW] (simpBody C) [w] (by decide) rfl (by decide) hcM
       ⟨by simp [g3], trivial⟩ _ (simp_spec C hok hcM hcC _ H3 w s hw) (fun H4 w4 hp4 hr4 => ?_)
     refine callOB_spec (C := ctxH C H4) lV fLeq leqParams [vv pFu, vv lW, vv pLb, vv pD] B [BitVec.ofNat 64 n, w4, wr, iW d] (by decide) rfl (by decide) hcL
-      ⟨by simp only [sev_vv, Env.get_cons]; rw [if_neg (by decide), gg _ (by decide) (by decide) (by decide) (by decide)]; exact gFu, by simp, by simp only [sev_vv, Env.get_cons]; rw [if_neg (by decide), gg _ (by decide) (by decide) (by decide) (by decide)]; exact gLb, by simp only [sev_vv, Env.get_cons]; rw [if_neg (by decide), gg _ (by decide) (by decide) (by decide) (by decide)]; exact gD, trivial⟩ _ (ih H4 _ _ w4 wr d s hr4 (lrep_mono (hp3.trans hp4) _ wr hr) hd) ?_
+      ⟨by simp only [sev_vv, Env.get_cons]; rw [ite_eq_right (by decide), gg _ (by decide) (by decide) (by decide) (by decide)]; exact gFu, by simp, by simp only [sev_vv, Env.get_cons]; rw [ite_eq_right (by decide), gg _ (by decide) (by decide) (by decide) (by decide)]; exact gLb, by simp only [sev_vv, Env.get_cons]; rw [ite_eq_right (by decide), gg _ (by decide) (by decide) (by decide) (by decide)]; exact gD, trivial⟩ _ (ih H4 _ _ w4 wr d s hr4 (lrep_mono (hp3.trans hp4) _ wr hr) hd) ?_
     exact specR_returnI (vv lV) _ (by simp) (fun t ht => ⟨rfl, sr_weakenH (C := ctxH C H) (H := H4)
       (sr_of_eq ht.sr rfl rfl rfl rfl) (hp3.trans hp4)⟩)
   refine specR_ifEq lPb (innerCode r) 3 (by omega) (by decide) gTr (fun e => ?_) (fun e5 => ?_)
@@ -446,7 +446,7 @@ theorem im_spec (C : Ctx) (hok : CtxOK C)
     refine callLv_spec (C := ctxH C H3) lW fSimp [pLa] [vv lW] (simpBody C) [w] (by decide) rfl (by decide) hcM
       ⟨by simp [g3], trivial⟩ _ (simp_spec C hok hcM hcC _ H3 w s hw) (fun H4 w4 hp4 hr4 => ?_)
     refine callOB_spec (C := ctxH C H4) lV fLeq leqParams [vv pFu, vv pLa, vv lW, vv pD] B [BitVec.ofNat 64 n, wl, w4, iW d] (by decide) rfl (by decide) hcL
-      ⟨by simp only [sev_vv, Env.get_cons]; rw [if_neg (by decide), gg _ (by decide) (by decide) (by decide) (by decide)]; exact gFu, by simp only [sev_vv, Env.get_cons]; rw [if_neg (by decide), gg _ (by decide) (by decide) (by decide) (by decide)]; exact gLa, by simp, by simp only [sev_vv, Env.get_cons]; rw [if_neg (by decide), gg _ (by decide) (by decide) (by decide) (by decide)]; exact gD, trivial⟩ _ (ih H4 _ _ wl w4 d s (lrep_mono (hp3.trans hp4) _ wl hl) hr4 hd) ?_
+      ⟨by simp only [sev_vv, Env.get_cons]; rw [ite_eq_right (by decide), gg _ (by decide) (by decide) (by decide) (by decide)]; exact gFu, by simp only [sev_vv, Env.get_cons]; rw [ite_eq_right (by decide), gg _ (by decide) (by decide) (by decide) (by decide)]; exact gLa, by simp, by simp only [sev_vv, Env.get_cons]; rw [ite_eq_right (by decide), gg _ (by decide) (by decide) (by decide) (by decide)]; exact gD, trivial⟩ _ (ih H4 _ _ wl w4 d s (lrep_mono (hp3.trans hp4) _ wl hl) hr4 hd) ?_
     exact specR_returnI (vv lV) _ (by simp) (fun t ht => ⟨rfl, sr_weakenH (C := ctxH C H) (H := H4)
       (sr_of_eq ht.sr rfl rfl rfl rfl) (hp3.trans hp4)⟩)
   rw [ir_c7 n l r d e1 e3 e4 e2 e5 e6]

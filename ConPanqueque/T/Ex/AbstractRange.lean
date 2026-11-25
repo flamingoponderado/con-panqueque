@@ -554,13 +554,13 @@ theorem absR_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : C
       refine specR_ifI _ 1 (by simp +decide [sev, natW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hle, ctxEnv])
         (fun _ => ?_)
         (fun hw => absurd hw (by decide))
-      refine specR_congr (by rw [if_pos g]) ?_
+      refine specR_congr (by rw [ite_eq_left g]) ?_
       exact specR_returnI (vv pH) (Enc.idxW h) (by simp +decide [ctxEnv]) (fun t ht => ⟨rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     have hlt : BitVec.ofNat 64 d < BitVec.ofNat 64 fb := (word_lt_iff d fb (by omega) (by omega)).mpr (by omega)
     have hnle : ¬ BitVec.ofNat 64 fb ≤ BitVec.ofNat 64 d := BitVec.not_le.mpr hlt
     refine specR_ifI _ 0 (by simp +decide [sev, natW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hnle, ctxEnv])
       (fun hw => absurd rfl hw) (fun _ => ?_)
-    refine specR_congr (by rw [if_neg g]) ?_
+    refine specR_congr (by rw [ite_eq_right g]) ?_
     refine specR_iteI (isAppE (vv pH)) (isAppW (Enc.idxW h)) ?_
       (by rw [isApp_iff]; simp [ETag.app]) (fun hb => ?_) (fun _ => ?_)
     · exact Ex2.sev_isApp _ pH _ (by simp +decide [ctxEnv])
@@ -614,7 +614,7 @@ theorem fastR_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
   have hne : BitVec.ofNat 64 kk ≠ 0#64 := ofNat_ne_zero kk k0 (by omega)
   refine specR_ifI _ 0 (by simp +decide [sev, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne])
     (fun hw => absurd rfl hw) (fun _ => ?_)
-  refine specR_congr (by rw [if_neg k0]) ?_
+  refine specR_congr (by rw [ite_eq_right k0]) ?_
   refine specR_memoClearI hok .abs1 abs1Clear abs1Clear_run (by decide) ?_
   refine specR_call5IM lW fAbsR pAd pAk pFu pH pD (by decide) _ _ _ _ _ (bodyR C) (BitVec.ofNat 64 d)
     (BitVec.ofNat 64 kk) (BitVec.ofNat 64 fuel) (Enc.idxW e) (BitVec.ofNat 64 c) (by decide) hc.absR

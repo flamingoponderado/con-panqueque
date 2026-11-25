@@ -245,25 +245,25 @@ theorem whnf_succ {C : Ctx} (hok : CtxOK C)
   unfold stuckChain
   refine specR_tagIteV kE e 2 (by decide) (by decide) hE (fun ht => ?_) (fun h2 => ?_)
   · have : whnfStuckTag e = true := by simp [whnfStuckTag, ht, ETag.sort]
-    rw [if_pos this]; exact stuckRet
+    rw [ite_eq_left this]; exact stuckRet
   refine specR_tagIteV kE e 1 (by decide) (by decide) hE (fun ht => ?_) (fun h1 => ?_)
   · have : whnfStuckTag e = true := by simp [whnfStuckTag, ht, ETag.sort, ETag.fvar]
-    rw [if_pos this]; exact stuckRet
+    rw [ite_eq_left this]; exact stuckRet
   refine specR_tagIteV kE e 5 (by decide) (by decide) hE (fun ht => ?_) (fun h5 => ?_)
   · have : whnfStuckTag e = true := by simp [whnfStuckTag, ht, ETag.sort, ETag.fvar, ETag.lam]
-    rw [if_pos this]; exact stuckRet
+    rw [ite_eq_left this]; exact stuckRet
   refine specR_tagIteV kE e 6 (by decide) (by decide) hE (fun ht => ?_) (fun h6 => ?_)
   · have : whnfStuckTag e = true := by simp [whnfStuckTag, ht, ETag.sort, ETag.fvar, ETag.lam, ETag.forallE]
-    rw [if_pos this]; exact stuckRet
+    rw [ite_eq_left this]; exact stuckRet
   refine specR_tagIteV kE e 8 (by decide) (by decide) hE (fun ht => ?_) (fun h8 => ?_)
   · have : whnfStuckTag e = true := by
       simp [whnfStuckTag, ht, ETag.sort, ETag.fvar, ETag.lam, ETag.forallE, ETag.lit]
-    rw [if_pos this]; exact stuckRet
+    rw [ite_eq_left this]; exact stuckRet
   have : whnfStuckTag e = false := by
     simp only [whnfStuckTag, ETag.sort, ETag.fvar, ETag.lam, ETag.forallE, ETag.lit, beq_iff_eq]
-    rw [if_neg (by simpa using h2), if_neg (by simpa using h1), if_neg (by simpa using h5),
-      if_neg (by simpa using h6), if_neg (by simpa using h8)]
-  rw [if_neg (by rw [this]; decide)]
+    rw [ite_eq_right (by simpa using h2), ite_eq_right (by simpa using h1), ite_eq_right (by simpa using h5),
+      ite_eq_right (by simpa using h6), ite_eq_right (by simpa using h8)]
+  rw [ite_eq_right (by rw [this]; decide)]
   exact memoEntry_spec hok .whnf hcodeG hcodeP hcodeS hcodeI fB B hcB whnfSet (fun _ _ _ => rfl) n d e body hbody
     (by simp +decide [Env.get, kParams, ctxEnv]) (by simp +decide [Env.get, kParams, ctxEnv]) hE
     (by simp +decide [Env.get, kParams, ctxEnv]) (by decide)

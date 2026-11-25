@@ -2653,11 +2653,11 @@ theorem dk_cc (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)
   swap
   · have hne : Enc.idxW n1 ≠ Enc.idxW n2 := fun e => hn (Enc.idxW_inj e)
     refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun h => absurd rfl h) (fun _ => ?_)
-    rw [if_neg hn]
+    rw [ite_eq_right hn]
     exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
   subst hn
   refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
-  rw [if_pos rfl]
+  rw [ite_eq_left rfl]
   refine specR_callNIH (C := ctxH C H) dkL LLeq.fLsGo LLeq.lsParams [vv dkU1, vv dkU2, .const 0] LLeq.lsGoBody
     [Enc.idxW us1, Enc.idxW us2, BitVec.ofNat 64 0] (by decide) rfl (by decide) hc2.ls
     ⟨by simp, by simp, rfl, trivial⟩
@@ -2730,10 +2730,10 @@ theorem dk_aa (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)
       simp only [BitVec.toNat_ofNat] at this
       rwa [Nat.mod_eq_of_lt (by omega), Nat.mod_eq_of_lt (by omega)] at this
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun _ => ?_) (fun h => absurd h (by decide))
-    rw [if_neg hln]
+    rw [ite_eq_right hln]
     exact dk_si mode n C hc hSI hEC d hdd a b Hb H2 hpb (hbH2) s2 _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
   refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hln]) (fun h => absurd rfl h) (fun _ => ?_)
-  rw [if_pos hln]
+  rw [ite_eq_left hln]
   refine specR_callNIM (C := ctxH C H2) dkFa fGetAppFn [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv dkA]
     getAppFnBody [BitVec.ofNat 64 coreWalkFuel, Enc.idxW a] (by decide) rfl (by decide) hc2.gaf
     ⟨rfl, by simp [hA], trivial⟩
@@ -2824,9 +2824,9 @@ theorem dk_la (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)
     refine specR_dropM ?_
     refine Knot.specR_tagIteV dkFo fo 3 (by decide) (by decide) (by simp) (fun htc => ?_) (fun htc => ?_)
     swap
-    · rw [if_neg (show ¬ (fo.tag == ETag.const) = true by simpa [ETag.const] using htc)]
+    · rw [ite_eq_right (show ¬ (fo.tag == ETag.const) = true by simpa [ETag.const] using htc)]
       exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
-    rw [if_pos (show (fo.tag == ETag.const) = true by simp [htc, ETag.const])]
+    rw [ite_eq_left (show (fo.tag == ETag.const) = true by simp [htc, ETag.const])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp [hFle]) ?_
     refine specR_assignI lDh (vv dkFo) (Enc.idxW fo) (by decide) (by simp) ?_
     refine specR_viewP (C := ctxH C H) fo (by simp) (by simp; rfl)
@@ -2849,14 +2849,14 @@ theorem dk_la (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)
     · have hne : Enc.idxW cO ≠ Enc.idxW ((ctxH C H).pins.names[PIN_STRING_OF_LIST]'(by rw [(ctxOK_H hok H).pinsRel.1]; decide)) :=
         fun e => h1 (Enc.idxW_inj e)
       refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun h => absurd rfl h) (fun _ => ?_)
-      rw [if_neg (fun h => h1 h.1)]
+      rw [ite_eq_right (fun h => h1 h.1)]
       exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, h1]) (fun _ => ?_) (fun h => absurd h (by decide))
     by_cases h2 : usO = (ctxH C H).pins.emptyLevels
     swap
     · have hne : Enc.idxW usO ≠ Enc.idxW (ctxH C H).pins.emptyLevels := fun e => h2 (Enc.idxW_inj e)
       refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun h => absurd rfl h) (fun _ => ?_)
-      rw [if_neg (fun h => h2 h.2.1)]
+      rw [ite_eq_right (fun h => h2 h.2.1)]
       exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, h2]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_gLitI dkLt (by decide) ?_
@@ -2864,10 +2864,10 @@ theorem dk_la (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)
     swap
     · have hf : (ctxH C H).fe.strLit = false := by simpa using hsl
       refine specR_ifI _ 0 (by simp [sev, litW_and2, hf, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
-      rw [if_neg (fun h => hsl h.2.2)]
+      rw [ite_eq_right (fun h => hsl h.2.2)]
       exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
     refine specR_ifI _ 2 (by simp [sev, litW_and2, hsl, boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
-    rw [if_pos ⟨h1, h2, hsl⟩]
+    rw [ite_eq_left ⟨h1, h2, hsl⟩]
     refine specR_callKH (C := ctxH C H) dkC Str.fTc [Str.tcH] [vv dkA] (Str.tcBody C) [Enc.idxW a] (by decide) rfl (by decide)
       hc2.tc ⟨by simp [hA], trivial⟩ (hTC H s a st hpH hv) (fun c s1 H1 hp1 => ?_)
     refine specR_congr (m' := (knot mode C n).defeq d c b >>= fun r => pure r) (by simp) ?_
@@ -2906,9 +2906,9 @@ theorem dk_al (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)
     refine specR_dropM ?_
     refine Knot.specR_tagIteV dkFo fo 3 (by decide) (by decide) (by simp) (fun htc => ?_) (fun htc => ?_)
     swap
-    · rw [if_neg (show ¬ (fo.tag == ETag.const) = true by simpa [ETag.const] using htc)]
+    · rw [ite_eq_right (show ¬ (fo.tag == ETag.const) = true by simpa [ETag.const] using htc)]
       exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
-    rw [if_pos (show (fo.tag == ETag.const) = true by simp [htc, ETag.const])]
+    rw [ite_eq_left (show (fo.tag == ETag.const) = true by simp [htc, ETag.const])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp [hFle]) ?_
     refine specR_assignI lDh (vv dkFo) (Enc.idxW fo) (by decide) (by simp) ?_
     refine specR_viewP (C := ctxH C H) fo (by simp) (by simp; rfl)
@@ -2931,14 +2931,14 @@ theorem dk_al (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)
     · have hne : Enc.idxW cO ≠ Enc.idxW ((ctxH C H).pins.names[PIN_STRING_OF_LIST]'(by rw [(ctxOK_H hok H).pinsRel.1]; decide)) :=
         fun e => h1 (Enc.idxW_inj e)
       refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun h => absurd rfl h) (fun _ => ?_)
-      rw [if_neg (fun h => h1 h.1)]
+      rw [ite_eq_right (fun h => h1 h.1)]
       exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, h1]) (fun _ => ?_) (fun h => absurd h (by decide))
     by_cases h2 : usO = (ctxH C H).pins.emptyLevels
     swap
     · have hne : Enc.idxW usO ≠ Enc.idxW (ctxH C H).pins.emptyLevels := fun e => h2 (Enc.idxW_inj e)
       refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun h => absurd rfl h) (fun _ => ?_)
-      rw [if_neg (fun h => h2 h.2.1)]
+      rw [ite_eq_right (fun h => h2 h.2.1)]
       exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, h2]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_gLitI dkLt (by decide) ?_
@@ -2946,10 +2946,10 @@ theorem dk_al (d : Nat) (hdd : d < 2 ^ 63) (a b : EIdx) (Hb H : List (BitVec 64)
     swap
     · have hf : (ctxH C H).fe.strLit = false := by simpa using hsl
       refine specR_ifI _ 0 (by simp [sev, litW_and2, hf, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
-      rw [if_neg (fun h => hsl h.2.2)]
+      rw [ite_eq_right (fun h => hsl h.2.2)]
       exact dk_si mode n C hc hSI hEC d hdd a b Hb H hpb (hbH) s _ _ (by simp [hFu]) (by simp [hDd]) (by simp [hA]) (by simp [hB])
     refine specR_ifI _ 2 (by simp [sev, litW_and2, hsl, boolW]) (fun _ => ?_) (fun h => absurd h (by decide))
-    rw [if_pos ⟨h1, h2, hsl⟩]
+    rw [ite_eq_left ⟨h1, h2, hsl⟩]
     refine specR_callKH (C := ctxH C H) dkC Str.fTc [Str.tcH] [vv dkB] (Str.tcBody C) [Enc.idxW b] (by decide) rfl (by decide)
       hc2.tc ⟨by simp [hB], trivial⟩ (hTC H s b st hpH hv) (fun c s1 H1 hp1 => ?_)
     refine specR_congr (m' := (knot mode C n).defeq d a c >>= fun r => pure r) (by simp) ?_

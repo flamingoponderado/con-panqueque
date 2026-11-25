@@ -72,7 +72,7 @@ theorem sr_write {C : Ctx} (hok : CtxOK C) {s : AState} (j0 : Nat) (hal : (cellA
       have hm : (@panWriteBytearrayWord8HOL 64 _ (cellA C j0 + BitVec.ofNat 64 (a + 1)) xs t.memory t.memaddrs inst false)
           (cellA C (j0 + a / 8)) = .word H1[j0 + a / 8] := hc.2
       have hd : t.memaddrs (cellA C (j0 + a / 8)) := hc.1
-      simp only [panMemStoreByteWord8HOL, hal', hm, if_pos hd, List.getElem?_eq_getElem hj, Option.getD_some]
+      simp only [panMemStoreByteWord8HOL, hal', hm, ite_eq_left hd, List.getElem?_eq_getElem hj, Option.getD_some]
       rfl
     rw [show ({ t with memory := (@panWriteBytearrayWord8HOL 64 _ (cellA C j0 + BitVec.ofNat 64 a) (x :: xs) t.memory
       t.memaddrs inst false) } : PState σ) = { t1 with memory := (fun c => if c = cellA (ctxH C H1) (j0 + a / 8) then
@@ -105,22 +105,22 @@ theorem writeH_byte (H : List (BitVec 64)) (A0 : BitVec 64) (j0 : Nat) (hal : A0
     rw [getElem?_set' _ _ _ _ hlen]
     simp only [List.length_cons] at *
     by_cases hc : j0 + a / 8 = j0 + p / 8
-    · rw [if_pos hc, Option.getD_some, byteW_setByte _ _ _ _ (Nat.mod_lt _ (by decide)), hm8]
+    · rw [ite_eq_left hc, Option.getD_some, byteW_setByte _ _ _ _ (Nat.mod_lt _ (by decide)), hm8]
       by_cases hpa : p = a
       · subst hpa
-        rw [if_pos rfl, if_pos ⟨Nat.le_refl _, by omega⟩]
+        rw [ite_eq_left rfl, ite_eq_left ⟨Nat.le_refl _, by omega⟩]
         simp only [Nat.sub_self, List.getElem?_cons_zero, Option.getD_some, BitVec.toNat_ofNat]
         have := x.isLt; omega
       · have hne : ¬ p % 8 = a % 8 := by omega
-        rw [if_neg hne, hc, ih]
+        rw [ite_eq_right hne, hc, ih]
         by_cases hin : a + 1 ≤ p ∧ p < a + 1 + xs.length
-        · rw [if_pos hin, if_pos ⟨by omega, by omega⟩, show p - a = (p - (a + 1)) + 1 by omega,
+        · rw [ite_eq_left hin, ite_eq_left ⟨by omega, by omega⟩, show p - a = (p - (a + 1)) + 1 by omega,
             List.getElem?_cons_succ]
-        · rw [if_neg hin, if_neg (by omega)]
-    · rw [if_neg hc, ih]
+        · rw [ite_eq_right hin, ite_eq_right (by omega)]
+    · rw [ite_eq_right hc, ih]
       have hpa : p ≠ a := fun h => hc (by rw [h])
       by_cases hin : a + 1 ≤ p ∧ p < a + 1 + xs.length
-      · rw [if_pos hin, if_pos ⟨by omega, by omega⟩, show p - a = (p - (a + 1)) + 1 by omega, List.getElem?_cons_succ]
-      · rw [if_neg hin, if_neg (by omega)]
+      · rw [ite_eq_left hin, ite_eq_left ⟨by omega, by omega⟩, show p - a = (p - (a + 1)) + 1 by omega, List.getElem?_cons_succ]
+      · rw [ite_eq_right hin, ite_eq_right (by omega)]
 
 end ConPanqueque.Front

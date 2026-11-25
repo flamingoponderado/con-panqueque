@@ -24,8 +24,8 @@ theorem internLsNode_frameC (v : LsNodeView) (s : AState) (c : Caches) :
     simp only
     by_cases hc : (if s.store.lss.scratchOn = true then s.store.lss.scr.sizeOf v else s.store.lss.pers.sizeOf v) <
         Idx.idxCap
-    · rw [if_pos hc, if_pos hc]; rfl
-    · rw [if_neg hc, if_neg hc]; rfl
+    · rw [ite_eq_left hc, ite_eq_left hc]; rfl
+    · rw [ite_eq_right hc, ite_eq_right hc]; rfl
 
 theorem internLevelList_frameC (c : Caches) : ∀ (us : List ConLeche.Level) (s : AState),
     internLevelList us (withC s c) = (internLevelList us s).map (fun p => (p.1, withC p.2 c)) := by

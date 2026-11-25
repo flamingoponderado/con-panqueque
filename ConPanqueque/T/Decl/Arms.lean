@@ -323,7 +323,7 @@ theorem thm_spec (mode : ConLeche.CheckMode) (C : Ctx) (hok : CtxOK C) (ra : Con
       (fun h => absurd rfl h) (fun _ => specR_rejectI)
   · refine specR_ifI _ 1 (by simp +decide [sev, Env.get, LLeq.obW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
       (fun _ => ?_) (fun h => absurd h (by decide))
-    simp only [liftFueled, pure_bind, if_true]
+    simp only [liftFueled, pure_bind, ite_true]
     refine specR_bindPure ?_
     refine specR_callNIH (C := ctxH C H2) thR fDv dvParams [vv thQ, vv thV] dvBody [cellA C q, Enc.idxW v] (by decide)
       rfl (by decide) hdv ⟨by simp +decide [Env.get, thParams, ctxEnv], by simp +decide [Env.get, thParams, ctxEnv], trivial⟩

@@ -50,7 +50,7 @@ theorem strClose_plain {b : ByteArray} (hp : Plat b) (e : USize) (he : e.toNat <
     intro j hn hj _
     have hje : j = e := USize.toNat_inj.mp (by omega)
     subst hje
-    rw [ConLeche.Frontend.strClose, dif_pos ((hp.lt_iff j).mpr he)]
+    rw [ConLeche.Frontend.strClose, dite_eq_left ((hp.lt_iff j).mpr he)]
     simp only
     rw [uget_eq b j he ((hp.lt_iff j).mpr he), hq]; rfl
   | succ n ih =>
@@ -58,7 +58,7 @@ theorem strClose_plain {b : ByteArray} (hp : Plat b) (e : USize) (he : e.toNat <
     have hjl : j.toNat < b.size := by omega
     have hjl' : j.toNat < b.data.toList.length := by simpa using hjl
     have hc := hpl j.toNat hjl' (Nat.le_refl _) (by omega)
-    rw [ConLeche.Frontend.strClose, dif_pos ((hp.lt_iff j).mpr hjl)]
+    rw [ConLeche.Frontend.strClose, dite_eq_left ((hp.lt_iff j).mpr hjl)]
     simp only
     rw [uget_eq b j hjl ((hp.lt_iff j).mpr hjl)]
     generalize hx : b.data.toList[j.toNat] = x at hc
@@ -134,7 +134,7 @@ theorem scanString_plain {b : ByteArray} (hp : Plat b) (i e : USize) (hi : i.toN
   simp only [Option.getD_some, hq0, bne_self_eq_false, Bool.false_eq_true, ↓reduceIte, hclose, hesc]
   have hne : (e == 0) = false := by
     apply beq_eq_false_iff_ne.mpr; intro h; rw [h] at hie; simp at hie
-  simp only [hne, Bool.false_eq_true, ↓reduceIte, String.fromUTF8?, dif_pos hval]
+  simp only [hne, Bool.false_eq_true, ↓reduceIte, String.fromUTF8?, dite_eq_left hval]
 
 /-- `c` is a plain string byte, as a 0/1 word. -/
 def plainTest : ExpHOL 64 :=
@@ -151,7 +151,7 @@ theorem plainTest_ok : TestOK isPlainN plainTest := by
   simp only [plainTest, evalHOLExact, evalListHOLExact, vv, h, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
   by_cases h34 : c = 34 <;> by_cases h92 : c = 92 <;> by_cases h32 : c < 32 <;> by_cases h127 : c < 127 <;>
     simp [h34, h92, h32, h127, f34, f92, l32, l127, isPlainN, bw, wordOpHOL, wordOp, valueIsWord,
-      valueWord] <;> first | decide | omega | (rw [if_pos (by omega)]; decide) | (rw [if_neg (by omega)]; decide)
+      valueWord] <;> first | decide | omega | (rw [ite_eq_left (by omega)]; decide) | (rw [ite_eq_right (by omega)]; decide)
 
 def fSkipPlain := ofString "skipPlain"
 

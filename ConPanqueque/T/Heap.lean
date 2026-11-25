@@ -180,14 +180,14 @@ theorem specR_allocI {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D 
     have hw1 : (if Flapjack.Compiler.Encoders.Asm.wordCmpHOL .lower (BitVec.ofNat 64 (8 * (C.HN - H'.length)))
         (BitVec.ofNat 64 (8 * n)) then (1 : BitVec 64) else 0) = 1 := by
       simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, this]
-    rw [hw1, if_pos (by decide)]
+    rw [hw1, ite_eq_left (by decide)]
     exact Or.inl (hang_stop t1)
   have hnf : ¬ BitVec.ofNat 64 (8 * (C.HN - H'.length)) < BitVec.ofNat 64 (8 * n) := by
     rw [BitVec.lt_def]; simp; omega
   have hw0 : (if Flapjack.Compiler.Encoders.Asm.wordCmpHOL .lower (BitVec.ofNat 64 (8 * (C.HN - H'.length)))
       (BitVec.ofNat 64 (8 * n)) then (1 : BitVec 64) else 0) = 0 := by
     simp [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hnf]
-  rw [hw0, if_neg (by decide)]
+  rw [hw0, ite_eq_right (by decide)]
   have htop1 : t1.globals.lookup gHt = some (.val (.word (cellA C H'.length))) := ha.top
   rw [seq_normal _ (assign_ok t1 .global gHt _ (.val (.word (cellA C H'.length + BitVec.ofNat 64 (8 * n))))
     (by have := inv_ev ht1 (e := .op .add [vv x, eN]) (v := cellA C H'.length + BitVec.ofNat 64 (8 * n))

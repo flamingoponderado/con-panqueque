@@ -62,10 +62,10 @@ theorem isApp_iff (h : EIdx) : isAppW (Enc.idxW h) ≠ 0 ↔ h.tag = 4 := by
     simp [hb, ht]
   · have hw' : h.isWide = false := by cases c : h.isWide; rfl; exact absurd (hwide.mp c) hb
     by_cases h4 : (Enc.idxW h >>> (26 : Nat)) &&& 31 = 4
-    · have e : bw ((Enc.idxW h >>> (26 : Nat)) &&& 31 = 4) = 1 := if_pos h4
+    · have e : bw ((Enc.idxW h >>> (26 : Nat)) &&& 31 = 4) = 1 := ite_eq_left h4
       rw [e]; simp [hb, (hn.mp h4).2]
     · have : ¬ h.tag = 4 := fun c => h4 (hn.mpr ⟨hw', c⟩)
-      have e : bw ((Enc.idxW h >>> (26 : Nat)) &&& 31 = 4) = 0 := if_neg h4
+      have e : bw ((Enc.idxW h >>> (26 : Nat)) &&& 31 = 4) = 0 := ite_eq_right h4
       rw [e]; simp [hb, this]
 
 theorem eval_isApp {σ : Type} (t : PanSemStateFiniteExact 64 σ) (x : MlS) (w : BitVec 64)

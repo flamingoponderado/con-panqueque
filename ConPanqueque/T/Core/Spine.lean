@@ -816,7 +816,7 @@ theorem gsp_spec (C : Ctx) (hok : CtxOK C)
     have hT := sev_tagIs4B (ctxEnv (ctxH C H) ++ gspParams.zip [BitVec.ofNat 64 (f + 1), Enc.idxW h]) gH h
       (by simp +decide [Env.get, gspParams, ctxEnv])
     by_cases ht : (h.tag == 4) = true
-    · rw [if_pos (show (h.tag == ETag.app) = true from ht)]
+    · rw [ite_eq_left (show (h.tag == ETag.app) = true from ht)]
       refine specR_ifI _ 1 (by rw [hT, ht]; rfl) (fun _ => ?_) (fun h => absurd h (by decide))
       refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]; rfl) ?_
       refine specR_assignI lDh (vv gH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, gspParams, ctxEnv]) ?_
@@ -860,7 +860,7 @@ theorem gsp_spec (C : Ctx) (hok : CtxOK C)
       refine specR_tripRet (C0 := ctxH C H) (H := H3) (r := (r.1, r.2.1.push a, r.2.2.push h)) hok' gR gHd gPa2
         gPn2 o2 o3 (by decide) (by decide) (by simp) (by simp; rfl) (by simp; rfl)
         (hp1.trans (hp2.trans hp3)) (by simpa using blkAt_mono hb2 hp3) (by simpa using hb3)
-    · rw [if_neg (show ¬ (h.tag == ETag.app) = true from ht)]
+    · rw [ite_eq_right (show ¬ (h.tag == ETag.app) = true from ht)]
       refine specR_ifI _ 0 (by rw [hT]; simp [ht, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
       refine specR_emptyBlk (C0 := C) (H := H) hok gE1 (by decide) (fun H1 o1 hp1 hb1 => ?_)
       refine specR_emptyBlk (C0 := C) (H := H1) hok gE2 (by decide) (fun H2 o2 hp2 hb2 => ?_)

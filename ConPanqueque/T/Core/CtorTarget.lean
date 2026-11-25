@@ -1055,9 +1055,9 @@ theorem ch_spec (C : Ctx) (hok : CtxOK C)
       (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   refine Knot.specR_tagIteV chH h 3 (by decide) (by decide) (by simp) (fun htc => ?_) (fun htc => ?_)
   swap
-  · rw [if_neg (show ¬ (h.tag == ETag.const) = true by simpa [ETag.const] using htc)]
+  · rw [ite_eq_right (show ¬ (h.tag == ETag.const) = true by simpa [ETag.const] using htc)]
     exact hret none _ rfl
-  rw [if_pos (show (h.tag == ETag.const) = true by simp [htc, ETag.const])]
+  rw [ite_eq_left (show (h.tag == ETag.const) = true by simp [htc, ETag.const])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
   refine specR_assignI lDh (vv chH) (Enc.idxW h) (by decide) (by simp) ?_
   refine specR_viewP h (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
@@ -1164,9 +1164,9 @@ theorem cq_spec (C : Ctx) (hok : CtxOK C) (hcF : ExF.CodesF C (ExF.bodyF C))
   subst hs'
   refine Knot.specR_tagIteV cqH h 3 (by decide) (by decide) (by simp) (fun htc => ?_) (fun htc => ?_)
   swap
-  · rw [if_neg (show ¬ (h.tag == ETag.const) = true by simpa [ETag.const] using htc)]
+  · rw [ite_eq_right (show ¬ (h.tag == ETag.const) = true by simpa [ETag.const] using htc)]
     exact hret none _ rfl
-  rw [if_pos (show (h.tag == ETag.const) = true by simp [htc, ETag.const])]
+  rw [ite_eq_left (show (h.tag == ETag.const) = true by simp [htc, ETag.const])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
   refine specR_assignI lDh (vv cqH) (Enc.idxW h) (by decide) (by simp) ?_
   refine specR_viewP h (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)

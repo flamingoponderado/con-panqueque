@@ -139,7 +139,7 @@ theorem pins_spec {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (code 
   refine specR_cbStore hEH4 (vv vRs) (.const 16) 121 (by omega) 16 (by simpa [sev, vv] using g4rs) rfl ?_
   let EH5 := EH4.set 121 16
   have hEH5 : ∀ j, j < 64 → EH5[j]? = EH0[j]? := fun j hj => by
-    simp only [EH5]; rw [List.getElem?_set, if_neg (by omega)]; exact hEH4 j hj
+    simp only [EH5]; rw [List.getElem?_set, ite_eq_right (by omega)]; exact hEH4 j hj
   -- an empty key for the empty level list
   rw [allocP_congr (C := Cb code H EH0) (C' := Cb code H EH5) rfl rfl]
   refine specR_allocI vKa _ 0 (by decide) hKa (fun v => rfl) (fun H' ws hpre hwl hcapH => ?_)
@@ -157,12 +157,12 @@ theorem pins_spec {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (code 
       hHl (by simp [Cb_H]) (by decide) (fun j hj => absurd hj (by simp))) (fun us s7 hr7 => ?_)
   rw [ctxH_Cb]
   have g7pb : T.Env.get ((vPn, Enc.idxW us) :: Γ6) vPb = some (ecb 64) := by
-    simp only [Γ6, T.Env.get_cons, show vPb ≠ vPn by decide, show vPb ≠ vKa by decide, if_false]; exact g4pb
+    simp only [Γ6, T.Env.get_cons, show vPb ≠ vPn by decide, show vPb ≠ vKa by decide, ite_false]; exact g4pb
   refine specR_cbStore hEH5 _ (vv vPn) (64 + 52) (by simp [EH5, hl4']) (Enc.idxW us) (sev_off _ vPb 64 52 g7pb)
     (by simp [sev, vv, T.Env.get_cons]) ?_
   let EH6 := EH5.set (64 + 52) (Enc.idxW us)
   have hEH6 : ∀ j, j < 64 → EH6[j]? = EH0[j]? := fun j hj => by
-    simp only [EH6]; rw [List.getElem?_set, if_neg (by omega)]; exact hEH5 j hj
+    simp only [EH6]; rw [List.getElem?_set, ite_eq_right (by omega)]; exact hEH5 j hj
   -- the level zero (a hit)
   intro t7 ht7
   have hst7 : StateOK s7 := ⟨ht7.sr.twf⟩
@@ -176,12 +176,12 @@ theorem pins_spec {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (code 
   rw [ctxH_Cb]
   let Γ8 : Env := (vPn, Enc.idxW (default : LIdx)) :: (vPn, Enc.idxW us) :: Γ6
   have g8pb : T.Env.get Γ8 vPb = some (ecb 64) := by
-    simp only [Γ8, T.Env.get_cons, show vPb ≠ vPn by decide, if_false]; exact g7pb
+    simp only [Γ8, T.Env.get_cons, show vPb ≠ vPn by decide, ite_false]; exact g7pb
   refine specR_cbStore hEH6 _ (vv vPn) (64 + 53) (by simp [EH6, EH5, hl4']) (Enc.idxW (default : LIdx))
     (sev_off _ vPb 64 53 g8pb) (by simp [sev, vv, Γ8, T.Env.get_cons]) ?_
   let EH7 := EH6.set (64 + 53) (Enc.idxW (default : LIdx))
   have hEH7 : ∀ j, j < 64 → EH7[j]? = EH0[j]? := fun j hj => by
-    simp only [EH7]; rw [List.getElem?_set, if_neg (by omega)]; exact hEH6 j hj
+    simp only [EH7]; rw [List.getElem?_set, ite_eq_right (by omega)]; exact hEH6 j hj
   -- its successor
   refine specR_callPost vPn fInternLSucc [lEu] [vv vPn] internLSuccBody [Enc.idxW (default : LIdx)] (by decide) rfl hPn
     (by rw [Cb_code]; exact pc.succ) ⟨by simp [sev, vv, Γ8, T.Env.get_cons], trivial⟩ Enc.idxW H
@@ -196,19 +196,19 @@ theorem pins_spec {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (code 
   rw [ctxH_Cb]
   let Γ10 : Env := (vPn, Enc.idxW s1) :: (vPn, Enc.idxW o) :: Γ8
   have g10pb : T.Env.get Γ10 vPb = some (ecb 64) := by
-    simp only [Γ10, T.Env.get_cons, show vPb ≠ vPn by decide, if_false]; exact g8pb
+    simp only [Γ10, T.Env.get_cons, show vPb ≠ vPn by decide, ite_false]; exact g8pb
   have g10rs : T.Env.get Γ10 vRs = some (ecb 121) := by
-    simp only [Γ10, Γ8, Γ6, T.Env.get_cons, show vRs ≠ vPn by decide, show vRs ≠ vKa by decide, if_false]; exact g4rs
+    simp only [Γ10, Γ8, Γ6, T.Env.get_cons, show vRs ≠ vPn by decide, show vRs ≠ vKa by decide, ite_false]; exact g4rs
   refine specR_cbStore hEH7 _ (vv vPn) (64 + 54) (by simp [EH7, EH6, EH5, hl4']) (Enc.idxW s1)
     (sev_off _ vPb 64 54 g10pb) (by simp [sev, vv, Γ10, T.Env.get_cons]) ?_
   let EH8 := EH7.set (64 + 54) (Enc.idxW s1)
   have hEH8 : ∀ j, j < 64 → EH8[j]? = EH0[j]? := fun j hj => by
-    simp only [EH8]; rw [List.getElem?_set, if_neg (by omega)]; exact hEH7 j hj
+    simp only [EH8]; rw [List.getElem?_set, ite_eq_right (by omega)]; exact hEH7 j hj
   refine specR_cbStore hEH8 _ _ (64 + 55) (by simp [EH8, EH7, EH6, EH5, hl4'])
     (BitVec.ofNat 64 maxNatSizeDefault) (sev_off _ vPb 64 55 g10pb) rfl ?_
   let EH9 := EH8.set (64 + 55) (BitVec.ofNat 64 maxNatSizeDefault)
   have hEH9 : ∀ j, j < 64 → EH9[j]? = EH0[j]? := fun j hj => by
-    simp only [EH9]; rw [List.getElem?_set, if_neg (by omega)]; exact hEH8 j hj
+    simp only [EH9]; rw [List.getElem?_set, ite_eq_right (by omega)]; exact hEH8 j hj
   refine specR_cbStore hEH9 _ (vv vRs) (64 + 56) (by simp [EH9, EH8, EH7, EH6, EH5, hl4']) (ecb 121)
     (sev_off _ vPb 64 56 g10pb) (by simp only [sev, vv]; exact g10rs) ?_
   let EH10 := EH9.set (64 + 56) (ecb 121)
@@ -226,7 +226,7 @@ theorem pins_spec {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (code 
       MonadStateOf.get, StateT.get, set, MonadStateOf.set, StateT.set, pure, Except.pure]
     rfl
   have sne : ∀ (l : List (BitVec 64)) (a b : Nat) (w : BitVec 64), a ≠ b → (l.set a w)[b]? = l[b]? :=
-    fun l a b w h => by rw [List.getElem?_set, if_neg h]
+    fun l a b w h => by rw [List.getElem?_set, ite_eq_right h]
   have sself : ∀ (l : List (BitVec 64)) (a : Nat) (w : BitVec 64), a < l.length → (l.set a w)[a]? = some w :=
     fun l a w h => List.getElem?_set_self h
   have hl5 : EH5.length = 138 := by simp [EH5, hl4']
@@ -272,9 +272,9 @@ theorem pins_spec {β : Type} (ra : ConPanqueque.Hash.RuntimeAssumptions) (code 
   have hag : ∀ y, y ∉ [vPn, vKa, vPb, vRs] → T.Env.get Γ10 y = Γ.get y := by
     intro y hy
     simp only [List.mem_cons, List.not_mem_nil, or_false, not_or] at hy
-    simp only [Γ10, Γ8, Γ6, T.Env.get_cons, if_neg hy.1, if_neg hy.2.1]
+    simp only [Γ10, Γ8, Γ6, T.Env.get_cons, ite_eq_right hy.1, ite_eq_right hy.2.1]
     rw [hag4 y hy.1 hy.2.1, hag3 y hy.1 hy.2.1]
-    simp only [Γ2, T.Env.get_cons, if_neg hy.2.2.2, if_neg hy.2.2.1]
+    simp only [Γ2, T.Env.get_cons, ite_eq_right hy.2.2.2, ite_eq_right hy.2.2.1]
   exact hk sP EH10 Γ10 hrun hb rfl (by simp [EH10, hl9]) hag t ⟨sr_switch P ht.sr hz, ht.env, ht.mem, ht.decl⟩
 
 end ConPanqueque.Start

@@ -910,9 +910,9 @@ theorem qfo_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
   have hp12 : C.H <+: H2 := hp1.trans hp2
   refine Knot.specR_tagIteV qfoH hh 2 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
   swap
-  · rw [if_neg (show ¬ (hh.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
+  · rw [ite_eq_right (show ¬ (hh.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
     exact specR_hangI
-  rw [if_pos (show (hh.tag == ETag.sort) = true by simp [htg, ETag.sort])]
+  rw [ite_eq_left (show (hh.tag == ETag.sort) = true by simp [htg, ETag.sort])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
   refine specR_assignI lDh (vv qfoH) (Enc.idxW hh) (by decide) (by simp) ?_
   refine specR_viewP (C := ctxH C H2) hh (by simp) (by simp +decide [Env.get] <;> rfl)
@@ -943,9 +943,9 @@ theorem qfo_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
   have hp14 : C.H <+: H4 := hp12.trans (hp3.trans hp4)
   refine Knot.specR_tagIteV qfoW w 2 (by decide) (by decide) (by simp) (fun htg2 => ?_) (fun htg2 => ?_)
   swap
-  · rw [if_neg (show ¬ (w.tag == ETag.sort) = true by simpa [ETag.sort] using htg2)]
+  · rw [ite_eq_right (show ¬ (w.tag == ETag.sort) = true by simpa [ETag.sort] using htg2)]
     exact specR_hangI
-  rw [if_pos (show (w.tag == ETag.sort) = true by simp [htg2, ETag.sort])]
+  rw [ite_eq_left (show (w.tag == ETag.sort) = true by simp [htg2, ETag.sort])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
   refine specR_assignI lDh (vv qfoW) (Enc.idxW w) (by decide) (by simp) ?_
   refine specR_viewP (C := ctxH C H4) w (by simp) (by simp +decide [Env.get] <;> rfl)

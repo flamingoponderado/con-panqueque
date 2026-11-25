@@ -83,7 +83,7 @@ theorem leq_all (C : Ctx) (hok : CtxOK C)
     have base : ∀ z, z ∉ lvScratch → z ≠ lQ → z ≠ lA2 →
         Env.get Γ2 z = Env.get (ctxEnv (ctxH C H) ++ leqParams.zip [BitVec.ofNat 64 (n + 1), wl, wr, iW d]) z := by
       intro z h1 h2 h3
-      rw [hp2 z h1]; simp only [Env.get_cons, h2, h3, if_false]; rw [hp1 z h1]; simp [h2]
+      rw [hp2 z h1]; simp only [Env.get_cons, h2, h3, ite_false]; rw [hp1 z h1]; simp [h2]
     have gFu : Env.get Γ2 pFu = some (BitVec.ofNat 64 (n + 1)) := by
       rw [base _ (by decide) (by decide) (by decide)]; simp +decide [ctxEnv, leqParams]
     have gLa : Env.get Γ2 pLa = some wl := by
@@ -106,19 +106,19 @@ theorem leq_all (C : Ctx) (hok : CtxOK C)
         (pure (if l = .zero ∧ d ≥ 0 then some true else if r = .zero ∧ d < 0 then some false
           else ConLeche.Level.rest n l r d)) (PostOB (ctxH C H)) := by
       intro hnz
-      rw [if_neg hnz]
+      rw [ite_eq_right hnz]
       unfold leqK
       refine specR_ifEq lX (ltag r) 0 (by omega) (by decide) hx2 (fun e => ?_) (fun e => ?_)
       · have hr0 : r = .zero := by cases r <;> simp_all [ltag]
         refine specR_ifSign d hdl hdh gD (fun hneg => ?_) (fun hpos => ?_)
-        · rw [if_pos ⟨hr0, hneg⟩]; exact specR_retOB 1 _ rfl
-        · rw [if_neg (fun h => by omega)]; exact callR
+        · rw [ite_eq_left ⟨hr0, hneg⟩]; exact specR_retOB 1 _ rfl
+        · rw [ite_eq_right (fun h => by omega)]; exact callR
       · have hr0 : r ≠ .zero := by intro h; subst h; simp [ltag] at e
-        rw [if_neg (fun h => hr0 h.1)]; exact callR
+        rw [ite_eq_right (fun h => hr0 h.1)]; exact callR
     refine specR_ifEq lA2 (ltag l) 0 (by omega) (by decide) gA2 (fun e => ?_) (fun e => ?_)
     · have hl0 : l = .zero := by cases l <;> simp_all [ltag]
       refine specR_ifSign d hdl hdh gD (fun hneg => hK (fun h => by omega)) (fun hpos => ?_)
-      rw [if_pos ⟨hl0, hpos⟩]; exact specR_retOB 2 _ rfl
+      rw [ite_eq_left ⟨hl0, hpos⟩]; exact specR_retOB 2 _ rfl
     · exact hK (fun h => by rw [h.1] at e; simp [ltag] at e)
 
 end

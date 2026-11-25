@@ -134,12 +134,12 @@ theorem Rl_step (x y N i j : Nat) (h : i + j < N) :
     · rename_i e
       rw [Rl_get x y N i j k hk]
       by_cases hl : k < i + j
-      · rw [if_pos hl, if_pos (by omega), Tm_succ, digit_low _ _ _ _ hl]
-      · rw [if_neg hl, if_neg (by omega)]
+      · rw [ite_eq_left hl, ite_eq_left (by omega), Tm_succ, digit_low _ _ _ _ hl]
+      · rw [ite_eq_right hl, ite_eq_right (by omega)]
 
 theorem Rl_read (x y N i j : Nat) (h : i + j < N) :
     (Rl x y N i j)[i + j]? = some (BitVec.ofNat 64 (dg (Pm x y i) (i + j))) := by
-  rw [List.getElem?_eq_getElem (by rw [Rl_length]; exact h), Rl_get x y N i j _ h, if_neg (by omega)]
+  rw [List.getElem?_eq_getElem (by rw [Rl_length]; exact h), Rl_get x y N i j _ h, ite_eq_right (by omega)]
 
 theorem Rl_row (x y N i : Nat) (hy : y < B ^ (limbs y).length) (h : i + (limbs y).length < N) :
     (Rl x y N i (limbs y).length).set (i + (limbs y).length) (BitVec.ofNat 64 (cr x y i (limbs y).length)) =
@@ -157,8 +157,8 @@ theorem Rl_row (x y N i : Nat) (hy : y < B ^ (limbs y).length) (h : i + (limbs y
     · rename_i e2
       rw [Rl_get x y N i _ k hk]
       by_cases hl : k < i + (limbs y).length
-      · rw [if_pos hl, Pm_succ x y i hy]
-      · rw [if_neg hl, dg_big _ _ (Nat.lt_of_lt_of_le (Pm_lt x y i hy) (Nat.pow_le_pow_right Bpos (by omega))),
+      · rw [ite_eq_left hl, Pm_succ x y i hy]
+      · rw [ite_eq_right hl, dg_big _ _ (Nat.lt_of_lt_of_le (Pm_lt x y i hy) (Nat.pow_le_pow_right Bpos (by omega))),
           dg_big _ _ (Nat.lt_of_lt_of_le (Pm_lt x y (i + 1) hy) (Nat.pow_le_pow_right Bpos (by omega)))]
 
 theorem Rl_init (x y N : Nat) : Rl x y N 0 0 = List.replicate N 0 := by

@@ -58,7 +58,7 @@ theorem ens_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
       by simp +decide [Env.get, kParams, ctxEnv], trivial⟩ hW
     (fun hh s1 H1 hp1 _ => ?_)
   refine Knot.specR_tagIteV ensH hh 2 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
-  · rw [if_pos (show (hh.tag == ETag.sort) = true by simp [htg, ETag.sort])]
+  · rw [ite_eq_left (show (hh.tag == ETag.sort) = true by simp [htg, ETag.sort])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
     refine specR_assignI lDh (vv ensH) (Enc.idxW hh) (by decide) (by simp; intro h; exact absurd h (by decide)) ?_
     refine specR_viewP (C := ctxH C H1) hh (by simp) (by simp +decide [Env.get] <;> rfl)
@@ -69,7 +69,7 @@ theorem ens_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx)
     refine specR_loadI' ensU (vv lRp) P (P + BitVec.ofNat 64 0) (Enc.idxW u) (by decide) (by simp) (by simp)
       (by simpa [encEView, Enc.encSort] using wordsAt_mem0 P (Enc.idxW u) [] []) ?_
     exact specR_returnI _ (Enc.idxW u) (by simp) (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl, hh, hv⟩)
-  · rw [if_neg (show ¬ (hh.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
+  · rw [ite_eq_right (show ¬ (hh.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
     exact specR_hangI
 
 end

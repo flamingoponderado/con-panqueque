@@ -138,11 +138,11 @@ theorem litg_spec (C : Ctx) (hok : CtxOK C) (s : AState) (h : EIdx) (v : ENodeVi
       (prefix_set_ge (hpre.trans (List.prefix_append _ _)) _ (hpre.length_le) _) _
   · have hl0 := fillI_length B0 ws (H'.length + 1)
     constructor
-    · rw [fillI_get?, if_neg (by omega)]
+    · rw [fillI_get?, ite_eq_right (by omega)]
       show ((H' ++ wsN).set H'.length _)[H'.length]? = _
       rw [List.getElem?_set_self (show H'.length < (H' ++ wsN).length by simp; omega)]
     · intro i hi
-      rw [fillI_get?, if_pos ⟨by omega, by omega, by rw [hB0]; omega⟩]
+      rw [fillI_get?, ite_eq_left ⟨by omega, by omega, by rw [hB0]; omega⟩]
       simp [show H'.length + 1 + i - (H'.length + 1) = i by omega, List.getD_eq_getElem?_getD,
         List.getElem?_eq_getElem hi]
 

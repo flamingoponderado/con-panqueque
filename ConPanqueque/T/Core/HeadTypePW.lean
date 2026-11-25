@@ -875,10 +875,10 @@ theorem ht_spec (C : Ctx) (hok : CtxOK C) (hc : HtCodes C) (fuel : Nat) (hf : fu
       by_cases hid : i < d
       swap
       · refine specR_ifI _ 0 (by simp +decide [sev, Env.get, htParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hdw, hid]) (fun h => absurd rfl h) (fun _ => ?_)
-        rw [if_neg hid]
+        rw [ite_eq_right hid]
         exact specR_returnI _ 0 rfl (fun t ht => ⟨rdStep_refl hrd, H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
       refine specR_ifI _ 1 (by simp +decide [sev, Env.get, htParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hdw, hid]) (fun _ => ?_) (fun h => absurd h (by decide))
-      rw [if_pos hid]
+      rw [ite_eq_left hid]
       have hsubw : BitVec.ofNat 64 d - 1#64 - BitVec.ofNat 64 i = BitVec.ofNat 64 (d - 1 - i) := by
         rw [show (1#64 : BitVec 64) = BitVec.ofNat 64 1 from rfl, ix_wsub d 1 (by omega) (by omega), ix_wsub (d - 1) i (by omega) (by omega)]
       refine specR_callNIH (C := ctxH C H) htX fBd bdParams [.op .sub [.op .sub [vv htD, .const 1], vv htJ], vv htR] bdBody
@@ -929,10 +929,10 @@ theorem ht_spec (C : Ctx) (hok : CtxOK C) (hc : HtCodes C) (fuel : Nat) (hf : fu
       by_cases hid : i < d
       swap
       · refine specR_ifI _ 0 (by simp +decide [sev, Env.get, htParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hdw, hid]) (fun h => absurd rfl h) (fun _ => ?_)
-        rw [if_neg hid]
+        rw [ite_eq_right hid]
         exact specR_returnI _ 0 rfl (fun t ht => ⟨rdStep_refl hrd, H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
       refine specR_ifI _ 1 (by simp +decide [sev, Env.get, htParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hdw, hid]) (fun _ => ?_) (fun h => absurd h (by decide))
-      rw [if_pos hid]
+      rw [ite_eq_left hid]
       have hsubw : BitVec.ofNat 64 d - 1#64 - BitVec.ofNat 64 i = BitVec.ofNat 64 (d - 1 - i) := by
         rw [show (1#64 : BitVec 64) = BitVec.ofNat 64 1 from rfl, ix_wsub d 1 (by omega) (by omega), ix_wsub (d - 1) i (by omega) (by omega)]
       refine specR_callNIH (C := ctxH C H) htX fBd bdParams [.op .sub [.op .sub [vv htD, .const 1], vv htJ], vv htR] bdBody
@@ -1053,10 +1053,10 @@ theorem ht_spec (C : Ctx) (hok : CtxOK C) (hc : HtCodes C) (fuel : Nat) (hf : fu
     · have hne : BitVec.ofNat 64 vl.length ≠ BitVec.ofNat 64 ci.toConstantVal.levelParams.length := by
         intro e; have := congrArg BitVec.toNat e; simp at this; omega
       refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun _ => ?_) (fun h => absurd h (by decide))
-      rw [if_neg hlen]
+      rw [ite_eq_right hlen]
       exact specR_returnI _ 0 rfl (fun t ht => ⟨rdStep_refl hrd, H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlen]) (fun h => absurd rfl h) (fun _ => ?_)
-    rw [if_pos hlen]
+    rw [ite_eq_left hlen]
     refine specR_callNIH (C := ctxH C H) htV fPv pvParams [vv htF, vv htN, vv htT] (pvBody C) [BitVec.ofNat 64 fuel, BitVec.ofNat 64 n, Enc.idxW ci.toConstantVal.type]
       (by decide) rfl (by decide) hc.pv.self ⟨by simp +decide [Env.get, htParams, ctxEnv], by simp +decide [Env.get, htParams, ctxEnv], by simp +decide [sev, Env.get, htParams, ctxEnv, optWG] <;> first | rfl | exact BitVec.add_sub_cancel _ _, trivial⟩
       (fun r_ w s' st => peelPisW C.fe fuel n ci.toConstantVal.type s = .ok (r_, s') ∧ UD.PostO (ctxH C H) r_ w s' st)

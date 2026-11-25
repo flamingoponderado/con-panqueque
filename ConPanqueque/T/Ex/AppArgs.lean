@@ -141,11 +141,11 @@ theorem appG_spec (C : Ctx) (hok : CtxOK C)
   refine ⟨F.set (H2.length + 1 + (as.map Enc.idxW).length) (Enc.idxW a), H2.length, ?_, rfl, ?_,
     sr_of_eq ht.sr rfl rfl rfl rfl⟩
   · refine hp1.trans (hp2'.trans (prefix_of_get? (by simp; omega) (fun k hk => ?_)))
-    rw [List.getElem?_set_ne (by simp; omega), hFg k, if_neg (by omega), ← hB]
+    rw [List.getElem?_set_ne (by simp; omega), hFg k, ite_eq_right (by omega), ← hB]
     show ((H2 ++ ws).set _ _)[k]? = _
     rw [List.getElem?_set_ne (by omega), List.getElem?_append_left hk]
   · refine ⟨?_, fun i hi => ?_⟩
-    · rw [List.getElem?_set_ne (by simp <;> omega), hFg, if_neg (by omega), ← hB]
+    · rw [List.getElem?_set_ne (by simp <;> omega), hFg, ite_eq_right (by omega), ← hB]
       show ((H2 ++ ws).set _ _)[H2.length]? = _
       rw [List.getElem?_set_self (by simp; omega)]; simp
     · simp only [List.length_map, List.length_append, List.length_cons, List.length_nil] at hi
@@ -154,7 +154,7 @@ theorem appG_spec (C : Ctx) (hok : CtxOK C)
         rw [show H2.length + 1 + as.length = H2.length + 1 + (as.map Enc.idxW).length by simp,
           List.getElem?_set_self (by simp; omega)]
         simp
-      · rw [List.getElem?_set_ne (by simp; omega), hFg, if_pos ⟨by omega, by omega, by omega⟩]
+      · rw [List.getElem?_set_ne (by simp; omega), hFg, ite_eq_left ⟨by omega, by omega, by omega⟩]
         simp [List.getD_eq_getElem?_getD, show i < as.length by omega, List.getElem_append_left]
 
 theorem params_noneG (va vb : BitVec 64) (C : Ctx) :

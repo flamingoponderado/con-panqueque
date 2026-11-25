@@ -26,13 +26,13 @@ theorem storeKeys_push (x v : EIdx) : ∀ (k : Nat) (arr : Array EIdx) (i : Nat)
     intro arr i hk hi
     have hi' : i = arr.size := by omega
     subst hi'
-    rw [sk_eq (arr.push x) arr.size, dif_pos (by simp), sk_eq (arr.push x) (arr.size + 1), dif_neg (by simp),
-      sk_eq arr arr.size, dif_neg (by simp)]
+    rw [sk_eq (arr.push x) arr.size, dite_eq_left (by simp), sk_eq (arr.push x) (arr.size + 1), dite_eq_right (by simp),
+      sk_eq arr arr.size, dite_eq_right (by simp)]
     simp [Array.getElem_push_eq]
   | succ k ih =>
     intro arr i hk hi
     have hlt : i < arr.size := by omega
-    rw [sk_eq (arr.push x) i, dif_pos (by simp; omega), sk_eq arr i, dif_pos hlt]
+    rw [sk_eq (arr.push x) i, dite_eq_left (by simp; omega), sk_eq arr i, dite_eq_left hlt]
     rw [ih arr (i + 1) (by omega) (by omega)]
     simp [Array.getElem_push_lt hlt, bind_assoc]
 
@@ -50,13 +50,13 @@ theorem storeCheapKeys_push (x v : EIdx) : ∀ (k : Nat) (arr : Array EIdx) (i :
     intro arr i hk hi
     have hi' : i = arr.size := by omega
     subst hi'
-    rw [skc_eq (arr.push x) arr.size, dif_pos (by simp), skc_eq (arr.push x) (arr.size + 1), dif_neg (by simp),
-      skc_eq arr arr.size, dif_neg (by simp)]
+    rw [skc_eq (arr.push x) arr.size, dite_eq_left (by simp), skc_eq (arr.push x) (arr.size + 1), dite_eq_right (by simp),
+      skc_eq arr arr.size, dite_eq_right (by simp)]
     simp [Array.getElem_push_eq]
   | succ k ih =>
     intro arr i hk hi
     have hlt : i < arr.size := by omega
-    rw [skc_eq (arr.push x) i, dif_pos (by simp; omega), skc_eq arr i, dif_pos hlt]
+    rw [skc_eq (arr.push x) i, dite_eq_left (by simp; omega), skc_eq arr i, dite_eq_left hlt]
     rw [ih arr (i + 1) (by omega) (by omega)]
     simp [Array.getElem_push_lt hlt, bind_assoc]
 
@@ -213,13 +213,13 @@ theorem sev_tagIs4 (Γ : Env) (x : MlS) (h : EIdx) (hx : Γ.get x = some (Enc.id
   rw [Ne, ← BitVec.toNat_inj]
   simp only [Idx.tag, Idx.isWide, beq_iff_eq]
   by_cases hwd : h.word / 1073741824 % 2 = 1
-  · rw [if_pos hwd]
+  · rw [ite_eq_left hwd]
     have hwn : h.word.toNat / 1073741824 % 2 = 1 := by
       have := congrArg UInt32.toNat hwd; simp [UInt32.toNat_div, UInt32.toNat_mod] at this; exact this
     simp only [true_iff]
     simp [BitVec.toNat_or, BitVec.toNat_and, BitVec.toNat_ushiftRight, hw, Nat.shiftRight_eq_div_pow, e1,
       Nat.and_two_pow_sub_one_eq_mod, hwn, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
-  · rw [if_neg hwd]
+  · rw [ite_eq_right hwd]
     have hwn : h.word.toNat / 1073741824 % 2 = 0 := by
       have : ¬ h.word.toNat / 1073741824 % 2 = 1 := by
         intro c; apply hwd; apply UInt32.toNat_inj.mp; simp [UInt32.toNat_div, UInt32.toNat_mod]; omega
@@ -474,7 +474,7 @@ theorem scRet_spec {C0 : Ctx} (hok : CtxOK C0)
         (fun h => absurd rfl h) (fun _ => ?_)
       have hsz : ((x :: xs').reverse.toArray).size ≠ 0 := by simp
       show SpecR _ _ s ((if false then pure () else if ((x :: xs').reverse.toArray).size = 0 then pure () else _) >>= _) _
-      simp only [Bool.false_eq_true, ite_false, if_neg hsz, bind_assoc]
+      simp only [Bool.false_eq_true, ite_false, ite_eq_right hsz, bind_assoc]
       refine specR_callNIH (C := ctxH C0 H) cR fSCF scParams [vv cP, vv cV] (scBody .whnfCore C0 fSCF)
         [cellA C0 o, Enc.idxW v] (by decide) rfl hD hcf ⟨by simp [hP], by simp [hV], trivial⟩
         (fun u w s' st => whnfCoreStoreKeys (x :: xs').reverse.toArray 0 v s = .ok (u, s') ∧ PostS (ctxH C0 H) u w s' st)

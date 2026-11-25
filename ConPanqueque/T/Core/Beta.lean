@@ -344,7 +344,7 @@ theorem bp_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     have hi' : i = args.size := by omega
     refine specR_prologue (postWS_locals C) (bp_none C _) ?_
     unfold bpCore
-    rw [betaPeel, dif_neg (by omega)]
+    rw [betaPeel, dite_eq_right (by omega)]
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, bpParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hi'])
       (fun h => absurd rfl h) (fun _ => ?_)
     refine ILP.callE_spec bE2 ExQ.fIrr ExQ.irrParams
@@ -361,13 +361,13 @@ theorem bp_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     have hlt : i < args.size := by omega
     refine specR_prologue (postWS_locals C) (bp_none C _) ?_
     unfold bpCore
-    rw [betaPeel, dif_pos hlt]
+    rw [betaPeel, dite_eq_left hlt]
     have hlw := word_lt_iff i args.size (by unfold B; omega) (by unfold B; omega)
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, bpParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL,
       hlw.mpr hlt]) (fun _ => ?_) (fun h => absurd h (by decide))
     refine Knot.specR_tagIteV bT t 5 (by decide) (by decide) (by simp +decide [Env.get, bpParams, ctxEnv])
       (fun htg => ?_) (fun htg => ?_)
-    · rw [if_pos (show (t.tag == ETag.lam) = true by simp [htg, ETag.lam])]
+    · rw [ite_eq_left (show (t.tag == ETag.lam) = true by simp [htg, ETag.lam])]
       refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
       refine specR_assignI lDh (vv bT) (Enc.idxW t) (by decide) (by simp +decide [Env.get, bpParams, ctxEnv]) ?_
       refine specR_viewP t (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
@@ -387,7 +387,7 @@ theorem bp_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
           by simp +decide [sev, Env.get, bpParams, ctxEnv]; exact word_add1_eq i,
           by simp +decide [Env.get, bpParams, ctxEnv], trivial⟩
         (ih b (i + 1) s (by omega) (by omega))
-    · rw [if_neg (show ¬ (t.tag == ETag.lam) = true by simpa [ETag.lam] using htg)]
+    · rw [ite_eq_right (show ¬ (t.tag == ETag.lam) = true by simpa [ETag.lam] using htg)]
       refine ILP.callE_spec bE2 ExQ.fIrr ExQ.irrParams
         [vv bA, vv bS, vv bI, .const (BitVec.ofNat 64 coreWalkFuel), vv bT, .const 0] (ExQ.irrBody C)
         [cellA C o, BitVec.ofNat 64 st, BitVec.ofNat 64 i, BitVec.ofNat 64 coreWalkFuel, Enc.idxW t, BitVec.ofNat 64 0]

@@ -126,7 +126,7 @@ theorem envAt_init {t : PanSemStateFiniteExact 64 σ} (hm : InitMem t) (code : C
             (by addr_tac') (fun p hp e => clear_env i hi (by omega) (by omega) p hp (by rw [e]; addr_tac'))).2
           rw [h]; congr 1
           simp only [EH0, List.getElem_map, List.getElem_range]
-          rw [if_neg (by omega), if_neg (by omega)]
+          rw [ite_eq_right (by omega), ite_eq_right (by omega)]
       words := fun i hi => tI_word hm _ (by addr_tac') (by addr_tac') (by addr_tac') }
   · rw [show (tI t).globals = t.globals from rfl, hg.lit, show (C0 code).fe = feStart P0 from rfl, litW_P0]
 

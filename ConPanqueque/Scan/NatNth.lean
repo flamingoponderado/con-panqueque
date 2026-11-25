@@ -24,7 +24,7 @@ theorem nlLoop_prefix (b : ByteArray) :
     intro i acc w us e hn h
     rw [scanNatListLoop.eq_def] at h
     by_cases hi : i < b.usize
-    · rw [dif_pos hi] at h
+    · rw [dite_eq_left hi] at h
       have hs := usizeStep b i hi
       have hb := usizeInBounds b i hi
       generalize b.uget i (usizeInBounds b i hi) = c at h
@@ -50,12 +50,12 @@ theorem nlLoop_prefix (b : ByteArray) :
               exact (List.prefix_append _ _).trans (by simpa using this)
             · simp at h
       · simp at h
-    · rw [dif_neg hi] at h; simp at h
+    · rw [dite_eq_right hi] at h; simp at h
 
 theorem nlLoop_close0 {b : ByteArray} {p : USize} (h : p < b.usize) (hc : byteAt b p = 93) :
     scanNatListLoop b p [] true = .ok [] (p + 1) := by
   rw [byteAt_uget h] at hc
-  rw [scanNatListLoop.eq_def b p [] true, dif_pos h, hc]
+  rw [scanNatListLoop.eq_def b p [] true, dite_eq_left h, hc]
   rfl
 
 section
@@ -268,7 +268,7 @@ theorem nn_step (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArra
       by lk; rw [L3 _ (by decide) (by decide) (by decide)]; exact lm, Or.inr ⟨by lk, ?_⟩⟩
     lk; rw [lr2]
     unfold nnRes
-    rw [dif_pos (by omega)]
+    rw [dite_eq_left (by omega)]
     congr 4
     subst hak'; rw [hux]
   · -- not yet: past the separator
@@ -376,7 +376,7 @@ theorem nn_step (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArra
         Or.inr ⟨by lk, ?_⟩⟩
       lk [u5]
       unfold nnRes
-      rw [dif_neg (by rw [hus]; simp; omega)]
+      rw [dite_eq_right (by rw [hus]; simp; omega)]
 end
 
 def nnFun : ProgHOL 64 :=
@@ -450,7 +450,7 @@ theorem nnFun_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : Byte
   have hv1 : (v + 1).toNat = v.toNat + 1 := ConLeche.Frontend.usizeStep b v ((hp.lt_iff v).mpr hvl)
   have hb91 : byteAt b v = 91 := byteAt_of_byteL hp v 91 (by decide) hq
   have hs' : scanNatListLoop b (v + 1) [] true = .ok us e0 := by
-    rw [scanNatList, if_pos (by rw [hb91]; rfl)] at hs; exact hs
+    rw [scanNatList, ite_eq_left (by rw [hb91]; rfl)] at hs; exact hs
   obtain ⟨j, hjd⟩ : ∃ x, x = skipWs b (v + 1) := ⟨_, rfl⟩
   have hjL := skipWs_eq hp _ (v + 1) rfl
   rw [← hjd, hv1] at hjL

@@ -126,7 +126,7 @@ theorem fill_step (C : Ctx) (hok : CtxOK C) (hnc : ∀ t : PState σ, t.code = C
       hbuf.plat (bytesAt_congr (bufOK_bytes hok hbuf ht hpk (by have := hpi.length_le; omega)) rfl rfl rfl)
       (hnc _ (by show t.code = C.code; exact ht.sr.code)) pos hpos i (by omega) us e0 hs h1 h2 h3 h4))) ?_
   have hnr : nnRes us i = BitVec.ofNat 64 (min us[i] natCap) := by simp [nnRes, hi]
-  have g1 : ∀ y, y ≠ kX → Env.get ((kX, nnRes us i) :: Γ) y = Env.get Γ y := fun y h => by rw [Env.get_cons, if_neg h]
+  have g1 : ∀ y, y ≠ kX → Env.get ((kX, nnRes us i) :: Γ) y = Env.get Γ y := fun y h => by rw [Env.get_cons, ite_eq_right h]
   refine step_tblGetI (C := ctxH C (kcH H1 o ws i)) kY (hD kY (by simp)) jL cap st.levels
     (tblRel_prefix hrel hpi) hcap (vv fTL) (vv fCap) (vv kX)
     (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hTL) (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hC)
@@ -141,13 +141,13 @@ theorem fill_step (C : Ctx) (hok : CtxOK C) (hnc : ∀ t : PState σ, t.code = C
   have hws : ws.getD i 0 = Enc.idxW h := by rw [lvWords_getD st us i hi, hh]; rfl
   have g2 : ∀ y, y ≠ kY → y ≠ kX →
       Env.get ((kY, Enc.idxW h) :: (kY, Enc.idxW h + 1) :: (kX, nnRes us i) :: Γ) y = Env.get Γ y :=
-    fun y h1 h2 => by simp only [Env.get_cons, if_neg h1, if_neg h2]
+    fun y h1 h2 => by simp only [Env.get_cons, ite_eq_right h1, ite_eq_right h2]
   refine step_seq (step_heapStoreI (C := ctxH C (kcH H1 o ws i)) (ctxOK_H hok _) _ (vv kY) (o + i)
     (by simp only [ctxH]; omega) (Enc.idxW h)
     (by
       simp only [sev, vv]; rw [g2 _ (by decide) (by decide), hKA, g2 _ (by decide) (by decide), hK]
       simp only [Option.bind_eq_bind, Option.bind_some, Option.pure_def, Option.map_some,
-        show (3 : BitVec 64).toNat = 3 from rfl, show (3 : Nat) < 64 by decide, if_true]
+        show (3 : BitVec 64).toNat = 3 from rfl, show (3 : Nat) < 64 by decide, ite_true]
       rw [shl3 i (by have := hi; have := hk62; omega), ← cellA_add]; rfl)
     (by simp [sev, vv, Env.get_cons])) ?_
   intro t ht
@@ -169,7 +169,7 @@ theorem tailEnv_cons {C : Ctx} {Γ0 Γ : Env} (h : TailEnv C Γ0 Γ) (x : MlS) (
     (hx : x ∉ [fTE, fTL, fCap, fI, fy, fV2, kBA, kBN, kKA0, kN]) : TailEnv C Γ0 ((x, v) :: Γ) := by
   intro y hy
   have hne : y ≠ x := fun e => hx (by rw [← e]; exact hy)
-  rw [Env.get_cons, if_neg hne]; exact h y hy
+  rw [Env.get_cons, ite_eq_right hne]; exact h y hy
 
 theorem exConstTail_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
     (hnc : ∀ t : PState σ, t.code = C.code → NnCodes t)
@@ -196,8 +196,8 @@ theorem exConstTail_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (
   let ws := lvWords st us
   unfold exConstTail
   refine specR_allocI kKA0 (.shift .lsl (vv kK) (.const 3)) L (by omega) (hD kKA0 (by simp)) (fun v => by
-      simp only [sev, vv, Env.get_cons, show (kK = kKA0) = False from by decide, if_false, hK, Option.map_some,
-        show (3 : BitVec 64).toNat = 3 from rfl, show (3 : Nat) < 64 by decide, if_true]
+      simp only [sev, vv, Env.get_cons, show (kK = kKA0) = False from by decide, ite_false, hK, Option.map_some,
+        show (3 : BitVec 64).toNat = 3 from rfl, show (3 : Nat) < 64 by decide, ite_true]
       rw [shl3 L (by omega)])
     (fun H' wsA hp' hwl hcapH => ?_)
   have hCH : C.H.length ≤ H'.length := hp'.length_le
@@ -206,7 +206,7 @@ theorem exConstTail_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (
   have hl1 : H1.length = H'.length + L := by simp [H1, hwl]
   have hp1 : C.H <+: H1 := hp'.trans (List.prefix_append _ _)
   have g0 : ∀ y, y ≠ kKA0 → Env.get ((kKA0, cellA C o) :: Γ) y = Env.get Γ y := fun y h => by
-    rw [Env.get_cons, if_neg h]
+    rw [Env.get_cons, ite_eq_right h]
   refine specR_assignI kN (vv kK) (BitVec.ofNat 64 L) (hD kN (by simp))
     (by simp only [sev, vv]; rw [g0 _ (by decide)]; exact hK) ?_
   refine specR_assignI kK (.const 0) 0 (hD kK (by simp)) rfl ?_
@@ -245,11 +245,11 @@ theorem exConstTail_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (
       intro j hj
       have hj' : j < us.length := by simpa [hs] using hj
       simp only [HK]
-      rw [kcH_get, if_pos ⟨by omega, by omega, by show o + j < H1.length; omega⟩,
+      rw [kcH_get, ite_eq_left ⟨by omega, by omega, by show o + j < H1.length; omega⟩,
         show o + j - o = j by omega, lvWords_getD st us j hj']
       simp [hs]
     have gΓ2 : ∀ y, y ≠ kK → y ≠ kN → y ≠ kKA0 → Γ2.get y = Γ.get y := fun y h1 h2 h3 => by
-      simp only [Γ2, Env.get_cons, if_neg h1, if_neg h2, if_neg h3]
+      simp only [Γ2, Env.get_cons, ite_eq_right h1, ite_eq_right h2, ite_eq_right h3]
     have look : ∀ y ∈ [fTE, fTL, fCap, fI, fy, fV2, kBA, kBN, kKA0, kN], y ≠ kK → y ≠ kN → y ≠ kKA0 →
         p.Γ.get y = Γ.get y := fun y hy h1 h2 h3 => by rw [hte y hy, gΓ2 y h1 h2 h3]
     have hKA0 : p.Γ.get kKA0 = some (cellA C o) := by
@@ -269,7 +269,7 @@ theorem exConstTail_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (
     subst e; subst hw
     rw [show ctxH (ctxH C HK) C.H = C from ctxH_self C]
     have gL : ∀ y, y ≠ kLs → Env.get ((kLs, Enc.idxW lsh) :: p.Γ) y = p.Γ.get y := fun y h => by
-      rw [Env.get_cons, if_neg h]
+      rw [Env.get_cons, ite_eq_right h]
     refine callEN fh fInternConst [lEn, lEus] [vv fy, vv kLs] constBody [Enc.idxW nm, Enc.idxW lsh] (by decide) rfl
       (hD fh (by simp)) hcC
       ⟨by simp only [sev, vv]; rw [gL _ (by decide), look fy (by simp) (by decide) (by decide) (by decide)]; exact hy,
@@ -277,7 +277,7 @@ theorem exConstTail_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (
     have gF : ∀ y, y ≠ fh → y ≠ kLs → y ∈ [fTE, fTL, fCap, fI, fy, fV2, kBA, kBN, kKA0, kN] → y ≠ kK → y ≠ kN →
         y ≠ kKA0 → Env.get ((fh, Enc.idxW h) :: (kLs, Enc.idxW lsh) :: p.Γ) y = Γ.get y :=
       fun y h1 h2 hy h3 h4 h5 => by
-        rw [Env.get_cons, if_neg h1, Env.get_cons, if_neg h2]; exact look y hy h3 h4 h5
+        rw [Env.get_cons, ite_eq_right h1, Env.get_cons, ite_eq_right h2]; exact look y hy h3 h4 h5
     refine specR_tblSetI hok jE cap st.exprs hrel hcap (vv fTE) (vv fI) (vv fh)
       (by simp only [sev, vv]; rw [gF _ (by decide) (by decide) (by simp) (by decide) (by decide) (by decide)]; exact hTE)
       i hic h
@@ -292,7 +292,7 @@ theorem exConstTail_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (
     have hne : us ≠ [] := by intro h; simp [L, h] at hiL
     obtain ⟨pos, e0, hwp, hpos, hsl⟩ := hlist.resolve_left hne
     have gΓ2 : ∀ y, y ≠ kK → y ≠ kN → y ≠ kKA0 → Γ2.get y = Γ.get y := fun y h1 h2 h3 => by
-      simp only [Γ2, Env.get_cons, if_neg h1, if_neg h2, if_neg h3]
+      simp only [Γ2, Env.get_cons, ite_eq_right h1, ite_eq_right h2, ite_eq_right h3]
     have look : ∀ y ∈ [fTE, fTL, fCap, fI, fy, fV2, kBA, kBN, kKA0, kN], y ≠ kK → y ≠ kN → y ≠ kKA0 →
         p.Γ.get y = Γ.get y := fun y hy h1 h2 h3 => by rw [hte y hy, gΓ2 y h1 h2 h3]
     rw [hpC, hps]
@@ -376,7 +376,7 @@ theorem exConst_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
   have hsmall := hbuf.small
   unfold exConstP
   refine specR_exFresh (hD fx (by simp)) st jE cap hrel hcap i hi hTE hC hI (fun hic hg => ?_)
-  have g1 : ∀ y, y ≠ fx → Env.get ((fx, 0) :: Γ) y = Env.get Γ y := fun y h => by rw [Env.get_cons, if_neg h]
+  have g1 : ∀ y, y ≠ fx → Env.get ((fx, 0) :: Γ) y = Env.get Γ y := fun y h => by rw [Env.get_cons, ite_eq_right h]
   refine specR_tblGetI fy (hD fy (by simp)) jN cap st.names hreln hcap (vv fTN) (vv fCap) (vv fU)
     (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hTN)
     (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hC) n hn
@@ -388,7 +388,7 @@ theorem exConst_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
   rw [hm]
   let Γ3 : Env := (kK, 0) :: (fy, Enc.idxW nm) :: (fy, Enc.idxW nm + 1) :: (fx, 0) :: Γ
   have g3 : ∀ y, y ≠ kK → y ≠ fy → y ≠ fx → Env.get Γ3 y = Env.get Γ y := fun y h1 h2 h3 => by
-    simp only [Γ3, Env.get_cons, if_neg h1, if_neg h2, if_neg h3]
+    simp only [Γ3, Env.get_cons, ite_eq_right h1, ite_eq_right h2, ite_eq_right h3]
   refine specR_assignI kK (.const 0) 0 (hD kK (by simp)) rfl ?_
   have hsent : ∀ (pos : USize) (e0 : USize), scanNatList b pos = .ok us e0 →
       BitVec.ofNat 64 pos.toNat ≠ BitVec.ofNat 64 listSentinel := by
@@ -438,7 +438,7 @@ theorem exConst_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
       ⟨rfl, rfl, rfl, 0, by omega, by simp [Γ4, Γ3, Env.get_cons, show kK ≠ kG2 from by decide],
         Or.inl (by simp [Γ4, Env.get_cons]), fun _ _ => rfl⟩
     have g4 : ∀ y ∈ cntL, y ≠ kK → y ≠ fy → y ≠ fx → y ≠ kG2 → Γ4.get y = Γ.get y := fun y _ h1 h2 h3 h4 => by
-      simp only [Γ4, Env.get_cons, if_neg h4]; exact g3 y h1 h2 h3
+      simp only [Γ4, Env.get_cons, ite_eq_right h4]; exact g3 y h1 h2 h3
     refine (specR_whileT (σ := σ) (D := D) P ⟨C, s, Γ4, m'⟩ hp0 ?_ : _)
     intro p ⟨hpC, hps, hpm, c, hcL, hpk, hpg, hte⟩ _
     have look : ∀ y ∈ cntL, y ≠ kK → y ≠ fy → y ≠ fx → y ≠ kG2 → p.Γ.get y = Γ.get y :=
@@ -463,7 +463,7 @@ theorem exConst_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
         have hcl : c = L := by
           by_cases h : c < L
           · have : nnRes us c ≠ BitVec.ofNat 64 nnSent := by
-              simp only [nnRes, dif_pos (show c < us.length from h)]; intro e
+              simp only [nnRes, dite_eq_left (show c < us.length from h)]; intro e
               have := congrArg BitVec.toNat e
               have h2 : min us[c] natCap ≤ natCap := Nat.min_le_right _ _
               have h1 : min us[c] natCap < 2 ^ 64 := Nat.lt_of_le_of_lt h2 (by unfold natCap; decide)
@@ -480,7 +480,7 @@ theorem exConst_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
             by show m' s = p.m s; rw [hpm], hq⟩
           have h1 : y ≠ kG2 := by intro e; subst e; exact absurd hy (by simp only [cntL]; decide)
           have h2 : y ≠ kX := by intro e; subst e; exact absurd hy (by simp only [cntL]; decide)
-          simp only [Env.get_cons, if_neg h1, if_neg h2]; exact hte y hy
+          simp only [Env.get_cons, ite_eq_right h1, ite_eq_right h2]; exact hte y hy
       · -- another element
         have hcl : c < L := by
           by_cases h : c < L
@@ -491,7 +491,7 @@ theorem exConst_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
         intro t ht
         rcases step_assignI (C := C) (Γ := (kX, nnRes us c) :: p.Γ) kK (.op .add [vv kK, .const 1])
           (BitVec.ofNat 64 (c + 1)) (hD kK (by simp)) (by
-            simp only [sev, vv, Env.get_cons, show (kK = kX) = False from by decide, if_false, hpk,
+            simp only [sev, vv, Env.get_cons, show (kK = kX) = False from by decide, ite_false, hpk,
               Option.bind_eq_bind, Option.bind_some, Option.pure_def]
             congr 1; apply BitVec.eq_of_toNat_eq; simp [BitVec.toNat_add]) t ht with hs' | ⟨hn', hq⟩
         · exact Or.inl hs'
@@ -500,7 +500,7 @@ theorem exConst_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
             fun y hy => ?_⟩, by show m' s = p.m s; rw [hpm], hq⟩
           have h1 : y ≠ kK := by intro e; subst e; exact absurd hy (by simp only [cntL]; decide)
           have h2 : y ≠ kX := by intro e; subst e; exact absurd hy (by simp only [cntL]; decide)
-          simp only [Env.get_cons, if_neg h1, if_neg h2]; exact hte y hy
+          simp only [Env.get_cons, ite_eq_right h1, ite_eq_right h2]; exact hte y hy
     · -- done: the tail
       refine ⟨0, by simp [sev, vv, hg0], fun _ => ?_, fun h => absurd rfl h⟩
       subst hcL'

@@ -76,13 +76,13 @@ theorem keFun_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (bs : List
   · have h34 : (byteL bs (skipL isKeyN bs i0)).toNat = 34 := by
       cases hh : decide ((byteL bs (skipL isKeyN bs i0)).toNat = 34) <;> simp_all [bw]
     have hv : keyEndL bs i0 = skipL isKeyN bs i0 := by
-      simp only [keyEndL]; rw [if_pos (by simpa [byteL] using h34)]
+      simp only [keyEndL]; rw [ite_eq_left (by simpa [byteL] using h34)]
     rw [hv]
     obtain ⟨r1, r2, r3, r4, r5, r6⟩ := return_vv u2 sK _ (by lk [u2]; exact lk1)
     exact Or.inr ⟨r1, r2, r3, r4, r5, r6⟩
   · have h34 : ¬ (byteL bs (skipL isKeyN bs i0)).toNat = 34 := by intro h; simp [bw, h] at hw
     have hv : keyEndL bs i0 = 0 := by
-      simp only [keyEndL]; rw [if_neg (by simpa [byteL] using h34)]
+      simp only [keyEndL]; rw [ite_eq_right (by simpa [byteL] using h34)]
     rw [hv]
     right
     rw [evaluateHOLFiniteState_eq_evaluate_def u2 (.return _)]

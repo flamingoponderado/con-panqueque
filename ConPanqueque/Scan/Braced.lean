@@ -99,7 +99,7 @@ theorem br_step (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArra
   have ln1 : v1.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))) := by lk [v1, v0]; exact ln
   have hct : c.toNat < 256 := UInt8.toNat_lt c
   have hstep := ConLeche.Frontend.skipBraced.eq_def b j d
-  rw [dif_pos hju, uget_eq b j hjl hju, ← hcx] at hstep
+  rw [dite_eq_left hju, uget_eq b j hjl hju, ← hcx] at hstep
   simp only at hstep
   have mk : ∀ (w : PanSemStateFiniteExact 64 σ) (j' : USize) (d' : Nat),
       w.memory = v1.memory → w.memaddrs = v1.memaddrs → w.code = v1.code → w.globals = v1.globals →
@@ -177,7 +177,7 @@ theorem br_step (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArra
     have hne0 : (USize.ofNat E == 0) = false := beq_eq_false_iff_ne.mpr (fun h => by
       have := congrArg USize.toNat h; rw [hEU] at this; simp at this; omega)
     rw [hne0] at hstep; simp only [Bool.false_eq_true, ↓reduceIte] at hstep
-    rw [dif_pos (USize.lt_iff_toNat_lt.mpr (by rw [hE1]; omega))] at hstep
+    rw [dite_eq_left (USize.lt_iff_toNat_lt.mpr (by rw [hE1]; omega))] at hstep
     have li2 : u2.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 j.toNat))) := by
       lk [u2]; rw [lo1 sI (by decide)]; exact li1
     rw [ConsLoop.assign_local u2 sI _ (BitVec.ofNat 64 (USize.ofNat E + 1).toNat) _ (by

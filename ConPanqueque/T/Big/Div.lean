@@ -137,7 +137,7 @@ variable {σ : Type}
 theorem limbs_word (w : Nat) (hw : w < B) : limbs w = if w = 0 then [] else [BitVec.ofNat 64 w] := by
   by_cases h : w = 0
   · subst h; simp [limbs_zero]
-  · rw [if_neg h, limbs_pos h, Nat.div_eq_of_lt hw, limbs_zero, Nat.mod_eq_of_lt hw]
+  · rw [ite_eq_right h, limbs_pos h, Nat.div_eq_of_lt hw, limbs_zero, Nat.mod_eq_of_lt hw]
 
 theorem wordBlk_spec {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env} {D : List MlS} {v : MlS} (w : Nat)
     (hw : w < B) (hv : Γ.get v = some (BitVec.ofNat 64 w)) (hvz : v ≠ rZ) (hz : rZ ∈ D) :
@@ -170,8 +170,8 @@ theorem wordBlk_spec {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env} {D : List
   refine ⟨e1, fun i hi => ?_⟩
   have hl : (limbs w).length = if w = 0 then 0 else 1 := by rw [limbs_word w hw]; split <;> rfl
   by_cases h0 : w = 0
-  · rw [hl, if_pos h0] at hi; omega
-  have hi0 : i = 0 := by rw [hl, if_neg h0] at hi; omega
+  · rw [hl, ite_eq_left h0] at hi; omega
+  have hi0 : i = 0 := by rw [hl, ite_eq_right h0] at hi; omega
   subst hi0
   rw [limbs_getElem w 0 hi]
   simpa [Nat.mod_eq_of_lt hw] using e2

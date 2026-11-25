@@ -319,7 +319,7 @@ theorem hint_quoted {b : ByteArray} (hp : Plat b) {v e : USize} {x : HintsRec} (
   have dq : "opaque\"".toUTF8.data.toList = [111, 112, 97, 113, 117, 101, 34] := by decide
   simp only [da, dq, List.drop_zero, USize.toNat_zero, hv1] at ma mo
   have hb34 : (byteAt b v == 34) = true := by rw [hbyte]; rfl
-  rw [scanHints, if_pos hb34, ma, mo] at h
+  rw [scanHints, ite_eq_left hb34, ma, mo] at h
   split at h
   · rename_i ha
     simp only [ScanRes.ok.injEq] at h

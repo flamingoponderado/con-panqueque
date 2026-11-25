@@ -237,7 +237,7 @@ theorem rest_spec (C : Ctx) (hok : CtxOK C)
   have base : ∀ z, z ∉ lvScratch → z ≠ lQ → z ≠ lA2 → z ≠ lA3 →
       Env.get Γ2 z = Env.get (ctxEnv (ctxH C H) ++ leqParams.zip [BitVec.ofNat 64 n, wl, wr, iW d]) z := by
     intro z h1 h2 h3 h4
-    rw [hp2 z h1]; simp only [Env.get_cons, h2, h3, h4, if_false]; rw [hp1 z h1]; simp [h2]
+    rw [hp2 z h1]; simp only [Env.get_cons, h2, h3, h4, ite_false]; rw [hp1 z h1]; simp [h2]
   have gFu : Env.get Γ2 pFu = some (BitVec.ofNat 64 n) := by
     rw [base _ (by decide) (by decide) (by decide) (by decide)]; simp +decide [ctxEnv, leqParams]
   have gLa : Env.get Γ2 pLa = some wl := by
@@ -265,7 +265,7 @@ theorem rest_spec (C : Ctx) (hok : CtxOK C)
     refine callNeq_spec (C := ctxH C H) hcN lZ lA1 lB nh1 nh2 a x f1 f2 hd1 hd2 (by decide) (by simp +decide)
       (by simp +decide) ?_
     by_cases hax : a = x
-    · simp only [hax, decide_true, Bool.true_and, if_true]
+    · simp only [hax, decide_true, Bool.true_and, ite_true]
       refine specR_ifI _ 0 (by simp +decide [eqC, sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
         (fun h => absurd rfl h) (fun _ => ?_)
       refine specR_ifSign d hdl hdh (by simp +decide [gD]) (fun hneg => specR_retOB 1 _ ?_)
@@ -430,13 +430,13 @@ theorem rest_spec (C : Ctx) (hok : CtxOK C)
       (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifSign d hdl hdh (by simp +decide [gD]) (fun hneg => ?_) (fun hpos => ?_)
     · have : ¬ (0 ≤ d) := by omega
-      simp only [ge_iff_le, this, decide_false, if_false] at hV
+      simp only [ge_iff_le, this, decide_false, ite_false] at hV
       subst hV
       exact callRetOB (C := ctxH C H) fImax leqParams [vv pFu, vv pLa, vv pLb, vv pD] (imBody C)
           [BitVec.ofNat 64 n, wl, wr, iW d] (by decide) rfl (by decide) hcR
           ⟨by simp +decide [gFu], by simp +decide [gLa], by simp +decide [gLb], by simp +decide [gD], trivial⟩ _
           (im_spec C hok hcS hcN hcM hcC hcB hcI B hcL n hn ih H _ _ wl wr d s hl hr hd0)
-    · simp only [ge_iff_le, hpos, decide_true, if_true] at hV
+    · simp only [ge_iff_le, hpos, decide_true, ite_true] at hV
       subst hV
       exact specR_retOB 2 _ rfl
   rw [rest_else n l r d c4 c5 c6 (by omega) (by omega) (by omega) (by omega) (by omega)]

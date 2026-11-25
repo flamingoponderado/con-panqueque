@@ -22,7 +22,7 @@ theorem NStore.intern_of_find' {st : NStore} {v : NNodeView} {h : NIdx}
   · simp only [Option.some.injEq] at hf; rw [hf]
   · split at hf
     · rename_i hon
-      rw [if_pos hon]
+      rw [ite_eq_left hon]
       cases hs : st.scr.find? v with
       | some i => simp only [hs, Option.some.injEq] at hf; rw [hf]
       | none => simp only [hs] at hf; simp at hf
@@ -41,7 +41,7 @@ theorem internNNode_ok (s : AState) (v : NNodeView) (hcap : NCap s.store.ns v) :
     simp only [hf]
     rw [NStore.intern_of_find' hf]; rfl
   | none =>
-    simp only [hf, if_pos (hcap hf)]
+    simp only [hf, ite_eq_left (hcap hf)]
     rfl
 
 theorem internNNode_wf {v : NNodeView} {s s' : AState} {h : NIdx} (hwf : StoreWF s.store)

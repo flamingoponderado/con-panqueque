@@ -56,7 +56,7 @@ theorem sev_tblAddr (Γ : Env) (C : Ctx) (j i : Nat) (eA ei : ExpHOL 64) (heA : 
     (hei : sev Γ ei = some (BitVec.ofNat 64 i))
     (hi : 8 * i < 2 ^ 64) : sev Γ (tblAddr eA ei) = some (cellA C (j + i)) := by
   simp only [tblAddr, sev, heA, hei, Option.bind_eq_bind, Option.bind_some, Option.pure_def, Option.map_some,
-    show (3 : BitVec 64).toNat = 3 from rfl, show (3 : Nat) < 64 by decide, if_true]
+    show (3 : BitVec 64).toNat = 3 from rfl, show (3 : Nat) < 64 by decide, ite_true]
   rw [shl3 i hi, cellA_add]
 
 theorem sev_lower (Γ : Env) (ei ec : ExpHOL 64) (i cap : Nat) (hei : sev Γ ei = some (BitVec.ofNat 64 i))
@@ -175,14 +175,14 @@ theorem tblRel_insert {k : IdxKind} {H : List (BitVec 64)} {j cap : Nat} {tbl : 
     · have e' : ¬ i = i' := fun h => e h.symm
       have : j + i ≠ j + i' := by omega
       simp [this, e, e', hrel.1 i' hi']
-  · rw [IdTable.get?_insert, if_neg (by omega)]; exact hrel.2 i' hi'
+  · rw [IdTable.get?_insert, ite_eq_right (by omega)]; exact hrel.2 i' hi'
 
 /-- Another table's cells are unchanged by a write outside them. -/
 theorem tblRel_set_other {k : IdxKind} {H : List (BitVec 64)} {j cap : Nat} {tbl : IdTable (Idx k)}
     (hrel : TblRel H j cap tbl) (c : Nat) (hc : c < j ∨ j + cap ≤ c) (w : BitVec 64) :
     TblRel (H.set c w) j cap tbl := by
   refine ⟨fun i hi => ?_, hrel.2⟩
-  rw [List.getElem?_set, if_neg (by omega)]; exact hrel.1 i hi
+  rw [List.getElem?_set, ite_eq_right (by omega)]; exact hrel.1 i hi
 
 /-- Bind index `ei` to the handle in `eh` (`*cell := eh + 1`). -/
 def tblSetP (eA ei eh : ExpHOL 64) (rest : ProgHOL 64) : ProgHOL 64 :=

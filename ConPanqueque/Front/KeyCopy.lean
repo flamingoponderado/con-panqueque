@@ -76,21 +76,21 @@ theorem kcH_get (H : List (BitVec 64)) (o : Nat) (ws : List (BitVec 64)) :
     rw [kcH_get H o ws i c]
     by_cases e : o + i = c
     · subst e; by_cases hl : o + i < H.length <;> simp [hl]
-    · simp only [e, if_false]
+    · simp only [e, ite_false]
       by_cases h1 : o ≤ c ∧ c < o + i ∧ c < H.length
-      · rw [if_pos h1, if_pos (by omega)]
-      · rw [if_neg h1, if_neg (by omega)]
+      · rw [ite_eq_left h1, ite_eq_left (by omega)]
+      · rw [ite_eq_right h1, ite_eq_right (by omega)]
 
 theorem packed_set {H : List (BitVec 64)} {j0 : Nat} {bs : List UInt8} (h : Packed H j0 bs) (c : Nat)
     (hc : ∀ i, i < bs.length → c ≠ j0 + i / 8) (w : BitVec 64) : Packed (H.set c w) j0 bs := by
   intro i hi
   obtain ⟨w', hw, hb⟩ := h i hi
-  exact ⟨w', by rw [List.getElem?_set, if_neg (hc i hi)]; exact hw, hb⟩
+  exact ⟨w', by rw [List.getElem?_set, ite_eq_right (hc i hi)]; exact hw, hb⟩
 
 theorem env_get_cons5 (Γ : Env) (a b c d e : MlS × BitVec 64) (x : MlS) (h1 : x ≠ a.1) (h2 : x ≠ b.1)
     (h3 : x ≠ c.1) (h4 : x ≠ d.1) (h5 : x ≠ e.1) : Env.get (a :: b :: c :: d :: e :: Γ) x = Env.get Γ x := by
   obtain ⟨a1, a2⟩ := a; obtain ⟨b1, b2⟩ := b; obtain ⟨c1, c2⟩ := c; obtain ⟨d1, d2⟩ := d; obtain ⟨e1, e2⟩ := e
-  simp only [Env.get_cons, if_neg h1, if_neg h2, if_neg h3, if_neg h4, if_neg h5]
+  simp only [Env.get_cons, ite_eq_right h1, ite_eq_right h2, ite_eq_right h3, ite_eq_right h4, ite_eq_right h5]
 
 /-- The environment after `i` iterations. -/
 def kcG (Γ0 : Env) (H : List (BitVec 64)) (bufJ o q : Nat) (ws : List (BitVec 64)) : Nat → Env
@@ -153,7 +153,7 @@ theorem kc_spec {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ0 : Env} {
   have hHl : (kcH C.H o ws i).length = C.H.length := kcH_length _ _ _ _
   have hc : bufJ + j / 8 < C.H.length := by have := Nat.div_le_div_right (c := 8) (Nat.le_of_lt hj); omega
   have hcell : (kcH C.H o ws i)[bufJ + j / 8]? = C.H[bufJ + j / 8]? := by
-    rw [kcH_get, if_neg]
+    rw [kcH_get, ite_eq_right]
     intro ⟨h1, h2, _⟩
     exact hdis (bufJ + j / 8 - o) (by omega) j hj (by omega)
   obtain ⟨w, hw, hbw⟩ := hpk j hj
@@ -172,9 +172,9 @@ theorem kc_spec {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ0 : Env} {
   -- kW := *(kBA + ((kJ >> 3) << 3))
   refine step_seq (step_heapLoadI (C := ctxH C (kcH C.H o ws i)) kW _ (bufJ + j / 8) (by simp only [ctxH]; rw [hHl]; exact hc)
     (hD kW (by simp)) (by
-      simp only [sev, vv, Env.get_cons, if_pos, show (kBA = kJ) = False from by decide, if_false,
+      simp only [sev, vv, Env.get_cons, ite_eq_left, show (kBA = kJ) = False from by decide, ite_false,
         Gi kBA (by decide), hBA, Option.bind_eq_bind, Option.bind_some, Option.pure_def, Option.map_some,
-        show (3 : BitVec 64).toNat = 3 from rfl, show (3 : Nat) < 64 by decide, if_true]
+        show (3 : BitVec 64).toNat = 3 from rfl, show (3 : Nat) < 64 by decide, ite_true]
       rw [shr3shl3 j (by omega), ← cellA_add]; rfl)) ?_
   simp only [ctxH] at hget ⊢
   rw [hget]
@@ -185,22 +185,22 @@ theorem kc_spec {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ0 : Env} {
   refine step_seq (step_assignI kC _ ((w >>> ((BitVec.ofNat 64 j &&& 7) <<< (3 : Nat)).toNat) &&& 255)
     (hD kC (by simp)) (by
       have h8 := and7shl3 j (by omega)
-      simp only [sev, vv, Env.get_cons, show (kW = kS) = False from by decide, if_true, if_false,
+      simp only [sev, vv, Env.get_cons, show (kW = kS) = False from by decide, ite_true, ite_false,
         Option.bind_eq_bind, Option.bind_some, Option.pure_def]
-      rw [if_pos (by rw [h8]; omega)]; rfl)) ?_
+      rw [ite_eq_left (by rw [h8]; omega)]; rfl)) ?_
   -- *(kKA + (kK << 3)) := kC
   refine step_seq (step_heapStoreI (C := ctxH C (kcH C.H o ws i)) (ctxOK_H hok _) _ _ (o + i)
     (by simp only [ctxH]; rw [hHl]; exact hko') (ws.getD i 0)
     (by
       simp only [sev, vv, Env.get_cons, show (kKA = kC) = False from by decide, show (kKA = kS) = False from by decide,
-        show (kKA = kW) = False from by decide, show (kKA = kJ) = False from by decide, if_false,
+        show (kKA = kW) = False from by decide, show (kKA = kJ) = False from by decide, ite_false,
         show (kK = kC) = False from by decide, show (kK = kS) = False from by decide,
         show (kK = kW) = False from by decide, show (kK = kJ) = False from by decide,
         Gi kKA (by decide), hKA, kcG_k Γ0 C.H bufJ o q ws hK0 i, Option.bind_eq_bind, Option.bind_some,
         Option.pure_def, Option.map_some, show (3 : BitVec 64).toNat = 3 from rfl, show (3 : Nat) < 64 by decide,
-        if_true]
+        ite_true]
       rw [shl3 i (by omega), ← cellA_add]; rfl)
-    (by simp only [sev, vv, Env.get_cons, if_true]; rw [hcv])) ?_
+    (by simp only [sev, vv, Env.get_cons, ite_true]; rw [hcv])) ?_
   -- kK := kK + 1
   intro t ht
   rcases step_assignI (C := ctxH C (kcH C.H o ws (i + 1)))
@@ -209,7 +209,7 @@ theorem kc_spec {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ0 : Env} {
       kcG Γ0 C.H bufJ o q ws i) kK (.op .add [vv kK, .const 1]) (BitVec.ofNat 64 (i + 1)) (hD kK (by simp))
     (by
       simp only [sev, vv, Env.get_cons, show (kK = kC) = False from by decide, show (kK = kS) = False from by decide,
-        show (kK = kW) = False from by decide, show (kK = kJ) = False from by decide, if_false,
+        show (kK = kW) = False from by decide, show (kK = kJ) = False from by decide, ite_false,
         kcG_k Γ0 C.H bufJ o q ws hK0 i, Option.bind_eq_bind, Option.bind_some, Option.pure_def]
       congr 1; apply BitVec.eq_of_toNat_eq; simp [BitVec.toNat_add]) t ht with hs | ⟨hn, hq⟩
   · exact Or.inl hs

@@ -85,13 +85,13 @@ theorem prepend_spec {α : Type} (C : Ctx) (hok : CtxOK C) {H : List (BitVec 64)
     intro k; rw [← hF, fillI_get?]
   refine hR F H2.length _ ?_ ?_ (sr_of_eq ht.sr rfl rfl rfl rfl)
   · refine hp2'.trans (prefix_of_get? (by omega) (fun k hk => ?_))
-    rw [hFg k, if_neg (by omega), ← hB]
+    rw [hFg k, ite_eq_right (by omega), ← hB]
     show (B1.set _ _)[k]? = _
     rw [List.getElem?_set_ne (by omega), ← hB1]
     show ((H2 ++ ws).set _ _)[k]? = _
     rw [List.getElem?_set_ne (by omega), List.getElem?_append_left hk]
   · refine ⟨?_, fun i hi => ?_⟩
-    · rw [hFg, if_neg (by omega), ← hB]
+    · rw [hFg, ite_eq_right (by omega), ← hB]
       show (B1.set _ _)[H2.length]? = _
       rw [List.getElem?_set_ne (by omega), ← hB1]
       show ((H2 ++ ws).set _ _)[H2.length]? = _
@@ -99,11 +99,11 @@ theorem prepend_spec {α : Type} (C : Ctx) (hok : CtxOK C) {H : List (BitVec 64)
     · simp only [List.length_cons] at hi
       cases i with
       | zero =>
-        rw [hFg, if_neg (by omega), ← hB]
+        rw [hFg, ite_eq_right (by omega), ← hB]
         show (B1.set _ _)[H2.length + 1 + 0]? = _
         rw [List.getElem?_set_self (by omega)]; simp
       | succ i =>
-        rw [show H2.length + 1 + (i + 1) = H2.length + 2 + i by omega, hFg, if_pos ⟨by omega, by omega, by omega⟩]
+        rw [show H2.length + 1 + (i + 1) = H2.length + 2 + i by omega, hFg, ite_eq_left ⟨by omega, by omega, by omega⟩]
         simp [List.getD_eq_getElem?_getD, show i < xs.length by omega]
 
 end

@@ -274,10 +274,10 @@ theorem ipy_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
   have hp02 : C.H <+: H2 := hp01.trans hp2
   refine Knot.specR_tagIteV ipyW w 2 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
   swap
-  · rw [if_neg (show ¬ (w.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
+  · rw [ite_eq_right (show ¬ (w.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
     exact specR_returnI _ (boolW false) (by simp [boolW]; rfl)
       (fun t ht => ⟨H2, hp1.trans hp2, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_pos (show (w.tag == ETag.sort) = true by simp [htg, ETag.sort])]
+  rw [ite_eq_left (show (w.tag == ETag.sort) = true by simp [htg, ETag.sort])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
   refine specR_assignI lDh (vv ipyW) (Enc.idxW w) (by decide) (by simp) ?_
   refine specR_viewP (C := ctxH C H2) w (by simp) (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)

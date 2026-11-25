@@ -2469,9 +2469,9 @@ theorem sx_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, sxParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; first | exact hl | (rw [Nat.mod_eq_of_lt (show d < 18446744073709551616 by omega)]; omega)) (fun _ => ?_) (fun h => absurd h (by decide))
     refine Knot.specR_tagIteV sxT ta 6 (by decide) (by decide) (by simp +decide [Env.get, sxParams, ctxEnv]) (fun htg => ?_) (fun htg => ?_)
     swap
-    · rw [if_neg (show ¬ (ta.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
+    · rw [ite_eq_right (show ¬ (ta.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
       exact specR_returnI _ 0 rfl (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    rw [if_pos (show (ta.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
+    rw [ite_eq_left (show (ta.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
     refine specR_assignI lDh (vv sxT) (Enc.idxW ta) (by decide) (by simp +decide [Env.get, sxParams, ctxEnv]) ?_
     refine specR_viewP (C := ctxH C H) ta (by simp) (by simp +decide [Env.get] <;> rfl)

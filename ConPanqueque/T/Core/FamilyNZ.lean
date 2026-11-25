@@ -662,11 +662,11 @@ theorem fz_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     (by simp +decide [sev, Env.get, fzParams, ctxEnv]; exact fz_ecell72 C o) hnz ?_
   unfold familyNeverZeroAt
   by_cases hz : caps.neverZero = true
-  · rw [if_pos hz]
+  · rw [ite_eq_left hz]
     refine specR_ifI _ (boolW caps.neverZero) (by simp +decide [sev, Env.get]) (fun _ => ?_)
       (fun h => absurd h (by simp [boolW, hz]))
     exact specR_returnI _ 1 rfl (fun t ht => ⟨C.H, List.prefix_refl _, by simp [boolW], sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_neg hz]
+  rw [ite_eq_right hz]
   refine specR_ifI _ (boolW caps.neverZero) (by simp +decide [sev, Env.get])
     (fun h => absurd h (by simp [boolW, hz])) (fun _ => ?_)
   refine specR_bindPure ?_

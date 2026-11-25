@@ -141,7 +141,7 @@ theorem nl_step (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArra
   have li1 : v1.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 j.toNat))) := by lk [v1, v]; exact li
   -- con-leche's loop, one step
   have hstep := ConLeche.Frontend.scanNatListLoop.eq_1 b j acc wi
-  rw [dif_pos hju, uget_eq b j hjl hju, ← hcx] at hstep
+  rw [dite_eq_left hju, uget_eq b j hjl hju, ← hcx] at hstep
   simp only at hstep
   have hct : c.toNat < 256 := UInt8.toNat_lt c
   -- the frame of every normal outcome
@@ -274,7 +274,7 @@ theorem nl_step (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArra
   · simp only [bw, hlt0, ↓reduceIte, ne_eq, not_true_eq_false]; exact Or.inl (stop_hang w)
   have hlt2 : j.toNat < e.toNat := by omega
   simp only [bw, hlt2, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
-  rw [dif_pos (USize.lt_iff_toNat_lt.mpr hlt2)] at hstep
+  rw [dite_eq_left (USize.lt_iff_toNat_lt.mpr hlt2)] at hstep
   have lne2 : w.locals.lookup sNe = some (.val (.word (bw (acc ≠ [])))) := by
     rw [lo1 sNe (by decide)]; exact lne1
   rw [seq_normal _ (ConsLoop.assign_local w sNe (.const 1) 1 _ (by simp [evalHOLExact]) lne2)]

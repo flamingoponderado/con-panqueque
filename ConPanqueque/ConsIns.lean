@@ -192,11 +192,11 @@ theorem ins_rel (t t' : PanSemStateFiniteExact 64 σ) (enc : α → BitVec 64 ×
     by_cases hkj : k = j
     · subst hkj
       refine ⟨rows.length + 1, by rw [List.getElem?_set]; simp [hinv.len, hk], by omega, by rw [hd']; exact sd, ?_⟩
-      rw [rd, if_neg (ne _ _ (by rw [sk]; omega)), if_pos rfl]
+      rw [rd, ite_eq_right (ne _ _ (by rw [sk]; omega)), ite_eq_left rfl]
     · refine ⟨v, by rw [List.getElem?_set]; simp [Ne.symm hkj, hv], hv60, by rw [hd']; exact sd, ?_⟩
-      rw [rd, if_neg (ne _ _ (by rw [sk]; omega)),
-        if_neg (ne _ _ (by rw [sk, sj]; omega)), if_neg (ne _ _ (by rw [sk, dc]; omega)),
-        if_neg (ne _ _ (by rw [sk, rc.2]; omega)), if_neg (ne _ _ (by rw [sk, rc.1]; omega))]
+      rw [rd, ite_eq_right (ne _ _ (by rw [sk]; omega)),
+        ite_eq_right (ne _ _ (by rw [sk, sj]; omega)), ite_eq_right (ne _ _ (by rw [sk, dc]; omega)),
+        ite_eq_right (ne _ _ (by rw [sk, rc.2]; omega)), ite_eq_right (ne _ _ (by rw [sk, rc.1]; omega))]
       exact sm
   · -- rows
     intro i hi
@@ -205,22 +205,22 @@ theorem ins_rel (t t' : PanSemStateFiniteExact 64 σ) (enc : α → BitVec 64 ×
     by_cases hic : i = rows.length
     · subst hic
       refine ⟨by rw [hd']; exact (hroom _ hlt).1, by rw [hd']; exact (hroom _ hlt).2.1, ?_, ?_⟩
-      · rw [rd, if_neg (ne _ _ (by rw [rc.1]; omega)), if_neg (ne _ _ (by rw [rc.1, sj]; omega)),
-          if_neg (ne _ _ (by rw [rc.1, dc]; omega)), if_neg (ne _ _ (by rw [rc.1, rc.2]; omega)), if_pos rfl]
+      · rw [rd, ite_eq_right (ne _ _ (by rw [rc.1]; omega)), ite_eq_right (ne _ _ (by rw [rc.1, sj]; omega)),
+          ite_eq_right (ne _ _ (by rw [rc.1, dc]; omega)), ite_eq_right (ne _ _ (by rw [rc.1, rc.2]; omega)), ite_eq_left rfl]
         simp
-      · rw [rd, if_neg (ne _ _ (by rw [rc.2]; omega)), if_neg (ne _ _ (by rw [rc.2, sj]; omega)),
-          if_neg (ne _ _ (by rw [rc.2, dc]; omega)), if_pos rfl]
+      · rw [rd, ite_eq_right (ne _ _ (by rw [rc.2]; omega)), ite_eq_right (ne _ _ (by rw [rc.2, sj]; omega)),
+          ite_eq_right (ne _ _ (by rw [rc.2, dc]; omega)), ite_eq_left rfl]
         simp
     · have hi' : i < rows.length := by omega
       obtain ⟨d1, d2, m1, m2⟩ := hm.row i hi'
       refine ⟨by rw [hd']; exact d1, by rw [hd']; exact d2, ?_, ?_⟩
-      · rw [rd, if_neg (ne _ _ (by rw [ri.1]; omega)), if_neg (ne _ _ (by rw [ri.1, sj]; omega)),
-          if_neg (ne _ _ (by rw [ri.1, dc]; omega)), if_neg (ne _ _ (by rw [ri.1, rc.2]; omega)),
-          if_neg (ne _ _ (by rw [ri.1, rc.1]; omega)), m1, List.getElem_append_left hi']
-      · rw [rd, if_neg (ne _ _ (by rw [ri.2]; omega)), if_neg (ne _ _ (by rw [ri.2, sj]; omega)),
-          if_neg (ne _ _ (by rw [ri.2, dc]; omega)), if_neg (ne _ _ (by rw [ri.2, rc.2]; omega)),
-          if_neg (ne _ _ (by rw [ri.2, rc.1]; omega)), m2, List.getElem_append_left hi']
-  · rw [rd, if_pos rfl]; simp
+      · rw [rd, ite_eq_right (ne _ _ (by rw [ri.1]; omega)), ite_eq_right (ne _ _ (by rw [ri.1, sj]; omega)),
+          ite_eq_right (ne _ _ (by rw [ri.1, dc]; omega)), ite_eq_right (ne _ _ (by rw [ri.1, rc.2]; omega)),
+          ite_eq_right (ne _ _ (by rw [ri.1, rc.1]; omega)), m1, List.getElem_append_left hi']
+      · rw [rd, ite_eq_right (ne _ _ (by rw [ri.2]; omega)), ite_eq_right (ne _ _ (by rw [ri.2, sj]; omega)),
+          ite_eq_right (ne _ _ (by rw [ri.2, dc]; omega)), ite_eq_right (ne _ _ (by rw [ri.2, rc.2]; omega)),
+          ite_eq_right (ne _ _ (by rw [ri.2, rc.1]; omega)), m2, List.getElem_append_left hi']
+  · rw [rd, ite_eq_left rfl]; simp
   · -- derived words
     intro i hi
     simp only [List.length_append, List.length_singleton] at hi
@@ -228,14 +228,14 @@ theorem ins_rel (t t' : PanSemStateFiniteExact 64 σ) (enc : α → BitVec 64 ×
     by_cases hic : i = rows.length
     · subst hic
       refine ⟨by rw [hd']; exact (hroom _ hlt).2.2, ?_⟩
-      rw [rd, if_neg (ne _ _ (by rw [dc]; omega)), if_neg (ne _ _ (by rw [dc, sj]; omega)), if_pos rfl]
+      rw [rd, ite_eq_right (ne _ _ (by rw [dc]; omega)), ite_eq_right (ne _ _ (by rw [dc, sj]; omega)), ite_eq_left rfl]
       simp [hdl]
     · have hi' : i < rows.length := by omega
       obtain ⟨dd, dm⟩ := hder i hi'
       refine ⟨by rw [hd']; exact dd, ?_⟩
-      rw [rd, if_neg (ne _ _ (by rw [di]; omega)), if_neg (ne _ _ (by rw [di, sj]; omega)),
-        if_neg (ne _ _ (by rw [di, dc]; omega)), if_neg (ne _ _ (by rw [di, rc.2]; omega)),
-        if_neg (ne _ _ (by rw [di, rc.1]; omega)), dm, List.getElem_append_left (by omega)]
+      rw [rd, ite_eq_right (ne _ _ (by rw [di]; omega)), ite_eq_right (ne _ _ (by rw [di, sj]; omega)),
+        ite_eq_right (ne _ _ (by rw [di, dc]; omega)), ite_eq_right (ne _ _ (by rw [di, rc.2]; omega)),
+        ite_eq_right (ne _ _ (by rw [di, rc.1]; omega)), dm, List.getElem_append_left (by omega)]
 end
 
 /-! ## The table's region
@@ -293,8 +293,8 @@ theorem insMem_out (m : BitVec 64 → HolWordLab 64) (C R D S kf ka dv : BitVec 
     rw [toNat_add_lt _ _ (by rw [toNat_ofNat_lt _ (by omega)]; omega), toNat_ofNat_lt _ (by omega)]
   have ne : ∀ b : BitVec 64, inReg C D cap b → a ≠ b := fun b hb e => ha (e ▸ hb)
   simp only [insMem, upd]
-  rw [if_neg (ne C ⟨Nat.le_refl _, by omega⟩), if_neg (ne _ ⟨by omega, by omega⟩), if_neg (ne _ ⟨by omega, by omega⟩),
-    if_neg (ne _ ⟨by omega, by omega⟩), if_neg (ne _ ⟨by omega, by omega⟩)]
+  rw [ite_eq_right (ne C ⟨Nat.le_refl _, by omega⟩), ite_eq_right (ne _ ⟨by omega, by omega⟩), ite_eq_right (ne _ ⟨by omega, by omega⟩),
+    ite_eq_right (ne _ ⟨by omega, by omega⟩), ite_eq_right (ne _ ⟨by omega, by omega⟩)]
 end
 
 end ConPanqueque.ConsIns

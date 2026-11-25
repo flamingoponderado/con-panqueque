@@ -161,7 +161,7 @@ theorem feedCore_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (F rb capD jN 
         · exact e
         · simp [bw, e] at hw
       have hiu : i < b.usize := (hbuf.plat.lt_iff i).mpr hlt
-      rw [feedAll, dif_pos hiu]
+      rw [feedAll, dite_eq_left hiu]
       cases hsc : scanLineFwd b i with
       | err er =>
         simp only
@@ -187,11 +187,11 @@ theorem feedCore_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (F rb capD jN 
             have e := congrArg BitVec.toNat (bw_eq_ne h0); simp only [BitVec.toNat_ofNat] at e
             rw [Nat.mod_eq_of_lt hj64] at e
             simp only [beq_iff_eq]; exact USize.toNat_inj.mp (by simpa using e)
-          rw [if_pos hj0]
+          rw [ite_eq_left hj0]
           exact specR_returnI (.const 0) 0 rfl (fun t ht => ⟨H', sr_of_eq ht.sr rfl rfl rfl rfl, hf'⟩)
         · have hj0 : ¬ (j == 0) = true := by
             intro e; simp only [beq_iff_eq] at e; subst e; simp [bw] at h0
-          rw [if_neg hj0]
+          rw [ite_eq_right hj0]
           refine specR_ifI _ _ (sev_lower Γ' (vv kLI) (vv kNx) i.toNat j.toNat
             (by simp only [sev, vv]; rw [look _ (by decide)]; exact feedEnv_LI ..) (by simpa [sev, vv] using hnx)
             hi64 hj64) (fun hw2 => ?_) (fun _ => specR_hangI)
@@ -200,7 +200,7 @@ theorem feedCore_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (F rb capD jN 
             · exact e
             · simp [bw, e] at hw2
           have hiju : i < j := USize.lt_iff_toNat_lt.mpr hij
-          rw [dif_pos hiju, ← bind_pure (feedAll st' b j (n + 1))]
+          rw [dite_eq_left hiju, ← bind_pure (feedAll st' b j (n + 1))]
           refine specR_protoCall (C := ctxH C H') kR1 fFeed feedPs (by decide) feedL feedCore _
             (feedVs (ctxH C H') jN jL jE cap bufJ b.size rb capD j.toNat (n + 1)) rfl (by simp [feedL]) hcF ?_
             (feedL_none (ctxH C H') jN jL jE cap bufJ b.size rb capD j.toNat (n + 1))
@@ -228,7 +228,7 @@ theorem feedCore_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (F rb capD jN 
         intro h
         have : i.toNat < b.size := (hbuf.plat.lt_iff i).mp h
         simp [bw, this] at hw
-      rw [feedAll, dif_neg hge]
+      rw [feedAll, dite_eq_right hge]
       exact specR_returnI (.const 0) 0 rfl (fun t ht => ⟨C.H, by rw [ctxH_self]; exact sr_of_eq ht.sr rfl rfl rfl rfl, hfs⟩)
 
 end ConPanqueque.Front

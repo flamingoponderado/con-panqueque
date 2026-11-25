@@ -493,10 +493,10 @@ theorem op_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
       (fun h => absurd rfl h) (fun _ => ?_)
     refine Knot.specR_tagIteV opH h 6 (by decide) (by decide) (by simp +decide [Env.get, opParams, ctxEnv]) (fun htg => ?_) (fun htg => ?_)
     swap
-    · rw [if_neg (show ¬ (h.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
+    · rw [ite_eq_right (show ¬ (h.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
       exact specR_returnI _ 0 rfl (fun t ht => ⟨H, List.prefix_refl _, sr_of_eq ht.sr rfl rfl rfl rfl,
         fun _ => rfl, fun fvs acc r hr => by cases hr⟩)
-    rw [if_pos (show (h.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
+    rw [ite_eq_left (show (h.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
     refine specR_assignI lDh (vv opH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, opParams, ctxEnv]) ?_
     refine specR_viewP (C := ctxH C H) h (by simp) (by simp +decide [Env.get] <;> rfl)

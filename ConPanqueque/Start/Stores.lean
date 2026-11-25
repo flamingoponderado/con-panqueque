@@ -38,7 +38,7 @@ theorem updL_not_mem (m : BitVec 64 → HolWordLab 64) (l : List (BitVec 64 × B
   | cons p l ih =>
     obtain ⟨a, w⟩ := p
     simp only [List.map_cons, List.mem_cons, not_or] at h
-    simp only [updL]; rw [ih _ h.2, if_neg h.1]
+    simp only [updL]; rw [ih _ h.2, ite_eq_right h.1]
 
 theorem updL_mem (m : BitVec 64 → HolWordLab 64) (l : List (BitVec 64 × BitVec 64)) (c w : BitVec 64)
     (hn : (l.map Prod.fst).Nodup) (h : (c, w) ∈ l) : updL m l c = .word w := by
@@ -50,7 +50,7 @@ theorem updL_mem (m : BitVec 64 → HolWordLab 64) (l : List (BitVec 64 × BitVe
     simp only [updL]
     rcases List.mem_cons.mp h with e | hm
     · simp only [Prod.mk.injEq] at e; obtain ⟨rfl, rfl⟩ := e
-      rw [updL_not_mem _ _ _ hn.1, if_pos rfl]
+      rw [updL_not_mem _ _ _ hn.1, ite_eq_left rfl]
     · exact ih _ hn.2 hm
 
 end ConPanqueque.Start

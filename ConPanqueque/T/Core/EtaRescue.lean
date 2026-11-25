@@ -325,7 +325,7 @@ theorem er_spec (C : Ctx) (hok : CtxOK C)
   cases hce : caps.eta
   · refine specR_ifI _ 1 (by simp [sev, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
       (fun h => absurd h (by decide))
-    rw [if_neg (by simp)]
+    rw [ite_eq_right (by simp)]
     exact hret0 (List.prefix_refl _)
   refine specR_ifI _ 0 (by simp [sev, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
     (fun _ => ?_)
@@ -337,7 +337,7 @@ theorem er_spec (C : Ctx) (hok : CtxOK C)
   · have hne : Enc.idxW tb.ctor ≠ Enc.idxW ctor := fun e => hk (Enc.idxW_inj e)
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, erParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne])
       (fun _ => ?_) (fun h => absurd h (by decide))
-    rw [if_neg (by simp [hk])]
+    rw [ite_eq_right (by simp [hk])]
     exact hret0 (List.prefix_refl _)
   refine specR_ifI _ 0 (by simp +decide [sev, Env.get, erParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hk])
     (fun h => absurd rfl h) (fun _ => ?_)
@@ -366,7 +366,7 @@ theorem er_spec (C : Ctx) (hok : CtxOK C)
       (fun h => absurd h (by decide))
     have hb : (cvj.levelParams == cvT.levelParams) = false :=
       beq_eq_false_iff_ne.mpr (fun h => hlen (by rw [h]))
-    rw [if_neg (by simp [hk, hb])]
+    rw [ite_eq_right (by simp [hk, hb])]
     exact hret0 (List.prefix_refl _)
   refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlen]) (fun h => absurd rfl h)
     (fun _ => ?_)
@@ -388,23 +388,23 @@ theorem er_spec (C : Ctx) (hok : CtxOK C)
   cases hb : (cvj.levelParams == cvT.levelParams)
   · refine specR_ifI _ 1 (by simp [sev, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
       (fun h => absurd h (by decide))
-    rw [if_neg (by simp [hk, hb])]
+    rw [ite_eq_right (by simp [hk, hb])]
     exact hret0 hp1
   refine specR_ifI _ 0 (by simp [sev, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
     (fun _ => ?_)
-  rw [if_pos (by simp [hce, hk, hb])]
+  rw [ite_eq_left (by simp [hce, hk, hb])]
   show SpecR _ _ _ (pinAt PIN_AND_INTRO >>= fun ai => if ctor != ai then pure (some tb) else pure none) _
   refine specR_pinAtI (C := ctxH C H1) hok1 PIN_AND_INTRO (by decide) erAi (by decide) ?_
   by_cases hai : ctor = (ctxH C H1).pins.names[PIN_AND_INTRO]'(by rw [hok1.pinsRel.1]; decide)
   · refine specR_ifI _ 1 (by simp +decide [sev, Env.get, erParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hai])
       (fun _ => ?_) (fun h => absurd h (by decide))
-    rw [if_neg (by simp [hai])]
+    rw [ite_eq_right (by simp [hai])]
     exact hret0 hp1
   · have hne : Enc.idxW ctor ≠ Enc.idxW ((ctxH C H1).pins.names[PIN_AND_INTRO]'(by rw [hok1.pinsRel.1]; decide)) :=
       fun e => hai (Enc.idxW_inj e)
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, erParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne])
       (fun h => absurd rfl h) (fun _ => ?_)
-    rw [if_pos (by simp [hai])]
+    rw [ite_eq_left (by simp [hai])]
     exact specR_returnI _ (ecell C o + 1) (by simp [optWG])
       (fun t ht => ⟨rfl, ⟨H1, hp1, sr_of_eq ht.sr rfl rfl rfl rfl⟩, o, rfl, hoE, htb⟩)
 

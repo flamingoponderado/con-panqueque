@@ -27,10 +27,10 @@ theorem isEquiv_noPtr (l r : ConLeche.Level) :
   by_cases h : (l == r) = true
   · have e : l = r := eq_of_beq h
     subst e; simp
-  · simp only [h, Bool.false_eq_true, if_false]
+  · simp only [h, Bool.false_eq_true, ite_false]
     by_cases hs : ConLeche.Level.simplify l = ConLeche.Level.simplify r
     · simp [hs]
-    · simp only [hs, if_false, ConLeche.Level.leq, ConLeche.Level.defaultFuel]
+    · simp only [hs, ite_false, ConLeche.Level.leq, ConLeche.Level.defaultFuel]
       rcases ConLeche.Level.leqCore 10000 (ConLeche.Level.simplify l) (ConLeche.Level.simplify r) 0 with _ | _ | _ <;> rfl
 
 def callLeqC (a b : MlS) : ProgHOL 64 :=
@@ -95,12 +95,12 @@ theorem eqv_spec (C : Ctx) (hok : CtxOK C)
     (lvlEq_spec (ctxH C H2) (ctxOK_H hok H2) hcN hcE sl c1 c2 sr s hc1' hc2) ?_
   have hpre : H <+: H2 := hp1.trans hp2
   by_cases he : sl = sr
-  · simp only [he, decide_true, if_true]
+  · simp only [he, decide_true, ite_true]
     refine specR_ifI _ 0 (by simp +decide [eqC, sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
       (fun h => absurd rfl h) (fun _ => ?_)
     exact specR_returnI _ _ rfl (fun t ht => ⟨rfl, sr_weakenH (C := ctxH C H) (H := H2)
       (sr_of_eq ht.sr rfl rfl rfl rfl) hpre⟩)
-  simp only [he, decide_false, if_false]
+  simp only [he, decide_false, ite_false]
   refine specR_ifI _ 1 (by simp +decide [eqC, sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
     (fun _ => ?_) (fun h => absurd h (by decide))
   refine specR_congr (m' := pure (ConLeche.Level.leqCore 10000 sl sr 0) >>= fun o => pure (match o with

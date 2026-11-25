@@ -49,7 +49,7 @@ theorem feedAll_tail (b : ByteArray) :
     intro i st n s s' st' hm h
     rw [feedAll] at h
     by_cases hi : i < b.usize
-    · rw [dif_pos hi] at h
+    · rw [dite_eq_left hi] at h
       revert h
       cases hsc : scanLineFwd b i with
       | err e => intro h; exact (AM.fail_ok h).elim
@@ -61,37 +61,37 @@ theorem feedAll_tail (b : ByteArray) :
         | inl st1 =>
           simp only at hrest
           by_cases hj0 : (j == 0) = true
-          · rw [if_pos hj0] at hrest
+          · rw [ite_eq_left hj0] at hrest
             obtain ⟨rfl, rfl⟩ := AM.pure_ok hrest
             unfold tailRun
-            rw [feedChunk, dif_pos hi]
-            simp only [hsc, if_pos hj0]
+            rw [feedChunk, dite_eq_left hi]
+            simp only [hsc, ite_eq_left hj0]
             rw [bind_ok_apply (show (pure (Except.ok (st, n, i)) : AM (Except (CheckError × Nat) (StateD × Nat × USize))) s
               = .ok (.ok (st, n, i), s) from rfl)]
-            simp only [if_pos hi]
+            simp only [ite_eq_left hi]
             rw [applyFinalLine, hsc]
             simp only
             rw [bind_ok_apply hx]; rfl
-          · rw [if_neg hj0] at hrest
+          · rw [ite_eq_right hj0] at hrest
             by_cases hij : i < j
-            · rw [dif_pos hij] at hrest
+            · rw [dite_eq_left hij] at hrest
               have hlt := USize.lt_iff_toNat_lt.mp hij
               have hb := usizeInBounds b i hi
               have ih' := ih _ (by omega) j st1 (n + 1) s1 s' st' rfl hrest
               unfold tailRun at ih' ⊢
-              rw [feedChunk, dif_pos hi]
-              simp only [hsc, if_neg hj0]
+              rw [feedChunk, dite_eq_left hi]
+              simp only [hsc, ite_eq_right hj0]
               rw [AM.bind_apply, AM.bind_apply, hx]
-              simp only [dif_pos hij]
+              simp only [dite_eq_left hij]
               rw [AM.bind_apply] at ih'
               exact ih'
-            · rw [dif_neg hij] at hrest; exact (AM.fail_ok hrest).elim
-    · rw [dif_neg hi] at h
+            · rw [dite_eq_right hij] at hrest; exact (AM.fail_ok hrest).elim
+    · rw [dite_eq_right hi] at h
       obtain ⟨rfl, rfl⟩ := AM.pure_ok h
       unfold tailRun
-      rw [feedChunk, dif_neg hi]
+      rw [feedChunk, dite_eq_right hi]
       rw [bind_ok_apply (show (pure (Except.ok (st', n, i)) : AM (Except (CheckError × Nat) (StateD × Nat × USize))) s'
         = .ok (.ok (st', n, i), s') from rfl)]
-      simp only [if_neg hi]; rfl
+      simp only [ite_eq_right hi]; rfl
 
 end ConPanqueque.Front

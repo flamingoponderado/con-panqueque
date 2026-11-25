@@ -119,7 +119,7 @@ theorem insM_other (m : BitVec 64 → HolWordLab 64) (C R D S B dv dv2 : BitVec 
     (h3 : c ≠ D + BitVec.ofNat 64 (16 * cnt)) (h3' : c ≠ D + BitVec.ofNat 64 (16 * cnt) + 8)
     (h4 : c ≠ S + BitVec.ofNat 64 (8 * j)) (h5 : c ≠ C) (h6 : c ≠ C + 8) :
     insM m C R D S B dv dv2 cnt j L c = m c := by
-  simp only [insM, upd]; rw [if_neg h6, if_neg h5, if_neg h4, if_neg h3', if_neg h3, if_neg h2, if_neg h1]
+  simp only [insM, upd]; rw [ite_eq_right h6, ite_eq_right h5, ite_eq_right h4, ite_eq_right h3', ite_eq_right h3, ite_eq_right h2, ite_eq_right h1]
 
 theorem ofNat_add8 (X : BitVec 64) (a b : Nat) :
     X + BitVec.ofNat 64 (8 * a) + BitVec.ofNat 64 (8 * b) = X + BitVec.ofNat 64 (8 * (a + b)) := by
@@ -233,7 +233,7 @@ theorem vt_ins {t t' : PanSemStateFiniteExact 64 σ} {enc : α → List (BitVec 
       refine ⟨cnt + 1, ?_, by omega, by rw [hd]; exact hsd, ?_⟩
       · rw [List.getElem?_set_self (List.getElem?_eq_some_iff.mp hv).1]
       · rw [hm]; simp only [insM, upd]
-        rw [if_neg (ne_of_toNat (by rw [tS _ hj', tC8]; omega)), if_neg (ne_of_toNat (by rw [tS _ hj']; omega)),
+        rw [ite_eq_right (ne_of_toNat (by rw [tS _ hj', tC8]; omega)), ite_eq_right (ne_of_toNat (by rw [tS _ hj']; omega)),
           ]; simp
     · refine ⟨v, by rw [List.getElem?_set_ne (Ne.symm e)]; exact hv, hv60, by rw [hd]; exact hsd, ?_⟩
       rw [rd (g.S + BitVec.ofNat 64 (8 * j')) (low _ (by rw [tS _ hj']; omega)) (ne_of_toNat (by rw [tS _ hj', tR _ (by omega)]; omega))
@@ -273,14 +273,14 @@ theorem vt_ins {t t' : PanSemStateFiniteExact 64 σ} {enc : α → List (BitVec 
       obtain ⟨d1, d2, _, _⟩ := hT.room i hcnt
       refine ⟨B, by rw [hd]; exact d1, by rw [hd]; exact d2, ?_, ?_, fun k hk => ⟨?_, ?_⟩, by omega, by omega⟩
       · rw [hm]; simp only [insM, upd]
-        rw [if_neg (ne_of_toNat (by rw [tR _ hcnt, tC8]; omega)), if_neg (ne_of_toNat (by rw [tR _ hcnt]; omega)),
-          if_neg (ne_of_toNat (by rw [tR _ hcnt, tS _ hj]; omega)), if_neg (ne_of_toNat (by rw [tR _ hcnt, tD8 _ hcnt]; omega)),
-          if_neg (ne_of_toNat (by rw [tR _ hcnt, tD _ hcnt]; omega)),
-          if_neg (ne_of_toNat (by rw [tR _ hcnt, tR8 _ hcnt]; omega)), ]; simp
+        rw [ite_eq_right (ne_of_toNat (by rw [tR _ hcnt, tC8]; omega)), ite_eq_right (ne_of_toNat (by rw [tR _ hcnt]; omega)),
+          ite_eq_right (ne_of_toNat (by rw [tR _ hcnt, tS _ hj]; omega)), ite_eq_right (ne_of_toNat (by rw [tR _ hcnt, tD8 _ hcnt]; omega)),
+          ite_eq_right (ne_of_toNat (by rw [tR _ hcnt, tD _ hcnt]; omega)),
+          ite_eq_right (ne_of_toNat (by rw [tR _ hcnt, tR8 _ hcnt]; omega)), ]; simp
       · rw [hm]; simp only [insM, upd]
-        rw [if_neg (ne_of_toNat (by rw [tR8 _ hcnt, tC8]; omega)), if_neg (ne_of_toNat (by rw [tR8 _ hcnt]; omega)),
-          if_neg (ne_of_toNat (by rw [tR8 _ hcnt, tS _ hj]; omega)), if_neg (ne_of_toNat (by rw [tR8 _ hcnt, tD8 _ hcnt]; omega)),
-          if_neg (ne_of_toNat (by rw [tR8 _ hcnt, tD _ hcnt]; omega)),
+        rw [ite_eq_right (ne_of_toNat (by rw [tR8 _ hcnt, tC8]; omega)), ite_eq_right (ne_of_toNat (by rw [tR8 _ hcnt]; omega)),
+          ite_eq_right (ne_of_toNat (by rw [tR8 _ hcnt, tS _ hj]; omega)), ite_eq_right (ne_of_toNat (by rw [tR8 _ hcnt, tD8 _ hcnt]; omega)),
+          ite_eq_right (ne_of_toNat (by rw [tR8 _ hcnt, tD _ hcnt]; omega)),
           ]; simp
       · rw [hd, hBk]; exact hT.hroom _ (by rw [← hL] at hroom; omega)
       · have tk : (B + BitVec.ofNat 64 (8 * k)).toNat = g.KH.toNat + 8 * (hu + k) := by
@@ -297,7 +297,7 @@ theorem vt_ins {t t' : PanSemStateFiniteExact 64 σ} {enc : α → List (BitVec 
     · rw [List.getElem_append_right (by omega)]; simp [show i - rows.length = 0 by omega, hL]; exact hKl
   · rw [hd]; exact hT.cnt.1
   · rw [hm]; simp only [insM, upd]
-    rw [if_neg (ne_of_toNat (by rw [tC8]; omega)), ]; simp [hc]
+    rw [ite_eq_right (ne_of_toNat (by rw [tC8]; omega)), ]; simp [hc]
   · rw [hd]; exact hT.top.1
   · rw [hm]; simp only [insM, upd]; simp [hBk]
   · -- ders
@@ -326,14 +326,14 @@ theorem vt_ins {t t' : PanSemStateFiniteExact 64 σ} {enc : α → List (BitVec 
       · rw [List.getElem_append_right (by rw [hT.dlen]; omega)]
         simp only [show i - ders.length = 0 by rw [hT.dlen]; omega, List.getElem_singleton]
         rw [hm]; simp only [insM, upd]
-        rw [if_neg (ne_of_toNat (by rw [tD _ hcnt, tC8]; omega)), if_neg (ne_of_toNat (by rw [tD _ hcnt]; omega)),
-          if_neg (ne_of_toNat (by rw [tD _ hcnt, tS _ hj]; omega)),
-          if_neg (ne_of_toNat (by rw [tD _ hcnt, tD8 _ hcnt]; omega))]; simp
+        rw [ite_eq_right (ne_of_toNat (by rw [tD _ hcnt, tC8]; omega)), ite_eq_right (ne_of_toNat (by rw [tD _ hcnt]; omega)),
+          ite_eq_right (ne_of_toNat (by rw [tD _ hcnt, tS _ hj]; omega)),
+          ite_eq_right (ne_of_toNat (by rw [tD _ hcnt, tD8 _ hcnt]; omega))]; simp
       · rw [List.getElem_append_right (by rw [hT.dlen]; omega)]
         simp only [show i - ders.length = 0 by rw [hT.dlen]; omega, List.getElem_singleton]
         rw [hm]; simp only [insM, upd]
-        rw [if_neg (ne_of_toNat (by rw [tD8 _ hcnt, tC8]; omega)), if_neg (ne_of_toNat (by rw [tD8 _ hcnt]; omega)),
-          if_neg (ne_of_toNat (by rw [tD8 _ hcnt, tS _ hj]; omega))]; simp
+        rw [ite_eq_right (ne_of_toNat (by rw [tD8 _ hcnt, tC8]; omega)), ite_eq_right (ne_of_toNat (by rw [tD8 _ hcnt]; omega)),
+          ite_eq_right (ne_of_toNat (by rw [tD8 _ hcnt, tS _ hj]; omega))]; simp
 
 end
 

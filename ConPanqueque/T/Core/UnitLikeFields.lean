@@ -108,9 +108,9 @@ theorem ulf_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     rw [unitLikeFields]
     refine Knot.specR_tagIteV ulfE tele 6 (by decide) (by decide) (by simp +decide [Env.get, ulfParams, ctxEnv]) (fun htg => ?_) (fun htg => ?_)
     swap
-    · rw [if_neg (show ¬ (tele.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
+    · rw [ite_eq_right (show ¬ (tele.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
       exact specR_returnI _ 0 rfl (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    rw [if_pos (show (tele.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
+    rw [ite_eq_left (show (tele.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
     refine specR_assignI lDh (vv ulfE) (Enc.idxW tele) (by decide) (by simp +decide [Env.get, ulfParams, ctxEnv]) ?_
     refine specR_viewP (C := ctxH C H) tele (by simp) (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)

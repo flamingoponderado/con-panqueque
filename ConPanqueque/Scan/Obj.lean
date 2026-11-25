@@ -152,7 +152,7 @@ theorem scanAppExprLoop_eq (b : ByteArray) :
     intro i wm seen arg fn hn
     rw [scanAppExprLoop, objLoop]
     by_cases h : i < b.usize
-    · rw [dif_pos h, dif_pos h]
+    · rw [dite_eq_left h, dite_eq_left h]
       have hs := usizeStep b i h
       have hb := usizeInBounds b i h
       generalize b.uget i (usizeInBounds b i h) = c
@@ -201,13 +201,13 @@ theorem scanAppExprLoop_eq (b : ByteArray) :
           · simp [he, srMap]
           simp only [he, Bool.false_eq_true, ↓reduceIte]
           by_cases hie : i < e
-          · rw [dif_pos hie, dif_pos hie]
+          · rw [dite_eq_left hie, dite_eq_left hie]
             have := USize.lt_iff_toNat_lt.mp hie
             rw [ih _ (by omega) e false _ _ _ rfl]
             simp only [applyUpd, List.set]; rfl
-          · rw [dif_neg hie, dif_neg hie]; rfl
+          · rw [dite_eq_right hie, dite_eq_right hie]; rfl
       have n34 : (c == 34) = false := beq_eq_false_iff_ne.mpr h34
       simp [n34, srMap]
-    · rw [dif_neg h, dif_neg h]; rfl
+    · rw [dite_eq_right h, dite_eq_right h]; rfl
 
 end ConPanqueque.Scan

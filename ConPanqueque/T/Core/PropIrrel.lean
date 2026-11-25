@@ -181,10 +181,10 @@ theorem pri_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
   subst hw1; subst hw2
   refine specR_ifI _ (boolW x ||| boolW y) (by simp [sev]) (fun hnz => ?_) (fun hz => ?_)
   · have hxy : (x || y) = true := by cases x <;> cases y <;> simp_all [boolW]
-    rw [if_pos hxy]
+    rw [ite_eq_left hxy]
     exact specR_returnI _ 0 rfl (fun t ht => ⟨H2, hp1.trans hp2, by simp [boolW], sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   have hxy : ¬ (x || y) = true := by cases x <;> cases y <;> simp_all [boolW]
-  rw [if_neg hxy]
+  rw [ite_eq_right hxy]
   have hst2' : RdStep s s2 := rdStep_trans hst1 hst2
   refine specR_callNIH (C := ctxH C H2) priX fIpf ipfParams [(.const (BitVec.ofNat 64 coreWalkFuel)), vv (ofString "pri_a")] (ipfBody C)
     [BitVec.ofNat 64 coreWalkFuel, Enc.idxW a] (by decide) rfl (by decide) hc.ip
@@ -209,10 +209,10 @@ theorem pri_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
   subst hw3; subst hw4
   refine specR_ifI _ (boolW x' &&& boolW y') (by simp [sev]) (fun hnz => ?_) (fun hz => ?_)
   · have hxy' : (x' && y') = true := by cases x' <;> cases y' <;> simp_all [boolW]
-    rw [if_pos hxy']
+    rw [ite_eq_left hxy']
     exact specR_returnI _ 1 rfl (fun t ht => ⟨H4, hp1.trans (hp2.trans (hp3.trans hp4)), by simp [boolW], sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   have hxy' : ¬ (x' && y') = true := by cases x' <;> cases y' <;> simp_all [boolW]
-  rw [if_neg hxy']
+  rw [ite_eq_right hxy']
   refine specR_congr (m' := proofIrrel (knot mode C n) C.fe d a b >>= fun r => pure r) (by simp [proofIrrel]) ?_
   refine specR_callNIH (C := ctxH C H4) priR fPi piParams [vv kFu, vv kD, vv (ofString "pri_a"), vv (ofString "pri_b")] (piBody C)
     [BitVec.ofNat 64 n, BitVec.ofNat 64 d, Enc.idxW a, Enc.idxW b] (by decide) rfl (by decide) hc.pi

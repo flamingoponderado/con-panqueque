@@ -101,12 +101,12 @@ theorem sk_step (p : Nat → Bool) (T : ExpHOL 64) (hT : TestOK p T) (t : PanSem
         simp [BitVec.toNat_add]; try omega) li1]
       refine ⟨_, rfl, m0, d0, c0, g0, b0, by lk [v1, v]; exact lb, by lk [v1, v]; exact ln,
         ⟨BitVec.ofNat 64 bs[j].toNat, by lk [v1, v]⟩, j + 1, hjl, by lk, Or.inl ⟨by lk [v1, v]; exact hg, ?_⟩⟩
-      rw [← hsame, skipL_step p bs j hjl, if_pos hw]
+      rw [← hsame, skipL_step p bs j hjl, ite_eq_left hw]
     · simp only [bw, hw, Bool.false_eq_true, ↓reduceIte, ne_eq, not_true_eq_false]
       rw [ConsLoop.assign_local v1 sG (.const 0) 0 1 (by simp [evalHOLExact]) (by lk [v1, v]; exact hg)]
       refine ⟨_, rfl, m0, d0, c0, g0, b0, by lk [v1, v]; exact lb, by lk [v1, v]; exact ln,
         ⟨BitVec.ofNat 64 bs[j].toNat, by lk [v1, v]⟩, j, hj, by lk [v1, v]; exact li, Or.inr ⟨by lk, ?_⟩⟩
-      rw [← hsame, skipL_step p bs j hjl, if_neg hw]
+      rw [← hsame, skipL_step p bs j hjl, ite_eq_right hw]
   · simp only [bw, hjl, ↓reduceIte, ne_eq, not_true_eq_false]
     rw [ConsLoop.assign_local v sG (.const 0) 0 1 (by simp [evalHOLExact]) (by lk [v]; exact hg)]
     refine ⟨_, rfl, m0, d0, c0, g0, b0, by lk [v]; exact lb, by lk [v]; exact ln,

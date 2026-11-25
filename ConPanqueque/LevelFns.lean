@@ -180,7 +180,7 @@ theorem lhp_bin {σ : Type} (h : Heap) (p q r : BitVec 64) (tg : BitVec 64) (u v
   · -- u has a parameter: return 1
     have lr3' : s3.locals.lookup nR = some (.val (.word 1)) := by simpa [bit, hlu] using lr3
     rw [ite_word s3 _ _ _ 1 (by simp [evalHOLExact, vR, lr3', Flapjack.Compiler.Encoders.Asm.wordCmpHOL])]
-    rw [if_pos (by decide : (1 : BitVec 64) ≠ 0)]
+    rw [ite_eq_left (by decide : (1 : BitVec 64) ≠ 0)]
     rw [evaluateHOLFiniteState_eq_evaluate_def]
     simp only [Bool.true_or]
     refine ⟨_, Prod.ext (by simp [evalHOLExact, shapeOfHOLExact, bit]) rfl, ?_⟩
@@ -279,7 +279,7 @@ theorem lhp_spec {σ : Type} (h : Heap) {p : BitVec 64} {lv : ConLeche.Level} (h
     rw [show setVarHOLFinite nR (.val (.word 0)) s1 = s2 from rfl]
     rw [seq_normal _ hcall, ite_word s3 _ _ _ 1 (by simp [evalHOLExact, vT, lt3,
       Flapjack.Compiler.Encoders.Asm.wordCmpHOL])]
-    rw [if_pos (by decide : (1 : BitVec 64) ≠ 0)]
+    rw [ite_eq_left (by decide : (1 : BitVec 64) ≠ 0)]
     have eret : evaluateHOLFiniteState s3 (.return vR) =
         (some (.returned (.val (.word (bit (ConLeche.levelHasParam u))))), emptyLocalsHOLFinite s3) := by
       rw [evaluateHOLFiniteState_eq_evaluate_def]; simp [evalHOLExact, vR, lr3, shapeOfHOLExact]

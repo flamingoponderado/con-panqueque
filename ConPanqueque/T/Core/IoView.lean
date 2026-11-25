@@ -30,7 +30,7 @@ theorem checkGuardRows_ioView (r : CoreFnsA) gs rows : ∀ k i, rows.size - i = 
   induction k with
   | zero =>
     intro i h; rw [checkGuardRows]; conv => rhs; rw [checkGuardRows]
-    rw [dif_neg (by omega), dif_neg (by omega)]
+    rw [dite_eq_right (by omega), dite_eq_right (by omega)]
   | succ k ih =>
     intro i h; rw [checkGuardRows]; conv => rhs; rw [checkGuardRows]
     simp only [ioView_whnf, ioView_inferIO, ih (i+1) (by omega)]
@@ -117,9 +117,9 @@ theorem pjio_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C
   subst hs'
   refine Knot.specR_tagIteV pjHh hh 3 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
   swap
-  · rw [if_neg (show ¬ (hh.tag == ETag.const) = true by simpa [ETag.const] using htg)]
+  · rw [ite_eq_right (show ¬ (hh.tag == ETag.const) = true by simpa [ETag.const] using htg)]
     exact specR_hangI
-  rw [if_pos (show (hh.tag == ETag.const) = true by simp [htg, ETag.const])]
+  rw [ite_eq_left (show (hh.tag == ETag.const) = true by simp [htg, ETag.const])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
   refine specR_assignI lDh (vv pjHh) (Enc.idxW hh) (by decide) (by simp) ?_
   refine specR_viewP (C := ctxH C H2) hh (by simp) (by simp +decide [Env.get] <;> rfl)

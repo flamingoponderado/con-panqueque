@@ -184,9 +184,9 @@ theorem lineLoopI_sound (b : ByteArray) :
     rw [lineLoopI] at hok
     unfold scanLineLoop
     by_cases h0 : ¬ i < b.usize
-    · rw [dif_neg h0] at hok; simp at hok
+    · rw [dite_eq_right h0] at hok; simp at hok
     have h : i < b.usize := by simpa using h0
-    rw [dif_pos h] at hok ⊢
+    rw [dite_eq_left h] at hok ⊢
     have hs := usizeStep b i h
     have hb := usizeInBounds b i h
     generalize b.uget i (usizeInBounds b i h) = c at hok ⊢
@@ -200,7 +200,7 @@ theorem lineLoopI_sound (b : ByteArray) :
       split at hok
       · simp at hok
       rename_i hwm
-      rw [if_neg hwm]
+      rw [ite_eq_right hwm]
       cases pl <;> simp only [lineEnd] at hok
       · simp at hok
       all_goals
@@ -238,15 +238,15 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hik
-        rw [if_neg hik]
+        rw [ite_eq_right hik]
         generalize numEnd b v = e at hok ⊢
         split at hok
         · simp at hok
         rename_i he
-        rw [if_neg he]
+        rw [ite_eq_right he]
         split at hok
         · rename_i hie
-          rw [dif_pos hie]
+          rw [dite_eq_left hie]
           exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
         · simp at hok
       case kIl =>
@@ -254,15 +254,15 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hik
-        rw [if_neg hik]
+        rw [ite_eq_right hik]
         generalize numEnd b v = e at hok ⊢
         split at hok
         · simp at hok
         rename_i he
-        rw [if_neg he]
+        rw [ite_eq_right he]
         split at hok
         · rename_i hie
-          rw [dif_pos hie]
+          rw [dite_eq_left hie]
           exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
         · simp at hok
       case kIe =>
@@ -270,15 +270,15 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hik
-        rw [if_neg hik]
+        rw [ite_eq_right hik]
         generalize numEnd b v = e at hok ⊢
         split at hok
         · simp at hok
         rename_i he
-        rw [if_neg he]
+        rw [ite_eq_right he]
         split at hok
         · rename_i hie
-          rw [dif_pos hie]
+          rw [dite_eq_left hie]
           exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
         · simp at hok
       case kBvar =>
@@ -286,15 +286,15 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hpl
-        rw [if_neg hpl]
+        rw [ite_eq_right hpl]
         generalize numEnd b v = e at hok ⊢
         split at hok
         · simp at hok
         rename_i he
-        rw [if_neg he]
+        rw [ite_eq_right he]
         split at hok
         · rename_i hie
-          rw [dif_pos hie]
+          rw [dite_eq_left hie]
           exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
         · simp at hok
       case kSort =>
@@ -302,15 +302,15 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hpl
-        rw [if_neg hpl]
+        rw [ite_eq_right hpl]
         generalize numEnd b v = e at hok ⊢
         split at hok
         · simp at hok
         rename_i he
-        rw [if_neg he]
+        rw [ite_eq_right he]
         split at hok
         · rename_i hie
-          rw [dif_pos hie]
+          rw [dite_eq_left hie]
           exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
         · simp at hok
       case kSucc =>
@@ -318,15 +318,15 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hpl
-        rw [if_neg hpl]
+        rw [ite_eq_right hpl]
         generalize numEnd b v = e at hok ⊢
         split at hok
         · simp at hok
         rename_i he
-        rw [if_neg he]
+        rw [ite_eq_right he]
         split at hok
         · rename_i hie
-          rw [dif_pos hie]
+          rw [dite_eq_left hie]
           exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
         · simp at hok
       case kParam =>
@@ -334,15 +334,15 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hpl
-        rw [if_neg hpl]
+        rw [ite_eq_right hpl]
         generalize numEnd b v = e at hok ⊢
         split at hok
         · simp at hok
         rename_i he
-        rw [if_neg he]
+        rw [ite_eq_right he]
         split at hok
         · rename_i hie
-          rw [dif_pos hie]
+          rw [dite_eq_left hie]
           exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
         · simp at hok
       case kStr =>
@@ -350,7 +350,7 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hpl
-        rw [if_neg hpl]
+        rw [ite_eq_right hpl]
         simp only [nameStr] at hok
         cases hsc : scanStrName b v with
         | err er => rw [hsc] at hok; simp [srMap] at hok
@@ -359,7 +359,7 @@ theorem lineLoopI_sound (b : ByteArray) :
           simp only [srMap] at hok ⊢
           split at hok
           · rename_i hie
-            rw [dif_pos hie]
+            rw [dite_eq_left hie]
             exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
           · simp at hok
       case kNum =>
@@ -367,7 +367,7 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hpl
-        rw [if_neg hpl]
+        rw [ite_eq_right hpl]
         simp only [nameNum] at hok
         cases hsc : scanNumName b v with
         | err er => rw [hsc] at hok; simp [srMap] at hok
@@ -376,7 +376,7 @@ theorem lineLoopI_sound (b : ByteArray) :
           simp only [srMap] at hok ⊢
           split at hok
           · rename_i hie
-            rw [dif_pos hie]
+            rw [dite_eq_left hie]
             exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
           · simp at hok
       case kApp =>
@@ -384,7 +384,7 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hpl
-        rw [if_neg hpl]
+        rw [ite_eq_right hpl]
         simp only [exprApp] at hok
         cases hsc : scanAppExpr b v with
         | err er => rw [hsc] at hok; simp [srMap] at hok
@@ -393,7 +393,7 @@ theorem lineLoopI_sound (b : ByteArray) :
           simp only [srMap] at hok ⊢
           split at hok
           · rename_i hie
-            rw [dif_pos hie]
+            rw [dite_eq_left hie]
             exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
           · simp at hok
       case kLam =>
@@ -401,7 +401,7 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hpl
-        rw [if_neg hpl]
+        rw [ite_eq_right hpl]
         simp only [exprLam] at hok
         cases hsc : scanLamExpr b v with
         | err er => rw [hsc] at hok; simp [srMap] at hok
@@ -410,7 +410,7 @@ theorem lineLoopI_sound (b : ByteArray) :
           simp only [srMap] at hok ⊢
           split at hok
           · rename_i hie
-            rw [dif_pos hie]
+            rw [dite_eq_left hie]
             exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
           · simp at hok
       case kForallE =>
@@ -418,7 +418,7 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hpl
-        rw [if_neg hpl]
+        rw [ite_eq_right hpl]
         simp only [exprForall] at hok
         cases hsc : scanForallExpr b v with
         | err er => rw [hsc] at hok; simp [srMap] at hok
@@ -427,7 +427,7 @@ theorem lineLoopI_sound (b : ByteArray) :
           simp only [srMap] at hok ⊢
           split at hok
           · rename_i hie
-            rw [dif_pos hie]
+            rw [dite_eq_left hie]
             exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
           · simp at hok
       case kLetE =>
@@ -435,7 +435,7 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hpl
-        rw [if_neg hpl]
+        rw [ite_eq_right hpl]
         simp only [exprLet] at hok
         cases hsc : scanLetExpr b v with
         | err er => rw [hsc] at hok; simp [srMap] at hok
@@ -444,7 +444,7 @@ theorem lineLoopI_sound (b : ByteArray) :
           simp only [srMap] at hok ⊢
           split at hok
           · rename_i hie
-            rw [dif_pos hie]
+            rw [dite_eq_left hie]
             exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
           · simp at hok
       case kConst =>
@@ -452,7 +452,7 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hpl
-        rw [if_neg hpl]
+        rw [ite_eq_right hpl]
         simp only [exprConst] at hok
         cases hsc : scanConstExpr b v with
         | err er => rw [hsc] at hok; simp [srMap] at hok
@@ -461,7 +461,7 @@ theorem lineLoopI_sound (b : ByteArray) :
           simp only [srMap] at hok ⊢
           split at hok
           · rename_i hie
-            rw [dif_pos hie]
+            rw [dite_eq_left hie]
             exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
           · simp at hok
       case kProj =>
@@ -469,7 +469,7 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hpl
-        rw [if_neg hpl]
+        rw [ite_eq_right hpl]
         simp only [exprProj] at hok
         cases hsc : scanProjExpr b v with
         | err er => rw [hsc] at hok; simp [srMap] at hok
@@ -478,7 +478,7 @@ theorem lineLoopI_sound (b : ByteArray) :
           simp only [srMap] at hok ⊢
           split at hok
           · rename_i hie
-            rw [dif_pos hie]
+            rw [dite_eq_left hie]
             exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
           · simp at hok
       case kDef =>
@@ -486,7 +486,7 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hpl
-        rw [if_neg hpl]
+        rw [ite_eq_right hpl]
         simp only [declDef] at hok
         cases hsc : scanDefDecl b v with
         | err er => rw [hsc] at hok; simp [srMap] at hok
@@ -495,7 +495,7 @@ theorem lineLoopI_sound (b : ByteArray) :
           simp only [srMap] at hok ⊢
           split at hok
           · rename_i hie
-            rw [dif_pos hie]
+            rw [dite_eq_left hie]
             exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
           · simp at hok
       case kThm =>
@@ -503,7 +503,7 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hpl
-        rw [if_neg hpl]
+        rw [ite_eq_right hpl]
         simp only [declThm] at hok
         cases hsc : scanThmDecl b v with
         | err er => rw [hsc] at hok; simp [srMap] at hok
@@ -512,7 +512,7 @@ theorem lineLoopI_sound (b : ByteArray) :
           simp only [srMap] at hok ⊢
           split at hok
           · rename_i hie
-            rw [dif_pos hie]
+            rw [dite_eq_left hie]
             exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
           · simp at hok
       case kOpaque =>
@@ -520,7 +520,7 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hpl
-        rw [if_neg hpl]
+        rw [ite_eq_right hpl]
         simp only [declOpaque] at hok
         cases hsc : scanOpaqueDecl b v with
         | err er => rw [hsc] at hok; simp [srMap] at hok
@@ -529,7 +529,7 @@ theorem lineLoopI_sound (b : ByteArray) :
           simp only [srMap] at hok ⊢
           split at hok
           · rename_i hie
-            rw [dif_pos hie]
+            rw [dite_eq_left hie]
             exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
           · simp at hok
       case kStrVal =>
@@ -537,7 +537,7 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hpl
-        rw [if_neg hpl]
+        rw [ite_eq_right hpl]
         cases hsc : scanString b v with
         | err er => rw [hsc] at hok; simp at hok
         | ok s0 e =>
@@ -545,7 +545,7 @@ theorem lineLoopI_sound (b : ByteArray) :
           simp only at hok ⊢
           split at hok
           · rename_i hie
-            rw [dif_pos hie]
+            rw [dite_eq_left hie]
             exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
           · simp at hok
       case kMeta =>
@@ -553,7 +553,7 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hpl
-        rw [if_neg hpl]
+        rw [ite_eq_right hpl]
         simp only [metaHdr] at hok
         by_cases hb1 : (byteAt b v != 123) = true
         · simp only [hb1, ↓reduceIte] at hok; simp at hok
@@ -563,7 +563,7 @@ theorem lineLoopI_sound (b : ByteArray) :
         simp only [he0, Bool.false_eq_true, ↓reduceIte] at hok ⊢
         split at hok
         · rename_i hie
-          rw [dif_pos hie]
+          rw [dite_eq_left hie]
           exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
         · simp at hok
       case kMax =>
@@ -571,7 +571,7 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hpl
-        rw [if_neg hpl]
+        rw [ite_eq_right hpl]
         simp only [levMax] at hok
         cases hsc : scanNatList b v with
         | err er => rw [hsc] at hok; simp at hok
@@ -583,7 +583,7 @@ theorem lineLoopI_sound (b : ByteArray) :
           simp only at hok ⊢
           split at hok
           · rename_i hie
-            rw [dif_pos hie]
+            rw [dite_eq_left hie]
             exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
           · simp at hok
       case kImax =>
@@ -591,7 +591,7 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hpl
-        rw [if_neg hpl]
+        rw [ite_eq_right hpl]
         simp only [levImax] at hok
         cases hsc : scanNatList b v with
         | err er => rw [hsc] at hok; simp at hok
@@ -603,7 +603,7 @@ theorem lineLoopI_sound (b : ByteArray) :
           simp only at hok ⊢
           split at hok
           · rename_i hie
-            rw [dif_pos hie]
+            rw [dite_eq_left hie]
             exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
           · simp at hok
       case kNatVal =>
@@ -611,7 +611,7 @@ theorem lineLoopI_sound (b : ByteArray) :
         split at hok
         · simp at hok
         rename_i hpl
-        rw [if_neg hpl]
+        rw [ite_eq_right hpl]
         simp only [natValPl] at hok
         cases hsc : scanQuotedNat b v with
         | err er => rw [hsc] at hok; simp [srMap] at hok
@@ -620,7 +620,7 @@ theorem lineLoopI_sound (b : ByteArray) :
           simp only [srMap] at hok ⊢
           split at hok
           · rename_i hie
-            rw [dif_pos hie]
+            rw [dite_eq_left hie]
             exact ih _ (by have := USize.lt_iff_toNat_lt.mp hie; omega) _ _ _ _ _ _ _ rfl hok
           · simp at hok
     have n34 : (c == 34) = false := beq_eq_false_iff_ne.mpr h34

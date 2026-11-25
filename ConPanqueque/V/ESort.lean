@@ -168,7 +168,7 @@ theorem eInternSort_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSem
   unfold eInternSort
   rw [seq_normal _ (store_word t (vv lKb) (vv lEu) KB (Enc.idxW u) (eval_vv t lKb _ lkb) (eval_vv t lEu _ leu) hkbd)]
   let t1 : PanSemStateFiniteExact 64 σ := { t with memory := fun c => if c = KB then .word (Enc.idxW u) else t.memory c }
-  have m1 : ∀ c, c ≠ KB → t1.memory c = t.memory c := fun c h => by show (if c = KB then _ else _) = _; rw [if_neg h]
+  have m1 : ∀ c, c ≠ KB → t1.memory c = t.memory c := fun c h => by show (if c = KB then _ else _) = _; rw [ite_eq_right h]
   have flne : ∀ F, (F = FLn ∨ F = FLl ∨ F = FLs ∨ F = FLe) → F ≠ KB := fun F hF => by
     have := (hS.fls F hF).2.2 0 (by decide); rwa [KB0] at this
   have dscne : ∀ k tier m, k < 19 → tier < 2 → m < 8 → descAddr L k tier + BitVec.ofNat 64 (8 * m) ≠ KB :=

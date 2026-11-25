@@ -24,6 +24,6 @@ theorem push_findTable {fe : IFEnv} (hg : TblGate fe) (ci : IConstantInfo) (hnew
       | some t => have := hg ci.name t h; rw [hnew] at this; simp at this
     simp [hnew, hr]
   · have ef : (ci.name == n) = false := by simpa using e
-    simp only [ef, Bool.false_eq_true, if_false]
+    simp only [ef, Bool.false_eq_true, ite_false]
 
 end ConPanqueque.T.Decl

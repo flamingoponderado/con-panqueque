@@ -99,14 +99,14 @@ theorem rest_verdict2 (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPin
   let Γ2 : Env := (kBN, w) :: Γ
   have hg : sev Γ2 (.cmp .lower (vv kBN) (vv kRM)) = some (bw (w.toNat < 8 * Lw - 16)) :=
     sev_lower Γ2 (vv kBN) (vv kRM) w.toNat (8 * Lw - 16) (by simp [Γ2, sev, vv, T.Env.get_cons]) (by
-      simp only [sev, vv, Γ2, T.Env.get_cons, if_neg (show kRM ≠ kBN by decide)]; exact hRM) w.isLt (by omega)
+      simp only [sev, vv, Γ2, T.Env.get_cons, ite_eq_right (show kRM ≠ kBN by decide)]; exact hRM) w.isLt (by omega)
   rw [ite_word t2 _ _ _ _ (inv_ev hinv1 hg)]
   by_cases hgd : w.toNat < 8 * Lw - 16
   swap
-  · rw [if_neg (by simp [bw, hgd])]; exact Or.inl (stop_hang _)
-  rw [if_pos (by simp [bw, hgd])]
+  · rw [ite_eq_right (by simp [bw, hgd])]; exact Or.inl (stop_hang _)
+  rw [ite_eq_left (by simp [bw, hgd])]
   rcases T.step_assignI (C := C1) kBA (.op .add [vv kRA, .const 8]) (cellA C1 (j0 + 1)) (hD _ (by simp)) (by
-      simp only [sev, vv, Γ2, T.Env.get_cons, if_neg (show kRA ≠ kBN by decide), hRA, Option.bind_eq_bind,
+      simp only [sev, vv, Γ2, T.Env.get_cons, ite_eq_right (show kRA ≠ kBN by decide), hRA, Option.bind_eq_bind,
         Option.bind_some, Option.pure_def]
       rw [show cellA C1 (j0 + 1) = cellA C j0 + BitVec.ofNat 64 (8 * 1) from cellA_add C j0 1]; rfl) t2 hinv1 with
     hs3 | ⟨hn3, hinv3⟩
@@ -120,14 +120,14 @@ theorem rest_verdict2 (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPin
   have hbuf : BufOK C1 (j0 + 1) b := bufOK_of_read Cp j0 Lw hal hcells (by show (cellA C j0).toNat + 8 * Lw < 2 ^ 64; omega) h59 hbits nb hl _ (by omega)
   let Γ3 : Env := (kBA, cellA C1 (j0 + 1)) :: Γ2
   have g3 : ∀ y, y ≠ kBA → y ≠ kBN → Γ3.get y = Γ.get y := fun y h1 h2 => by
-    simp only [Γ3, Γ2, T.Env.get_cons, if_neg h1, if_neg h2]
+    simp only [Γ3, Γ2, T.Env.get_cons, ite_eq_right h1, ite_eq_right h2]
   -- the id tables' capacity from the input's length
   let c0 := w.toNat / 16 + 2
   let cap := if capM < c0 then capM else c0
   have hw59 : w.toNat < 2 ^ 59 := by omega
   have hcapE : sev Γ3 capE = some (BitVec.ofNat 64 c0) := by
-    simp only [capE, sev, vv, Γ3, Γ2, T.Env.get_cons, if_neg (show kBN ≠ kBA by decide), if_pos,
-      show (4 : BitVec 64).toNat < 64 by decide, if_true, Option.map_some, Option.bind_eq_bind, Option.bind_some,
+    simp only [capE, sev, vv, Γ3, Γ2, T.Env.get_cons, ite_eq_right (show kBN ≠ kBA by decide), ite_eq_left,
+      show (4 : BitVec 64).toNat < 64 by decide, ite_true, Option.map_some, Option.bind_eq_bind, Option.bind_some,
       Option.pure_def]
     congr 1; apply BitVec.eq_of_toNat_eq
     simp [BitVec.toNat_ushiftRight, Nat.shiftRight_eq_div_pow]; omega
@@ -137,11 +137,11 @@ theorem rest_verdict2 (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPin
     congr 1
     by_cases hlt : capM < c0
     · have : BitVec.ofNat 64 capM < BitVec.ofNat 64 c0 := by rw [BitVec.lt_def]; simp; omega
-      simp only [cap, if_pos hlt, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, decide_eq_true this, if_true]
+      simp only [cap, ite_eq_left hlt, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, decide_eq_true this, ite_true]
       have m1 : ∀ x : BitVec 64, x * 1 = x := fun x => by simp
       rw [m1, BitVec.add_comm, BitVec.sub_add_cancel]
     · have : ¬ BitVec.ofNat 64 capM < BitVec.ofNat 64 c0 := by rw [BitVec.lt_def]; simp; omega
-      simp only [cap, if_neg hlt, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, decide_eq_false this]
+      simp only [cap, ite_eq_right hlt, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, decide_eq_false this]
       simp
   have hcap1' : 1 ≤ cap := by simp only [cap]; split <;> omega
   have hcapM : cap ≤ capM := by simp only [cap]; split <;> omega
@@ -156,7 +156,7 @@ theorem rest_verdict2 (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPin
   have h3c : 3 * cap < 2 ^ 64 := by omega
   rcases T.step_assignI (C := C1) kZn (.op .add [vv fCap, .op .add [vv fCap, vv fCap]]) (BitVec.ofNat 64 (3 * cap))
       (hD _ (by simp)) (by
-        simp only [sev, vv, Γ5, T.Env.get_cons, if_pos, Option.bind_eq_bind, Option.bind_some, Option.pure_def]
+        simp only [sev, vv, Γ5, T.Env.get_cons, ite_eq_left, Option.bind_eq_bind, Option.bind_some, Option.pure_def]
         congr 1; apply BitVec.eq_of_toNat_eq; simp <;> omega) t5 hinv5 with hs6 | ⟨hn6, hinv6⟩
   · exact Or.inl (seq_stop _ _ _ hs6)
   generalize ht6 : (evaluateHOLFiniteState t5 (.assign .local kZn (.op .add [vv fCap, .op .add [vv fCap, vv fCap]]))).2
@@ -164,14 +164,14 @@ theorem rest_verdict2 (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPin
   rw [seq_normal (s₁ := t6) _ (by rw [← hn6, ← ht6])]
   let Γ6 : Env := (kZn, BitVec.ofNat 64 (3 * cap)) :: Γ5
   have hTN6 : Γ6.get fTN = some (cellA C jN) := by
-    simp only [Γ6, Γ5, T.Env.get_cons, if_neg (show fTN ≠ kZn by decide), if_neg (show fTN ≠ fCap by decide)]
+    simp only [Γ6, Γ5, T.Env.get_cons, ite_eq_right (show fTN ≠ kZn by decide), ite_eq_right (show fTN ≠ fCap by decide)]
     rw [g3 _ (by decide) (by decide)]; exact hTN
   have hcl : ∀ k, k ≤ 3 * capM → (cellA C jN + BitVec.ofNat 64 (8 * k)) = cellA C (jN + k) := fun k _ =>
     (cellA_add C jN k).symm
   rcases T.step_assignI (C := C1) fTL (.op .add [vv fTN, .shift .lsl (vv fCap) (.const 3)]) (cellA C (jN + cap))
       (hD _ (by simp)) (by
-        simp only [sev, vv, hTN6, Γ6, Γ5, T.Env.get_cons, if_neg (show fCap ≠ kZn by decide), if_pos,
-          show (3 : BitVec 64).toNat < 64 by decide, if_true, Option.map_some, Option.bind_eq_bind, Option.bind_some,
+        simp only [sev, vv, hTN6, Γ6, Γ5, T.Env.get_cons, ite_eq_right (show fCap ≠ kZn by decide), ite_eq_left,
+          show (3 : BitVec 64).toNat < 64 by decide, ite_true, Option.map_some, Option.bind_eq_bind, Option.bind_some,
           Option.pure_def]
         rw [show (3 : BitVec 64).toNat = 3 from rfl, shl_ofNat _ _ (by omega), ← hcl cap (by omega)])
       t6 hinv6 with hs7 | ⟨hn7, hinv7⟩
@@ -182,9 +182,9 @@ theorem rest_verdict2 (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPin
   let Γ7 : Env := (fTL, cellA C (jN + cap)) :: Γ6
   rcases T.step_assignI (C := C1) fTE (.op .add [vv fTL, .shift .lsl (vv fCap) (.const 3)]) (cellA C (jN + 2 * cap))
       (hD _ (by simp)) (by
-        simp only [sev, vv, Γ7, Γ6, Γ5, T.Env.get_cons, if_neg (show fCap ≠ kZn by decide),
-          if_neg (show fCap ≠ fTL by decide), if_pos,
-          show (3 : BitVec 64).toNat < 64 by decide, if_true, Option.map_some, Option.bind_eq_bind, Option.bind_some,
+        simp only [sev, vv, Γ7, Γ6, Γ5, T.Env.get_cons, ite_eq_right (show fCap ≠ kZn by decide),
+          ite_eq_right (show fCap ≠ fTL by decide), ite_eq_left,
+          show (3 : BitVec 64).toNat < 64 by decide, ite_true, Option.map_some, Option.bind_eq_bind, Option.bind_some,
           Option.pure_def]
         rw [show (3 : BitVec 64).toNat = 3 from rfl, shl_ofNat _ _ (by omega), ← hcl cap (by omega),
           ← hcl (2 * cap) (by omega), BitVec.add_assoc]
@@ -197,7 +197,7 @@ theorem rest_verdict2 (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPin
   let Γ8 : Env := (fTE, cellA C (jN + 2 * cap)) :: Γ7
   have g8 : ∀ y, y ≠ fTE → y ≠ fTL → y ≠ kZn → y ≠ fCap → y ≠ kBA → y ≠ kBN → Γ8.get y = Γ.get y :=
     fun y h1 h2 h3 h4 h5 h6 => by
-      simp only [Γ8, Γ7, Γ6, Γ5, T.Env.get_cons, if_neg h1, if_neg h2, if_neg h3, if_neg h4]; exact g3 y h5 h6
+      simp only [Γ8, Γ7, Γ6, Γ5, T.Env.get_cons, ite_eq_right h1, ite_eq_right h2, ite_eq_right h3, ite_eq_right h4]; exact g3 y h5 h6
   rcases front_verdict2 (F := j0 + Lw) (rb := rb) (capD := capD) (jN := jN) (cap := cap) (bufJ := j0 + 1) (b := b)
       pins pinsP ra C1 (ctxOK_ctxH hokp) (frontOK_ctxH (frontOK_H hf Hb)) (frontCodes_ctxH (frontCodes_ctxH fc)) (foldCodes_ctxH (foldCodes_ctxH hc Hb) H') hs hpl hfe hcF
       hEB s hst hoff hpo hpp hpins hb bh hB hbd hbp Γ8 [] D (fun x hx => hD x (by
@@ -212,9 +212,9 @@ theorem rest_verdict2 (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPin
       (by simp (config := {decide := true}) [Γ8, T.Env.get_cons]; rfl)
       (by simp (config := {decide := true}) [Γ8, Γ7, Γ6, Γ5, T.Env.get_cons])
       (by simp (config := {decide := true}) [Γ8, Γ7, Γ6, Γ5, Γ3, T.Env.get_cons])
-      (by simp only [Γ8, Γ7, Γ6, Γ5, Γ3, Γ2, T.Env.get_cons, if_neg (show kBN ≠ kBA by decide),
-          if_neg (show kBN ≠ fTE by decide), if_neg (show kBN ≠ fTL by decide), if_neg (show kBN ≠ kZn by decide),
-          if_neg (show kBN ≠ fCap by decide), if_pos]; rw [hbsz, ← hw])
+      (by simp only [Γ8, Γ7, Γ6, Γ5, Γ3, Γ2, T.Env.get_cons, ite_eq_right (show kBN ≠ kBA by decide),
+          ite_eq_right (show kBN ≠ fTE by decide), ite_eq_right (show kBN ≠ fTL by decide), ite_eq_right (show kBN ≠ kZn by decide),
+          ite_eq_right (show kBN ≠ fCap by decide), ite_eq_left]; rw [hbsz, ← hw])
       (by rw [g8 _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hRB)
       (by rw [g8 _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hCD)
       (by rw [g8 _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hZL) t8 hinv8 with hs4 | ⟨hret, rc, hrc, hacc, hnm⟩

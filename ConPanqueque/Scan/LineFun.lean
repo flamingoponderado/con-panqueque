@@ -384,7 +384,7 @@ theorem lact_idx (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArr
       simp only [show ((0 : UInt8) != 0) = false from rfl, Bool.false_eq_true, ↓reduceIte, ← hE]
       have : (E == v) = false := beq_eq_false_iff_ne.mpr (fun h => hEv (by rw [h]))
       rw [this]; simp only [Bool.false_eq_true, ↓reduceIte]
-      rw [dif_pos (USize.lt_iff_toNat_lt.mpr hjE)]
+      rw [dite_eq_left (USize.lt_iff_toNat_lt.mpr hjE)]
     obtain ⟨wpl, ws0, lpl, ls0, hpl⟩ := hk.pl0
     refine Or.inr ⟨rfl, m2.trans (m1.trans hk.mem), d2.trans (d1.trans hk.dom), k2.trans (k1.trans hk.code),
       g2.trans (g1.trans hk.glob), b2.trans (b1.trans hk.be),
@@ -511,7 +511,7 @@ theorem lact_nat (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArr
       simp only [hab, Bool.not_true, Bool.false_eq_true, ↓reduceIte, ← hE]
       have : (E == v) = false := beq_eq_false_iff_ne.mpr (fun h => hEv (by rw [h]))
       rw [this]; simp only [Bool.false_eq_true, ↓reduceIte]
-      rw [dif_pos (USize.lt_iff_toNat_lt.mpr hjE)]
+      rw [dite_eq_left (USize.lt_iff_toNat_lt.mpr hjE)]
     refine Or.inr ⟨rfl, m2.trans (m1.trans hk.mem), d2.trans (d1.trans hk.dom), k2.trans (k1.trans hk.code),
       g2.trans (g1.trans hk.glob), b2.trans (b1.trans hk.be),
       by rw [lo sB (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hk.lb,
@@ -613,7 +613,7 @@ theorem lact_obj (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArr
     have hR' : lineLoopI lineTbl b E false ik idx r = R := by
       rw [← hR]; unfold lineCont
       simp only [hab, Bool.not_true, Bool.false_eq_true, ↓reduceIte, hsc]
-      rw [dif_pos (USize.lt_iff_toNat_lt.mpr hjE)]
+      rw [dite_eq_left (USize.lt_iff_toNat_lt.mpr hjE)]
     refine Or.inr ⟨rfl, m2.trans (m1.trans hk.mem), d2.trans (d1.trans hk.dom), k2.trans (k1.trans hk.code),
       g2.trans (g1.trans hk.glob), b2.trans (b1.trans hk.be),
       by rw [lo sB (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hk.lb,
@@ -729,7 +729,7 @@ theorem lact_str (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArr
     have hR' : lineLoopI lineTbl b E false ik idx (f str) = R := by
       rw [← hR]; unfold lineCont
       simp only [hab, Bool.not_true, Bool.false_eq_true, ↓reduceIte, hss, ← hE]
-      rw [dif_pos (USize.lt_iff_toNat_lt.mpr hjE)]
+      rw [dite_eq_left (USize.lt_iff_toNat_lt.mpr hjE)]
     refine Or.inr ⟨rfl, m2.trans (m1.trans hk.mem), d2.trans (d1.trans hk.dom), k2.trans (k1.trans hk.code),
       g2.trans (g1.trans hk.glob), b2.trans (b1.trans hk.be),
       by rw [lo sB (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hk.lb,
@@ -981,7 +981,7 @@ theorem line_step (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteAr
   have lg1 : v1.locals.lookup sG = some (.val (.word 1)) := by rw [lo1 sG (by decide)]; exact hg
   have hct : c.toNat < 256 := UInt8.toNat_lt c
   have hstep := lineLoopI.eq_1 lineTbl b j wm ik idx pl
-  rw [dif_pos hju, uget_eq b j hjl hju, ← hcx] at hstep
+  rw [dite_eq_left hju, uget_eq b j hjl hju, ← hcx] at hstep
   simp only at hstep
   -- the new state's invariant, once the changed locals are known
   have mk : ∀ (w : PanSemStateFiniteExact 64 σ) (j' : USize) (wm' : Bool),
@@ -1437,7 +1437,7 @@ theorem lineStmt_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : By
   · simp only [bw, hSl0, ↓reduceIte, ne_eq, not_true_eq_false]
     have hle : b.usize ≤ S := by
       rw [USize.le_iff_toNat_le, hp.usize_toNat]; omega
-    rw [if_pos hle] at hfwd
+    rw [ite_eq_left hle] at hfwd
     rw [ConsLoop.assign_local u2 sI (.const 0) 0 wi (by simp [evalHOLExact]) li2]
     obtain ⟨f1, f2, f3, f4, f5⟩ := hframe (setVarHOLFinite sI _ u2) rfl rfl rfl rfl rfl
     exact Or.inr ⟨rfl, ⟨.blank, 0, hfwd, by lk; rfl, Or.inl ⟨rfl, by lk [u2]; rw [lo1 sPl (by decide)]; exact lpl,
@@ -1451,7 +1451,7 @@ theorem lineStmt_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : By
   have hSl : S.toNat < b.size := by omega
   simp only [bw, hSl, ↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
   have hle : ¬ b.usize ≤ S := by rw [USize.le_iff_toNat_le, hp.usize_toNat]; omega
-  rw [if_neg hle] at hfwd
+  rw [ite_eq_right hle] at hfwd
   have hc123 := eval_eq_c u2 sC _ 123 (by omega) (by decide) lc2
   simp only [show (123 : BitVec 64) = BitVec.ofNat 64 123 from rfl] at *
   rw [ite_word u2 _ _ _ _ hc123]
@@ -1576,7 +1576,7 @@ theorem lineStmt_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : By
     exact Or.inl (stop_hang u6)
   simp only [bw, hPl, ↓reduceIte, ne_eq, not_true_eq_false]
   have hle : b.usize ≤ P := by rw [USize.le_iff_toNat_le, hp.usize_toNat]; omega
-  rw [if_pos hle] at hfwd
+  rw [ite_eq_left hle] at hfwd
   rw [ConsLoop.assign_local u6 sI (.const 0) 0 _ (by simp [evalHOLExact]) li6]
   refine Or.inr ⟨rfl, hrec_out _ 0 (fun y h1 => lookup_setVar_other _ _ h1) (by lk; rfl) hfwd,
     m5.trans m4, d5.trans d4, g5.trans g4, k5.trans c4, b5.trans b4⟩

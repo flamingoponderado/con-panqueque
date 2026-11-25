@@ -778,7 +778,7 @@ theorem step_heapLoadI' {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List Ml
 theorem fill_limb (B0 W : List (BitVec 64)) (od i oa : Nat) (x : Nat) (hb : BlkAt B0 oa (limbs x))
     (hlo : oa + 1 + (limbs x).length ≤ od + 1) (hk : i < (limbs x).length) :
     (fillI B0 W (od + 1) i)[oa + 1 + i]? = some (BitVec.ofNat 64 (x / B ^ i % B)) := by
-  rw [fillI_get?, if_neg (by omega), hb.2 i (by simpa using hk)]
+  rw [fillI_get?, ite_eq_right (by omega), hb.2 i (by simpa using hk)]
   simp [limbs_getElem x i hk]
 
 def addG1 (Γ0 : Env) (C : Ctx) (od oa ob x y i : Nat) : Env :=
@@ -1013,7 +1013,7 @@ theorem add_spec (C : Ctx) (hok : CtxOK C) (s : AState) (x y : Nat) (oa ob : Nat
       simp only [List.length_map, List.length_range] at hi
       rw [List.getElem?_set_ne (by omega)]
       show (fillI B0 (sumW x y (limbs x).length) (H'.length + 1) ((limbs x).length + 1))[H'.length + 1 + i]? = _
-      rw [fillI_get?, if_pos ⟨by omega, by omega, by rw [hB0]; omega⟩]
+      rw [fillI_get?, ite_eq_left ⟨by omega, by omega, by rw [hB0]; omega⟩]
       simp [show H'.length + 1 + i - (H'.length + 1) = i by omega, List.getD_eq_getElem?_getD,
         sumW_get x y (limbs x).length i (by omega)]
 

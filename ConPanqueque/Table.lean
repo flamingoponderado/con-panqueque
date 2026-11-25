@@ -148,7 +148,7 @@ theorem scanBody_step {σ : Type} (u : PanSemStateFiniteExact 64 σ) (t k : BitV
   refine ⟨fun he => ?_, fun h hk => ?_, fun h hk => ?_⟩
   · unfold scanBody
     rw [ite_word u _ _ _ 1 (by simp [evalHOLExact, vv, lj, ll, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, he])]
-    rw [if_pos (by decide : (1 : BitVec 64) ≠ 0)]
+    rw [ite_eq_left (by decide : (1 : BitVec 64) ≠ 0)]
     exact assign_ok u .local nG _ _ (by simp [evalHOLExact])
       (by simp [isValidValueHOLFinite, lookupKvarHOLFinite, lg, shapeOfHOLExact, shapeEqHOL])
   · obtain ⟨⟨dk, mk⟩, ⟨dv, mv⟩⟩ := slot_read u t slots R hs i h
@@ -159,7 +159,7 @@ theorem scanBody_step {σ : Type} (u : PanSemStateFiniteExact 64 σ) (t k : BitV
     rw [ite_word u _ _ _ 1 (by
       simp [evalHOLExact, evalListHOLExact, vv, lt, lj, lk, wordOpHOL, wordOp, valueIsWord, valueWord,
         memLoadHOLExact, dk, mk, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hk])]
-    rw [if_pos (by decide : (1 : BitVec 64) ≠ 0)]
+    rw [ite_eq_left (by decide : (1 : BitVec 64) ≠ 0)]
     let u1 := setKvarHOLFinite .local nR (.val (.word slots[i].2)) u
     have e1 : evaluateHOLFiniteState u (.assign .local nR (.load .one (.op .add [vv nT, vv nJ, .const 8]))) =
         (none, u1) := by
@@ -261,7 +261,7 @@ theorem scanLoop_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) (t k : BitV
   rcases hcase with ⟨ug, ur, hnot, uclk, ucon⟩ | ⟨ug, ur, hiff, ucon⟩
   · refine ⟨1, by simp [evalHOLFinite, evalHOLExact, vv, ug], fun h => absurd h (by decide), fun _ => ?_⟩
     have g1 : wv u nG = 1 := by simp [wv, ug]
-    have mu : m u = n + 1 - i := by simp only [m]; rw [if_pos g1, wj]
+    have mu : m u = n + 1 - i := by simp only [m]; rw [ite_eq_left g1, wj]
     refine ⟨by rw [mu]; exact uclk, by rw [mu]; omega, ?_⟩
     let u0 := decClockHOLFinite u
     have hsu0 : Sat u0 (TableAt t slots ∗ R) := sat_of_eq (by simp [u0, decClockHOLFinite]) (by simp [u0, decClockHOLFinite]) hsu
@@ -337,7 +337,7 @@ theorem scanLoop_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) (t k : BitV
             simp only [wv, setKvarHOLFinite]; rw [lookup_setVar_other _ _ dG.2.2.2.2]
             simp [u0, decClockHOLFinite, ug]
           have : m (setKvarHOLFinite .local nJ (.val (.word (BitVec.ofNat 64 (16 * (i + 1))))) u0) = n + 1 - (i + 1) := by
-            simp only [m]; rw [if_pos g1', wj']
+            simp only [m]; rw [ite_eq_left g1', wj']
           rw [this, mu]; omega
   · refine ⟨0, by simp [evalHOLFinite, evalHOLExact, vv, ug], fun _ => ⟨ur, hm, hd, hF, ug, i, hi, uj, hiff, by omega⟩,
       fun h => absurd rfl h⟩
@@ -475,7 +475,7 @@ theorem insBody_step {σ : Type} (u : PanSemStateFiniteExact 64 σ) (t k v : Bit
   refine ⟨fun he => ?_, fun h hk => ?_, fun h hk hk0 => ?_⟩
   · unfold insBody
     rw [ite_word u _ _ _ 1 (by simp [evalHOLExact, vv, lj, ll, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, he])]
-    rw [if_pos (by decide : (1 : BitVec 64) ≠ 0)]
+    rw [ite_eq_left (by decide : (1 : BitVec 64) ≠ 0)]
     exact assign_ok u .local nG _ _ (by simp [evalHOLExact])
       (by simp [isValidValueHOLFinite, lookupKvarHOLFinite, lg, shapeOfHOLExact, shapeEqHOL])
   · obtain ⟨⟨dk, mk⟩, ⟨dv, mv⟩⟩ := slot_read u t slots R hs i h
@@ -495,7 +495,7 @@ theorem insBody_step {σ : Type} (u : PanSemStateFiniteExact 64 σ) (t k v : Bit
     rw [ite_word u _ _ _ _ (by
       simp [evalHOLExact, evalListHOLExact, keyAt, vv, lt, lj, lk, wordOpHOL, wordOp, valueIsWord, valueWord,
         memLoadHOLExact, dk, mk, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; rfl)]
-    rw [if_pos cw]
+    rw [ite_eq_left cw]
     have e1 : evaluateHOLFiniteState u (.store (.op .add [vv nT, vv nJ]) (vv nK)) = (none, u1) :=
       store_word u _ _ a0 k (by simp [evalHOLExact, evalListHOLExact, vv, lt, lj, wordOpHOL, wordOp, valueIsWord,
         valueWord, a0]) (by simp [evalHOLExact, vv, lk]) dk
@@ -573,7 +573,7 @@ theorem insLoop_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) (t k v : Bit
   rcases hcase with ⟨ug, uo, hm, hnot, uclk, ucon⟩ | ⟨ug, uo, hnone, hm, ucon⟩ | ⟨ug, uo, ⟨sl', hsl, hsat⟩, ucon⟩
   · refine ⟨1, by simp [evalHOLFinite, evalHOLExact, vv, ug], fun h => absurd h (by decide), fun _ => ?_⟩
     have g1 : wv u nG = 1 := by simp [wv, ug]
-    have mu : m u = n + 1 - i := by simp only [m]; rw [if_pos g1, wj]
+    have mu : m u = n + 1 - i := by simp only [m]; rw [ite_eq_left g1, wj]
     refine ⟨by rw [mu]; exact uclk, by rw [mu]; omega, ?_⟩
     let u0 := decClockHOLFinite u
     have hsu0 : Sat u0 (TableAt t slots ∗ R) :=
@@ -659,7 +659,7 @@ theorem insLoop_spec {σ : Type} (s : PanSemStateFiniteExact 64 σ) (t k v : Bit
             simp only [wv, setKvarHOLFinite]; rw [lookup_setVar_other _ _ dG.2.2.2.2]
             simp [u0, decClockHOLFinite, ug]
           have : m (setKvarHOLFinite .local nJ (.val (.word (BitVec.ofNat 64 (16 * (i + 1))))) u0) = n + 1 - (i + 1) := by
-            simp only [m]; rw [if_pos g1', wj']
+            simp only [m]; rw [ite_eq_left g1', wj']
           rw [this, mu]; omega
   · refine ⟨0, by simp [evalHOLFinite, evalHOLExact, vv, ug], fun _ => ⟨hd, by omega, hF, .inr ⟨uo, hnone, hm⟩⟩,
       fun h => absurd rfl h⟩

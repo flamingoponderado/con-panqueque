@@ -109,10 +109,10 @@ theorem uls_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
   subst hs'
   refine Knot.specR_tagIteV ulsH hh 3 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
   swap
-  · rw [if_neg (show ¬ (hh.tag == ETag.const) = true by simpa [ETag.const] using htg)]
+  · rw [ite_eq_right (show ¬ (hh.tag == ETag.const) = true by simpa [ETag.const] using htg)]
     simp only [pure_bind]
     exact specR_returnI _ 0 rfl (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_pos (show (hh.tag == ETag.const) = true by simp [htg, ETag.const])]
+  rw [ite_eq_left (show (hh.tag == ETag.const) = true by simp [htg, ETag.const])]
   simp only [bind_assoc]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
   refine specR_assignI lDh (vv ulsH) (Enc.idxW hh) (by decide) (by simp) ?_
@@ -194,11 +194,11 @@ theorem uls_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     swap
     · refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; rcases Bool.eq_false_or_eq_true caps.eta with he | he <;>
           simp_all [boolW, hwe]) (fun h => absurd rfl h) (fun _ => ?_)
-      rw [if_neg hc1]
+      rw [ite_eq_right hc1]
       simp only [pure_bind]
       exact specR_returnI _ 0 rfl (fun t ht => ⟨H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hc1.1, boolW, hwe.mpr hc1.2]) (fun _ => ?_) (fun h => absurd h (by decide))
-    rw [if_pos hc1]
+    rw [ite_eq_left hc1]
     try simp only [bind_assoc]
     refine specR_tblFindI (C := ctxH C H) (ctxOK_H hok H) hc.mg hc.mp ulsTb (vv ulsS) S (by decide)
       (by simp) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
@@ -252,11 +252,11 @@ theorem uls_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     · have hne : BitVec.ofNat 64 targs.length ≠ BitVec.ofNat 64 tb.numParams := by
         intro e; have := congrArg BitVec.toNat e; simp at this; omega
       refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun _ => ?_) (fun h => absurd h (by decide))
-      rw [if_neg hA]
+      rw [ite_eq_right hA]
       simp only [pure_bind]
       exact specR_returnI _ 0 rfl (fun t ht => ⟨H3, hp3, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     refine specR_ifI _ 0 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hA]) (fun h => absurd rfl h) (fun _ => ?_)
-    rw [if_pos hA]
+    rw [ite_eq_left hA]
     try simp only [bind_assoc]
     have hlt59 : BitVec.ofNat 64 targs.length < BitVec.ofNat 64 (2 ^ 59) := by
       rw [BitVec.lt_def, BitVec.toNat_ofNat, BitVec.toNat_ofNat]; norm_num; omega

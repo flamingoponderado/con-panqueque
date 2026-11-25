@@ -65,9 +65,9 @@ theorem blk_of_fillI (B ws : List (BitVec 64)) (o : Nat) (xs : List (BitVec 64))
     BlkAt (fillI B ws o ws.length) o xs := by
   have hl : ws.length = xs.length + 1 := by rw [hws]; rfl
   constructor
-  · rw [fillI_get?, if_pos ⟨Nat.le_refl _, by omega, by omega⟩]; simp [hws]
+  · rw [fillI_get?, ite_eq_left ⟨Nat.le_refl _, by omega, by omega⟩]; simp [hws]
   · intro i hi
-    rw [fillI_get?, if_pos ⟨by omega, by omega, by omega⟩]
+    rw [fillI_get?, ite_eq_left ⟨by omega, by omega, by omega⟩]
     simp [hws, show o + 1 + i - o = i + 1 by omega, List.getD_eq_getElem?_getD, hi]
 
 theorem mul8_eq (n : Nat) : BitVec.ofNat 64 n * 8 = BitVec.ofNat 64 (8 * n) := by

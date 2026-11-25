@@ -385,12 +385,12 @@ theorem nb_cmpGen (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} (hok : C
       (if P then (boolTrueName >>= fun n => constE n >>= fun x => pure (some x))
         else (boolFalseName >>= fun n => constE n >>= fun x => pure (some x))) (UD.PostO C) := by
   by_cases hP : P
-  · refine specR_ifI _ 1 (by rw [hE, if_pos hP]) (fun _ => ?_) (fun h => absurd h (by decide))
-    rw [if_pos hP]
+  · refine specR_ifI _ 1 (by rw [hE, ite_eq_left hP]) (fun _ => ?_) (fun h => absurd h (by decide))
+    rw [ite_eq_left hP]
     exact specR_pinAtI hok PIN_BOOL_TRUE (by decide) nS hD.1
       (nb_constTail ra hok hc _ (by simp) hD.2)
-  · refine specR_ifI _ 0 (by rw [hE, if_neg hP]) (fun h => absurd rfl h) (fun _ => ?_)
-    rw [if_neg hP]
+  · refine specR_ifI _ 0 (by rw [hE, ite_eq_right hP]) (fun h => absurd rfl h) (fun _ => ?_)
+    rw [ite_eq_right hP]
     exact specR_pinAtI hok PIN_BOOL_FALSE (by decide) nS hD.1
       (nb_constTail ra hok hc _ (by simp) hD.2)
 
@@ -436,7 +436,7 @@ theorem shiftLeftGuard_run' (a b : Nat) (s : AState)
   by_cases ha : a = 0
   · simp [ha]; rfl
   · have hb : ¬ b > 4294967295 := by omega
-    rw [if_neg ha, if_neg hb]
+    rw [ite_eq_right ha, ite_eq_right hb]
     have hn : ¬ s.pins.maxNatSize < natSizeBytes a + b >>> 3 + 1 := by
       rw [show b >>> 3 = Nat.shiftRight b 3 from rfl]; omega
     simp [shiftLeftRefused, maxNatSizeM, hn, get, getThe, MonadStateOf.get, StateT.get, bind, StateT.bind, pure,
@@ -445,7 +445,7 @@ theorem shiftLeftGuard_run' (a b : Nat) (s : AState)
 theorem powGuard_run' (a b : Nat) (s : AState) (hb : b ≤ 4294967295)
     (hm : natSizeBytes a * b ≤ s.pins.maxNatSize) : powGuard a b s = .ok ((), s) := by
   unfold powGuard
-  rw [if_neg (by omega)]
+  rw [ite_eq_right (by omega)]
   have hr : powRefused a b s = .ok (false, s) := by
     unfold powRefused
     by_cases h1 : a ≤ 1

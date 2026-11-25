@@ -200,7 +200,7 @@ theorem memoGet_spec {α : Type} (G KB : BitVec 64) (g : VGeo) (hinj : ∀ x y, 
   rcases hres with ⟨i, hf, hx⟩ | ⟨hf, hx⟩
   · obtain ⟨hic, v, hv, ha, hmv⟩ := memo_value hT hr hder hrel k i hf
     have hle := hT.le
-    rw [ite_word t2 _ _ _ _ (eval_vv t2 lMx _ hx), if_pos (one_add_ne i (by omega))]
+    rw [ite_word t2 _ _ _ _ (eval_vv t2 lMx _ hx), ite_eq_left (one_add_ne i (by omega))]
     have hD : EV t2 (.load .one (.op .add [vv pG, .const 40])) = some (.val (.word g.D)) := by
       have h5 := hdesc 5 (by decide)
       unfold EV
@@ -228,7 +228,7 @@ theorem memoGet_spec {α : Type} (G KB : BitVec 64) (g : VGeo) (hinj : ∀ x y, 
     rw [return_state t3 _ _ hv3]
     exact ⟨m2, d2, g2, c2⟩
   · have hnone : m[k]? = none := by rw [hrel k, hf]; rfl
-    rw [ite_word t2 _ _ _ _ (eval_vv t2 lMx _ hx), if_neg (by simp)]
+    rw [ite_word t2 _ _ _ _ (eval_vv t2 lMx _ hx), ite_eq_right (by simp)]
     right
     refine ⟨0, by rw [return_word t2 _ _ (eval_const t2 0)], none, s, by rw [hnone]; rfl, rfl, rfl, ?_⟩
     rw [return_state t2 _ _ (eval_const t2 0)]
@@ -443,14 +443,14 @@ theorem memoSet_spec (G KB : BitVec 64) (g : VGeo) (hinj : ∀ x y, enc x = enc 
     have hin : inR g (g.D + BitVec.ofNat 64 (16 * i')) := by
       have lD := hT'.layD; have lR := hT'.layR; have lC := hT'.layC; have lS := hT'.layS; have lK := hT'.layK
       refine ⟨?_, ?_⟩ <;> rw [toNat_add_of_lt _ _ (by omega)] <;> omega
-    rw [if_neg (fun e => hGout j hj (by rw [e]; exact hin)), m2 _ (hGout j hj)]; exact hj'.2
+    rw [ite_eq_right (fun e => hGout j hj (by rw [e]; exact hin)), m2 _ (hGout j hj)]; exact hj'.2
   · have := der_map_setDer tb' ders' hd' i' hdl v
     rw [hd2] at this; exact this
   · show (if c = g.D + BitVec.ofNat 64 (16 * i') then _ else t2.memory c) = _
     have hin : inR g (g.D + BitVec.ofNat 64 (16 * i')) := by
       have lD := hT'.layD; have lR := hT'.layR; have lC := hT'.layC; have lS := hT'.layS; have lK := hT'.layK
       refine ⟨?_, ?_⟩ <;> rw [toNat_add_of_lt _ _ (by omega)] <;> omega
-    rw [if_neg (fun e => hc (by rw [e]; exact hin)), m2 c hc]
+    rw [ite_eq_right (fun e => hc (by rw [e]; exact hin)), m2 c hc]
 
 /-! ## The twin's `inst1Get`, in a caller -/
 

@@ -148,7 +148,7 @@ theorem fs_spec (C : Ctx) (hcp : C.code.lookup ExM.fPir = some ([(pFu, .one), (p
   have hs1 : s1 = s := RO.piResult _ _ _ _ _ hrun
   subst s1
   refine Knot.specR_tagIteV fsP pr 2 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
-  · rw [if_pos (show (pr.tag == ETag.sort) = true by simp [htg, ETag.sort])]
+  · rw [ite_eq_left (show (pr.tag == ETag.sort) = true by simp [htg, ETag.sort])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
     refine specR_assignI lDh (vv fsP) (Enc.idxW pr) (by decide) (by simp) ?_
     refine specR_viewP (C := ctxH C H1) pr (by simp) (by simp +decide [Env.get] <;> rfl)
@@ -163,7 +163,7 @@ theorem fs_spec (C : Ctx) (hcp : C.code.lookup ExM.fPir = some ([(pFu, .one), (p
       (by simpa [encEView, Enc.encSort] using wordsAt_mem0 P (Enc.idxW u) [] []) ?_
     exact specR_returnI _ (optWG Enc.idxW (some u)) (by simp [sev, optWG])
       (fun t ht => ⟨rfl, rfl, H1, hp1, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  · rw [if_neg (show ¬ (pr.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
+  · rw [ite_eq_right (show ¬ (pr.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
     exact specR_returnI _ (optWG Enc.idxW none) (by simp [optWG]; rfl)
       (fun t ht => ⟨rfl, rfl, H1, hp1, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 

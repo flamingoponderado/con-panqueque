@@ -74,7 +74,7 @@ theorem prefix_of_get? {H L : List (BitVec 64)} (hl : H.length ≤ L.length)
   intro k
   rw [List.getElem?_take]
   by_cases h : k < H.length
-  · rw [if_pos (by omega), hg k h]
+  · rw [ite_eq_left (by omega), hg k h]
   · rw [List.getElem?_eq_none (by omega)]
     by_cases h' : k < H.length
     · omega

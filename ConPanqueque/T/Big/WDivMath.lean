@@ -31,12 +31,12 @@ theorem divmod_step (T y : Nat) (bit : Nat) (hy : 0 < y) (hb : bit < 2) :
   have e : 2 * (y * Q + R) + bit = y * (2 * Q) + (2 * R + bit) := by ring
   rw [e]
   by_cases h : y ≤ 2 * R + bit
-  · rw [if_pos h, if_pos h]
+  · rw [ite_eq_left h, ite_eq_left h]
     have e2 : y * (2 * Q) + (2 * R + bit) = y * (2 * Q + 1) + (2 * R + bit - y) := by
       rw [Nat.mul_add, Nat.mul_one]; omega
     rw [e2, Nat.mul_add_div hy, Nat.mul_add_mod, Nat.div_eq_of_lt (by omega), Nat.mod_eq_of_lt (by omega)]
     constructor <;> omega
-  · rw [if_neg h, if_neg h, Nat.mul_add_div hy, Nat.mul_add_mod, Nat.div_eq_of_lt (by omega),
+  · rw [ite_eq_right h, ite_eq_right h, Nat.mul_add_div hy, Nat.mul_add_mod, Nat.div_eq_of_lt (by omega),
       Nat.mod_eq_of_lt (by omega)]
     constructor <;> omega
 
@@ -73,20 +73,20 @@ theorem wdiv_word (R y bit : Nat) (hR : R < y) (hy : y < B) (hb : bit < 2) :
       have hsm : (2 * R + bit) % 2 ^ 64 = 2 * R + bit := Nat.mod_eq_of_lt (by omega)
       rw [hsm] at hlt
       by_cases hq : y ≤ 2 * R + bit
-      · rw [if_pos hq, if_neg (by rw [hlt]; omega), h]; decide
-      · rw [if_neg hq, if_pos (by rw [hlt]; omega), h]; decide
+      · rw [ite_eq_left hq, ite_eq_right (by rw [hlt]; omega), h]; decide
+      · rw [ite_eq_right hq, ite_eq_left (by rw [hlt]; omega), h]; decide
     · have hc1 : R / 2 ^ 63 = 1 := by rw [← ec, h]; rfl
-      rw [if_pos (by omega : y ≤ 2 * R + bit), h]
+      rw [ite_eq_left (by omega : y ≤ 2 * R + bit), h]
       split <;> decide
   refine ⟨hge, ?_⟩
   rw [hge]
   apply BitVec.eq_of_toNat_eq
   by_cases hq : y ≤ 2 * R + bit
-  · rw [if_pos hq, if_pos hq]
+  · rw [ite_eq_left hq, ite_eq_left hq]
     simp only [BitVec.toNat_sub, BitVec.toNat_mul, er1, eyw, BitVec.toNat_ofNat]
     rw [show (1 : Nat) % 2 ^ 64 = 1 from rfl, one_mul, Nat.mod_eq_of_lt (show y < 2 ^ 64 by omega)]
     omega
-  · rw [if_neg hq, if_neg hq]
+  · rw [ite_eq_right hq, ite_eq_right hq]
     simp only [BitVec.toNat_sub, BitVec.toNat_mul, er1, BitVec.toNat_ofNat]
     rw [show (0 : Nat) % 2 ^ 64 = 0 from rfl, zero_mul]
     omega

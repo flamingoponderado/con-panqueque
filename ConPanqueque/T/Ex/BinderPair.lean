@@ -210,7 +210,7 @@ theorem bpKind_spec (C : Ctx) (hok : CtxOK C) {H : List (BitVec 64)} {s : AState
     simp [sev, tagEq, tagW, ha, hb]
   by_cases hab : a.tag = UInt32.ofNat T ∧ b.tag = UInt32.ofNat T
   · have hc : (a.tag == UInt32.ofNat T && b.tag == UInt32.ofNat T) = true := by simp [hab.1, hab.2]
-    rw [if_pos hc]
+    rw [ite_eq_left hc]
     have hw : (tagW a T &&& tagW b T) ≠ 0 :=
       (tagW_and a b T).mpr ⟨(tagW_iff a T (by omega) (by omega)).mpr hab.1, (tagW_iff b T (by omega) (by omega)).mpr hab.2⟩
     refine specR_ifI _ _ hsev (fun _ => ?_) (fun e => absurd e hw)
@@ -236,7 +236,7 @@ theorem bpKind_spec (C : Ctx) (hok : CtxOK C) {H : List (BitVec 64)} {s : AState
         exact ⟨H2.length, rfl, img5_blk H2 ws _ _ _ _ hws⟩⟩
   · have hc : (a.tag == UInt32.ofNat T && b.tag == UInt32.ofNat T) = false := by
       by_cases h1 : a.tag = UInt32.ofNat T <;> simp_all
-    rw [if_neg (by simp [hc])]
+    rw [ite_eq_right (by simp [hc])]
     have hw : (tagW a T &&& tagW b T) = 0 := by
       rcases tagW_01 a T with h1 | h1 <;> rcases tagW_01 b T with h2 | h2
       · simp [h1, h2]

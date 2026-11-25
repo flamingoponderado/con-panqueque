@@ -64,7 +64,7 @@ theorem appEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : Byt
   unfold RecOut at hro
   rw [scanAppExpr, scanAppExprLoop_eq b _ (i + 1) true 0 0 0 rfl]
   split at hro
-  · rename_i hbyte; rw [if_pos hbyte, hro]; rfl
+  · rename_i hbyte; rw [ite_eq_left hbyte, hro]; rfl
   · simp at hro
 
 end

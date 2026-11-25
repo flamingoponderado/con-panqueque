@@ -109,7 +109,7 @@ theorem sk_word (f a : EIdx) :
   rw [show (0 : BitVec 64) = 0#64 from rfl, BitVec.or_eq_zero_iff, ← show (0 : BitVec 64) = 0#64 from rfl, shr31_zero, shr31_zero]
   simp only [EStore.eViewHasScratchChild]
   by_cases hf : f.isPersistent = true
-  · rw [if_pos hf, Bool.not_eq_false', tier_zero]; rw [tier_zero] at hf; simp [hf]
-  · rw [if_neg hf]; rw [tier_zero] at hf; simp [hf]
+  · rw [ite_eq_left hf, Bool.not_eq_false', tier_zero]; rw [tier_zero] at hf; simp [hf]
+  · rw [ite_eq_right hf]; rw [tier_zero] at hf; simp [hf]
 
 end ConPanqueque.ConsGeo

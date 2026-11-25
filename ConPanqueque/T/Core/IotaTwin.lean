@@ -19,14 +19,14 @@ theorem getAppFn_ro : ∀ (fuel : Nat) (h : EIdx) (s : AState) (r : EIdx) (s' : 
     intro h s r s' e
     unfold getAppFn at e
     by_cases ht : (h.tag == ETag.app) = true
-    · rw [if_pos ht] at e
+    · rw [ite_eq_left ht] at e
       simp only [bind, StateT.bind] at e
       rw [show viewApp h s = .ok (s.store.viewApp h, s) from rfl] at e
       simp only [Except.bind] at e
       cases hv : s.store.viewApp h with
       | none => rw [hv] at e; simp [failDanglingE, fail, throwThe, MonadExceptOf.throw] at e; cases e
       | some p => obtain ⟨f, a⟩ := p; rw [hv] at e; exact ih f s r s' e
-    · rw [if_neg ht] at e
+    · rw [ite_eq_right ht] at e
       simp [pure, StateT.pure, Except.pure] at e
       exact e.2.symm
 
@@ -57,7 +57,7 @@ theorem ctorView_ro (fe : IFEnv) (a : EIdx) (s : AState) (v : MajorView) (s' : A
   rw [e1] at h2
   clear h1 e1 s1
   by_cases ht : (hd.tag == ETag.const) = true
-  · rw [if_pos ht] at h2
+  · rw [ite_eq_left ht] at h2
     obtain ⟨oc, s2, h3, h4⟩ := bind_ok_inv h2
     have e3 : oc = s.store.viewConst hd ∧ s2 = s := by
       have : viewConst hd s = .ok (s.store.viewConst hd, s) := rfl
@@ -74,7 +74,7 @@ theorem ctorView_ro (fe : IFEnv) (a : EIdx) (s : AState) (v : MajorView) (s' : A
       · rw [hf] at h4; obtain ⟨rfl, rfl⟩ := pure_ok_inv h4; exact ⟨rfl, rfl⟩
       · rw [hf] at h4
         cases ci <;> (dsimp only at h4; obtain ⟨rfl, rfl⟩ := pure_ok_inv h4; exact ⟨rfl, rfl⟩)
-  · rw [if_neg ht] at h2
+  · rw [ite_eq_right ht] at h2
     obtain ⟨rfl, rfl⟩ := pure_ok_inv h2; exact ⟨rfl, rfl⟩
 
 
@@ -99,8 +99,8 @@ theorem RO.failDanglingE {α : Type} : RO (failDanglingE : AM α) := RO.fail _
 theorem RO.ite {α : Type} (c : Prop) [Decidable c] {m₁ m₂ : AM α} (h₁ : RO m₁) (h₂ : RO m₂) :
     RO (if c then m₁ else m₂) := by
   by_cases hc : c
-  · rw [if_pos hc]; exact h₁
-  · rw [if_neg hc]; exact h₂
+  · rw [ite_eq_left hc]; exact h₁
+  · rw [ite_eq_right hc]; exact h₂
 
 theorem RO.get : RO (get : AM AState) := by
   intro s a s' h; simp [MonadState.get, getThe, MonadStateOf.get, StateT.get, Pure.pure, Except.pure] at h
@@ -156,17 +156,17 @@ theorem majorToCtor_view (mode : ConLeche.CheckMode) (r : CoreFnsA) (fe : IFEnv)
   obtain ⟨v, s1, h1, h2⟩ := bind_ok_inv h
   obtain ⟨e1, ex⟩ := ctorView_ro fe m s v s1 h1
   by_cases hv : v.isCtor = true
-  · rw [if_pos hv] at h2
+  · rw [ite_eq_left hv] at h2
     obtain ⟨rfl, rfl⟩ := pure_ok_inv h2
     intro _
     rw [ex]; rw [e1] at h1 ⊢; exact h1
-  · rw [if_neg hv] at h2
+  · rw [ite_eq_right hv] at h2
     obtain ⟨x, s2, h3, h4⟩ := bind_ok_inv h2
     by_cases hx : (x == m) = true
-    · rw [if_pos hx] at h4
+    · rw [ite_eq_left hx] at h4
       obtain ⟨rfl, rfl⟩ := pure_ok_inv h4
       intro hc; simp [MajorView.isCtor] at hc
-    · rw [if_neg hx] at h4
+    · rw [ite_eq_right hx] at h4
       obtain ⟨e4, ex4⟩ := ctorView_ro fe x s2 mv s' h4
       intro _
       rw [ex4, e4]; rw [e4] at h4; exact h4
@@ -191,7 +191,7 @@ theorem prepareMajor_view (mode : ConLeche.CheckMode) (r : CoreFnsA) (fe : IFEnv
           else prepareMajorWhnf mode r fe d c false rules vE.expr) s1 = .ok (mv, s') → CtorOK fe mv s' := by
       intro vE s1 hv1 h2
       by_cases hc : vE.isCtor = true
-      · rw [if_pos hc] at h2
+      · rw [ite_eq_left hc] at h2
         obtain ⟨b, s2, h3, h4⟩ := bind_ok_inv h2
         have e3 := RO.isNatSuccApp vE.expr s1 b s2 h3
         cases b
@@ -200,7 +200,7 @@ theorem prepareMajor_view (mode : ConLeche.CheckMode) (r : CoreFnsA) (fe : IFEnv
           rw [e3]; exact hv1
         · simp only [ite_true] at h4
           exact prepareMajorWhnf_view mode r fe d c false rules _ _ mv s' h4
-      · rw [if_neg hc] at h2
+      · rw [ite_eq_right hc] at h2
         exact prepareMajorWhnf_view mode r fe d c false rules _ _ mv s' h2
     obtain ⟨b, s0, h0, h1'⟩ := bind_ok_inv h
     cases b
@@ -285,7 +285,7 @@ theorem ctorView_ctor_inv (fe : IFEnv) (e : EIdx) (s : AState) (e' : EIdx) (cj :
   have e1 := getAppFn_ro _ _ _ _ _ h1
   rw [e1] at h1 h2
   by_cases ht : (hd.tag == ETag.const) = true
-  · rw [if_pos ht] at h2
+  · rw [ite_eq_left ht] at h2
     obtain ⟨oc, s2, h3, h4⟩ := bind_ok_inv h2
     have : viewConst hd s = .ok (s.store.viewConst hd, s) := rfl
     rw [this] at h3; cases h3
@@ -302,7 +302,7 @@ theorem ctorView_ctor_inv (fe : IFEnv) (e : EIdx) (s : AState) (e' : EIdx) (cj :
         refine ⟨hd, h1, by simpa using ht, ?_, ?_, h6, rfl⟩
         · simp [hoc]
         · exact hf
-  · rw [if_neg ht] at h2
+  · rw [ite_eq_right ht] at h2
     obtain ⟨h5, _⟩ := pure_ok_inv h2; cases h5
 
 end ConPanqueque.T.WC

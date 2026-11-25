@@ -177,12 +177,12 @@ theorem spec_ite {α : Type} {P : PState σ → Prop} {c1 c2 : ProgHOL 64} {s : 
   rw [ite_word t e c1 c2 (w t) (he t ht)]
   by_cases hw : w t ≠ 0
   · have hb' : b = true := (hb t ht).mp hw
-    rw [if_pos hw]; subst hb'; exact h1 t ⟨ht, rfl⟩
+    rw [ite_eq_left hw]; subst hb'; exact h1 t ⟨ht, rfl⟩
   · have hb' : b = false := by
       cases hc : b
       · rfl
       · exact absurd ((hb t ht).mpr hc) hw
-    rw [if_neg hw]; subst hb'; exact h2 t ⟨ht, rfl⟩
+    rw [ite_eq_right hw]; subst hb'; exact h2 t ⟨ht, rfl⟩
 
 theorem specR_ite {α : Type} {P : PState σ → Prop} {c1 c2 : ProgHOL 64} {s : AState} {b : Bool}
     {m1 m2 : AM α} {R : α → BitVec 64 → AState → PState σ → Prop} (e : ExpHOL 64) (w : PState σ → BitVec 64)
@@ -194,12 +194,12 @@ theorem specR_ite {α : Type} {P : PState σ → Prop} {c1 c2 : ProgHOL 64} {s :
   rw [ite_word t e c1 c2 (w t) (he t ht)]
   by_cases hw : w t ≠ 0
   · have hb' : b = true := (hb t ht).mp hw
-    rw [if_pos hw]; subst hb'; exact h1 t ⟨ht, rfl⟩
+    rw [ite_eq_left hw]; subst hb'; exact h1 t ⟨ht, rfl⟩
   · have hb' : b = false := by
       cases hc : b
       · rfl
       · exact absurd ((hb t ht).mpr hc) hw
-    rw [if_neg hw]; subst hb'; exact h2 t ⟨ht, rfl⟩
+    rw [ite_eq_right hw]; subst hb'; exact h2 t ⟨ht, rfl⟩
 
 /-! ## Pancake-side branching (the twin computation is the same in both branches) -/
 
@@ -211,8 +211,8 @@ theorem spec_if {α : Type} {P : PState σ → Prop} {c1 c2 : ProgHOL 64} {s : A
   intro t ht
   rw [ite_word t e c1 c2 (w t) (he t ht)]
   by_cases hw : w t ≠ 0
-  · rw [if_pos hw]; exact h1 t ⟨ht, hw⟩
-  · rw [if_neg hw]; exact h2 t ⟨ht, by simpa using hw⟩
+  · rw [ite_eq_left hw]; exact h1 t ⟨ht, hw⟩
+  · rw [ite_eq_right hw]; exact h2 t ⟨ht, by simpa using hw⟩
 
 theorem specR_if {α : Type} {P : PState σ → Prop} {c1 c2 : ProgHOL 64} {s : AState} {m : AM α}
     {R : α → BitVec 64 → AState → PState σ → Prop} (e : ExpHOL 64) (w : PState σ → BitVec 64)
@@ -222,8 +222,8 @@ theorem specR_if {α : Type} {P : PState σ → Prop} {c1 c2 : ProgHOL 64} {s : 
   intro t ht
   rw [ite_word t e c1 c2 (w t) (he t ht)]
   by_cases hw : w t ≠ 0
-  · rw [if_pos hw]; exact h1 t ⟨ht, hw⟩
-  · rw [if_neg hw]; exact h2 t ⟨ht, by simpa using hw⟩
+  · rw [ite_eq_left hw]; exact h1 t ⟨ht, hw⟩
+  · rw [ite_eq_right hw]; exact h2 t ⟨ht, by simpa using hw⟩
 
 theorem spec_false {α : Type} {P : PState σ → Prop} {c : ProgHOL 64} {s : AState} {m : AM α}
     {Q : α → AState → PState σ → Prop} (h : ∀ t, P t → False) : Spec P c s m Q :=

@@ -88,18 +88,18 @@ theorem specR_scanPhase {α : Type} {m : AM α} {R : α → BitVec 64 → AState
             (Nat.le_refl _)) rfl rfl rfl)
           (hlc _ (by show t.code = C.code; exact ht.sr.code)) i hi y hy c1 c2 c3) hk'
   refine lc Γ kTg fLnPl sPl _ (hD _ (by simp)) (by simp) hc1 hBA hBN hLI (fun wt ⟨u1, ho1, hl1⟩ => ?_)
-  have g1 : ∀ y, y ≠ kTg → Env.get ((kTg, wt) :: Γ) y = Γ.get y := fun y h => by simp only [Env.get_cons, if_neg h]
+  have g1 : ∀ y, y ≠ kTg → Env.get ((kTg, wt) :: Γ) y = Γ.get y := fun y h => by simp only [Env.get_cons, ite_eq_right h]
   refine lc _ kS0 fLnS0 (slotName 0) _ (hD _ (by simp)) (by simp) hc2 (by rw [g1 _ (by decide)]; exact hBA)
     (by rw [g1 _ (by decide)]; exact hBN) (by rw [g1 _ (by decide)]; exact hLI) (fun ws ⟨u2, ho2, hl2⟩ => ?_)
   let Γ2 : Env := (kS0, ws) :: (kTg, wt) :: Γ
   have g2 : ∀ y, y ≠ kS0 → y ≠ kTg → Γ2.get y = Γ.get y := fun y h h' => by
-    simp only [Γ2, Env.get_cons, if_neg h, if_neg h']
+    simp only [Γ2, Env.get_cons, ite_eq_right h, ite_eq_right h']
   refine lc Γ2 kIx fLnIx sIdx _ (hD _ (by simp)) (by simp) hc3 (by rw [g2 _ (by decide) (by decide)]; exact hBA)
     (by rw [g2 _ (by decide) (by decide)]; exact hBN) (by rw [g2 _ (by decide) (by decide)]; exact hLI)
     (fun wi ⟨u3, ho3, hl3⟩ => ?_)
   let Γ3 : Env := (kIx, wi) :: Γ2
   have g3 : ∀ y, y ≠ kIx → y ≠ kS0 → y ≠ kTg → Γ3.get y = Γ.get y := fun y h0 h h' => by
-    simp only [Γ3, Env.get_cons, if_neg h0]; exact g2 y h h'
+    simp only [Γ3, Env.get_cons, ite_eq_right h0]; exact g2 y h h'
   refine lc Γ3 kNx fLnNx sI _ (hD _ (by simp)) (by simp) hc4 (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hBA)
     (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hBN)
     (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hLI) (fun wn ⟨u4, ho4, hl4⟩ => ?_)

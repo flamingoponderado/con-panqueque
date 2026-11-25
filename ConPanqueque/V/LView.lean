@@ -61,7 +61,7 @@ theorem lView_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitVec 
   by_cases hn : (Enc.idxW i >>> (30 : Nat)) &&& 1 ≠ 0
   · left
     apply seq_stop
-    rw [ite_word t _ _ _ _ hc, if_pos hn]
+    rw [ite_word t _ _ _ _ hc, ite_eq_left hn]
     exact hang_stop t
   have hnw : i.isWide = false := by
     cases e : i.isWide
@@ -69,7 +69,7 @@ theorem lView_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitVec 
     · exact absurd ((wide_iff i).mpr e) hn
   have hsk : evaluateHOLFiniteState t (.ite (.op .and [.shift .lsr (vv lDh) (.const 30), .const 1]) hang .skip) =
       (none, t) := by
-    rw [ite_word t _ _ _ _ hc, if_neg hn]
+    rw [ite_word t _ _ _ _ hc, ite_eq_right hn]
     rw [evaluateHOLFiniteState_eq_evaluate_def]
   rw [seq_normal _ hsk]
   refine storeRow_gen t L FL st.scratchOn 3 5 (by decide) i (fun r => ∃ v, st.view i = some v ∧ v.tagN = i.tag.toNat ∧
@@ -85,13 +85,13 @@ theorem lView_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitVec 
     rcases (by omega : i.tier.toNat = 0 ∨ i.tier.toNat = 1) with h0 | h0
     · have e0 : i.tier = 0 := UInt32.toNat_inj.mp (by rw [h0]; rfl)
       refine ⟨0, st.pers, ?_, ?_⟩
-      · simp only [LStore.view, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
+      · simp only [LStore.view, Idx.isPersistent, beq_iff_eq]; rw [ite_eq_left e0]
       · rw [h0]; exact ⟨hR.pz, hR.ps, hR.pm, hR.pi, hR.pp⟩
     · have hnp : ¬ i.isPersistent = true := by
         simp only [Idx.isPersistent, beq_iff_eq]; intro e; rw [e] at h0; simp at h0
       have hon : st.scratchOn = true := by rcases hlive with h | h; omega; exact h
       refine ⟨1, st.scr, ?_, ?_⟩
-      · simp only [LStore.view]; rw [if_neg hnp, hon]; rfl
+      · simp only [LStore.view]; rw [ite_eq_right hnp, hon]; rfl
       · rw [h0]; exact ⟨hR.sz, hR.ss, hR.sm, hR.si, hR.sp⟩
   obtain ⟨tr, lt, hview, hT0, hT1, hT2, hT3, hT4⟩ := pick
   have htl := Idx.tier_lt i

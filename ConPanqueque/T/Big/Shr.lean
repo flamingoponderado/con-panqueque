@@ -1152,7 +1152,7 @@ theorem sev_shrE (Γ : Env) (u v : BitVec 64) (r : Nat) (hr : r < 64) (hu : Γ.g
   simp [sev, vv, hu, hv, hR, hR2, hrr, hrr2, show r < 64 from hr, show 63 - r < 64 by omega]
 
 theorem fill_lo (B0 W : List (BitVec 64)) (o j k : Nat) (hk : k < o) : (fillI B0 W o j)[k]? = B0[k]? := by
-  rw [fillI_get?, if_neg (by omega)]
+  rw [fillI_get?, ite_eq_right (by omega)]
 
 def shrG (Γ0 : Env) (C : Ctx) (od oa q k : Nat) : Env :=
   (rI, BitVec.ofNat 64 k) :: (rQo, cellA C (od + 1 + k)) :: (rQa, cellA C (oa + 1 + q + k)) :: Γ0
@@ -1456,7 +1456,7 @@ theorem shr_spec (C : Ctx) (hok : CtxOK C) (s : AState) (a b : Nat) (oa ob : Nat
     have hlf : Bf.length = B0.length := hl n
     have hWf : ∀ k, k < n → Bf[H'.length + 1 + k]? = some (BitVec.ofNat 64 ((a >>> b) / B ^ k % B)) := by
       intro k hk
-      rw [fillI_get?, if_pos ⟨by omega, by omega, by rw [hB0]; omega⟩]
+      rw [fillI_get?, ite_eq_left ⟨by omega, by omega, by rw [hB0]; omega⟩]
       simp [show H'.length + 1 + k - (H'.length + 1) = k by omega, List.getD_eq_getElem?_getD, shrW_get a q r n k hk,
         hab, dg]
     refine specR_envWeak (Γb := shrG3 Γ0 C H'.length (a >>> b) 0) (fun z v hz => ?_) ?_

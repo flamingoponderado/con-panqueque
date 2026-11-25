@@ -113,9 +113,9 @@ theorem vt_one {α : Type} (t : PanSemStateFiniteExact 64 σ) (enc : α → List
   slot j hj := by
     refine ⟨if j = 0 then 1 else 0, slots1_get _ _ hj, by split <;> decide, ?_⟩
     by_cases h0 : j = 0
-    · subst h0; simp only [Nat.mul_zero, BitVec.ofNat_eq_ofNat, BitVec.add_zero, if_true]
+    · subst h0; simp only [Nat.mul_zero, BitVec.ofNat_eq_ofNat, BitVec.add_zero, ite_true]
       exact ⟨h.slot0.1, by rw [h.slot0.2]; rfl⟩
-    · rw [if_neg h0]; exact ⟨(h.slot j (by omega) hj).1, by rw [(h.slot j (by omega) hj).2]; rfl⟩
+    · rw [ite_eq_right h0]; exact ⟨(h.slot j (by omega) hj).1, by rw [(h.slot j (by omega) hj).2]; rfl⟩
   row i hi := by
     have : i = 0 := by simpa using hi
     subst this

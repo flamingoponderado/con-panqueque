@@ -72,7 +72,7 @@ theorem binLine_spec (C : Ctx) (hok : CtxOK C) (f : MlS) (fF : Nat → MlS) (bod
     (by simpa [sev, vv] using hBA) (by simpa [sev, vv] using hBN) (by simpa [sev, vv] using hP)
     (fun t callee ht c1 c2 c3 => hsl 1 (by decide) t callee _ _ ht c1 c2 c3) (fun w1 ⟨s1, hK1, hr1, hs1⟩ => ?_)
   have hn1 := slotN hK1 rfl hs1
-  have g1 : ∀ y, y ≠ fU → Env.get ((fU, w1) :: Γ) y = Γ.get y := fun y h => by simp only [Env.get_cons, if_neg h]
+  have g1 : ∀ y, y ≠ fU → Env.get ((fU, w1) :: Γ) y = Γ.get y := fun y h => by simp only [Env.get_cons, ite_eq_right h]
   refine specR_retP3 fV2 (fF 0) sB sN sI _ (vv kBA) (vv kBN) (vv kPos) (cellA C bufJ) (BitVec.ofNat 64 b.size)
     (BitVec.ofNat 64 pos.toNat) _ (by decide) (by decide) (by decide) (hD _ (by simp)) (hcT 0 (by decide))
     (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hBA) (by simp only [sev, vv]; rw [g1 _ (by decide)]; exact hBN)
@@ -84,11 +84,11 @@ theorem binLine_spec (C : Ctx) (hok : CtxOK C) (f : MlS) (fF : Nat → MlS) (bod
   rw [hr0]
   let Γ2 : Env := (fV2, w0) :: (fU, w1) :: Γ
   have g2 : ∀ y, y ≠ fV2 → y ≠ fU → Γ2.get y = Γ.get y := fun y h h' => by
-    simp only [Γ2, Env.get_cons, if_neg h, if_neg h']
+    simp only [Γ2, Env.get_cons, ite_eq_right h, ite_eq_right h']
   refine specR_capG fI i (by rw [g2 _ (by decide) (by decide)]; exact hI) (fun hiN hI' => ?_)
-  refine specR_capG fU _ (by simp only [Γ2, Env.get_cons, if_neg (show fU ≠ fV2 by decide), if_pos]; rw [hn1])
+  refine specR_capG fU _ (by simp only [Γ2, Env.get_cons, ite_eq_right (show fU ≠ fV2 by decide), ite_eq_left]; rw [hn1])
     (fun haN hU' => ?_)
-  refine specR_capG fV2 _ (by simp only [Γ2, Env.get_cons, if_pos]; rw [hn0]) (fun hcN hV' => ?_)
+  refine specR_capG fV2 _ (by simp only [Γ2, Env.get_cons, ite_eq_left]; rw [hn0]) (fun hcN hV' => ?_)
   exact hspec Γ2 _ _ (by have := natCap_lt; omega) (by have := natCap_lt; omega) (by have := natCap_lt; omega)
     (by rw [g2 _ (by decide) (by decide)]; exact hTE) (by rw [g2 _ (by decide) (by decide)]; exact hC) hI' hU' hV'
 
@@ -245,14 +245,14 @@ theorem letLine_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
   refine specR_fieldI fU (fLetF 1) _ bufJ b pos _ (hD _ (by simp)) (hcT 1 (by decide)) hBA hBN hP (hS 1 (by decide))
     (fun w1 ⟨s1, hK1, hr1, hs1⟩ => ?_)
   have hn1 := slotN hK1 rfl hs1
-  have g1 : ∀ y, y ≠ fU → Env.get ((fU, w1) :: Γ) y = Γ.get y := fun y h => by simp only [Env.get_cons, if_neg h]
+  have g1 : ∀ y, y ≠ fU → Env.get ((fU, w1) :: Γ) y = Γ.get y := fun y h => by simp only [Env.get_cons, ite_eq_right h]
   refine specR_fieldI fV2 (fLetF 2) _ bufJ b pos _ (hD _ (by simp)) (hcT 2 (by decide))
     (by rw [g1 _ (by decide)]; exact hBA) (by rw [g1 _ (by decide)]; exact hBN) (by rw [g1 _ (by decide)]; exact hP)
     (hS 2 (by decide)) (fun w2 ⟨s2, hK2, hr2, hs2⟩ => ?_)
   have hn2 := slotN hK2 rfl hs2
   let Γ2 : Env := (fV2, w2) :: (fU, w1) :: Γ
   have g2 : ∀ y, y ≠ fV2 → y ≠ fU → Γ2.get y = Γ.get y := fun y h h' => by
-    simp only [Γ2, Env.get_cons, if_neg h, if_neg h']
+    simp only [Γ2, Env.get_cons, ite_eq_right h, ite_eq_right h']
   refine specR_fieldI fTN (fLetF 0) _ bufJ b pos _ (hD _ (by simp)) (hcT 0 (by decide))
     (by rw [g2 _ (by decide) (by decide)]; exact hBA) (by rw [g2 _ (by decide) (by decide)]; exact hBN)
     (by rw [g2 _ (by decide) (by decide)]; exact hP) (hS 0 (by decide)) (fun w0 ⟨s0, hK0, hr0, hs0⟩ => ?_)
@@ -265,13 +265,13 @@ theorem letLine_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok 
   rw [hr0]
   let Γ3 : Env := (fTN, w0) :: Γ2
   have g3 : ∀ y, y ≠ fTN → y ≠ fV2 → y ≠ fU → Γ3.get y = Γ.get y := fun y h0 h h' => by
-    simp only [Γ3, Env.get_cons, if_neg h0]; exact g2 y h h'
+    simp only [Γ3, Env.get_cons, ite_eq_right h0]; exact g2 y h h'
   refine specR_capG fI i (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hI) (fun hiN hI' => ?_)
-  refine specR_capG fU _ (by simp only [Γ3, Γ2, Env.get_cons, if_neg (show fU ≠ fTN by decide),
-    if_neg (show fU ≠ fV2 by decide), if_pos]; rw [hn1]) (fun haN hU' => ?_)
-  refine specR_capG fV2 _ (by simp only [Γ3, Γ2, Env.get_cons, if_neg (show fV2 ≠ fTN by decide), if_pos]; rw [hn2])
+  refine specR_capG fU _ (by simp only [Γ3, Γ2, Env.get_cons, ite_eq_right (show fU ≠ fTN by decide),
+    ite_eq_right (show fU ≠ fV2 by decide), ite_eq_left]; rw [hn1]) (fun haN hU' => ?_)
+  refine specR_capG fV2 _ (by simp only [Γ3, Γ2, Env.get_cons, ite_eq_right (show fV2 ≠ fTN by decide), ite_eq_left]; rw [hn2])
     (fun hbN hV' => ?_)
-  refine specR_capG fTN _ (by simp only [Γ3, Env.get_cons, if_pos]; rw [hn0]) (fun hcN hW' => ?_)
+  refine specR_capG fTN _ (by simp only [Γ3, Env.get_cons, ite_eq_left]; rw [hn0]) (fun hcN hW' => ?_)
   have := natCap_lt
   exact exLet_spec ra C hok hcL s Γ3 M D (fun x hx => hD x (by
       simp only [List.mem_cons, List.not_mem_nil, or_false] at hx ⊢; rcases hx with rfl | rfl | rfl | rfl | rfl <;> simp))
@@ -311,14 +311,14 @@ theorem projLine_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok
   refine specR_fieldI fU (fProjF 2) _ bufJ b pos _ (hD _ (by simp)) (hcT 2 (by decide)) hBA hBN hP (hS 2 (by decide))
     (fun w1 ⟨s1, hK1, hr1, hs1⟩ => ?_)
   have hn1 := slotN hK1 rfl hs1
-  have g1 : ∀ y, y ≠ fU → Env.get ((fU, w1) :: Γ) y = Γ.get y := fun y h => by simp only [Env.get_cons, if_neg h]
+  have g1 : ∀ y, y ≠ fU → Env.get ((fU, w1) :: Γ) y = Γ.get y := fun y h => by simp only [Env.get_cons, ite_eq_right h]
   refine specR_fieldI fV2 (fProjF 0) _ bufJ b pos _ (hD _ (by simp)) (hcT 0 (by decide))
     (by rw [g1 _ (by decide)]; exact hBA) (by rw [g1 _ (by decide)]; exact hBN) (by rw [g1 _ (by decide)]; exact hP)
     (hS 0 (by decide)) (fun w2 ⟨s2, hK2, hr2, hs2⟩ => ?_)
   have hn2 := slotN hK2 rfl hs2
   let Γ2 : Env := (fV2, w2) :: (fU, w1) :: Γ
   have g2 : ∀ y, y ≠ fV2 → y ≠ fU → Γ2.get y = Γ.get y := fun y h h' => by
-    simp only [Γ2, Env.get_cons, if_neg h, if_neg h']
+    simp only [Γ2, Env.get_cons, ite_eq_right h, ite_eq_right h']
   refine specR_fieldI fW3 (fProjF 1) _ bufJ b pos _ (hD _ (by simp)) (hcT 1 (by decide))
     (by rw [g2 _ (by decide) (by decide)]; exact hBA) (by rw [g2 _ (by decide) (by decide)]; exact hBN)
     (by rw [g2 _ (by decide) (by decide)]; exact hP) (hS 1 (by decide)) (fun w0 ⟨s0, hK0, hr0, hs0⟩ => ?_)
@@ -331,13 +331,13 @@ theorem projLine_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok
   rw [hr0]
   let Γ3 : Env := (fW3, w0) :: Γ2
   have g3 : ∀ y, y ≠ fW3 → y ≠ fV2 → y ≠ fU → Γ3.get y = Γ.get y := fun y h0 h h' => by
-    simp only [Γ3, Env.get_cons, if_neg h0]; exact g2 y h h'
+    simp only [Γ3, Env.get_cons, ite_eq_right h0]; exact g2 y h h'
   refine specR_capG fI i (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hI) (fun hiN hI' => ?_)
-  refine specR_capG fU _ (by simp only [Γ3, Γ2, Env.get_cons, if_neg (show fU ≠ fW3 by decide),
-    if_neg (show fU ≠ fV2 by decide), if_pos]; rw [hn1]) (fun haN hU' => ?_)
-  refine specR_capG fV2 _ (by simp only [Γ3, Γ2, Env.get_cons, if_neg (show fV2 ≠ fW3 by decide), if_pos]; rw [hn2])
+  refine specR_capG fU _ (by simp only [Γ3, Γ2, Env.get_cons, ite_eq_right (show fU ≠ fW3 by decide),
+    ite_eq_right (show fU ≠ fV2 by decide), ite_eq_left]; rw [hn1]) (fun haN hU' => ?_)
+  refine specR_capG fV2 _ (by simp only [Γ3, Γ2, Env.get_cons, ite_eq_right (show fV2 ≠ fW3 by decide), ite_eq_left]; rw [hn2])
     (fun hbN hV' => ?_)
-  refine specR_capG fW3 _ (by simp only [Γ3, Env.get_cons, if_pos]; rw [hn0]) (fun hcN hW' => ?_)
+  refine specR_capG fW3 _ (by simp only [Γ3, Env.get_cons, ite_eq_left]; rw [hn0]) (fun hcN hW' => ?_)
   have := natCap_lt
   have h62 : natCap < 2 ^ 63 := by unfold natCap; decide
   exact exProj_spec ra C hok hcP s Γ3 M D (fun x hx => hD x (by
@@ -381,7 +381,7 @@ theorem constLine_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (ho
   refine specR_fieldI fU (fConstF 0) _ bufJ b pos _ (hD _ (by simp)) (hcT 0 (by decide)) hBA hBN hP (hS 0 (by decide))
     (fun w1 ⟨s1, hK1, hr1, hs1⟩ => ?_)
   have hn1 := slotN hK1 rfl hs1
-  have g1 : ∀ y, y ≠ fU → Env.get ((fU, w1) :: Γ) y = Γ.get y := fun y h => by simp only [Env.get_cons, if_neg h]
+  have g1 : ∀ y, y ≠ fU → Env.get ((fU, w1) :: Γ) y = Γ.get y := fun y h => by simp only [Env.get_cons, ite_eq_right h]
   refine specR_fieldI fV2 (fConstF 1) _ bufJ b pos _ (hD _ (by simp)) (hcT 1 (by decide))
     (by rw [g1 _ (by decide)]; exact hBA) (by rw [g1 _ (by decide)]; exact hBN) (by rw [g1 _ (by decide)]; exact hP)
     (hS 1 (by decide)) (fun w2 ⟨s2, hK2, hr2, hs2⟩ => ?_)
@@ -392,9 +392,9 @@ theorem constLine_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (ho
   rw [hr2]
   let Γ2 : Env := (fV2, w2) :: (fU, w1) :: Γ
   have g2 : ∀ y, y ≠ fV2 → y ≠ fU → Γ2.get y = Γ.get y := fun y h h' => by
-    simp only [Γ2, Env.get_cons, if_neg h, if_neg h']
+    simp only [Γ2, Env.get_cons, ite_eq_right h, ite_eq_right h']
   refine specR_capG fI i (by rw [g2 _ (by decide) (by decide)]; exact hI) (fun hiN hI' => ?_)
-  refine specR_capG fU _ (by simp only [Γ2, Env.get_cons, if_neg (show fU ≠ fV2 by decide), if_pos]; rw [hn1])
+  refine specR_capG fU _ (by simp only [Γ2, Env.get_cons, ite_eq_right (show fU ≠ fV2 by decide), ite_eq_left]; rw [hn1])
     (fun haN hU' => ?_)
   have := natCap_lt
   have hus : (s2.getD 1 default).list.length < 2 ^ 60 := by
@@ -409,6 +409,6 @@ theorem constLine_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (ho
     (by rw [g2 _ (by decide) (by decide)]; exact hTE) (by rw [g2 _ (by decide) (by decide)]; exact hTL)
     (by rw [g2 _ (by decide) (by decide)]; exact hTN) (by rw [g2 _ (by decide) (by decide)]; exact hC) hI' hU'
     (by rw [g2 _ (by decide) (by decide)]; exact hBA) (by rw [g2 _ (by decide) (by decide)]; exact hBN)
-    (by simp only [Γ2, Env.get_cons, if_pos])
+    (by simp only [Γ2, Env.get_cons, ite_eq_left])
 
 end ConPanqueque.Front

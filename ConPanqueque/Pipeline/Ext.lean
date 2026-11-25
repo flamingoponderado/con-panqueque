@@ -219,7 +219,7 @@ theorem envExt_cons (hx : EnvExt env₁ env₂) (hw2 : EnvWF env₂) (c : Consta
     (hn : NameOK c.name) (hrec : ∀ cv mI rP isK rules, c ≠ .recInfo cv mI rP isK rules) :
     EnvExt ⟨c :: env₁.consts, env₁.tables⟩ ⟨c :: env₂.consts, env₂.tables⟩ := by
   have fc : ∀ (e : Env) (n : Name), n ≠ c.name → Env.find? ⟨c :: e.consts, e.tables⟩ n = e.find? n := by
-    intro e n hne; rw [Env.find?_cons, if_neg (fun h => hne h.symm)]
+    intro e n hne; rw [Env.find?_cons, ite_eq_right (fun h => hne h.symm)]
   refine ⟨fun n ci h => ?_, fun T hT => ?_, ?_⟩
   · by_cases e : n = c.name
     · subst e; rw [Env.find?_cons_self] at h ⊢; exact h
@@ -300,9 +300,9 @@ theorem checkDecl_ext (hx : EnvExt env₁ env₂) (hw2 : EnvWF env₂) (F : Nat)
           rw [hv] at h
           obtain ⟨hv2, rfl⟩ := checkDefnVal_ext hx F cv v hint hty hv
           rw [hv2]
-          simp only [Bool.false_eq_true, if_false, pure, Except.pure] at h ⊢
+          simp only [Bool.false_eq_true, ite_false, pure, Except.pure] at h ⊢
           split at h
-          · rename_i hb; simp only [hb, if_true, Except.ok.injEq] at h ⊢; exact ⟨trivial, h.symm, hf1⟩
+          · rename_i hb; simp only [hb, ite_true, Except.ok.injEq] at h ⊢; exact ⟨trivial, h.symm, hf1⟩
           · simp [throw, throwThe, MonadExceptOf.throw] at h
     obtain ⟨E₂, e1, e2, e3, e4, e5, e6⟩ :=
       checkDecl_ext_tail hx hw2 F pins' _ (.defnInfo cv v hint) key.2.2 hf2 hn0 (fun _ _ _ _ _ h => by cases h) hwE key.2.1 key.1
@@ -328,7 +328,7 @@ theorem checkDecl_ext (hx : EnvExt env₁ env₂) (hw2 : EnvWF env₂) (F : Nat)
           rw [hv2]
           simp only [pure, Except.pure] at h ⊢
           split at h
-          · rename_i hb; simp only [hb, if_true, Except.ok.injEq] at h ⊢; exact ⟨trivial, h.symm, hf1⟩
+          · rename_i hb; simp only [hb, ite_true, Except.ok.injEq] at h ⊢; exact ⟨trivial, h.symm, hf1⟩
           · simp [throw, throwThe, MonadExceptOf.throw] at h
     obtain ⟨E₂, e1, e2, e3, e4, e5, e6⟩ :=
       checkDecl_ext_tail hx hw2 F pins' _ (.thmInfo cv) key.2.2 hf2 hn0 (fun _ _ _ _ _ h => by cases h) hwE key.2.1 key.1
@@ -352,9 +352,9 @@ theorem checkDecl_ext (hx : EnvExt env₁ env₂) (hw2 : EnvWF env₂) (F : Nat)
           rw [hv] at h
           obtain ⟨hv2, rfl⟩ := checkOpaqueVal_ext hx F cv v hty hv
           rw [hv2]
-          simp only [Bool.false_eq_true, if_false, pure, Except.pure] at h ⊢
+          simp only [Bool.false_eq_true, ite_false, pure, Except.pure] at h ⊢
           split at h
-          · rename_i hb; simp only [hb, if_true, Except.ok.injEq] at h ⊢; exact ⟨trivial, h.symm, hf1⟩
+          · rename_i hb; simp only [hb, ite_true, Except.ok.injEq] at h ⊢; exact ⟨trivial, h.symm, hf1⟩
           · simp [throw, throwThe, MonadExceptOf.throw] at h
     obtain ⟨E₂, e1, e2, e3, e4, e5, e6⟩ :=
       checkDecl_ext_tail hx hw2 F pins' _ (.axiomInfo cv) key.2.2 hf2 hn0 (fun _ _ _ _ _ h => by cases h) hwE key.2.1 key.1
@@ -424,7 +424,7 @@ theorem pureRun_ext {pins pins' : List NatOpPinSet} (envP : Env) : ∀ {ds : Lis
       rw [Env.find?_cons] at hm1 ⊢
       split at hm1
       · cases hm1
-      · rename_i hne; rw [if_neg hne]; exact hinv m hm1 hmP)
+      · rename_i hne; rw [ite_eq_right hne]; exact hinv m hm1 hmP)
     exact ⟨E₃, .cons ⟨F, h2⟩ hr⟩
 
 /-- **The prelude, then the stream.**  An accepting run of the prelude from the empty environment

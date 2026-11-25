@@ -242,8 +242,8 @@ theorem nDerived_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitV
     have : ¬ (i.tag = NTag.anonymous ∨ i.tag = NTag.str ∨ i.tag = NTag.num) := by
       rintro (h | h | h) <;> (rw [h] at hn; exact hn (by decide))
     simp only [beq_iff_eq]
-    rw [if_neg (fun h => this (Or.inl h)), if_neg (fun h => this (Or.inr (Or.inl h))),
-      if_neg (fun h => this (Or.inr (Or.inr h)))]
+    rw [ite_eq_right (fun h => this (Or.inl h)), ite_eq_right (fun h => this (Or.inr (Or.inl h))),
+      ite_eq_right (fun h => this (Or.inr (Or.inr h)))]
   have huo : u.memory = t.memory ∧ u.memaddrs = t.memaddrs := ⟨rfl, rfl⟩
   -- one tier's tables, read at the decoded tag
   have arm : ∀ (tier : Nat) (tr : UInt32) (nt : NTables), tier < 2 → i.tag.toNat < 3 →
@@ -280,7 +280,7 @@ theorem nDerived_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitV
       have hp : st.derived i = st.pers.derAt i := by
         simp only [NStore.derived, Idx.isPersistent, beq_iff_eq]
         have e0 : i.tier = 0 := UInt32.toNat_inj.mp (by rw [h0]; rfl)
-        rw [if_pos e0]
+        rw [ite_eq_left e0]
       rw [hp]
       exact arm 0 0 st.pers (by decide) htag hR.pa hR.ps hR.pn (by rw [← h0]; exact lt)
     · simp only [h0, show ¬ BitVec.ofNat 64 1 = 0 from by decide, ne_eq, not_false_eq_true, ↓reduceIte]
@@ -294,11 +294,11 @@ theorem nDerived_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitV
       rw [ite_word u _ _ _ _ hld]
       cases hon : st.scratchOn
       · simp only [Bool.false_eq_true, ↓reduceIte, ne_eq, not_true_eq_false]
-        have hz0 : st.derived i = 0 := by simp only [NStore.derived]; rw [if_neg hnp, hon]; rfl
+        have hz0 : st.derived i = 0 := by simp only [NStore.derived]; rw [ite_eq_right hnp, hon]; rfl
         rw [hz0]
         exact zeros_spec t u uo1 uo2 rfl rfl rfl rfl rfl rfl ufr (fun y hy => by rcases hy with rfl | rfl | rfl <;> first | exact ⟨_, lt⟩ | exact ⟨_, lg⟩ | exact ⟨_, li⟩)
       · simp only [↓reduceIte, ne_eq, show ¬ (1 : BitVec 64) = 0 from by decide, not_false_eq_true]
-        have hs : st.derived i = st.scr.derAt i := by simp only [NStore.derived]; rw [if_neg hnp, hon]; rfl
+        have hs : st.derived i = st.scr.derAt i := by simp only [NStore.derived]; rw [ite_eq_right hnp, hon]; rfl
         rw [hs]
         exact arm 1 1 st.scr (by decide) htag hR.sa hR.ss hR.sn (by rw [← h0]; exact lt)
   · simp only [bw, htag, ↓reduceIte, ne_eq, not_true_eq_false]
@@ -531,7 +531,7 @@ theorem lDerived_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitV
     have n2 : i.tag ≠ LTag.max := this 2 (by decide)
     have n3 : i.tag ≠ LTag.imax := this 3 (by decide)
     have n4 : i.tag ≠ LTag.param := this 4 (by decide)
-    rw [if_neg n0, if_neg n1, if_neg n2, if_neg n3, if_neg n4]
+    rw [ite_eq_right n0, ite_eq_right n1, ite_eq_right n2, ite_eq_right n3, ite_eq_right n4]
   apply storeDerived_gen t L FL st.scratchOn 3 5 (by decide) i _ hh hdir hfl hR.fl ht hg hi h1 h2
   · intro hd
     rcases hd with hd | ⟨h0, hon⟩
@@ -544,7 +544,7 @@ theorem lDerived_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitV
       rw [this]; rfl
     · have hnp : ¬ i.isPersistent = true := by
         simp only [Idx.isPersistent, beq_iff_eq]; intro e; rw [e] at h0; simp at h0
-      have : st.derived i = default := by simp only [LStore.derived]; rw [if_neg hnp, hon]; rfl
+      have : st.derived i = default := by simp only [LStore.derived]; rw [ite_eq_right hnp, hon]; rfl
       rw [this]; rfl
   · intro htag hlive u um ud uc ug uta uck udir udt udg udi uo1 uo2 ufr
     -- the tier's tables
@@ -558,13 +558,13 @@ theorem lDerived_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitV
       rcases (by omega : i.tier.toNat = 0 ∨ i.tier.toNat = 1) with h0 | h0
       · have e0 : i.tier = 0 := UInt32.toNat_inj.mp (by rw [h0]; rfl)
         refine ⟨0, st.pers, ?_, ?_⟩
-        · simp only [LStore.derived, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
+        · simp only [LStore.derived, Idx.isPersistent, beq_iff_eq]; rw [ite_eq_left e0]
         · rw [h0]; exact ⟨hR.pz, hR.ps, hR.pm, hR.pi, hR.pp⟩
       · have hnp : ¬ i.isPersistent = true := by
           simp only [Idx.isPersistent, beq_iff_eq]; intro e; rw [e] at h0; simp at h0
         have hon : st.scratchOn = true := by rcases hlive with h | h; omega; exact h
         refine ⟨1, st.scr, ?_, ?_⟩
-        · simp only [LStore.derived]; rw [if_neg hnp, hon]; rfl
+        · simp only [LStore.derived]; rw [ite_eq_right hnp, hon]; rfl
         · rw [h0]; exact ⟨hR.sz, hR.ss, hR.sm, hR.si, hR.sp⟩
     obtain ⟨tr, lt, hdl, hZ, hS, hM, hI, hP⟩ := pick
     rw [hdl]
@@ -642,7 +642,7 @@ theorem lsDerived_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : Bit
   have hz : ∀ (lt : LsTables), (i.tag.toNat < 1 → False) → lt.derAt i = default := by
     intro lt hn; simp only [LsTables.derAt, beq_iff_eq]
     have n0 : i.tag ≠ LsTag.list := fun h => hn (by rw [h]; decide)
-    rw [if_neg n0]
+    rw [ite_eq_right n0]
   apply storeDerived_gen t L FL st.scratchOn 8 1 (by decide) i _ hh hdir hfl hR.fl ht hg hi h1 h2
   · intro hd
     rcases hd with hd | ⟨h0, hon⟩
@@ -655,7 +655,7 @@ theorem lsDerived_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : Bit
       rw [this]; rfl
     · have hnp : ¬ i.isPersistent = true := by
         simp only [Idx.isPersistent, beq_iff_eq]; intro e; rw [e] at h0; simp at h0
-      have : st.derived i = default := by simp only [LsStore.derived]; rw [if_neg hnp, hon]; rfl
+      have : st.derived i = default := by simp only [LsStore.derived]; rw [ite_eq_right hnp, hon]; rfl
       rw [this]; rfl
   · intro htag hlive u um ud uc ug uta uck udir udt udg udi uo1 uo2 ufr
     have pick : ∃ (tr : UInt32) (lt : LsTables), st.derived i = lt.derAt i ∧
@@ -664,12 +664,12 @@ theorem lsDerived_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : Bit
       rcases (by omega : i.tier.toNat = 0 ∨ i.tier.toNat = 1) with h0 | h0
       · have e0 : i.tier = 0 := UInt32.toNat_inj.mp (by rw [h0]; rfl)
         refine ⟨0, st.pers, ?_, by rw [h0]; exact hR.pl⟩
-        simp only [LsStore.derived, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
+        simp only [LsStore.derived, Idx.isPersistent, beq_iff_eq]; rw [ite_eq_left e0]
       · have hnp : ¬ i.isPersistent = true := by
           simp only [Idx.isPersistent, beq_iff_eq]; intro e; rw [e] at h0; simp at h0
         have hon : st.scratchOn = true := by rcases hlive with h | h; omega; exact h
         refine ⟨1, st.scr, ?_, by rw [h0]; exact hR.sl⟩
-        simp only [LsStore.derived]; rw [if_neg hnp, hon]; rfl
+        simp only [LsStore.derived]; rw [ite_eq_right hnp, hon]; rfl
     obtain ⟨tr, lt, hdl, hL⟩ := pick
     rw [hdl]
     have htl := Idx.tier_lt i
@@ -708,7 +708,7 @@ theorem eDerived_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitV
     have n7 : i.tag ≠ ETag.letE := this 7 (by decide)
     have n8 : i.tag ≠ ETag.lit := this 8 (by decide)
     have n9 : i.tag ≠ ETag.proj := this 9 (by decide)
-    rw [if_neg n0, if_neg n1, if_neg n2, if_neg n3, if_neg n4, if_neg n5, if_neg n6, if_neg n7, if_neg n8, if_neg n9]
+    rw [ite_eq_right n0, ite_eq_right n1, ite_eq_right n2, ite_eq_right n3, ite_eq_right n4, ite_eq_right n5, ite_eq_right n6, ite_eq_right n7, ite_eq_right n8, ite_eq_right n9]
   apply storeDerived_gen t L FL st.scratchOn 9 10 (by decide) i _ hh hdir hfl hR.fl ht hg hi h1 h2
   · intro hd
     rcases hd with hd | ⟨h0, hon⟩
@@ -721,7 +721,7 @@ theorem eDerived_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitV
       rw [this]; rfl
     · have hnp : ¬ i.isPersistent = true := by
         simp only [Idx.isPersistent, beq_iff_eq]; intro e; rw [e] at h0; simp at h0
-      have : st.derived i = 0 := by simp only [EStore.derived]; rw [if_neg hnp, hon]; rfl
+      have : st.derived i = 0 := by simp only [EStore.derived]; rw [ite_eq_right hnp, hon]; rfl
       rw [this]; rfl
   · intro htag hlive u um ud uc ug uta uck udir udt udg udi uo1 uo2 ufr
     have pick : ∃ (tr : UInt32) (et : ETables), st.derived i = et.derAt i ∧
@@ -739,13 +739,13 @@ theorem eDerived_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitV
       rcases (by omega : i.tier.toNat = 0 ∨ i.tier.toNat = 1) with h0 | h0
       · have e0 : i.tier = 0 := UInt32.toNat_inj.mp (by rw [h0]; rfl)
         refine ⟨0, st.pers, ?_, ?_⟩
-        · simp only [EStore.derived, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
+        · simp only [EStore.derived, Idx.isPersistent, beq_iff_eq]; rw [ite_eq_left e0]
         · rw [h0]; exact ⟨hR.p0, hR.p1, hR.p2, hR.p3, hR.p4, hR.p5, hR.p6, hR.p7, hR.p8, hR.p9⟩
       · have hnp : ¬ i.isPersistent = true := by
           simp only [Idx.isPersistent, beq_iff_eq]; intro e; rw [e] at h0; simp at h0
         have hon : st.scratchOn = true := by rcases hlive with h | h; omega; exact h
         refine ⟨1, st.scr, ?_, ?_⟩
-        · simp only [EStore.derived]; rw [if_neg hnp, hon]; rfl
+        · simp only [EStore.derived]; rw [ite_eq_right hnp, hon]; rfl
         · rw [h0]; exact ⟨hR.s0, hR.s1, hR.s2, hR.s3, hR.s4, hR.s5, hR.s6, hR.s7, hR.s8, hR.s9⟩
     obtain ⟨tr, et, hdl, hT0, hT1, hT2, hT3, hT4, hT5, hT6, hT7, hT8, hT9⟩ := pick
     rw [hdl]
@@ -853,15 +853,15 @@ theorem eDerivedC_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : Bit
       rcases (by omega : i.tier.toNat = 0 ∨ i.tier.toNat = 1) with h0 | h0
       · have e0 : i.tier = 0 := UInt32.toNat_inj.mp (by rw [h0]; rfl)
         refine ⟨0, st.pers, ?_, ?_, ?_⟩
-        · simp only [EStore.derived, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
-        · simp only [EStore.view, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
+        · simp only [EStore.derived, Idx.isPersistent, beq_iff_eq]; rw [ite_eq_left e0]
+        · simp only [EStore.view, Idx.isPersistent, beq_iff_eq]; rw [ite_eq_left e0]
         · rw [h0]; exact ⟨hR.p0, hR.p1, hR.p2, hR.p3, hR.p4, hR.p5, hR.p6, hR.p7, hR.p8, hR.p9⟩
       · have hnp : ¬ i.isPersistent = true := by
           simp only [Idx.isPersistent, beq_iff_eq]; intro e; rw [e] at h0; simp at h0
         have hon : st.scratchOn = true := by rcases hlive with h | h; omega; exact h
         refine ⟨1, st.scr, ?_, ?_, ?_⟩
-        · simp only [EStore.derived]; rw [if_neg hnp, hon]; rfl
-        · simp only [EStore.view]; rw [if_neg hnp, hon]; rfl
+        · simp only [EStore.derived]; rw [ite_eq_right hnp, hon]; rfl
+        · simp only [EStore.view]; rw [ite_eq_right hnp, hon]; rfl
         · rw [h0]; exact ⟨hR.s0, hR.s1, hR.s2, hR.s3, hR.s4, hR.s5, hR.s6, hR.s7, hR.s8, hR.s9⟩
     obtain ⟨tr, et, hdl, hvw, hT0, hT1, hT2, hT3, hT4, hT5, hT6, hT7, hT8, hT9⟩ := pick
     rw [hdl]
@@ -973,15 +973,15 @@ theorem lDerivedC_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : Bit
       rcases (by omega : i.tier.toNat = 0 ∨ i.tier.toNat = 1) with h0 | h0
       · have e0 : i.tier = 0 := UInt32.toNat_inj.mp (by rw [h0]; rfl)
         refine ⟨0, st.pers, ?_, ?_, ?_⟩
-        · simp only [LStore.derived, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
-        · simp only [LStore.view, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
+        · simp only [LStore.derived, Idx.isPersistent, beq_iff_eq]; rw [ite_eq_left e0]
+        · simp only [LStore.view, Idx.isPersistent, beq_iff_eq]; rw [ite_eq_left e0]
         · rw [h0]; exact ⟨hR.pz, hR.ps, hR.pm, hR.pi, hR.pp⟩
       · have hnp : ¬ i.isPersistent = true := by
           simp only [Idx.isPersistent, beq_iff_eq]; intro e; rw [e] at h0; simp at h0
         have hon : st.scratchOn = true := by rcases hlive with h | h; omega; exact h
         refine ⟨1, st.scr, ?_, ?_, ?_⟩
-        · simp only [LStore.derived]; rw [if_neg hnp, hon]; rfl
-        · simp only [LStore.view]; rw [if_neg hnp, hon]; rfl
+        · simp only [LStore.derived]; rw [ite_eq_right hnp, hon]; rfl
+        · simp only [LStore.view]; rw [ite_eq_right hnp, hon]; rfl
         · rw [h0]; exact ⟨hR.sz, hR.ss, hR.sm, hR.si, hR.sp⟩
     obtain ⟨tr, et, hdl, hvw, hT0, hT1, hT2, hT3, hT4⟩ := pick
     rw [hdl]
@@ -1052,15 +1052,15 @@ theorem nDerivedC_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : Bit
       rcases (by omega : i.tier.toNat = 0 ∨ i.tier.toNat = 1) with h0 | h0
       · have e0 : i.tier = 0 := UInt32.toNat_inj.mp (by rw [h0]; rfl)
         refine ⟨0, st.pers, ?_, ?_, ?_⟩
-        · simp only [NStore.derived, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
-        · simp only [NStore.view, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
+        · simp only [NStore.derived, Idx.isPersistent, beq_iff_eq]; rw [ite_eq_left e0]
+        · simp only [NStore.view, Idx.isPersistent, beq_iff_eq]; rw [ite_eq_left e0]
         · rw [h0]; exact ⟨hR.pa, hR.ps, hR.pn⟩
       · have hnp : ¬ i.isPersistent = true := by
           simp only [Idx.isPersistent, beq_iff_eq]; intro e; rw [e] at h0; simp at h0
         have hon : st.scratchOn = true := by rcases hlive with h | h; omega; exact h
         refine ⟨1, st.scr, ?_, ?_, ?_⟩
-        · simp only [NStore.derived]; rw [if_neg hnp, hon]; rfl
-        · simp only [NStore.view]; rw [if_neg hnp, hon]; rfl
+        · simp only [NStore.derived]; rw [ite_eq_right hnp, hon]; rfl
+        · simp only [NStore.view]; rw [ite_eq_right hnp, hon]; rfl
         · rw [h0]; exact ⟨hR.sa, hR.ss, hR.sn⟩
     obtain ⟨tr, et, hdl, hvw, hT0, hT1, hT2⟩ := pick
     rw [hdl]
@@ -1115,15 +1115,15 @@ theorem lsDerivedC_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : Bi
       rcases (by omega : i.tier.toNat = 0 ∨ i.tier.toNat = 1) with h0 | h0
       · have e0 : i.tier = 0 := UInt32.toNat_inj.mp (by rw [h0]; rfl)
         refine ⟨0, st.pers, ?_, ?_, ?_⟩
-        · simp only [LsStore.derived, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
-        · simp only [LsStore.view, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
+        · simp only [LsStore.derived, Idx.isPersistent, beq_iff_eq]; rw [ite_eq_left e0]
+        · simp only [LsStore.view, Idx.isPersistent, beq_iff_eq]; rw [ite_eq_left e0]
         · rw [h0]; exact hR.pl
       · have hnp : ¬ i.isPersistent = true := by
           simp only [Idx.isPersistent, beq_iff_eq]; intro e; rw [e] at h0; simp at h0
         have hon : st.scratchOn = true := by rcases hlive with h | h; omega; exact h
         refine ⟨1, st.scr, ?_, ?_, ?_⟩
-        · simp only [LsStore.derived]; rw [if_neg hnp, hon]; rfl
-        · simp only [LsStore.view]; rw [if_neg hnp, hon]; rfl
+        · simp only [LsStore.derived]; rw [ite_eq_right hnp, hon]; rfl
+        · simp only [LsStore.view]; rw [ite_eq_right hnp, hon]; rfl
         · rw [h0]; exact hR.sl
     obtain ⟨tr, et, hdl, hvw, hT0⟩ := pick
     rw [hdl]

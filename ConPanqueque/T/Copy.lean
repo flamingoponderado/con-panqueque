@@ -32,8 +32,8 @@ theorem fillI_get? (B ws : List (BitVec 64)) (o : Nat) : ∀ i k, (fillI B ws o 
     · subst e; by_cases h : o + i < B.length <;> simp [h]
     · simp only [e, ite_false]
       by_cases h1 : o ≤ k ∧ k < o + i ∧ k < B.length
-      · rw [if_pos h1, if_pos ⟨h1.1, by omega, h1.2.2⟩]
-      · rw [if_neg h1, if_neg (by omega)]
+      · rw [ite_eq_left h1, ite_eq_left ⟨h1.1, by omega, h1.2.2⟩]
+      · rw [ite_eq_right h1, ite_eq_right (by omega)]
 
 theorem inv_envMono {C : Ctx} {s : AState} {Γ Γ' : Env} {M : Mem} {D : List MlS} {t : PState σ}
     (h : Inv C s Γ' M D t) (hg : ∀ x v, Γ.get x = some v → Γ'.get x = some v) : Inv C s Γ M D t :=
@@ -86,7 +86,7 @@ theorem specR_copyI {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env
     show os + i < (fillI B ws od i).length; rw [hl]; omega
   have hvi : (ctxH C (fillI B ws od i)).H[os + i]'hsi = ws[i] := by
     have := fillI_get? B ws od i (os + i)
-    rw [if_neg (by omega), hsrc i hi] at this
+    rw [ite_eq_right (by omega), hsrc i hi] at this
     show (fillI B ws od i)[os + i] = ws[i]
     rw [List.getElem?_eq_getElem (by rw [hl]; omega)] at this; exact Option.some.inj this
   have hdi : od + i < (ctxH C (fillI B ws od i)).H.length := by

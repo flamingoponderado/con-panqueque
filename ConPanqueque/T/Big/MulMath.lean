@@ -90,7 +90,7 @@ theorem mulw (a b r c : Nat) (ha : a < B) (hb : b < B) (hr : r < B) (hc : c < B)
     · rw [Nat.mod_eq_of_lt h, Nat.div_eq_of_lt h]; simp
     · have e1 : (P01 + P10) % 2 ^ 64 = P01 + P10 - 2 ^ 64 := by omega
       have e2 : (P01 + P10) / 2 ^ 64 = 1 := by omega
-      rw [e1, e2, if_pos (by omega)]; rfl
+      rw [e1, e2, ite_eq_left (by omega)]; rfl
   -- the low sum and its carry
   have esh : (mid <<< 32).toNat = (P01 + P10) % 2 ^ 64 % 2 ^ 32 * 2 ^ 32 := by
     rw [BitVec.toNat_shiftLeft, emid, Nat.shiftLeft_eq]
@@ -126,7 +126,7 @@ theorem mulw (a b r c : Nat) (ha : a < B) (hb : b < B) (hr : r < B) (hc : c < B)
     · rw [Nat.mod_eq_of_lt h, Nat.div_eq_of_lt h]; simp
     · have e1 : (P00 + SH) % 2 ^ 64 = P00 + SH - 2 ^ 64 := by omega
       have e2 : (P00 + SH) / 2 ^ 64 = 1 := by omega
-      rw [e1, e2, if_pos (by omega)]; rfl
+      rw [e1, e2, ite_eq_left (by omega)]; rfl
   -- the whole product
   have hab2 : a * b < 2 ^ 128 := by
     calc a * b < 2 ^ 64 * 2 ^ 64 := Nat.mul_lt_mul'' ha hb
@@ -162,14 +162,14 @@ theorem mulw (a b r c : Nat) (ha : a < B) (hb : b < B) (hr : r < B) (hc : c < B)
       simp only [c2, BitVec.lt_def, el2, elo1]
       by_cases h : LO1 + r < 2 ^ 64
       · rw [Nat.mod_eq_of_lt h, Nat.div_eq_of_lt h]; simp
-      · rw [if_pos (by omega)]; show 1 = _; omega
+      · rw [ite_eq_left (by omega)]; show 1 = _; omega
     have el3 : lo3.toNat = ((LO1 + r) % 2 ^ 64 + c) % 2 ^ 64 := by
       simp only [lo3, BitVec.toNat_add, el2, BitVec.toNat_ofNat, Nat.mod_eq_of_lt hc]
     have ec3 : c3.toNat = ((LO1 + r) % 2 ^ 64 + c) / 2 ^ 64 := by
       simp only [c3, BitVec.lt_def, el3, el2]
       by_cases h : (LO1 + r) % 2 ^ 64 + c < 2 ^ 64
       · rw [Nat.mod_eq_of_lt h, Nat.div_eq_of_lt h]; simp
-      · rw [if_pos (by omega)]; show 1 = _; omega
+      · rw [ite_eq_left (by omega)]; show 1 = _; omega
     simp only [hi3, BitVec.toNat_add, ehi1, ec2, ec3, BitVec.toNat_ofNat]
     omega
 

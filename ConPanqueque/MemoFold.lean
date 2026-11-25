@@ -164,7 +164,7 @@ theorem memo_node {σ : Type} (fm fr : MlS) (Braw : ProgHOL 64) (h : Heap) (f : 
   · -- not found: compute, insert, return
     subst hit
     rw [ite_word s7 _ _ _ 1 (by simp [evalHOLExact, vv, lJ7, lL7, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])]
-    rw [if_pos (by decide : (1 : BitVec 64) ≠ 0)]
+    rw [ite_eq_left (by decide : (1 : BitVec 64) ≠ 0)]
     have lU7 : s7.locals.lookup nU = some (.val (.word p)) := by rw [fr7.2.2 nU (by decide)]; exact hU6
     have jd7 : MemoInv h f tb i7 s7 := hjd s s7 (by rw [mem7, m6.1]) (by rw [md7, m6.2.1]) (by rw [fr7.2.1, m6.2.2.1])
       ⟨g1, g2, slots, hlen, hsat, hent⟩

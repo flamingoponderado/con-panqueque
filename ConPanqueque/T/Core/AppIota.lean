@@ -226,9 +226,9 @@ theorem wai_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
   refine Knot.specR_tagIteV sH hd 3 (by decide) (by decide) (by simp +decide [Env.get, waiParams, ctxEnv])
     (fun htg => ?_) (fun htg => ?_)
   swap
-  · rw [if_neg (show ¬ (hd.tag == ETag.const) = true by simpa [ETag.const] using htg)]
+  · rw [ite_eq_right (show ¬ (hd.tag == ETag.const) = true by simpa [ETag.const] using htg)]
     exact hnone
-  rw [if_pos (show (hd.tag == ETag.const) = true by simp [htg, ETag.const])]
+  rw [ite_eq_left (show (hd.tag == ETag.const) = true by simp [htg, ETag.const])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
   refine specR_assignI lDh (vv sH) (Enc.idxW hd) (by decide) (by simp +decide [Env.get, waiParams, ctxEnv]) ?_
   refine specR_viewP hd (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv]) (by decide)
@@ -274,7 +274,7 @@ theorem wai_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
       UD.ofNat_eq_iff_small _ _ (by omega) (by omega)
     dsimp only
     by_cases hn : va.size = mI + 1
-    · rw [if_neg (by simpa using hn)]
+    · rw [ite_eq_right (by simpa using hn)]
       refine specR_ifI _ 0 (by simp +decide [sev, Env.get, waiParams, ctxEnv, hadd, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, heqw.mpr hn])
         (fun h => absurd rfl h) (fun _ => ?_)
       refine specR_envLoadI tLp (.op .add [vv tQ, .const 16]) (q + 2) _ (by decide)
@@ -294,7 +294,7 @@ theorem wai_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
         have h2 := ht.sr.env.1.len; have h3 := hok.envLay
         simp only [List.length_map] at h1; omega
       by_cases hl : vl.length = cv.levelParams.length
-      · rw [if_neg (by simpa using hl)]
+      · rw [ite_eq_right (by simpa using hl)]
         refine specR_ifI _ 0 (by simp [sev, hl, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
           (fun _ => ?_)
         refine specR_dropM ?_
@@ -313,13 +313,13 @@ theorem wai_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
           (fun r w s3 H3 hp3 hw => ?_)
         subst hw
         exact specR_returnI _ (optW r) (by simp) (fun t ht => ⟨H3, hp3, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-      · rw [if_pos (by simpa using hl)]
+      · rw [ite_eq_left (by simpa using hl)]
         have hne : BitVec.ofNat 64 vl.length ≠ BitVec.ofNat 64 cv.levelParams.length := fun x =>
           hl ((UD.ofNat_eq_iff_small _ _ (by omega) (by omega)).mp x)
         refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun _ => ?_)
           (fun h => absurd h (by decide))
         exact hnone
-    · rw [if_pos (by simpa using hn)]
+    · rw [ite_eq_left (by simpa using hn)]
       refine specR_ifI _ 1 (by simp +decide [sev, Env.get, waiParams, ctxEnv, hadd, Flapjack.Compiler.Encoders.Asm.wordCmpHOL,
         (not_congr heqw).mpr hn]) (fun _ => ?_) (fun h => absurd h (by decide))
       exact hnone

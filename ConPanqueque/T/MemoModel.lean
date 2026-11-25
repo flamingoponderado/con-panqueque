@@ -52,7 +52,7 @@ theorem memoRel_insert (m : Std.HashMap K V) (tb : Tbl K Nat V) (rows : List K) 
     have hfi : tb.find? k = some i := by
       show tb.cons[k]? = _
       rw [hr.cons k, findIdx_of_get rows hnd k i (by simp [hi, hki])]; rfl
-    simp only [hfi, if_pos hk]
+    simp only [hfi, ite_eq_left hk]
     refine ⟨fun k' => ?_, ⟨by simp [Tbl.setDer, hr.nodes], fun a => hr.cons a⟩,
       by simp [Tbl.setDer, hder]⟩
     rw [Std.HashMap.getElem?_insert]
@@ -85,7 +85,7 @@ theorem memoRel_insert (m : Std.HashMap K V) (tb : Tbl K Nat V) (rows : List K) 
     have hfn : tb.find? k = none := by
       show tb.cons[k]? = _
       rw [hr.cons k, List.findIdx?_eq_none_iff.mpr (fun x hx => by simp; intro e; subst e; exact hk hx)]; rfl
-    simp only [hfn, if_neg hk]
+    simp only [hfn, ite_eq_right hk]
     have hrel := push_rel tb rows id hr k v hk
     have hts : tb.size = rows.length := hsz
     simp only [hts]

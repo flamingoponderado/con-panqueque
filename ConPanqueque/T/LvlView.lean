@@ -334,12 +334,12 @@ theorem lvViewP_eval (rest : ProgHOL 64) (t : PState σ) (w : BitVec 64)
   rw [seq_ite_distrib t _ _ _ _ _ hc]
   rw [ite_word t _ _ _ _ hc, ite_word t _ _ _ _ hc]
   by_cases hz : cw ≠ 0
-  · rw [if_pos hz, if_pos hz]
+  · rw [ite_eq_left hz, ite_eq_left hz]
     rw [seq_assoc]; apply seq_congr_right; intro t1
     rw [seq_assoc]; apply seq_congr_right; intro t2
     rw [seq_assoc]; apply seq_congr_right; intro t3
     rw [seq_assoc]
-  · rw [if_neg hz, if_neg hz, seq_assoc]
+  · rw [ite_eq_right hz, ite_eq_right hz, seq_assoc]
 
 theorem specR_lvViewI {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env} {M : Mem} {D : List MlS}
     {rest : ProgHOL 64} {m : AM α} {R : α → BitVec 64 → AState → PState σ → Prop}

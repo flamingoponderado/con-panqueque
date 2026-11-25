@@ -91,7 +91,7 @@ theorem specR_readI {α : Type} {m : AM α} {R : α → BitVec 64 → AState →
       rw [align_cell _ _ hal (by omega), cellA_add]
     unfold panMemLoadByteWord8HOL
     simp only [hal', hc.2]
-    rw [if_pos (by rw [hal']; exact hc.1)]; rfl
+    rw [ite_eq_left (by rw [hal']; exact hc.1)]; rfl
   obtain ⟨bs2, hbs2⟩ := Option.isSome_iff_exists.mp
     (readBA_isSome _ (8 * Lw) (cellA C j0) hload)
   have hbl := readBA_length _ _ _ _ hbs2
@@ -146,7 +146,7 @@ theorem read_step
       rw [align_cell _ _ hal (by omega), cellA_add]
     unfold panMemLoadByteWord8HOL
     simp only [hal', hc.2]
-    rw [if_pos (by rw [hal']; exact hc.1)]; rfl
+    rw [ite_eq_left (by rw [hal']; exact hc.1)]; rfl
   obtain ⟨bs2, hbs2⟩ := Option.isSome_iff_exists.mp
     (readBA_isSome _ (8 * Lw) (cellA C j0) hload)
   have hbl := readBA_length _ _ _ _ hbs2
@@ -163,7 +163,7 @@ theorem read_step
       fun x hx => ht.decl x hx⟩
     · show ffi'.ioEvents = _
       unfold callFFIHOL at hffi
-      rw [if_neg (by intro h; exact hf (HolFfiName.extCall.inj h))] at hffi
+      rw [ite_eq_right (by intro h; exact hf (HolFfiName.extCall.inj h))] at hffi
       split at hffi
       · split at hffi
         · simp only [HolFfiResult.ret.injEq] at hffi; rw [← hffi.1, ← hffi.2]

@@ -30,17 +30,17 @@ theorem u8_ofNat_toNat (n : Nat) (h : n < 256) : (UInt8.ofNat n).toNat = n := by
   simp [UInt8.toNat_ofNat]; omega
 
 theorem u8dec_one (b : Nat) (l : List Nat) (h : b < 0x80) : u8dec (b :: l) = b :: u8dec l := by
-  rw [u8dec.eq_def]; (try dsimp only); rw [if_pos h]
+  rw [u8dec.eq_def]; (try dsimp only); rw [ite_eq_left h]
 theorem u8dec_two (b0 b1 : Nat) (l : List Nat) (h : ¬ b0 < 0x80) (h2 : b0 < 0xE0) :
     u8dec (b0 :: b1 :: l) = ((b0 - 0xC0) * 64 + (b1 - 0x80)) :: u8dec l := by
-  rw [u8dec.eq_def]; (try dsimp only); rw [if_neg h]; rw [if_pos h2]
+  rw [u8dec.eq_def]; (try dsimp only); rw [ite_eq_right h]; rw [ite_eq_left h2]
 theorem u8dec_three (b0 b1 b2 : Nat) (l : List Nat) (h : ¬ b0 < 0x80) (h2 : ¬ b0 < 0xE0) (h3 : b0 < 0xF0) :
     u8dec (b0 :: b1 :: b2 :: l) = ((b0 - 0xE0) * 4096 + (b1 - 0x80) * 64 + (b2 - 0x80)) :: u8dec l := by
-  rw [u8dec.eq_def]; (try dsimp only); rw [if_neg h]; rw [if_neg h2]; (try dsimp only); rw [if_pos h3]
+  rw [u8dec.eq_def]; (try dsimp only); rw [ite_eq_right h]; rw [ite_eq_right h2]; (try dsimp only); rw [ite_eq_left h3]
 theorem u8dec_four (b0 b1 b2 b3 : Nat) (l : List Nat) (h : ¬ b0 < 0x80) (h2 : ¬ b0 < 0xE0) (h3 : ¬ b0 < 0xF0) :
     u8dec (b0 :: b1 :: b2 :: b3 :: l) =
       ((b0 - 0xF0) * 262144 + (b1 - 0x80) * 4096 + (b2 - 0x80) * 64 + (b3 - 0x80)) :: u8dec l := by
-  rw [u8dec.eq_def]; (try dsimp only); rw [if_neg h]; rw [if_neg h2]; (try dsimp only); rw [if_neg h3]
+  rw [u8dec.eq_def]; (try dsimp only); rw [ite_eq_right h]; rw [ite_eq_right h2]; (try dsimp only); rw [ite_eq_right h3]
 
 theorem u8dec_char (c : Char) (l : List Nat) :
     u8dec ((String.utf8EncodeChar c).map UInt8.toNat ++ l) = c.toNat :: u8dec l := by
@@ -49,23 +49,23 @@ theorem u8dec_char (c : Char) (l : List Nat) :
   have hc : c.toNat = c.val.toNat := rfl
   unfold String.utf8EncodeChar
   by_cases h1 : c.val.toNat ≤ 0x7f
-  · rw [if_pos h1]
+  · rw [ite_eq_left h1]
     simp only [List.map_cons, List.map_nil, List.cons_append, List.nil_append]
     rw [u8_ofNat_toNat _ (by omega), u8dec_one _ _ (by omega)]; rfl
-  rw [if_neg h1]
+  rw [ite_eq_right h1]
   by_cases h2 : c.val.toNat ≤ 0x7ff
-  · rw [if_pos h2]
+  · rw [ite_eq_left h2]
     simp only [List.map_cons, List.map_nil, List.cons_append, List.nil_append]
     rw [u8_ofNat_toNat _ (by omega), u8_ofNat_toNat _ (by omega), u8dec_two _ _ _ (by omega) (by omega)]
     exact congrArg (· :: u8dec l) (by rw [hc]; omega)
-  rw [if_neg h2]
+  rw [ite_eq_right h2]
   by_cases h3 : c.val.toNat ≤ 0xffff
-  · rw [if_pos h3]
+  · rw [ite_eq_left h3]
     simp only [List.map_cons, List.map_nil, List.cons_append, List.nil_append]
     rw [u8_ofNat_toNat _ (by omega), u8_ofNat_toNat _ (by omega), u8_ofNat_toNat _ (by omega),
       u8dec_three _ _ _ _ (by omega) (by omega) (by omega)]
     exact congrArg (· :: u8dec l) (by rw [hc]; omega)
-  rw [if_neg h3]
+  rw [ite_eq_right h3]
   simp only [List.map_cons, List.map_nil, List.cons_append, List.nil_append]
   rw [u8_ofNat_toNat _ (by omega), u8_ofNat_toNat _ (by omega), u8_ofNat_toNat _ (by omega),
     u8_ofNat_toNat _ (by omega), u8dec_four _ _ _ _ _ (by omega) (by omega) (by omega)]
@@ -99,24 +99,24 @@ theorem encShape (c : Char) : EncShape ((String.utf8EncodeChar c).map UInt8.toNa
   have hc : c.toNat = c.val.toNat := rfl
   unfold String.utf8EncodeChar
   by_cases h1 : c.val.toNat ≤ 0x7f
-  · rw [if_pos h1]
+  · rw [ite_eq_left h1]
     simp only [List.map_cons, List.map_nil]
     rw [u8_ofNat_toNat _ (by omega)]
     exact Or.inl ⟨_, rfl, by omega, hc⟩
-  rw [if_neg h1]
+  rw [ite_eq_right h1]
   by_cases h2 : c.val.toNat ≤ 0x7ff
-  · rw [if_pos h2]
+  · rw [ite_eq_left h2]
     simp only [List.map_cons, List.map_nil]
     rw [u8_ofNat_toNat _ (by omega), u8_ofNat_toNat _ (by omega)]
     exact Or.inr (Or.inl ⟨_, _, rfl, by omega, by omega, by omega, by omega, by omega, by rw [hc]; omega⟩)
-  rw [if_neg h2]
+  rw [ite_eq_right h2]
   by_cases h3 : c.val.toNat ≤ 0xffff
-  · rw [if_pos h3]
+  · rw [ite_eq_left h3]
     simp only [List.map_cons, List.map_nil]
     rw [u8_ofNat_toNat _ (by omega), u8_ofNat_toNat _ (by omega), u8_ofNat_toNat _ (by omega)]
     exact Or.inr (Or.inr (Or.inl ⟨_, _, _, rfl, by omega, by omega, by omega, by omega, by omega, by omega, by omega,
       by rw [hc]; omega⟩))
-  rw [if_neg h3]
+  rw [ite_eq_right h3]
   simp only [List.map_cons, List.map_nil]
   rw [u8_ofNat_toNat _ (by omega), u8_ofNat_toNat _ (by omega), u8_ofNat_toNat _ (by omega),
     u8_ofNat_toNat _ (by omega)]

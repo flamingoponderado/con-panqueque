@@ -102,9 +102,9 @@ theorem sfFun_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : Byte
     intro m
     rw [List.getElem?_take, List.getElem?_drop]
     by_cases hm : m < 4
-    · rw [if_pos hm, show p.toNat + 1 + m = p.toNat + (m + 1) by omega, gb (m + 1) (by omega)]
+    · rw [ite_eq_left hm, show p.toNat + 1 + m = p.toNat + (m + 1) by omega, gb (m + 1) (by omega)]
       rcases (show m = 0 ∨ m = 1 ∨ m = 2 ∨ m = 3 by omega) with rfl | rfl | rfl | rfl <;> rfl
-    · rw [if_neg hm]
+    · rw [ite_eq_right hm]
       simp [List.getElem?_eq_none (by simp; omega : [115, 97, 102, 101].length ≤ m)]; omega
   · simp at hc
 

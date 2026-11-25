@@ -43,7 +43,7 @@ def DeclsRel (C : Ctx) (F rb capD : Nat) (H : List (BitVec 64)) (decls : Array I
 /-- A cell below the frontier is not a record's. -/
 theorem getElem?_set_ge {H : List (BitVec 64)} {j c : Nat} (w : BitVec 64) (h : j < c) :
     (H.set j w)[c]? = H[c]? := by
-  rw [List.getElem?_set, if_neg (by omega)]
+  rw [List.getElem?_set, ite_eq_right (by omega)]
 
 theorem getElem?_prefix {H H' : List (BitVec 64)} (hp : H <+: H') {c : Nat} {v : BitVec 64}
     (h : H[c]? = some v) : H'[c]? = some v := by
@@ -104,9 +104,9 @@ theorem declsRel_set {C : Ctx} {F rb capD : Nat} {H : List (BitVec 64)} {decls :
     (h : DeclsRel C F rb capD H decls) (j : Nat) (hj : j < F) (hr : j < rb ∨ rb + 1 + capD ≤ j) (w : BitVec 64) :
     DeclsRel C F rb capD (H.set j w) decls := by
   obtain ⟨h1, h2, h3, h4, h5⟩ := h
-  refine ⟨by rw [List.getElem?_set, if_neg (by omega)]; exact h1, h2, h3, by simp; exact h4, fun k hk => ?_⟩
+  refine ⟨by rw [List.getElem?_set, ite_eq_right (by omega)]; exact h1, h2, h3, by simp; exact h4, fun k hk => ?_⟩
   obtain ⟨o, ho, hrec⟩ := h5 k hk
-  exact ⟨o, by rw [List.getElem?_set, if_neg (by omega)]; exact ho, recEnc_set hrec j hj w⟩
+  exact ⟨o, by rw [List.getElem?_set, ite_eq_right (by omega)]; exact ho, recEnc_set hrec j hj w⟩
 
 theorem declsRel_prefix {C : Ctx} {F rb capD : Nat} {H H' : List (BitVec 64)} {decls : Array IDeclaration}
     (h : DeclsRel C F rb capD H decls) (hp : H <+: H') : DeclsRel C F rb capD H' decls := by

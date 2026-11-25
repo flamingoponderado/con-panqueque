@@ -72,10 +72,10 @@ theorem byteW_setByte (a v cell : BitVec 64) (k : Nat) (hk : k < 8) :
     rw [Nat.mul_add, Nat.add_assoc, Nat.mul_comm (v.toNat % 256), Nat.mul_comm _ (256 ^ i * 256), Nat.mul_assoc]
   rw [e]
   rcases Nat.lt_trichotomy k i with h | rfl | h
-  · rw [if_neg (by omega), digit_below _ _ _ _ _ h, byteW_below _ _ _ h]
-  · rw [if_pos rfl]
+  · rw [ite_eq_right (by omega), digit_below _ _ _ _ _ h, byteW_below _ _ _ h]
+  · rw [ite_eq_left rfl]
     have := digit_eq (cell.toNat % 256 ^ k) (v.toNat % 256) (cell.toNat / (256 ^ k * 256)) k hl hd
     rw [← e]; exact this
-  · rw [if_neg (by omega), digit_above _ _ _ _ _ hl hd h, byteW_above _ _ _ h]
+  · rw [ite_eq_right (by omega), digit_above _ _ _ _ _ hl hd h, byteW_above _ _ _ h]
 
 end ConPanqueque.Front

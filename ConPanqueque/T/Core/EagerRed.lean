@@ -190,9 +190,9 @@ theorem ie_spec (C : Ctx) (hok : CtxOK C) (s : AState) (h : EIdx) :
       (fun t ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   refine specR_tag4IteE ieH h (by simp +decide [Env.get, ieParams, ctxEnv]) (fun htg => ?_) (fun htg => ?_)
   swap
-  · rw [if_neg (show ¬ (h.tag == ETag.app) = true by simpa [ETag.app] using htg)]
+  · rw [ite_eq_right (show ¬ (h.tag == ETag.app) = true by simpa [ETag.app] using htg)]
     exact hno
-  rw [if_pos (show (h.tag == ETag.app) = true by simp [htg, ETag.app])]
+  rw [ite_eq_left (show (h.tag == ETag.app) = true by simp [htg, ETag.app])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
   refine specR_assignI lDh (vv ieH) (Enc.idxW h) (by decide) (by simp +decide [Env.get, ieParams, ctxEnv]) ?_
   refine specR_viewAppI h htg (by simp) (by simp +decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)
@@ -202,9 +202,9 @@ theorem ie_spec (C : Ctx) (hok : CtxOK C) (s : AState) (h : EIdx) :
   refine specR_dropM ?_
   refine specR_tag4IteE ieF f (by simp) (fun htf => ?_) (fun htf => ?_)
   swap
-  · rw [if_neg (show ¬ (f.tag == ETag.app) = true by simpa [ETag.app] using htf)]
+  · rw [ite_eq_right (show ¬ (f.tag == ETag.app) = true by simpa [ETag.app] using htf)]
     exact hno
-  rw [if_pos (show (f.tag == ETag.app) = true by simp [htf, ETag.app])]
+  rw [ite_eq_left (show (f.tag == ETag.app) = true by simp [htf, ETag.app])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
   refine specR_assignI lDh (vv ieF) (Enc.idxW f) (by decide) (by simp) ?_
   refine specR_viewAppI f htf (by simp) (by simp +decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)
@@ -214,9 +214,9 @@ theorem ie_spec (C : Ctx) (hok : CtxOK C) (s : AState) (h : EIdx) :
   refine specR_dropM ?_
   refine Knot.specR_tagIteV ieG g 3 (by decide) (by decide) (by simp) (fun htc => ?_) (fun htc => ?_)
   swap
-  · rw [if_neg (show ¬ (g.tag == ETag.const) = true by simpa [ETag.const] using htc)]
+  · rw [ite_eq_right (show ¬ (g.tag == ETag.const) = true by simpa [ETag.const] using htc)]
     exact hno
-  rw [if_pos (show (g.tag == ETag.const) = true by simp [htc, ETag.const])]
+  rw [ite_eq_left (show (g.tag == ETag.const) = true by simp [htc, ETag.const])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
   refine specR_assignI lDh (vv ieG) (Enc.idxW g) (by decide) (by simp) ?_
   refine specR_viewP g (by simp) (by simp +decide [Env.get]) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)

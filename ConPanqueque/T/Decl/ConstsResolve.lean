@@ -83,7 +83,7 @@ theorem specR_crPinsI {C : Ctx} (hok : CtxOK C)
       have heq : pinsFound C (i :: r) = pinsFound C r := by simp [pinsFound, hni, hf]
       rw [heq]
       exact specR_crPinsI hok hcodeG hcodeP hD r _ (fun j hj => his j (by simp [hj]))
-        (by simp [Env.get_cons, hkb]; first | rfl | (intro h; exact absurd h (by decide)) | (rw [if_neg (by decide), if_neg (by decide)]; exact hkb) | (rw [if_neg (by decide)]; first | exact hkb | (rw [if_neg (by decide)]; exact hkb)))
+        (by simp [Env.get_cons, hkb]; first | rfl | (intro h; exact absurd h (by decide)) | (rw [ite_eq_right (by decide), ite_eq_right (by decide)]; exact hkb) | (rw [ite_eq_right (by decide)]; first | exact hkb | (rw [ite_eq_right (by decide)]; exact hkb)))
 
 
 theorem pinAt_run {C : Ctx} (hok : CtxOK C) {s : AState} (hp : s.pins = C.pins) (i : Nat) (hi : i < pinCount) :

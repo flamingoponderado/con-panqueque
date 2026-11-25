@@ -76,8 +76,8 @@ theorem specR_failIteT {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {
     (hk : c = false → SpecR (Inv C s Γ M D) rest s K R) :
     SpecR (Inv C s Γ M D) (.ite cond rejectP rest) s (if c = true then F else K) R := by
   cases c
-  · rw [if_neg (by decide)]; exact specR_ifI _ v hv (fun h => absurd (hvf rfl) h) (fun _ => hk rfl)
-  · rw [if_pos rfl]; exact specR_ifI _ v hv (fun _ => specR_rejectI) (fun h => absurd h (hvt rfl))
+  · rw [ite_eq_right (by decide)]; exact specR_ifI _ v hv (fun h => absurd (hvf rfl) h) (fun _ => hk rfl)
+  · rw [ite_eq_left rfl]; exact specR_ifI _ v hv (fun _ => specR_rejectI) (fun h => absurd h (hvt rfl))
 
 theorem specR_failIteF {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {rest : ProgHOL 64}
     {c : Bool} {F K : AM α} {R : α → BitVec 64 → AState → PState σ → Prop} (cond : ExpHOL 64) (v : BitVec 64)
@@ -85,8 +85,8 @@ theorem specR_failIteF {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {
     (hk : c = true → SpecR (Inv C s Γ M D) rest s K R) :
     SpecR (Inv C s Γ M D) (.ite cond rejectP rest) s (if c = true then K else F) R := by
   cases c
-  · rw [if_neg (by decide)]; exact specR_ifI _ v hv (fun _ => specR_rejectI) (fun h => absurd h (hvf rfl))
-  · rw [if_pos rfl]; exact specR_ifI _ v hv (fun h => absurd (hvt rfl) h) (fun _ => hk rfl)
+  · rw [ite_eq_right (by decide)]; exact specR_ifI _ v hv (fun _ => specR_rejectI) (fun h => absurd h (hvf rfl))
+  · rw [ite_eq_left rfl]; exact specR_ifI _ v hv (fun h => absurd (hvt rfl) h) (fun _ => hk rfl)
 
 theorem reduceOpNames_run {C : Ctx} (hok : CtxOK C) {s : AState} (hp : s.pins = C.pins) :
     reduceOpNames s = .ok ([C.pins.names[43]!, C.pins.names[44]!], s) := by

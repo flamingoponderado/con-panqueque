@@ -528,14 +528,14 @@ theorem irr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
         (fun _ => ?_) (fun hw => absurd hw (by decide))
       refine specR_assignI lW _ (BitVec.ofNat 64 (n2 - st)) (by decide)
         (by simp +decide [sev, hs, hb]; exact word_sub_eq n2 st (by omega) (by omega)) ?_
-      rw [if_pos g]
+      rw [ite_eq_left g]
       exact irrTail_spec ra C hok hc vs o hblk hsz fuel n2 (n2 - st) d e hf hn2' (by omega) hd
         (by simp +decide [hvs]) (by simp +decide [hb]) (by simp +decide) (by simp +decide [hfu])
         (by simp +decide [hh]) (by simp +decide [hdd])
     · have hnlt : ¬ BitVec.ofNat 64 st < BitVec.ofNat 64 n2 := fun x => g ((word_lt_iff st n2 (by omega) (by omega)).mp x)
       refine specR_ifI _ 0 (by simp +decide [sev, hs, hb, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hnlt])
         (fun hw => absurd rfl hw) (fun _ => ?_)
-      rw [if_neg g]
+      rw [ite_eq_right g]
       exact irrTail_spec ra C hok hc vs o hblk hsz fuel n2 0 d e hf hn2' (by decide) hd
         (by simp +decide [hvs]) (by simp +decide [hb]) (by simp +decide) (by simp +decide [hfu])
         (by simp +decide [hh]) (by simp +decide [hdd])

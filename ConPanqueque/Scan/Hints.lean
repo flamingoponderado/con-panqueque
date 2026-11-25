@@ -178,7 +178,7 @@ theorem hq_sound (u : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArr
     have := litsL_get _ _ _ 0 ha 6 (by decide)
     have hl := lt_of_byteL (c := 34) (by rw [this]; rfl) (by decide)
     refine ⟨v + 8, by rw [h8], by rw [h8]; simp at hl; omega, .«abbrev», ?_⟩
-    rw [scanHints, if_pos hb34, ma, if_pos ha]
+    rw [scanHints, ite_eq_left hb34, ma, ite_eq_left ha]
   · rename_i ha
     split at h
     · rename_i ho
@@ -186,7 +186,7 @@ theorem hq_sound (u : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArr
       have := litsL_get _ _ _ 0 ho 6 (by decide)
       have hl := lt_of_byteL (c := 34) (by rw [this]; rfl) (by decide)
       refine ⟨v + 8, by rw [h8], by rw [h8]; simp at hl; omega, .«opaque», ?_⟩
-      rw [scanHints, if_pos hb34, ma, if_neg ha, mo, if_pos ho]
+      rw [scanHints, ite_eq_left hb34, ma, ite_eq_right ha, mo, ite_eq_left ho]
     · simp at h
 
 

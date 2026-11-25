@@ -38,13 +38,13 @@ theorem lsView_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FL : BitVec
     rcases (by omega : i.tier.toNat = 0 ∨ i.tier.toNat = 1) with h0 | h0
     · have e0 : i.tier = 0 := UInt32.toNat_inj.mp (by rw [h0]; rfl)
       refine ⟨0, st.pers, ?_, ?_⟩
-      · simp only [LsStore.view, Idx.isPersistent, beq_iff_eq]; rw [if_pos e0]
+      · simp only [LsStore.view, Idx.isPersistent, beq_iff_eq]; rw [ite_eq_left e0]
       · rw [h0]; exact hR.pl
     · have hnp : ¬ i.isPersistent = true := by
         simp only [Idx.isPersistent, beq_iff_eq]; intro e; rw [e] at h0; simp at h0
       have hon : st.scratchOn = true := by rcases hlive with h | h; omega; exact h
       refine ⟨1, st.scr, ?_, ?_⟩
-      · simp only [LsStore.view]; rw [if_neg hnp, hon]; rfl
+      · simp only [LsStore.view]; rw [ite_eq_right hnp, hon]; rfl
       · rw [h0]; exact hR.sl
   obtain ⟨tr, nt, hview, hT0⟩ := pick
   have htl := Idx.tier_lt i

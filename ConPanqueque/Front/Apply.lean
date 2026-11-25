@@ -171,7 +171,7 @@ theorem dispatch_spec {β : Type} {k : StateD ⊕ RecordVerdict → AM β} {R : 
   obtain ⟨hwt, hwn, hpay⟩ := hso
   have hk' : ∀ st' w s' H', FrontSt C F rb capD jN jL jE cap bufJ b H' st' →
       SpecR (Inv (ctxH C H') s' ((kR0, w) :: Γ) [] D) rest s' (k (.inl st')) R :=
-    fun st' w s' H' hf => hk st' s' H' _ hf (fun y hy => by simp only [Env.get_cons, if_neg hy])
+    fun st' w s' H' hf => hk st' s' H' _ hf (fun y hy => by simp only [Env.get_cons, ite_eq_right hy])
   unfold dispatchP
   refine specR_ifI _ _ (sev_eq_c' Γ kTg wt (BitVec.ofNat 64 17) hTg) (fun h17 => ?_) (fun h17 => ?_)
   · have hpt : plTag (recPl rec) = 17 := by
@@ -291,7 +291,7 @@ theorem applyLine_spec {β : Type} {k : StateD ⊕ RecordVerdict → AM β} {R :
   let Γ4 : Env := (kIx, wi) :: (kS0, ws) :: (kTg, wt) :: (kNx, wn) :: Γ
   have g4 : ∀ y, y ∉ [kTg, kS0, kIx, kNx, kR0] → Γ4.get y = Γ.get y := fun y hy => by
     simp only [List.mem_cons, List.not_mem_nil, or_false, not_or] at hy
-    simp only [Γ4, Env.get_cons, if_neg hy.1, if_neg hy.2.1, if_neg hy.2.2.1, if_neg hy.2.2.2.1]
+    simp only [Γ4, Env.get_cons, ite_eq_right hy.1, ite_eq_right hy.2.1, ite_eq_right hy.2.2.1, ite_eq_right hy.2.2.2.1]
   have hn' : ∀ y, y ≠ kTg → y ≠ kS0 → y ≠ kIx → y ≠ kNx → y ≠ kR0 → y ∉ [kTg, kS0, kIx, kNx, kR0] :=
     fun y a1 a2 a3 a4 a5 => by simp [a1, a2, a3, a4, a5]
   have L : ∀ y, y ≠ kTg → y ≠ kS0 → y ≠ kIx → y ≠ kNx → y ≠ kR0 → Γ4.get y = Γ.get y :=
@@ -312,7 +312,7 @@ theorem applyLine_spec {β : Type} {k : StateD ⊕ RecordVerdict → AM β} {R :
     (fun st' s' H' Γ' hf' hag => hk st' s' H' Γ' hf' (fun y hy => by
         have hy' : y ≠ kR0 := fun e => hy (by simp [e])
         rw [hag y hy', g4 y hy])
-      (by rw [hag kNx (by decide)]; simp (config := {decide := true}) only [Γ4, Env.get_cons, if_pos, if_neg]
+      (by rw [hag kNx (by decide)]; simp (config := {decide := true}) only [Γ4, Env.get_cons, ite_eq_left, ite_eq_right]
           rw [hso.2.1]))
 
 end

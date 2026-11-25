@@ -73,7 +73,7 @@ theorem vaFun_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (bs : List
       · simp [byteL, List.getElem?_eq_none (by omega : bs.length ≤ P)] at h58
     have hle2 := skipL_le_length isWsN bs _ (P + 1) rfl (by omega)
     have hv : valueAtL bs i0 ke = skipWsL bs (P + 1) := by
-      simp only [valueAtL, ← hP]; rw [if_pos (by simpa [byteL] using h58)]
+      simp only [valueAtL, ← hP]; rw [ite_eq_left (by simpa [byteL] using h58)]
     rw [hv]
     have hcall := call3_ret u2 sE2 fSkipWs sB sN sI (skFun wsTest) (vv sB) (vv sN) (.op .add [vv sE2, .const 1])
       A (BitVec.ofNat 64 bs.length) (BitVec.ofNat 64 (P + 1)) (BitVec.ofNat 64 (skipWsL bs (P + 1)))
@@ -90,7 +90,7 @@ theorem vaFun_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (bs : List
     exact Or.inr ⟨r1, r2, r3, r4, r5, r6⟩
   · have h58 : ¬ (byteL bs P).toNat = 58 := by intro h; simp [bw, h] at hw
     have hv : valueAtL bs i0 ke = i0 := by
-      simp only [valueAtL, ← hP]; rw [if_neg (by simpa [byteL] using h58)]
+      simp only [valueAtL, ← hP]; rw [ite_eq_right (by simpa [byteL] using h58)]
     rw [hv]
     obtain ⟨r1, r2, r3, r4, r5, r6⟩ := return_vv u2 sI _ (by lk [u2]; exact li1)
     exact Or.inr ⟨r1, r2, r3, r4, r5, r6⟩

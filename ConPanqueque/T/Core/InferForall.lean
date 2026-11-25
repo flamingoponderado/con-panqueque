@@ -366,7 +366,7 @@ theorem qf_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     ⟨by simp +decide [Env.get, ifaParams, ctxEnv], by simp +decide [Env.get, ifaParams, ctxEnv], by simp, trivial⟩ (hW H2 s2 d tty hp2 (by omega)) (fun w s3 H3 hp3 _ => ?_)
   have hp13 : C.H <+: H3 := hp2.trans hp3
   refine Knot.specR_tagIteV qfH w 2 (by decide) (by decide) (by simp) (fun htg2 => ?_) (fun htg2 => ?_)
-  · rw [if_pos (show (w.tag == ETag.sort) = true by simp [htg2, ETag.sort])]
+  · rw [ite_eq_left (show (w.tag == ETag.sort) = true by simp [htg2, ETag.sort])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
     refine specR_assignI lDh (vv qfH) (Enc.idxW w) (by decide) (by simp) ?_
     refine specR_viewP (C := ctxH C H3) w (by simp) (by simp +decide [Env.get] <;> rfl)
@@ -405,7 +405,7 @@ theorem qf_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Che
     subst hw
     exact specR_returnI _ (Enc.idxW r) (by simp)
       (fun t ht => ⟨H7, hpall.trans hp7, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  · rw [if_neg (show ¬ (w.tag == ETag.sort) = true by simpa [ETag.sort] using htg2)]
+  · rw [ite_eq_right (show ¬ (w.tag == ETag.sort) = true by simpa [ETag.sort] using htg2)]
     exact specR_hangI
 
 end

@@ -97,7 +97,7 @@ theorem eBin2_spec (t : PanSemStateFiniteExact 64 σ) (L : Layout) (FLn FLl FLs 
   let t2 : PanSemStateFiniteExact 64 σ :=
     { t1 with memory := fun c => if c = KB + 8 then .word (Enc.idxW a) else t1.memory c }
   have m2 : ∀ c, c ≠ KB → c ≠ KB + 8 → t2.memory c = t.memory c := by
-    intro c h1 h2; show (if c = KB + 8 then _ else if c = KB then _ else _) = _; rw [if_neg h2, if_neg h1]
+    intro c h1 h2; show (if c = KB + 8 then _ else if c = KB then _ else _) = _; rw [ite_eq_right h2, ite_eq_right h1]
   have hR2 : SRep t2 L FLn FLl FLs FLe st := srep_frame hR
     ⟨m2 _ (flne _ (Or.inl rfl)).1 (flne _ (Or.inl rfl)).2, m2 _ (flne _ (Or.inr (Or.inl rfl))).1 (flne _ (Or.inr (Or.inl rfl))).2,
       m2 _ (flne _ (Or.inr (Or.inr (Or.inl rfl)))).1 (flne _ (Or.inr (Or.inr (Or.inl rfl)))).2,

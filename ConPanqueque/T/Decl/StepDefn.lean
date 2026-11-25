@@ -108,7 +108,7 @@ theorem ccv_fresh {mode : ConLeche.CheckMode} {fe : IFEnv} {cv : IConstantVal} {
   | some ci =>
     exfalso
     unfold checkConstantVal at h
-    simp only [hf, Option.isSome_some, if_true] at h
+    simp only [hf, Option.isSome_some, ite_true] at h
     simp [fail, throw, throwThe, MonadExceptOf.throw, bind, StateT.bind, Except.bind, StateT.lift,
       ExceptT.lift] at h
 

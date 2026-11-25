@@ -128,11 +128,11 @@ def modeSetP (C : Ctx) (k : CacheK) (x : MlS) (eh ev : ExpHOL 64) (rest : ProgHO
 
 theorem sev_modeD {C : Ctx} (hok : CtxOK C) (k : CacheK) (Γ : Env) :
     sev ((lEo, C.eo) :: Γ) (modeD C k) = some (C.mG (.m C.side k)) := by
-  simp only [modeD, sev, Env.get, if_pos rfl]
+  simp only [modeD, sev, Env.get, ite_eq_left rfl]
   rw [← mG_side hok k]; rfl
 
 theorem get_kb_eo {Γ : Env} {C : Ctx} (hkb : Γ.get lKb = some C.KB) : Env.get ((lEo, C.eo) :: Γ) lKb = some C.KB := by
-  simp only [Env.get]; rw [if_neg (by decide)]; exact hkb
+  simp only [Env.get]; rw [ite_eq_right (by decide)]; exact hkb
 
 /-- A twin read of mode memo `k`, in a caller. -/
 theorem specR_modeGetI {β : Type} {C : Ctx} (hok : CtxOK C) (k : ModeKE) (getOp : EIdx → AM (Option EIdx))

@@ -44,7 +44,7 @@ def lpFun : ProgHOL 64 :=
 
 theorem byteAt_uget {b : ByteArray} {p : USize} (h : p < b.usize) :
     byteAt b p = b.uget p (usizeInBounds b p h) := by
-  rw [byteAt, dif_pos h]
+  rw [byteAt, dite_eq_left h]
 
 theorem nlLoop_ws (b : ByteArray) :
     ∀ n (i : USize) (acc : List Nat) (w : Bool), b.size - i.toNat = n →
@@ -55,13 +55,13 @@ theorem nlLoop_ws (b : ByteArray) :
     intro i acc w hn
     rw [skipWs.eq_def b i]
     by_cases h : i < b.usize
-    · rw [dif_pos h]
+    · rw [dite_eq_left h]
       by_cases hw : isWs (b.uget i (usizeInBounds b i h)) = true
-      · rw [if_pos hw, ← ih _ (by have := usizeInBounds b i h; have := usizeStep b i h; omega) (i + 1) acc w rfl]
-        rw [scanNatListLoop.eq_def b i acc w, dif_pos h]
+      · rw [ite_eq_left hw, ← ih _ (by have := usizeInBounds b i h; have := usizeStep b i h; omega) (i + 1) acc w rfl]
+        rw [scanNatListLoop.eq_def b i acc w, dite_eq_left h]
         simp only [hw, ↓reduceIte]
-      · rw [if_neg hw]
-    · rw [dif_neg h]
+      · rw [ite_eq_right hw]
+    · rw [dite_eq_right h]
 
 theorem nlLoop_digit {b : ByteArray} {p e : USize} {acc : List Nat} (h : p < b.usize) (c : UInt8)
     (hc : byteAt b p = c) (hd : isDigit c = true) (he : numEnd b p = e) (hep : e ≠ p) (hpe : p < e) :
@@ -80,22 +80,22 @@ theorem nlLoop_digit {b : ByteArray} {p e : USize} {acc : List Nat} (h : p < b.u
   have h44 : (c == 44) = false := by
     revert hd; simp only [isDigit, Bool.and_eq_true, decide_eq_true_eq, beq_eq_false_iff_ne]
     intro ⟨h1, _⟩ hh; rw [hh] at h1; have := UInt8.le_iff_toNat_le.mp h1; simp at this
-  rw [scanNatListLoop.eq_def b p acc true, dif_pos h, hc]
+  rw [scanNatListLoop.eq_def b p acc true, dite_eq_left h, hc]
   simp only [hws, h93, h44, hd, Bool.false_eq_true, ↓reduceIte, Bool.not_true, he,
-    beq_eq_false_iff_ne.mpr hep, dif_pos hpe]
+    beq_eq_false_iff_ne.mpr hep, dite_eq_left hpe]
 
 theorem nlLoop_comma {b : ByteArray} {p : USize} {acc : List Nat} (h : p < b.usize)
     (hc : byteAt b p = 44) :
     scanNatListLoop b p acc false = scanNatListLoop b (p + 1) acc true := by
   rw [byteAt_uget h] at hc
-  rw [scanNatListLoop.eq_def b p acc false, dif_pos h, hc]
+  rw [scanNatListLoop.eq_def b p acc false, dite_eq_left h, hc]
   rfl
 
 theorem nlLoop_close {b : ByteArray} {p : USize} {acc : List Nat} (h : p < b.usize)
     (hc : byteAt b p = 93) :
     scanNatListLoop b p acc false = .ok acc.reverse (p + 1) := by
   rw [byteAt_uget h] at hc
-  rw [scanNatListLoop.eq_def b p acc false, dif_pos h, hc]
+  rw [scanNatListLoop.eq_def b p acc false, dite_eq_left h, hc]
   rfl
 
 theorem numEndL_ge (bs : List UInt8) (i : Nat) : i ≤ numEndL bs i := by
@@ -355,7 +355,7 @@ theorem lpFun_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : Byte
     readNatAt b p1 e1, readNatAt b p2 e2, ?_⟩, ?_⟩
   · simp [hret, shapeOfHOLExact, Flapjack.Pancake.PanLang.sizeOfShapeWithContextHOL]
   · have hb91' : (byteAt b v == 91) = true := by rw [hb91]; rfl
-    rw [scanNatList, if_pos hb91', nlLoop_ws b _ _ _ _ rfl, ← hp1d,
+    rw [scanNatList, ite_eq_left hb91', nlLoop_ws b _ _ _ _ rfl, ← hp1d,
       nlLoop_digit ((hp.lt_iff p1).mpr hp1l) _ rfl hd1 he1d (fun h => by rw [h] at hp1e; omega)
         (USize.lt_iff_toNat_lt.mpr hp1e),
       nlLoop_ws b _ e1 _ _ rfl, nlLoop_comma ((hp.lt_iff _).mpr hq1l) hq1b,

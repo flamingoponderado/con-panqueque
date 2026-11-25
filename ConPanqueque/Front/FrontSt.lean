@@ -37,12 +37,12 @@ structure FrontSt (C : Ctx) (F rb capD jN jL jE cap bufJ : Nat) (b : ByteArray) 
 
 theorem tblRel_set_out {k : IdxKind} {H : List (BitVec 64)} {j cap : Nat} {tbl : IdTable (Idx k)}
     (h : TblRel H j cap tbl) (c : Nat) (hc : c < j ∨ j + cap ≤ c) (w : BitVec 64) : TblRel (H.set c w) j cap tbl :=
-  ⟨fun i hi => by rw [List.getElem?_set, if_neg (by omega)]; exact h.1 i hi, h.2⟩
+  ⟨fun i hi => by rw [List.getElem?_set, ite_eq_right (by omega)]; exact h.1 i hi, h.2⟩
 
 theorem packed_set_below {H : List (BitVec 64)} {j0 : Nat} {bs : List UInt8} (h : Packed H j0 bs) (c : Nat)
     (hc : c < j0) (w : BitVec 64) : Packed (H.set c w) j0 bs := fun i hi => by
   obtain ⟨w', hw, hb⟩ := h i hi
-  exact ⟨w', by rw [List.getElem?_set, if_neg (by omega)]; exact hw, hb⟩
+  exact ⟨w', by rw [List.getElem?_set, ite_eq_right (by omega)]; exact hw, hb⟩
 
 theorem bufOK_set {C : Ctx} {H : List (BitVec 64)} {bufJ : Nat} {b : ByteArray} (h : BufOK (ctxH C H) bufJ b)
     (c : Nat) (hc : c < bufJ) (w : BitVec 64) : BufOK (ctxH C (H.set c w)) bufJ b :=

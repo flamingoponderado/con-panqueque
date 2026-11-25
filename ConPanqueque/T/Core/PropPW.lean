@@ -272,9 +272,9 @@ theorem rw_spec (C : Ctx) (hok : CtxOK C) (hc : RwCodes C) (s : AState) (hwf : L
   rw [residualPW]
   refine Knot.specR_tagIteV rwE h 2 (by decide) (by decide) (by simp) (fun htg => ?_) (fun htg => ?_)
   swap
-  · rw [if_neg (show ¬ (h.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
+  · rw [ite_eq_right (show ¬ (h.tag == ETag.sort) = true by simpa [ETag.sort] using htg)]
     exact specR_returnI _ 0 rfl (fun t ht => ⟨rfl, H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_pos (show (h.tag == ETag.sort) = true by simp [htg, ETag.sort])]
+  rw [ite_eq_left (show (h.tag == ETag.sort) = true by simp [htg, ETag.sort])]
   refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
   refine specR_assignI lDh (vv rwE) (Enc.idxW h) (by decide) (by simp) ?_
   refine specR_viewP (C := ctxH C H) h (by simp) (by simp +decide [Env.get] <;> rfl) (by simp +decide [Env.get, ctxEnv] <;> rfl) (by decide)

@@ -137,7 +137,7 @@ theorem kbSt_get (KB : BitVec 64) (t : PanSemStateFiniteExact 64 σ) (w0 w1 w2 :
   have n01 : KB + BitVec.ofNat 64 (8 * 0) ≠ KB + BitVec.ofNat 64 (8 * 1) := kb_ne (by decide) (by decide) (by decide)
   have n02 : KB + BitVec.ofNat 64 (8 * 0) ≠ KB + BitVec.ofNat 64 (8 * 2) := kb_ne (by decide) (by decide) (by decide)
   have n12 : KB + BitVec.ofNat 64 (8 * 1) ≠ KB + BitVec.ofNat 64 (8 * 2) := kb_ne (by decide) (by decide) (by decide)
-  refine ⟨?_, ?_, ?_⟩ <;> simp only [kbSt, if_neg n01, if_neg n02, if_neg n12, ↓reduceIte]
+  refine ⟨?_, ?_, ?_⟩ <;> simp only [kbSt, ite_eq_right n01, ite_eq_right n02, ite_eq_right n12, ↓reduceIte]
 
 /-- Setting the key buffer keeps the representation. -/
 theorem sr_kbSt {C : Ctx} (hok : CtxOK C) {s : AState} {t : PState σ} (h : SR C s t) (w0 w1 w2 : BitVec 64) :
@@ -223,20 +223,20 @@ theorem specR_callK3 {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : En
     refine ⟨sr_of_eq hsr rfl rfl rfl rfl, fun y v hy => ?_, fun _ _ h => absurd h (by simp), fun y hy => ?_⟩
     · simp only [Env.get] at hy
       by_cases e2 : y = y2
-      · rw [if_pos e2] at hy; cases hy; subst e2; exact lookup_setVar_same _ _ _
-      rw [if_neg e2] at hy
+      · rw [ite_eq_left e2] at hy; cases hy; subst e2; exact lookup_setVar_same _ _ _
+      rw [ite_eq_right e2] at hy
       rw [lookup_setVar_other _ _ e2]
       by_cases e1 : y = y1
-      · rw [if_pos e1] at hy; cases hy; subst e1; exact lookup_setVar_same _ _ _
-      rw [if_neg e1] at hy
+      · rw [ite_eq_left e1] at hy; cases hy; subst e1; exact lookup_setVar_same _ _ _
+      rw [ite_eq_right e1] at hy
       rw [lookup_setVar_other _ _ e1]
       by_cases e0 : y = y0
-      · rw [if_pos e0] at hy; cases hy; subst e0; exact lookup_setVar_same _ _ _
-      rw [if_neg e0] at hy
+      · rw [ite_eq_left e0] at hy; cases hy; subst e0; exact lookup_setVar_same _ _ _
+      rw [ite_eq_right e0] at hy
       rw [lookup_setVar_other _ _ e0]
       by_cases ex : y = x
-      · rw [if_pos ex] at hy; cases hy; subst ex; exact lx
-      rw [if_neg ex] at hy
+      · rw [ite_eq_left ex] at hy; cases hy; subst ex; exact lx
+      rw [ite_eq_right ex] at hy
       rw [lo y ex]; exact ht.env y v hy
     · by_cases e2 : y = y2
       · subst e2; exact ⟨k2, lookup_setVar_same _ _ _⟩

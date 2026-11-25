@@ -43,7 +43,7 @@ theorem strnameEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
   unfold RecOut at hro
   rw [scanStrName, scanStrNameLoop_eq b _ (i + 1) true 0 0 "" rfl]
   split at hro
-  · rename_i hbyte; rw [if_pos hbyte, hro]; exact ⟨_, rfl⟩
+  · rename_i hbyte; rw [ite_eq_left hbyte, hro]; exact ⟨_, rfl⟩
   · simp at hro
 
 theorem numnameEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
@@ -77,7 +77,7 @@ theorem numnameEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
   unfold RecOut at hro
   rw [scanNumName, scanNumNameLoop_eq b _ (i + 1) true 0 0 0 rfl]
   split at hro
-  · rename_i hbyte; rw [if_pos hbyte, hro]; exact ⟨_, rfl⟩
+  · rename_i hbyte; rw [ite_eq_left hbyte, hro]; exact ⟨_, rfl⟩
   · simp at hro
 
 theorem lamexprEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
@@ -111,7 +111,7 @@ theorem lamexprEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
   unfold RecOut at hro
   rw [scanLamExpr, scanLamExprLoop_eq b _ (i + 1) true 0 0 0 rfl]
   split at hro
-  · rename_i hbyte; rw [if_pos hbyte, hro]; exact ⟨_, rfl⟩
+  · rename_i hbyte; rw [ite_eq_left hbyte, hro]; exact ⟨_, rfl⟩
   · simp at hro
 
 theorem forallexprEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
@@ -145,7 +145,7 @@ theorem forallexprEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (
   unfold RecOut at hro
   rw [scanForallExpr, scanForallExprLoop_eq b _ (i + 1) true 0 0 0 rfl]
   split at hro
-  · rename_i hbyte; rw [if_pos hbyte, hro]; exact ⟨_, rfl⟩
+  · rename_i hbyte; rw [ite_eq_left hbyte, hro]; exact ⟨_, rfl⟩
   · simp at hro
 
 theorem letexprEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
@@ -180,7 +180,7 @@ theorem letexprEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
   unfold RecOut at hro
   rw [scanLetExpr, scanLetExprLoop_eq b _ (i + 1) true 0 0 0 0 rfl]
   split at hro
-  · rename_i hbyte; rw [if_pos hbyte, hro]; exact ⟨_, rfl⟩
+  · rename_i hbyte; rw [ite_eq_left hbyte, hro]; exact ⟨_, rfl⟩
   · simp at hro
 
 theorem constexprEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
@@ -214,7 +214,7 @@ theorem constexprEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b
   unfold RecOut at hro
   rw [scanConstExpr, scanConstExprLoop_eq b _ (i + 1) true 0 0 [] rfl]
   split at hro
-  · rename_i hbyte; rw [if_pos hbyte, hro]; exact ⟨_, rfl⟩
+  · rename_i hbyte; rw [ite_eq_left hbyte, hro]; exact ⟨_, rfl⟩
   · simp at hro
 
 theorem projexprEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
@@ -249,7 +249,7 @@ theorem projexprEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b 
   unfold RecOut at hro
   rw [scanProjExpr, scanProjExprLoop_eq b _ (i + 1) true 0 0 0 0 rfl]
   split at hro
-  · rename_i hbyte; rw [if_pos hbyte, hro]; exact ⟨_, rfl⟩
+  · rename_i hbyte; rw [ite_eq_left hbyte, hro]; exact ⟨_, rfl⟩
   · simp at hro
 
 theorem defdeclEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
@@ -287,7 +287,7 @@ theorem defdeclEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
   unfold RecOut at hro
   rw [scanDefDecl, scanDefDeclLoop_eq b _ (i + 1) true 0 (.regular 0) [] 0 "" 0 0 rfl]
   split at hro
-  · rename_i hbyte; rw [if_pos hbyte, hro]; exact ⟨_, rfl⟩
+  · rename_i hbyte; rw [ite_eq_left hbyte, hro]; exact ⟨_, rfl⟩
   · simp at hro
 
 theorem thmdeclEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
@@ -323,7 +323,7 @@ theorem thmdeclEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b :
   unfold RecOut at hro
   rw [scanThmDecl, scanThmDeclLoop_eq b _ (i + 1) true 0 [] 0 0 0 rfl]
   split at hro
-  · rename_i hbyte; rw [if_pos hbyte, hro]; exact ⟨_, rfl⟩
+  · rename_i hbyte; rw [ite_eq_left hbyte, hro]; exact ⟨_, rfl⟩
   · simp at hro
 
 theorem opaquedeclEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
@@ -360,7 +360,7 @@ theorem opaquedeclEnd_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (
   unfold RecOut at hro
   rw [scanOpaqueDecl, scanOpaqueDeclLoop_eq b _ (i + 1) true 0 false [] 0 0 0 rfl]
   split at hro
-  · rename_i hbyte; rw [if_pos hbyte, hro]; exact ⟨_, rfl⟩
+  · rename_i hbyte; rw [ite_eq_left hbyte, hro]; exact ⟨_, rfl⟩
   · simp at hro
 
 

@@ -47,13 +47,13 @@ theorem flagW_succ (ws1 ws2 : List (BitVec 64)) (i : Nat) (h1 : i + 1 < ws1.leng
         · exact hA j hl
         · have : j = i := by omega
           subst this; rw [List.getElem?_eq_getElem h1, List.getElem?_eq_getElem h2, e]
-      rw [if_pos this, if_pos hA]; simp [e, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+      rw [ite_eq_left this, ite_eq_left hA]; simp [e, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
     · have : ¬ ∀ j, j < i + 1 → ws1[j + 1]? = ws2[j + 1]? := by
         intro h; have := h i (by omega)
         rw [List.getElem?_eq_getElem h1, List.getElem?_eq_getElem h2] at this; exact e (Option.some.inj this)
-      rw [if_neg this, if_pos hA]; simp [e, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+      rw [ite_eq_right this, ite_eq_left hA]; simp [e, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
   · have : ¬ ∀ j, j < i + 1 → ws1[j + 1]? = ws2[j + 1]? := fun h => hA (fun j hj => h j (by omega))
-    rw [if_neg this, if_neg hA]; simp
+    rw [ite_eq_right this, ite_eq_right hA]; simp
 
 theorem cmpLoop_spec {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {rest : ProgHOL 64} {m : AM α}
     {R : α → BitVec 64 → AState → PState σ → Prop} (ws1 ws2 : List (BitVec 64)) (P1 P2 : BitVec 64)
@@ -136,7 +136,7 @@ theorem flagW_full (ws1 ws2 : List (BitVec 64)) (hl : ws1.length = ws2.length) (
     have hA : ∀ j, j < ws1.length - 1 → ws1[j + 1]? = ws2[j + 1]? := by
       by_cases hc : ∀ j, j < ws1.length - 1 → ws1[j + 1]? = ws2[j + 1]?
       · exact hc
-      · rw [if_neg hc] at h; exact absurd rfl h
+      · rw [ite_eq_right hc] at h; exact absurd rfl h
     apply List.ext_getElem?
     intro j
     rw [List.getElem?_tail, List.getElem?_tail]
@@ -146,7 +146,7 @@ theorem flagW_full (ws1 ws2 : List (BitVec 64)) (hl : ws1.length = ws2.length) (
   · intro h
     have hA : ∀ j, j < ws1.length - 1 → ws1[j + 1]? = ws2[j + 1]? := by
       intro j _; rw [← List.getElem?_tail, ← List.getElem?_tail, h]
-    rw [if_pos hA]; decide
+    rw [ite_eq_left hA]; decide
 
 /-- After both views, the tags equal and nonzero: compare the tails, then the prefixes. -/
 theorem neqTail_spec (C : Ctx) (hcode : C.code.lookup fNeq = some ([(pNa, .one), (pNb, .one)], neqBody, .one))

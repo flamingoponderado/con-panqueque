@@ -409,7 +409,7 @@ theorem c3_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
         have h2 := ht.sr.env.1.len; have h3 := hok1.envLay
         simp only [List.length_map, ctxH] at h1 h2 h3; omega
       by_cases hl : vl.length = cvT.levelParams.length
-      · rw [if_pos (by simpa using hl.symm)]
+      · rw [ite_eq_left (by simpa using hl.symm)]
         refine specR_ifI _ 0 (by simp [sev, hl, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h)
           (fun _ => ?_)
         refine specR_callNIH (C := ctxH C H) c3X fFza fzParams [vv kFu, vv kD, vv c3Q, vv c3U] (fzaBody C)
@@ -423,7 +423,7 @@ theorem c3_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C) 
         subst hw
         exact specR_returnI _ (boolW !b) (by cases b <;> simp [sev, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
           (fun t ht => ⟨H1, hp1, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-      · rw [if_neg (by simpa using fun e => hl e.symm)]
+      · rw [ite_eq_right (by simpa using fun e => hl e.symm)]
         have hne : BitVec.ofNat 64 vl.length ≠ BitVec.ofNat 64 cvT.levelParams.length := fun x =>
           hl ((UD.ofNat_eq_iff_small _ _ (by omega) (by omega)).mp x)
         refine specR_ifI _ 1 (by simp [sev, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hne]) (fun _ => ?_)

@@ -173,7 +173,7 @@ theorem wdiv_loop {C : Ctx} {s : AState} {M : Mem} {D : List MlS} {Γ0 : Env} (x
     rw [Nat.mod_eq_of_lt (show 63 - k < 18446744073709551616 by omega)]
     have := bit_word x k hx (by omega)
     rw [show (BitVec.ofNat 64 (63 - k)).toNat = 63 - k by simp; omega] at this
-    rw [← hbit, ← this, if_pos (by omega)]; rfl
+    rw [← hbit, ← this, ite_eq_left (by omega)]; rfl
   refine step_seq (step_assignI dR _ ((BitVec.ofNat 64 (T % y) <<< 1) + BitVec.ofNat 64 bit) dr
     (by simp [sev, wdG])) ?_
   refine step_seq (step_assignI dG _ (BitVec.ofNat 64 (if y ≤ 2 * (T % y) + bit then 1 else 0)) dg' ?_) ?_

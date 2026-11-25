@@ -376,7 +376,7 @@ theorem wsa_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
   have hpall : C.H <+: H2 := hp1.trans hp2
   unfold headAndArgs
   by_cases ht : (v.tag == 4) = true
-  · rw [if_pos (show (v.tag == ETag.app) = true from ht)]
+  · rw [ite_eq_left (show (v.tag == ETag.app) = true from ht)]
     simp only [bind_assoc, pure_bind]
     refine specR_ifI _ 1 (by rw [hT, ht]; rfl) (fun _ => ?_) (fun h => absurd h (by decide))
     refine specR_callNIM (C := ctxH C H2) sHd fGetAppFn [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv sV]
@@ -420,7 +420,7 @@ theorem wsa_spec (mode : ConLeche.CheckMode) (n : Nat) (C : Ctx) (hok : CtxOK C)
         by simp, by simp, by simp, by simp, rfl, by simp, trivial⟩
       (hWap H3 s3 v hd va.toArray sp.2.1 sp.2.2 o3 pa pn (v == sp.1) (hpall.trans hp3) (by simpa using hb3)
         (blkAt_mono hba hpa3) (blkAt_mono hbn hpa3) hsz.symm (by simpa using hsv) hsa)
-  · rw [if_neg (show ¬ (v.tag == ETag.app) = true from ht)]
+  · rw [ite_eq_right (show ¬ (v.tag == ETag.app) = true from ht)]
     refine specR_ifI _ 0 (by rw [hT]; simp [ht, boolW]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_assignI sHd (vv sV) (Enc.idxW v) (by decide) (by simp) ?_
     rw [pure_bind]

@@ -184,7 +184,7 @@ theorem arr_spec (C : Ctx) (s : AState) (t X Y : EIdx) :
   refine specR_prologue (postB_locals C) (ar_none C _) ?_
   unfold arrT
   refine Knot.specR_tagIteV arT t 6 (by decide) (by decide) (by simp +decide [Env.get, arParams, ctxEnv]) (fun htg => ?_) (fun htg => ?_)
-  · rw [if_pos (show (t.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
+  · rw [ite_eq_left (show (t.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
     refine specR_assignI lDh (vv arT) (Enc.idxW t) (by decide) (by simp +decide [Env.get, arParams, ctxEnv]) ?_
     refine specR_viewP (C := C) t (by simp) (by simp +decide [Env.get] <;> rfl)
@@ -199,7 +199,7 @@ theorem arr_spec (C : Ctx) (s : AState) (t X Y : EIdx) :
     exact specR_returnI _ (boolW (d == X && b == Y))
       (by simp +decide [sev, Env.get, arParams, ctxEnv]; rw [eqIdx_w', eqIdx_w']; exact and_w _ _)
       (fun t' ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  · rw [if_neg (show ¬ (t.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
+  · rw [ite_eq_right (show ¬ (t.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
     exact specR_returnI _ 0 rfl (fun t' ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 /-- **`Sort 1` shape**. -/
@@ -268,10 +268,10 @@ theorem lsu_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
   refine specR_ifI _ (boolW (!lps.isEmpty)) (by simp +decide [sev, Env.get, lsParams, ctxEnv]; exact notEmpty_w lps hl)
     (fun h => ?_) (fun h => ?_)
   · have he : (!lps.isEmpty) = true := by cases e : (!lps.isEmpty) <;> simp_all [boolW]
-    rw [if_pos he]
+    rw [ite_eq_left he]
     exact specR_returnI _ 0 rfl (fun t' ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   · have he : (!lps.isEmpty) = false := by cases e : (!lps.isEmpty) <;> simp_all [boolW]
-    rw [if_neg (by simp [he])]
+    rw [ite_eq_right (by simp [he])]
     simp only [pinNat, constE, emptyLevels, bind_assoc]
     refine specR_pinAtI hok PIN_NAT (by decide) lsA (by decide) ?_
     refine specR_pinXI hok pinEmptyLevels 0 C.pins.emptyLevels _ (fun s hp => pinEmptyLevels_run hok hp)
@@ -297,10 +297,10 @@ theorem lsc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
   refine specR_ifI _ (boolW (!lps.isEmpty)) (by simp +decide [sev, Env.get, lsParams, ctxEnv]; exact notEmpty_w lps hl)
     (fun h => ?_) (fun h => ?_)
   · have he : (!lps.isEmpty) = true := by cases e : (!lps.isEmpty) <;> simp_all [boolW]
-    rw [if_pos he]
+    rw [ite_eq_left he]
     exact specR_returnI _ 0 rfl (fun t' ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   · have he : (!lps.isEmpty) = false := by cases e : (!lps.isEmpty) <;> simp_all [boolW]
-    rw [if_neg (by simp [he])]
+    rw [ite_eq_right (by simp [he])]
     simp only [pinNat, pinChar, constE, emptyLevels, bind_assoc]
     refine specR_pinAtI hok PIN_NAT (by decide) lsA (by decide) ?_
     refine specR_pinXI hok pinEmptyLevels 0 C.pins.emptyLevels _ (fun s hp => pinEmptyLevels_run hok hp)
@@ -348,10 +348,10 @@ theorem lsl_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
   refine specR_ifI _ (boolW (!lps.isEmpty)) (by simp +decide [sev, Env.get, lsParams, ctxEnv]; exact notEmpty_w lps hl)
     (fun h => ?_) (fun h => ?_)
   · have he : (!lps.isEmpty) = true := by cases e : (!lps.isEmpty) <;> simp_all [boolW]
-    rw [if_pos he]
+    rw [ite_eq_left he]
     exact specR_returnI _ 0 rfl (fun t' ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   · have he : (!lps.isEmpty) = false := by cases e : (!lps.isEmpty) <;> simp_all [boolW]
-    rw [if_neg (by simp [he])]
+    rw [ite_eq_right (by simp [he])]
     simp only [zeroLevel, pinList, pinChar, pinString, constE, emptyLevels, bind_assoc]
     refine specR_pinXI hok pinZeroLevel 1 C.pins.zeroLevel _ (fun s hp => pinZeroLevel_run hok hp)
       (pin_zeroLevel_cell hok) lsZ (by decide) ?_
@@ -477,7 +477,7 @@ theorem lli_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
 
 theorem limbs_len0 (i : Nat) : (Enc.limbs i).length = 0 ↔ i = 0 := by
   constructor
-  · intro h; by_contra e; rw [Enc.limbs, dif_neg e] at h; simp at h
+  · intro h; by_contra e; rw [Enc.limbs, dite_eq_right e] at h; simp at h
   · intro e; subst e; rw [Enc.limbs]; simp
 
 theorem neIdx_w {k : IdxKind} (a b : Idx k) :
@@ -582,9 +582,9 @@ theorem lln_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
     refine specR_pinAtI (C := ctxH C H3) hok3 PIN_LIST (by decide) lsS (by decide) ?_
     refine Knot.specR_tagIteV lsT t 6 (by decide) (by decide) (by simp +decide [Env.get, lpParams, ctxEnv]) (fun htg => ?_) (fun htg => ?_)
     swap
-    · rw [if_neg (show ¬ (t.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
+    · rw [ite_eq_right (show ¬ (t.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
       exact specR_returnI _ 0 rfl (fun t' ht => ⟨H3, hp13, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    rw [if_pos (show (t.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
+    rw [ite_eq_left (show (t.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
     refine specR_assignI lDh (vv lsT) (Enc.idxW t) (by decide) (by simp +decide [Env.get, lpParams, ctxEnv]) ?_
     refine specR_viewP (C := ctxH C H3) t (by simp) (by simp +decide [Env.get] <;> rfl)
@@ -599,10 +599,10 @@ theorem lln_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
     dsimp only
     refine specR_ifI _ (boolW (d != srt)) (by simp +decide [sev, Env.get]; exact neIdx_w d srt) (fun h => ?_) (fun h => ?_)
     · have he : (d != srt) = true := by cases e : (d != srt) <;> simp_all [boolW]
-      rw [if_pos he]
+      rw [ite_eq_left he]
       exact specR_returnI _ 0 rfl (fun t' ht => ⟨H3, hp13, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     have he : (d != srt) = false := by cases e : (d != srt) <;> simp_all [boolW]
-    rw [if_neg (by simp [he])]
+    rw [ite_eq_right (by simp [he])]
     refine specR_dropM ?_
     refine specR_assignI lDh (vv lsF) (Enc.idxW b) (by decide) (by simp +decide [Env.get]) ?_
     refine specR_viewP (C := ctxH C H3) b (by simp) (by simp +decide [Env.get] <;> rfl)
@@ -612,7 +612,7 @@ theorem lln_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
     · have htg : (b.tag == ETag.app) = true := by
         have : b.tag.toNat = 4 := by simpa [ENodeView.tagN] using htn2.symm
         simp only [beq_iff_eq]; apply UInt32.toNat_inj.mp; simpa [ETag.app] using this
-      rw [if_pos htg]
+      rw [ite_eq_left htg]
       refine specR_congr (view_bind_eq b _ _ s4 hv2) ?_
       refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
       refine specR_loadI' lsF (vv lRp) P2 (P2 + BitVec.ofNat 64 0) (Enc.idxW f) (by decide) (by simp) (by simp)
@@ -629,7 +629,7 @@ theorem lln_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       · have htg : (f.tag == ETag.const) = true := by
           have : f.tag.toNat = 3 := by simpa [ENodeView.tagN] using htn3.symm
           simp only [beq_iff_eq]; apply UInt32.toNat_inj.mp; simpa [ETag.const] using this
-        rw [if_pos htg]
+        rw [ite_eq_left htg]
         refine specR_congr (view_bind_eq f _ _ s4 hv3) ?_
         refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
         refine specR_loadI' lsL (vv lRp) P3 (P3 + BitVec.ofNat 64 0) (Enc.idxW cn) (by decide) (by simp) (by simp)
@@ -645,7 +645,7 @@ theorem lln_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
         · have htg : (a.tag == ETag.bvar) = true := by
             have : a.tag.toNat = 0 := by simpa [ENodeView.tagN] using htn4.symm
             simp only [beq_iff_eq]; apply UInt32.toNat_inj.mp; simpa [ETag.bvar] using this
-          rw [if_pos htg]
+          rw [ite_eq_left htg]
           refine specR_congr (view_bind_eq a _ _ s4 hv4) ?_
           refine specR_ifI _ 0 (by simp +decide [sev, Env.get, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
           rcases i with _ | i
@@ -662,15 +662,15 @@ theorem lln_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
                 intro e; have := congrArg BitVec.toNat e; simp at this; omega) (fun _ => ?_) (fun h => absurd h (by decide))
             exact specR_returnI _ 0 rfl (fun t' ht => ⟨H3, hp13, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
         all_goals (
-          rw [if_neg (by intro e; simp only [beq_iff_eq] at e; rw [e] at htn4; simp [ENodeView.tagN, ETag.bvar] at htn4)]
+          rw [ite_eq_right (by intro e; simp only [beq_iff_eq] at e; rw [e] at htn4; simp [ENodeView.tagN, ETag.bvar] at htn4)]
           refine specR_ifI _ 1 (by simp +decide [sev, Env.get, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
           exact specR_returnI _ 0 rfl (fun t' ht => ⟨_, hp13, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩))
       all_goals (
-        rw [if_neg (by intro e; simp only [beq_iff_eq] at e; rw [e] at htn3; simp [ENodeView.tagN, ETag.const] at htn3)]
+        rw [ite_eq_right (by intro e; simp only [beq_iff_eq] at e; rw [e] at htn3; simp [ENodeView.tagN, ETag.const] at htn3)]
         refine specR_ifI _ 1 (by simp +decide [sev, Env.get, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
         exact specR_returnI _ 0 rfl (fun t' ht => ⟨_, hp13, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩))
     all_goals (
-      rw [if_neg (by intro e; simp only [beq_iff_eq] at e; rw [e] at htn2; simp [ENodeView.tagN, ETag.app] at htn2)]
+      rw [ite_eq_right (by intro e; simp only [beq_iff_eq] at e; rw [e] at htn2; simp [ENodeView.tagN, ETag.app] at htn2)]
       refine specR_ifI _ 1 (by simp +decide [sev, Env.get, ENodeView.tagN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
       exact specR_returnI _ 0 rfl (fun t' ht => ⟨_, hp13, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩))
 
@@ -779,9 +779,9 @@ theorem llc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       (by decide) (by simp +decide [Env.get]) (by simp +decide [Env.get]) (fun cod3 s10 => ?_)
     refine Knot.specR_tagIteV lsT t 6 (by decide) (by decide) (by simp +decide [Env.get, lpParams, ctxEnv]) (fun htg => ?_) (fun htg => ?_)
     swap
-    · rw [if_neg (show ¬ (t.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
+    · rw [ite_eq_right (show ¬ (t.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg)]
       exact specR_returnI _ 0 rfl (fun t' ht => ⟨H3, hp13, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    rw [if_pos (show (t.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
+    rw [ite_eq_left (show (t.tag == ETag.forallE) = true by simp [htg, ETag.forallE])]
     refine specR_assignI lFl (vv lFle) C.FLe (by decide) (by simp +decide [Env.get, ctxEnv] <;> rfl) ?_
     refine specR_assignI lDh (vv lsT) (Enc.idxW t) (by decide) (by simp +decide [Env.get, lpParams, ctxEnv]) ?_
     refine specR_viewP (C := ctxH C H3) t (by simp) (by simp +decide [Env.get] <;> rfl)
@@ -796,15 +796,15 @@ theorem llc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
     dsimp only
     refine specR_ifI _ (boolW (d1 != srt)) (by simp +decide [sev, Env.get]; exact neIdx_w d1 srt) (fun h => ?_) (fun h => ?_)
     · have he : (d1 != srt) = true := by cases e : (d1 != srt) <;> simp_all [boolW]
-      rw [if_pos he]
+      rw [ite_eq_left he]
       exact specR_returnI _ 0 rfl (fun t' ht => ⟨H3, hp13, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     have he : (d1 != srt) = false := by cases e : (d1 != srt) <;> simp_all [boolW]
-    rw [if_neg (by simp [he])]
+    rw [ite_eq_right (by simp [he])]
     refine Knot.specR_tagIteV lsF r1 6 (by decide) (by decide) (by simp +decide [Env.get]) (fun htg1 => ?_) (fun htg1 => ?_)
     swap
-    · rw [if_neg (show ¬ (r1.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg1)]
+    · rw [ite_eq_right (show ¬ (r1.tag == ETag.forallE) = true by simpa [ETag.forallE] using htg1)]
       exact specR_returnI _ 0 rfl (fun t' ht => ⟨H3, hp13, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    rw [if_pos (show (r1.tag == ETag.forallE) = true by simp [htg1, ETag.forallE])]
+    rw [ite_eq_left (show (r1.tag == ETag.forallE) = true by simp [htg1, ETag.forallE])]
     refine specR_dropM ?_
     refine specR_assignI lDh (vv lsF) (Enc.idxW r1) (by decide) (by simp +decide [Env.get]) ?_
     refine specR_viewP (C := ctxH C H3) r1 (by simp) (by simp +decide [Env.get] <;> rfl)
@@ -819,10 +819,10 @@ theorem llc_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
     dsimp only
     refine specR_ifI _ (boolW (d2 != b0)) (by simp +decide [sev, Env.get]; exact neIdx_w d2 b0) (fun h => ?_) (fun h => ?_)
     · have he : (d2 != b0) = true := by cases e : (d2 != b0) <;> simp_all [boolW]
-      rw [if_pos he]
+      rw [ite_eq_left he]
       exact specR_returnI _ 0 rfl (fun t' ht => ⟨H3, hp13, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     have he2 : (d2 != b0) = false := by cases e : (d2 != b0) <;> simp_all [boolW]
-    rw [if_neg (by simp [he2])]
+    rw [ite_eq_right (by simp [he2])]
     refine specR_dropM ?_
     refine specR_congr (m' := arrT r2 dom3 cod3 >>= fun b => pure b) (by simp) ?_
     refine specR_arrI (C := ctxH C H3) hc.ll.ar lsR (vv lsF) (vv lsU) (vv lsL) r2 dom3 cod3 (by decide)
@@ -867,7 +867,7 @@ theorem lso_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
   refine UD.specR_heapLoadI' (C := C) lsN _ o _ (by simpa using hb.1) (by decide) (by simp +decide [Env.get]) ?_
   refine specR_pinAtI hok PIN_NAT (by decide) lsX (by decide) ?_
   refine specR_ifI _ (boolW (cv.name == _)) (by simp +decide [sev, Env.get]; exact eqIdx_w' _ _) (fun h => ?_) (fun h => ?_)
-  · rw [if_pos (show (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
+  · rw [ite_eq_left (show (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
     refine specR_bindPure ?_
     refine specR_callNIH lsR fLss lsParams [vv lsN, vv lsT] _ [BitVec.ofNat 64 cv.levelParams.length, Enc.idxW cv.type] (by decide) rfl (by decide) hc.ss ⟨(by simp +decide [Env.get]), (by simp +decide [Env.get]), trivial⟩
       (PostB C) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
@@ -875,10 +875,10 @@ theorem lso_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       (fun b w s' H' hp hw => ?_)
     subst hw
     exact specR_returnI _ (boolW b) (by simp) (fun t' ht => ⟨H', hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_neg (show ¬ (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
+  rw [ite_eq_right (show ¬ (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
   refine specR_pinAtI hok PIN_NAT_ZERO (by decide) lsX (by decide) ?_
   refine specR_ifI _ (boolW (cv.name == _)) (by simp +decide [sev, Env.get]; exact eqIdx_w' _ _) (fun h => ?_) (fun h => ?_)
-  · rw [if_pos (show (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
+  · rw [ite_eq_left (show (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
     refine specR_bindPure ?_
     refine specR_callNIH lsR fLsz lsParams [vv lsN, vv lsT] _ [BitVec.ofNat 64 cv.levelParams.length, Enc.idxW cv.type] (by decide) rfl (by decide) hc.sz ⟨(by simp +decide [Env.get]), (by simp +decide [Env.get]), trivial⟩
       (PostB C) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
@@ -886,10 +886,10 @@ theorem lso_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       (fun b w s' H' hp hw => ?_)
     subst hw
     exact specR_returnI _ (boolW b) (by simp) (fun t' ht => ⟨H', hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_neg (show ¬ (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
+  rw [ite_eq_right (show ¬ (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
   refine specR_pinAtI hok PIN_NAT_SUCC (by decide) lsX (by decide) ?_
   refine specR_ifI _ (boolW (cv.name == _)) (by simp +decide [sev, Env.get]; exact eqIdx_w' _ _) (fun h => ?_) (fun h => ?_)
-  · rw [if_pos (show (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
+  · rw [ite_eq_left (show (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
     refine specR_bindPure ?_
     refine specR_callNIH lsR fLsu lsParams [vv lsN, vv lsT] _ [BitVec.ofNat 64 cv.levelParams.length, Enc.idxW cv.type] (by decide) rfl (by decide) hc.su ⟨(by simp +decide [Env.get]), (by simp +decide [Env.get]), trivial⟩
       (PostB C) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
@@ -897,10 +897,10 @@ theorem lso_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       (fun b w s' H' hp hw => ?_)
     subst hw
     exact specR_returnI _ (boolW b) (by simp) (fun t' ht => ⟨H', hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_neg (show ¬ (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
+  rw [ite_eq_right (show ¬ (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
   refine specR_pinAtI hok PIN_STRING (by decide) lsX (by decide) ?_
   refine specR_ifI _ (boolW (cv.name == _)) (by simp +decide [sev, Env.get]; exact eqIdx_w' _ _) (fun h => ?_) (fun h => ?_)
-  · rw [if_pos (show (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
+  · rw [ite_eq_left (show (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
     refine specR_bindPure ?_
     refine specR_callNIH lsR fLss lsParams [vv lsN, vv lsT] _ [BitVec.ofNat 64 cv.levelParams.length, Enc.idxW cv.type] (by decide) rfl (by decide) hc.ss ⟨(by simp +decide [Env.get]), (by simp +decide [Env.get]), trivial⟩
       (PostB C) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
@@ -908,10 +908,10 @@ theorem lso_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       (fun b w s' H' hp hw => ?_)
     subst hw
     exact specR_returnI _ (boolW b) (by simp) (fun t' ht => ⟨H', hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_neg (show ¬ (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
+  rw [ite_eq_right (show ¬ (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
   refine specR_pinAtI hok PIN_STRING_OF_LIST (by decide) lsX (by decide) ?_
   refine specR_ifI _ (boolW (cv.name == _)) (by simp +decide [sev, Env.get]; exact eqIdx_w' _ _) (fun h => ?_) (fun h => ?_)
-  · rw [if_pos (show (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
+  · rw [ite_eq_left (show (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
     refine specR_bindPure ?_
     refine specR_callNIH lsR fLsl lsParams [vv lsN, vv lsT] _ [BitVec.ofNat 64 cv.levelParams.length, Enc.idxW cv.type] (by decide) rfl (by decide) hc.sl ⟨(by simp +decide [Env.get]), (by simp +decide [Env.get]), trivial⟩
       (PostB C) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
@@ -919,10 +919,10 @@ theorem lso_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       (fun b w s' H' hp hw => ?_)
     subst hw
     exact specR_returnI _ (boolW b) (by simp) (fun t' ht => ⟨H', hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_neg (show ¬ (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
+  rw [ite_eq_right (show ¬ (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
   refine specR_pinAtI hok PIN_LIST (by decide) lsX (by decide) ?_
   refine specR_ifI _ (boolW (cv.name == _)) (by simp +decide [sev, Env.get]; exact eqIdx_w' _ _) (fun h => ?_) (fun h => ?_)
-  · rw [if_pos (show (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
+  · rw [ite_eq_left (show (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
     refine specR_bindPure ?_
     refine specR_callNIH lsR fLli lpParams [vv lsN, vv lsP, vv lsT] _ [BitVec.ofNat 64 cv.levelParams.length, cellA C o, Enc.idxW cv.type] (by decide) rfl (by decide) hc.li ⟨(by simp +decide [Env.get]), (by simp +decide [Env.get]), (by simp +decide [Env.get]), trivial⟩
       (PostB C) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
@@ -930,10 +930,10 @@ theorem lso_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       (fun b w s' H' hp hw => ?_)
     subst hw
     exact specR_returnI _ (boolW b) (by simp) (fun t' ht => ⟨H', hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_neg (show ¬ (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
+  rw [ite_eq_right (show ¬ (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
   refine specR_pinAtI hok PIN_LIST_NIL (by decide) lsX (by decide) ?_
   refine specR_ifI _ (boolW (cv.name == _)) (by simp +decide [sev, Env.get]; exact eqIdx_w' _ _) (fun h => ?_) (fun h => ?_)
-  · rw [if_pos (show (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
+  · rw [ite_eq_left (show (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
     refine specR_bindPure ?_
     refine specR_callNIH lsR fLln lpParams [vv lsN, vv lsP, vv lsT] _ [BitVec.ofNat 64 cv.levelParams.length, cellA C o, Enc.idxW cv.type] (by decide) rfl (by decide) hc.ln ⟨(by simp +decide [Env.get]), (by simp +decide [Env.get]), (by simp +decide [Env.get]), trivial⟩
       (PostB C) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
@@ -941,10 +941,10 @@ theorem lso_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       (fun b w s' H' hp hw => ?_)
     subst hw
     exact specR_returnI _ (boolW b) (by simp) (fun t' ht => ⟨H', hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_neg (show ¬ (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
+  rw [ite_eq_right (show ¬ (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
   refine specR_pinAtI hok PIN_LIST_CONS (by decide) lsX (by decide) ?_
   refine specR_ifI _ (boolW (cv.name == _)) (by simp +decide [sev, Env.get]; exact eqIdx_w' _ _) (fun h => ?_) (fun h => ?_)
-  · rw [if_pos (show (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
+  · rw [ite_eq_left (show (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
     refine specR_bindPure ?_
     refine specR_callNIH lsR fLlc lpParams [vv lsN, vv lsP, vv lsT] _ [BitVec.ofNat 64 cv.levelParams.length, cellA C o, Enc.idxW cv.type] (by decide) rfl (by decide) hc.lc ⟨(by simp +decide [Env.get]), (by simp +decide [Env.get]), (by simp +decide [Env.get]), trivial⟩
       (PostB C) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
@@ -952,10 +952,10 @@ theorem lso_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       (fun b w s' H' hp hw => ?_)
     subst hw
     exact specR_returnI _ (boolW b) (by simp) (fun t' ht => ⟨H', hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_neg (show ¬ (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
+  rw [ite_eq_right (show ¬ (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
   refine specR_pinAtI hok PIN_CHAR (by decide) lsX (by decide) ?_
   refine specR_ifI _ (boolW (cv.name == _)) (by simp +decide [sev, Env.get]; exact eqIdx_w' _ _) (fun h => ?_) (fun h => ?_)
-  · rw [if_pos (show (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
+  · rw [ite_eq_left (show (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
     refine specR_bindPure ?_
     refine specR_callNIH lsR fLss lsParams [vv lsN, vv lsT] _ [BitVec.ofNat 64 cv.levelParams.length, Enc.idxW cv.type] (by decide) rfl (by decide) hc.ss ⟨(by simp +decide [Env.get]), (by simp +decide [Env.get]), trivial⟩
       (PostB C) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
@@ -963,10 +963,10 @@ theorem lso_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       (fun b w s' H' hp hw => ?_)
     subst hw
     exact specR_returnI _ (boolW b) (by simp) (fun t' ht => ⟨H', hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_neg (show ¬ (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
+  rw [ite_eq_right (show ¬ (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
   refine specR_pinAtI hok PIN_CHAR_OF_NAT (by decide) lsX (by decide) ?_
   refine specR_ifI _ (boolW (cv.name == _)) (by simp +decide [sev, Env.get]; exact eqIdx_w' _ _) (fun h => ?_) (fun h => ?_)
-  · rw [if_pos (show (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
+  · rw [ite_eq_left (show (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
     refine specR_bindPure ?_
     refine specR_callNIH lsR fLco lsParams [vv lsN, vv lsT] _ [BitVec.ofNat 64 cv.levelParams.length, Enc.idxW cv.type] (by decide) rfl (by decide) hc.co ⟨(by simp +decide [Env.get]), (by simp +decide [Env.get]), trivial⟩
       (PostB C) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
@@ -974,7 +974,7 @@ theorem lso_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       (fun b w s' H' hp hw => ?_)
     subst hw
     exact specR_returnI _ (boolW b) (by simp) (fun t' ht => ⟨H', hp, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-  rw [if_neg (show ¬ (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
+  rw [ite_eq_right (show ¬ (cv.name == _) = true by cases e : (cv.name == _) <;> simp_all [boolW])]
   exact specR_returnI _ 1 rfl (fun t' ht => ⟨C.H, List.prefix_refl _, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 

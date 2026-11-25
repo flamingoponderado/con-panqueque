@@ -80,7 +80,7 @@ theorem cur_step {slots : List Nat} {i j j' : Nat} (hj : slots[j]? = some (i + 1
   by_cases e : x = j
   · subst e; have hv : slots.getD x 0 = i + 1 := by simp [List.getD_eq_getElem?_getD, hj]
     unfold cur; rw [hv]; simp
-  · rw [if_neg e]; unfold cur
+  · rw [ite_eq_right e]; unfold cur
     have hne : slots.getD x 0 ≠ i + 1 := by
       intro hv; apply e; apply hu
       by_cases hx : x < slots.length
@@ -89,8 +89,8 @@ theorem cur_step {slots : List Nat} {i j j' : Nat} (hj : slots[j]? = some (i + 1
       · simp only [List.getD_eq_getElem?_getD, List.getElem?_eq_none (by omega : slots.length ≤ x),
           Option.getD_none] at hv; omega
     by_cases h1 : slots.getD x 0 ≠ 0 ∧ slots.getD x 0 ≤ i
-    · rw [if_pos h1, if_pos (show slots.getD x 0 ≠ 0 ∧ slots.getD x 0 ≤ i + 1 from ⟨h1.1, by omega⟩)]
-    · rw [if_neg h1, if_neg (show ¬ (slots.getD x 0 ≠ 0 ∧ slots.getD x 0 ≤ i + 1) from
+    · rw [ite_eq_left h1, ite_eq_left (show slots.getD x 0 ≠ 0 ∧ slots.getD x 0 ≤ i + 1 from ⟨h1.1, by omega⟩)]
+    · rw [ite_eq_right h1, ite_eq_right (show ¬ (slots.getD x 0 ≠ 0 ∧ slots.getD x 0 ≤ i + 1) from
         fun h2 => h1 ⟨h2.1, by omega⟩)]
 
 theorem cur_done {α : Type} {home : α → Nat} {rows : List α} {slots : List Nat} {n : Nat}
@@ -464,12 +464,12 @@ theorem rowBody_spec {α : Type} (b : PState σ) (g : VGeo) (enc : α → List (
     split
     · rename_i e
       have := slot_inj g hS hj hjd e
-      rw [hcs, if_pos this]; rfl
+      rw [hcs, ite_eq_left this]; rfl
     · rename_i e
       have hne : j ≠ jd := fun x => e (by rw [x])
-      rw [hcs, if_neg hne, hmem8]; exact hsl j hj
+      rw [hcs, ite_eq_right hne, hmem8]; exact hsl j hj
   · show (if _ then _ else _) = _
-    rw [if_neg (hc jd hjd), hmem8]; exact hout c hc
+    rw [ite_eq_right (hc jd hjd), hmem8]; exact hout c hc
 
 theorem rowLoop_spec {α : Type} (b : PState σ) (g : VGeo) (enc : α → List (BitVec 64)) (rows : List α)
     (ders : List (BitVec 64 × BitVec 64)) (slots : List Nat) (hu : Nat)

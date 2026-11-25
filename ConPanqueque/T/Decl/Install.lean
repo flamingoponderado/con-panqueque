@@ -30,9 +30,9 @@ theorem envRel_push {C : Ctx} (h : EnvRel C) (hg : TblGate C.fe) {ci : IConstant
       | some ci' => ∃ o', (C.envM.insert ci.name (ecell C o))[n]? = some (ecell C o') ∧ CIE C.EB EH o' ci'
     rw [IFEnv.find?_push, Std.HashMap.getElem?_insert]
     by_cases e : (ci.name == n) = true
-    · simp only [e, if_true]; exact ⟨o, rfl, hcie⟩
+    · simp only [e, ite_true]; exact ⟨o, rfl, hcie⟩
     · have ef : (ci.name == n) = false := by simpa using e
-      simp only [ef, Bool.false_eq_true, if_false]
+      simp only [ef, Bool.false_eq_true, ite_false]
       have := h.1 n
       revert this
       cases C.fe.find? n with
@@ -382,9 +382,9 @@ theorem envRel_ins {C : Ctx} (h : EnvRel C) {ci : IConstantInfo} {o : Nat} {EH :
       | some ci' => ∃ o', (C.envM.insert ci.name (ecell C o))[n]? = some (ecell C o') ∧ CIE C.EB EH o' ci'
     rw [hf, Std.HashMap.getElem?_insert]
     by_cases e : (ci.name == n) = true
-    · simp only [e, if_true]; exact ⟨o, rfl, hcie⟩
+    · simp only [e, ite_true]; exact ⟨o, rfl, hcie⟩
     · have ef : (ci.name == n) = false := by simpa using e
-      simp only [ef, Bool.false_eq_true, if_false]
+      simp only [ef, Bool.false_eq_true, ite_false]
       have := h.1 n
       revert this
       cases C.fe.find? n with
@@ -545,9 +545,9 @@ theorem inst_spec (C : Ctx) (hok : CtxOK C)
     apply List.ext_getElem?
     intro p
     by_cases hpl : p < C.EH.length
-    · rw [List.getElem?_take, if_pos hpl, h2 p (by omega), List.getElem?_eq_getElem hpl,
+    · rw [List.getElem?_take, ite_eq_left hpl, h2 p (by omega), List.getElem?_eq_getElem hpl,
         get_prefix (List.getElem?_eq_getElem hpl) hp2]
-    · rw [List.getElem?_take, if_neg hpl, List.getElem?_eq_none (by omega)]
+    · rw [List.getElem?_take, ite_eq_right hpl, List.getElem?_eq_none (by omega)]
   -- the constant block
   refine specR_envAllocI inX (.const 48) 6 (by omega) (by decide) (fun v => rfl) (fun ws2 hws2 hroom2 => ?_)
   have hp4 : C.EH <+: E3 ++ ws2 := hp3.trans (List.prefix_append _ _)

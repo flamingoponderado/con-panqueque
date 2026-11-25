@@ -39,7 +39,7 @@ theorem zeroFill_spec {α : Type} {m : AM α} {R : α → BitVec 64 → AState �
     p.C = ctxH C (kcH C.H j0 (List.replicate N 0) z) ∧ p.Γ.get kZ = some (BitVec.ofNat 64 z) ∧
     ∀ y, y ≠ kZ → p.Γ.get y = Γ.get y
   have hp0 : P ⟨ctxH C (kcH C.H j0 (List.replicate N 0) 0), s, (kZ, 0) :: Γ, m⟩ :=
-    ⟨rfl, rfl, 0, by omega, rfl, by simp [Env.get_cons], fun y h => by simp only [Env.get_cons, if_neg h]⟩
+    ⟨rfl, rfl, 0, by omega, rfl, by simp [Env.get_cons], fun y h => by simp only [Env.get_cons, ite_eq_right h]⟩
   have e0 : ctxH C (kcH C.H j0 (List.replicate N 0) 0) = C := ctxH_self C
   rw [← e0]
   refine (specR_whileT (σ := σ) (D := D) P ⟨ctxH C (kcH C.H j0 (List.replicate N 0) 0), s, (kZ, 0) :: Γ, m⟩ hp0 ?_ : _)
@@ -65,7 +65,7 @@ theorem zeroFill_spec {α : Type} {m : AM α} {R : α → BitVec 64 → AState �
       (.op .add [vv kZb, .shift .lsl (vv kZ) (.const 3)]) (.const 0) (j0 + z) hcell 0 ?_ rfl)
       (step_assignI kZ (.op .add [vv kZ, .const 1]) (BitVec.ofNat 64 (z + 1)) hD ?_)) (fun t ht => ht) ?_
     · simp only [sev, vv, hpz, Option.map_some, show (3 : BitVec 64).toNat = 3 from rfl,
-        show (3 : Nat) < 64 by decide, if_true]
+        show (3 : Nat) < 64 by decide, ite_true]
       rw [hpo _ (by decide), hZb, shl3 z (by omega)]
       simp only [Option.bind_eq_bind, Option.bind_some, Option.pure_def]
       rw [show cellA (ctxH C (kcH C.H j0 (List.replicate N 0) z)) (j0 + z) = cellA C (j0 + z) from rfl, cellA_add]
@@ -74,7 +74,7 @@ theorem zeroFill_spec {α : Type} {m : AM α} {R : α → BitVec 64 → AState �
     · intro t' ht'
       refine ⟨⟨ctxH C (kcH C.H j0 (List.replicate N 0) (z + 1)), s, (kZ, BitVec.ofNat 64 (z + 1)) :: p.Γ, m⟩,
         ⟨rfl, rfl, z + 1, by omega, rfl, by simp [Env.get_cons], fun y h => by
-          simp only [Env.get_cons, if_neg h]; exact hpo y h⟩, by rw [hpm], ?_⟩
+          simp only [Env.get_cons, ite_eq_right h]; exact hpo y h⟩, by rw [hpm], ?_⟩
       have e : kcH C.H j0 (List.replicate N 0) (z + 1) = (kcH C.H j0 (List.replicate N 0) z).set (j0 + z) 0 := by
         simp only [kcH]; congr 1; simp [List.getD_eq_getElem?_getD, List.getElem?_replicate, hzN]
       rw [e]; exact ht'

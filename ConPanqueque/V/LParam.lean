@@ -105,7 +105,7 @@ theorem lInternParam_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (t : PanSe
   unfold lParamWith
   rw [seq_normal _ (store_word t (vv lKb) (vv lEn) KB (Enc.idxW n) (eval_vv t lKb _ lkb) (eval_vv t lEn _ len) hkbd)]
   let t1 : PanSemStateFiniteExact 64 σ := { t with memory := fun c => if c = KB then .word (Enc.idxW n) else t.memory c }
-  have m1 : ∀ c, c ≠ KB → t1.memory c = t.memory c := fun c h => by show (if c = KB then _ else _) = _; rw [if_neg h]
+  have m1 : ∀ c, c ≠ KB → t1.memory c = t.memory c := fun c h => by show (if c = KB then _ else _) = _; rw [ite_eq_right h]
   have hR1 : SRep t1 L FLn FLl FLs FLe st := srep_frame hR
     ⟨m1 _ (flne _ (Or.inl rfl)), m1 _ (flne _ (Or.inr (Or.inl rfl))), m1 _ (flne _ (Or.inr (Or.inr (Or.inl rfl)))),
       m1 _ (flne _ (Or.inr (Or.inr (Or.inr rfl))))⟩ rfl

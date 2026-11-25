@@ -1112,7 +1112,7 @@ theorem ws_spec (C : Ctx) (hok : CtxOK C) (hc : WsCodes C) : ∀ n, n < 2 ^ 64 �
       unfold wsFvarK
       have hlt := Big.word_lt_iff idx d (by unfold B; omega) (by unfold B; omega)
       by_cases hid : idx < d
-      · rw [if_pos hid]
+      · rw [ite_eq_left hid]
         refine specR_ifI _ 1 (by simp [sev, hI, hDv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlt.mpr hid]) (fun _ => ?_)
           (fun h => absurd h (by decide))
         refine specR_wsCallI hok hc ih' wsK1 (vv wsI) (vv wsT) (vv wsM) idx ty pm memo ⟨by decide, by decide, by decide⟩
@@ -1122,7 +1122,7 @@ theorem ws_spec (C : Ctx) (hok : CtxOK C) (hc : WsCodes C) : ∀ n, n < 2 ^ 64 �
         dsimp only
         exact specR_wsInsI hok h d hd r1 pm1 m1 ⟨by decide, by decide⟩ (by simp [Env.get, hH]) (by simp [Env.get, hDv])
           (by simp [Env.get]) (by simp [Env.get]) hrep1 hp1
-      · rw [if_neg hid]
+      · rw [ite_eq_right hid]
         refine specR_ifI _ 0 (by simp [sev, hI, hDv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; rw [Nat.mod_eq_of_lt (by omega), Nat.mod_eq_of_lt (by omega)]; omega)
           (fun h => absurd rfl h) (fun _ => ?_)
         refine specR_assignI wsR (.const 0) (boolW false) (by decide) rfl ?_

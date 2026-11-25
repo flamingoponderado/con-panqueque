@@ -214,8 +214,8 @@ theorem step_ifI {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {Q :
   intro t ht
   rw [ite_word t e c1 c2 w (inv_ev ht he)]
   by_cases hw : w ≠ 0
-  · rw [if_pos hw]; exact h1 hw t ht
-  · rw [if_neg hw]; exact h2 (by simpa using hw) t ht
+  · rw [ite_eq_left hw]; exact h1 hw t ht
+  · rw [ite_eq_right hw]; exact h2 (by simpa using hw) t ht
 
 theorem step_hangI {P Q : PState σ → Prop} : Step P hang Q :=
   fun t _ => Or.inl (hang_stop t)
@@ -433,7 +433,7 @@ theorem wb_iter (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx} (hok : CtxOK C)
       refine step_mono (step_assignI wG (.const 0) 0 (by decide) rfl) (fun _ h => h) (fun t ht => ?_)
       refine ⟨⟨ctxH C H3, s3, doneEnv C n d e f' e2, pure e2⟩, Or.inr ⟨H3, s3, f', e2, hpall3, rfl⟩, ?_, ?_⟩
       · show (pure e2 : AM EIdx) s3 = _
-        rw [whnfLoop_succ]; show _ = Except.bind (whnfStep _ _ _ _ s1) _; rw [hstep, if_pos ht8]; rfl
+        rw [whnfLoop_succ]; show _ = Except.bind (whnfStep _ _ _ _ s1) _; rw [hstep, ite_eq_left ht8]; rfl
       · exact wb_weak C n d e 0 (BitVec.ofNat 64 f') (Enc.idxW e2) ht (by simp) (by simp [contEnv]) (by simp)
           (fun z hz => by
             simp only [wbLocals, List.mem_cons, List.not_mem_nil, or_false, not_or] at hz
@@ -445,7 +445,7 @@ theorem wb_iter (mode : ConLeche.CheckMode) (n : Nat) {C : Ctx} (hok : CtxOK C)
       refine ⟨⟨ctxH C H3, s3, contEnv C n d e f' e2, whnfLoop (knot mode C n) C.fe d f' e2⟩,
         Or.inl ⟨H3, s3, e2, f', hpall3, hq3, by omega, rfl⟩, ?_, ?_⟩
       · show _ = whnfLoop _ _ _ (f' + 1) e' s1
-        rw [whnfLoop_succ]; show _ = Except.bind (whnfStep _ _ _ _ s1) _; rw [hstep, if_neg ht8]; rfl
+        rw [whnfLoop_succ]; show _ = Except.bind (whnfStep _ _ _ _ s1) _; rw [hstep, ite_eq_right ht8]; rfl
       · exact wb_weak C n d e 1 (BitVec.ofNat 64 f') (Enc.idxW e2) ht (by simp [contEnv]) (by simp) (by simp)
           (fun z hz => by
             simp only [wbLocals, List.mem_cons, List.not_mem_nil, or_false, not_or] at hz
