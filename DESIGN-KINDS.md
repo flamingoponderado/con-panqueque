@@ -71,3 +71,11 @@ index), `Array` growth in the positivity state, and spec-level `Name`/`Level` va
 - Scanner: the line table accepts `axiom` and `quot` payloads (tags 21, 22; `Scan/ObjInst2`,
   `Scan/RecEnds2`, `Scan/Line`, `Scan/LineFun`, `Front/PlTag`). The dispatcher has no branch for them yet,
   so such lines still reject.
+- `readBlock` pieces, each a Pancake function with a spec against its twin fragment (`T/Ind`, all sorry-free,
+  standard axioms): the split (`Split`, `SplitLemma`), `indParamsOk` (`IndParams`), `blockCounts`,
+  `blockMemberCounts` (`BlockCounts`, `MemberCounts`, `FindRec`, `RecTarget`), the level-parameter checks
+  (`LpsEq`, `AllLps`), `memberIdxAt?`/`ctorMember?` (`CtorMember`), `blockGroups` (`Groups`), `paramLevels`
+  (`ParamLevels`), the result sort and `isProp` (`ResultSort`), the recursor shapes (`RecShapes`), `large?`
+  (`Large`), the anonymous name (`Anon`, a lookup given the image fact `denoteN C.St.ns anonH = some
+  .anonymous`). Heap layout of the result: `Shape` (`ShapeRep`). Next: the members' blocks and `readBlock`
+  itself.
