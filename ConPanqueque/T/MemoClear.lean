@@ -1,4 +1,4 @@
-import ConPanqueque.T.Memo
+import ConPanqueque.T.RowClear
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V ConPanqueque.ConsModel ConPanqueque.ConsTbl
 open ConRon.Arena
@@ -11,8 +11,6 @@ over the static geometry), the row count, and resets the key-heap top.
 -/
 
 namespace ConPanqueque.T
-
-def lJ0 := ofString "cj0"
 
 def clearLoop (g : VGeo) : ProgHOL 64 :=
   .while (.cmp .lower (vv lJ0) (.const (BitVec.ofNat 64 g.n)))
@@ -84,10 +82,10 @@ theorem clearLoop_spec (u : PState σ) (g : VGeo) (hn : g.n ≤ 2 ^ 56) (hS : g.
   · exact Or.inl hs
   · exact Or.inr ⟨hn', hq, hj⟩
 
-/-- `cj0 := 0; loop; C := 0; C + 8 := KH; rest`. -/
+/-- `rowClear; C := 0; C + 8 := KH; rest` (the full sweep `clearLoop` is kept for reference). -/
 def clearCode (g : VGeo) (rest : ProgHOL 64) : ProgHOL 64 :=
-  .seq (.assign .local lJ0 (.const 0)) (.seq (clearLoop g)
-    (.seq (.store (.const g.C) (.const 0)) (.seq (.store (.const (g.C + 8)) (.const g.KH)) rest)))
+  .seq (rowClear g)
+    (.seq (.store (.const g.C) (.const 0)) (.seq (.store (.const (g.C + 8)) (.const g.KH)) rest))
 
 theorem inst1Clear_run (s : AState) :
     inst1Clear s = .ok ((), { s with memos := memoUpd .inst1 s.memos ∅ }) := rfl
@@ -151,21 +149,14 @@ theorem clearCode_core {K V : Type} [BEq K] [LawfulBEq K] [Hashable K] [Decidabl
   have hn56 : g.n ≤ 2 ^ 56 := by rw [hn]; exact Nat.pow_le_pow_right (by decide) hb
   have hpos : 0 < g.n := hinv.pos
   unfold clearCode
-  rw [seq_normal _ (ConsLoop.assign_local t lJ0 (.const 0) 0 w0 (eval_const t 0) hw0)]
-  let t1 := setVarHOLFinite lJ0 (.val (.word 0)) t
-  have hdom : ∀ j, j < g.n → t1.memaddrs (g.S + BitVec.ofNat 64 (8 * j)) := fun j hj' => by
-    obtain ⟨_, _, _, a, _⟩ := hT.slot j hj'; exact a
-  rcases clearLoop_spec t1 g hn56 (by omega) hdom (lookup_setVar_same _ _ _) with hs | ⟨hn1, hI, hjn⟩
+  rcases rowClear_spec t g enc rows ders slots hu hT hinv hn hb hcap w0 hw0 with hs | ⟨hn1, hz, hfr, hd2, hc2, hg2, hta2, hl2, hjw⟩
   · exact Or.inl (seq_stop _ _ _ hs)
-  have e1 : evaluateHOLFiniteState t1 (clearLoop g) = (none, (evaluateHOLFiniteState t1 (clearLoop g)).2) := by
+  have e1 : evaluateHOLFiniteState t (rowClear g) = (none, (evaluateHOLFiniteState t (rowClear g)).2) := by
     rw [← hn1]
   rw [seq_normal _ e1]
-  generalize (evaluateHOLFiniteState t1 (clearLoop g)).2 = t2 at hI hjn
-  obtain ⟨j, hjle, hjl, hz, hfr, hd2, hc2, hg2, hta2, hl2⟩ := hI
-  have hjeq : j = g.n := by
-    rw [hjl] at hjn; simp at hjn
-    have := congrArg BitVec.toNat hjn; simp at this; omega
-  subst hjeq
+  generalize (evaluateHOLFiniteState t (rowClear g)).2 = t2 at hz hfr hd2 hc2 hg2 hta2 hl2 hjw
+  have hdom : ∀ j, j < g.n → t.memaddrs (g.S + BitVec.ofNat 64 (8 * j)) := fun j hj' => by
+    obtain ⟨_, _, _, a, _⟩ := hT.slot j hj'; exact a
   have hCd : t2.memaddrs g.C := by rw [hd2]; exact hT.cnt.1
   rw [seq_normal _ (store_word t2 (.const g.C) (.const 0) g.C 0 (eval_const t2 _) (eval_const t2 0) hCd)]
   let t3 : PState σ := { t2 with memory := fun c => (if c = g.C then HolWordLab.word 0 else t2.memory c) }
@@ -188,7 +179,6 @@ theorem clearCode_core {K V : Type} [BEq K] [LawfulBEq K] [Hashable K] [Decidabl
     have hc2 : c ≠ g.C := fun e => hc (by rw [e]; exact ⟨Nat.le_refl _, by omega⟩)
     rw [m4, if_neg hc1, if_neg hc2, hfr c (fun j hj' e => hc (by
       rw [e]; refine ⟨?_, ?_⟩ <;> rw [toNat_add_of_lt _ _ (by omega)] <;> omega))]
-    rfl
   have hVT : VT t4 enc [] [] (List.replicate g.n 0) g 0 := by
     refine ⟨fun j hj' => ⟨0, by simp [hj'], by decide, ?_, ?_⟩, fun i hi => absurd hi (by simp),
       fun i hi => absurd hi (by simp), ⟨by show t2.memaddrs _; exact hCd, ?_⟩, ⟨hC8, ?_⟩, Nat.zero_le _, rfl,
@@ -201,15 +191,16 @@ theorem clearCode_core {K V : Type} [BEq K] [LawfulBEq K] [Hashable K] [Decidabl
     · have := hT.hroom i hi; show t2.memaddrs _; rw [hd2]; exact this
   have hinv' : ConsModel.Inv (homeV enc g.b) ([] : List K) (List.replicate g.n 0) g.n :=
     ⟨by simp, hpos, hinv.home_lt, fun j i hji => by
-      simp [List.getElem?_replicate] at hji, fun i hi => absurd hi (by simp), List.nodup_nil⟩
-  have hd4 : t4.memaddrs = t.memaddrs := by show t2.memaddrs = _; rw [hd2]; rfl
+      simp [List.getElem?_replicate] at hji, fun i hi => absurd hi (by simp), List.nodup_nil,
+      fun j _ i hji _ => by simp [List.getElem?_replicate] at hji⟩
+  have hd4 : t4.memaddrs = t.memaddrs := by show t2.memaddrs = _; rw [hd2]
   have hds : DescV t4 G g 1 := fun j hj' =>
     ⟨by rw [hd4]; exact (hdesc j hj').1, by rw [hout _ (hGout j hj')]; exact (hdesc j hj').2⟩
   refine Or.inr ⟨t4, rfl, ⟨hds, hn, hb, hcap, ⟨#[], #[], ∅⟩, [], [], List.replicate g.n 0, 0, hVT, hinv',
-      ⟨rfl, fun a => by simp⟩, rfl, memoRel_empty⟩, hout, hd4, by show t2.globals = _; rw [hg2]; rfl,
-    by show t2.code = _; rw [hc2]; rfl, fun y hy => ?_, _, hjl⟩
+      ⟨rfl, fun a => by simp⟩, rfl, memoRel_empty⟩, hout, hd4, by show t2.globals = _; rw [hg2],
+    by show t2.code = _; rw [hc2], fun y hy => ?_, hjw⟩
   show t2.locals.lookup y = _
-  rw [hl2 y hy]; exact lookup_setVar_other _ _ hy
+  exact hl2 y hy (by simp)
 
 /-- The continuation after a clear: `cj0` dropped from the environment. -/
 theorem inv_after_clear {C : Ctx} {s s' : AState} {Γ : Env} {M : Mem} {D : List MlS} {t u : PState σ}

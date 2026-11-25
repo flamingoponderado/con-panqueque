@@ -58,6 +58,8 @@ theorem inv_empty {α : Type} (enc : α → List (BitVec 64)) (g : VGeo) (h : Em
     rw [List.getElem?_replicate] at hj; split at hj <;> simp at hj
   reach i hi := absurd hi (by simp)
   rows_nodup := List.nodup_nil
+  uniq j _ i hj _ := by
+    rw [List.getElem?_replicate] at hj; split at hj <;> simp at hj
 
 theorem tblRel_empty {α ι δ : Type} [BEq α] [LawfulBEq α] [Hashable α] [DecidableEq α] (mk : Nat → ι) :
     TblRel (Tbl.empty : Tbl α ι δ) [] mk :=
@@ -159,6 +161,13 @@ theorem inv_one {α : Type} (enc : α → List (BitVec 64)) (g : VGeo) (x : α) 
     simp only [List.getElem_cons_zero, h0, at_, Nat.add_zero, Nat.zero_mod]
     rw [slots1_get _ _ (by have := h.pos; omega)]; rfl
   rows_nodup := by simp
+  uniq j j' i hj hj' := by
+    have g : ∀ x, (slots1 g.n)[x]? = some (i + 1) → x = 0 := by
+      intro x hx
+      by_cases hxn : x < g.n
+      · rw [slots1_get _ _ hxn] at hx; split at hx <;> simp_all
+      · rw [List.getElem?_eq_none (by simp [slots1]; omega)] at hx; cases hx
+    rw [g j hj, g j' hj']
 
 theorem tabAt_one {α ι δ : Type} [BEq α] [LawfulBEq α] [Hashable α] [DecidableEq α]
     (t : PanSemStateFiniteExact 64 σ) (L : Layout) (k tier : Nat) (enc : α → List (BitVec 64))

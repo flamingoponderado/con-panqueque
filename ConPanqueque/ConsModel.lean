@@ -37,6 +37,8 @@ structure Inv (home : α → Nat) (rows : List α) (slots : List Nat) (n : Nat) 
     slots[at_ n (home (rows[i])) d]? = some (i + 1) ∧
     ∀ d', d' < d → slots[at_ n (home (rows[i])) d']? ≠ some 0
   rows_nodup : rows.Nodup
+  /-- A row is named by one slot only. -/
+  uniq : ∀ (j j' i : Nat), slots[j]? = some (i + 1) → slots[j']? = some (i + 1) → j = j'
 
 /-- A hit names a row equal to the key. -/
 theorem probe_some (rows : List α) (slots : List Nat) (n : Nat) (a : α) :
@@ -145,7 +147,7 @@ theorem insert_inv (home : α → Nat) (rows : List α) (slots : List Nat) (n : 
     intro x; rw [List.getElem?_set]; by_cases e : j = x
     · subst e; simp [hjlt]
     · simp [e]
-  refine ⟨by simp [hinv.len], hinv.pos, hinv.home_lt, ?_, ?_, ?_⟩
+  refine ⟨by simp [hinv.len], hinv.pos, hinv.home_lt, ?_, ?_, ?_, ?_⟩
   · intro x i hx
     rw [get_set] at hx
     split at hx
@@ -176,6 +178,13 @@ theorem insert_inv (home : α → Nat) (rows : List α) (slots : List Nat) (n : 
   · refine List.nodup_append.mpr ⟨hinv.rows_nodup, by simp, ?_⟩
     intro x hx y hy e
     simp at hy; subst hy; subst e; exact ha hx
+  · intro x x' i hx hx'
+    rw [get_set] at hx hx'
+    split at hx <;> split at hx'
+    · rename_i e1 e2; rw [← e1, ← e2]
+    · rename_i e1 _; cases hx; have := hinv.named x' rows.length hx'; omega
+    · rename_i _ e2; cases hx'; have := hinv.named x rows.length hx; omega
+    · exact hinv.uniq x x' i hx hx'
 
 /-- Where the probe stops: at the row equal to the key, at an empty slot, or out of fuel. -/
 inductive PR where
