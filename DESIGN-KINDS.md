@@ -82,3 +82,17 @@ index), `Array` growth in the positivity state, and spec-level `Name`/`Level` va
   flattens the twin). Hypotheses left for the callers: `RuntimeAssumptions`, the image's anonymous name,
   `lvlEq?`'s spec (as `isPropType` takes it), and bounds on the block's lengths. Next: `blockReadsAt`
   (`IotaRead`), then `checkBlock` (`Positivity`, `GenRec`, `RecCheck`, the installs).
+- **`IotaRead` below `blockReadsAt` done** (`T/Ind`, sorry-free): `piTele`, `motiveLevel?`, minors,
+  `iotaRecMajor`/`iotaRecOf` (`IotaRec`, `IotaRecOf`), `liftFieldDoms`/`liftIdxArgs`/`iotaPartsOfAt`
+  (`IotaParts`), `iotaBVars`/`iotaParamsAt`/`ctorLevelsAt` (`IotaCtor`), `iotaPartsAtBody` (`IotaBody`, with the
+  generic block slice `sliceCopyP`), `iotaPartsAt` (`IotaPartsAt`; numeric bounds the twin never checks are runtime
+  hang guards), `lvlEq` (`LvlEqE`), `listLvlEq`, `annWitness`/`annIdentBody`/`annIdentVal`/`annIdent` (`AnnEq`),
+  `annEq` (`AnnEqRec`; annotation names interned as `topName` = image `anonH` + frontend `internNStr`, so callers
+  need `FrontOK` and the anonymous-name image fact), `listAnnEq`, `paramsAnnEq`/`iotaPartsRel` (`IotaRel`, with
+  heap block equality `blkEq`), `ruleReads` (`RuleReads`; rules live in the environment heap and are copied to the
+  value heap by `ruleCopyP`), `rulesRead`/`recReads`/`recsRead` (`RecsRead`).
+  The level arms of `lvlEq` run the twin's cached readbacks from the entry state and re-establish the state
+  relation with `sr_congrS` (the port caches nothing there).
+  Next: `blockReadsAt` = `blockConstants` (`blockIsRec`, `blockFormers`/`blockCapsAt`, `blockCtors`, `blockRecs`
+  with `recFire`) written as environment records (`CIE`), the temporary push/pop of the environment index
+  (`consBlockRecsTemp`, `popTemp`; reuse `T/Decl/Install`), `recsRead`; then `checkBlock`.
