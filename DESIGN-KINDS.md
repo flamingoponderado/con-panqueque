@@ -96,3 +96,23 @@ index), `Array` growth in the positivity state, and spec-level `Name`/`Level` va
   Next: `blockReadsAt` = `blockConstants` (`blockIsRec`, `blockFormers`/`blockCapsAt`, `blockCtors`, `blockRecs`
   with `recFire`) written as environment records (`CIE`), the temporary push/pop of the environment index
   (`consBlockRecsTemp`, `popTemp`; reuse `T/Decl/Install`), `recsRead`; then `checkBlock`.
+
+### `blockReadsAt`'s temporary environment (design)
+
+The twin reads the recursors' rules against `feR` (the block's constants pushed onto the index, previous rows saved),
+then pops back to `fe₀` before `checkBlock`. The port must follow the same order: `checkBlock` runs from the state
+`blockReadsAt` leaves (it interns), so the two cannot be swapped without losing the store's exact mirror.
+
+The port's environment index is a memo table (`MemoAtG`, append-only rows over an open-addressing slot array,
+`ConsModel.Inv`), and `EnvRel` ties `C.fe.find?` exactly to it, so a pop has to restore the table. Options:
+
+1. A delete in the memo model (tombstones). Changes `MemoRel` for every memo; too wide.
+2. An overlay table consulted before the index during `recsRead`. Every environment lookup on that path
+   (`ruleReads`' constructor, `annIdent`, `annWitness`) would take a two-level finder; three specs change and
+   the block's records would live outside the environment heap.
+3. **Undo log (chosen).** The pushed names are required fresh (`fe.find? n = none`; otherwise the port hangs,
+   which soundness-only allows). Each temporary insert writes a fresh row past the table's row count, one empty
+   slot, and the descriptor words; the pop clears those slots in reverse and restores the saved descriptor and the
+   environment heap's top (`gEt`). Rows past the count are not part of the representation, so the table's memory
+   is back to a state the old `MemoAtG` holds for (`memoAtG_frame`-style), and `EnvRel`/`CtxOK` hold for the old
+   context. Needed: the memo insert's footprint (which words it writes) and a restore lemma.
