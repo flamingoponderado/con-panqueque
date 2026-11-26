@@ -531,3 +531,5 @@ import ConPanqueque.T.Ind.ConsCtors
 import ConPanqueque.T.Ind.RecPins
 import ConPanqueque.T.Ind.LargeElim
 import ConPanqueque.T.Ind.TargetAbs
+import ConPanqueque.T.Ind.TargetMatch
+import ConPanqueque.T.Ind.ClassNfs
