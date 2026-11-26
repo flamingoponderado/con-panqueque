@@ -544,3 +544,4 @@ import ConPanqueque.T.Decl.EnvUndo
 import ConPanqueque.T.Decl.IdxInsRec
 import ConPanqueque.T.Ind.CloseLams
 import ConPanqueque.T.Ind.GenRule
+import ConPanqueque.T.Ind.RuleCheck
