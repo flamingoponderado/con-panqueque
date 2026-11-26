@@ -554,3 +554,4 @@ import ConPanqueque.T.Decl.FeSwitch
 import ConPanqueque.T.Ind.StructTbl
 import ConPanqueque.T.Ind.StructTbl2
 import ConPanqueque.T.Ind.BlockTables
+import ConPanqueque.T.Ind.BlockTables2
