@@ -520,3 +520,4 @@ import ConPanqueque.T.Ind.RFHole
 import ConPanqueque.T.Ind.NestCtorNf
 import ConPanqueque.T.Ind.CtorChecks
 import ConPanqueque.T.Ind.NestCtors
+import ConPanqueque.T.Ind.NestRoot
