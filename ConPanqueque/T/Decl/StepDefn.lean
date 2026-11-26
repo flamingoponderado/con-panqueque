@@ -199,17 +199,21 @@ def ktBody (C : Ctx) : ProgHOL 64 := prologue kdLocals
 def ctxNew (C : Ctx) (fe : IFEnv) (EH : List (BitVec 64)) (envM : Std.HashMap NIdx (BitVec 64))
     (H : List (BitVec 64)) : Ctx := { C with fe := fe, EH := EH, envM := envM, H := H }
 
+/-- The context with an environment, its heap, constant table, table memo and value heap replaced. -/
+def ctxNewT (C : Ctx) (fe : IFEnv) (EH : List (BitVec 64)) (envM tblM : Std.HashMap NIdx (BitVec 64))
+    (H : List (BitVec 64)) : Ctx := { C with fe := fe, EH := EH, envM := envM, tblM := tblM, H := H }
+
 section
 variable {σ : Type}
 
 /-- After a record: the next context is well formed and related, with the fold's invariants. -/
 def PostStep (C : Ctx) (fe : IFEnv) (_ : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
-  ∃ EH envM H, C.EH <+: EH ∧ C.H <+: H ∧ CtxOK (ctxNew C fe EH envM H) ∧ SR (ctxNew C fe EH envM H) s' st ∧
-    TblGate fe ∧ FlagsOK fe ∧ LitsPinned fe C.pins
+  ∃ EH envM tblM H, C.EH <+: EH ∧ C.H <+: H ∧ CtxOK (ctxNewT C fe EH envM tblM H) ∧
+    SR (ctxNewT C fe EH envM tblM H) s' st ∧ TblGate fe ∧ FlagsOK fe ∧ LitsPinned fe C.pins
 
 theorem postStep_locals (C : Ctx) : ∀ a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
     PostStep C a w s' st → PostStep C a w s' { st with locals := L } :=
-  fun _ _ _ _ _ ⟨EH, envM, H, h1, h2, h3, h4, h5⟩ => ⟨EH, envM, H, h1, h2, h3, sr_of_eq h4 rfl rfl rfl rfl, h5⟩
+  fun _ _ _ _ _ ⟨EH, envM, tblM, H, h1, h2, h3, h4, h5⟩ => ⟨EH, envM, tblM, H, h1, h2, h3, sr_of_eq h4 rfl rfl rfl rfl, h5⟩
 
 theorem kd_none (C : Ctx) (vals : List (BitVec 64)) :
     ∀ x, x ∈ kdLocals → (ctxEnv C ++ kdParams.zip vals).get x = none :=
@@ -395,7 +399,7 @@ theorem kd_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ctx)
     (fun h => by
       have e : C.pins.reserved.contains cv.name = true := by simpa using h
       rw [e]; decide) (fun _ => ?_)
-  exact specR_returnI _ 0 rfl (fun t ht => ⟨EH, C.envM.insert cv.name (ecell C ox), H6, hpE,
+  exact specR_returnI _ 0 rfl (fun t ht => ⟨EH, C.envM.insert cv.name (ecell C ox), C.tblM, H6, hpE,
     hp14.trans (hp5.trans hp6), ctxOK_H hokF H6, sr_of_eq ht.sr rfl rfl rfl rfl, hg.push ci, hF.push ci,
     by unfold LitsPinned; rw [IFEnv.push_base]; exact hL⟩)
 
@@ -604,7 +608,7 @@ theorem ko_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ctx)
     (fun h => by
       have e : C.pins.reserved.contains cv.name = true := by simpa using h
       rw [e]; decide) (fun _ => ?_)
-  exact specR_returnI _ 0 rfl (fun t ht => ⟨EH, C.envM.insert cv.name (ecell C ox), H6, hpE,
+  exact specR_returnI _ 0 rfl (fun t ht => ⟨EH, C.envM.insert cv.name (ecell C ox), C.tblM, H6, hpE,
     hp14.trans (hp5.trans hp6), ctxOK_H hokF H6, sr_of_eq ht.sr rfl rfl rfl rfl, hg.push ci, hF.push ci,
     by unfold LitsPinned; rw [IFEnv.push_base]; exact hL⟩)
 
@@ -768,7 +772,7 @@ theorem kt_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ctx)
     (fun h => by
       have e : C.pins.reserved.contains cv.name = true := by simpa using h
       rw [e]; decide) (fun _ => ?_)
-  exact specR_returnI _ 0 rfl (fun t ht => ⟨EH, C.envM.insert cv.name (ecell C ox), H6, hpE,
+  exact specR_returnI _ 0 rfl (fun t ht => ⟨EH, C.envM.insert cv.name (ecell C ox), C.tblM, H6, hpE,
     hp14.trans (hp5.trans hp6), ctxOK_H hokF H6, sr_of_eq ht.sr rfl rfl rfl rfl, hg.push ci, hF.push ci,
     by unfold LitsPinned; rw [IFEnv.push_base]; exact hL⟩)
 

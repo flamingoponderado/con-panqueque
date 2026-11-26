@@ -1,4 +1,4 @@
-import ConPanqueque.T.Decl.StepDefn
+import ConPanqueque.T.Decl.StepRuns
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena ConRon.Bridge
@@ -65,15 +65,6 @@ def stepBody (C : Ctx) : ProgHOL 64 := prologue stLocals
   (.ite (.cmp .equal (vv stT) (.const 2)) (stepKind C fKt false)
   (.ite (.cmp .equal (vv stT) (.const 3)) (stepKind C fKo false) rejectP))))
 
-theorem andPin_run {C : Ctx} (hok : CtxOK C) {s : AState} (hp : s.pins = C.pins) (n : NIdx) :
-    andPinNameFree n s = .ok (!(pinIn C 11 12 n || pinIn C 48 50 n), s) := by
-  have h := fun i (hi : i < pinCount) => pinAt_run hok hp i hi
-  unfold andPinNameFree andPinNameHs
-  simp only [pinAnd, pinAndIntro, pinAndRec, PIN_AND, PIN_AND_INTRO, PIN_AND_REC]
-  simp [bind, StateT.bind, Except.bind, pure, StateT.pure, Except.pure, h _ (show 11 < pinCount by decide),
-    h _ (show 48 < pinCount by decide), h _ (show 49 < pinCount by decide)]
-  simp only [pinIn, List.range', List.any_cons, List.any_nil, Bool.or_false, Nat.reduceAdd, Nat.reduceSub]
-  simp only [beq_eq_decide, Bool.not_or]
 
 
 section
@@ -84,13 +75,6 @@ theorem st_none (C : Ctx) (vals : List (BitVec 64)) :
   Knot.params_none C stLocals [stQ] vals (by decide) (by decide)
 
 theorem or_bw (a b : Bool) : (boolW a ||| boolW b) = boolW (a || b) := by cases a <;> cases b <;> decide
-
-/-- The flush of `checkDeclStep` (caches, then fresh memos). -/
-theorem stepFlush_run (s : AState) :
-    (flushCaches >>= fun _ => (get : AM AState) >>= fun s' => set { s' with memos := Memos.empty }) s =
-      .ok ((), flushedS true s) := by
-  simp [flushCaches, flushedS, get, getThe, MonadStateOf.get, StateT.get, set, MonadStateOf.set, StateT.set, bind,
-    StateT.bind, Except.bind, pure, StateT.pure, Except.pure]
 
 /-- **One record** of the fold. -/
 theorem step_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ctx) (hok : CtxOK C)
@@ -162,20 +146,20 @@ theorem step_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ct
       [.op .add [vv stQ, .const 8], vv stV, vv stH] (kdBody C)
       [cellA C (o + 1), Enc.idxW v, BitVec.ofNat 64 (hintN hint)] (by decide) rfl (by decide) hkd ?_
       (PostStep (ctxH C H2))
-      (fun a w s' C' => ∃ EH envM H, C' = ctxNew C a EH envM H ∧ C.EH <+: EH ∧ C.H <+: H ∧ CtxOK C' ∧
+      (fun a w s' C' => ∃ EH envM tblM H, C' = ctxNewT C a EH envM tblM H ∧ C.EH <+: EH ∧ C.H <+: H ∧ CtxOK C' ∧
         TblGate a ∧ FlagsOK a ∧ LitsPinned a C.pins)
-      (fun a w s' st ⟨EH, envM, H, hpE, hpH, hokN, hsr, hgt, hfl, hlp⟩ =>
-        ⟨ctxNew C a EH envM H, ⟨EH, envM, H, rfl, hpE, hp12.trans hpH, hokN, hgt, hfl, hlp⟩, hsr⟩)
+      (fun a w s' st ⟨EH, envM, tblM, H, hpE, hpH, hokN, hsr, hgt, hfl, hlp⟩ =>
+        ⟨ctxNewT C a EH envM tblM H, ⟨EH, envM, tblM, H, rfl, hpE, hp12.trans hpH, hokN, hgt, hfl, hlp⟩, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu kdParams _ rfl hlk)
         (kd_spec mode pins (ctxH C H2) hok2 (by ctx_tr hc) ra hs hpl hg hF hL cv v hint (o + 1) ol
           (get_prefix hn hp12) (get_prefix hl hp12) (get_prefix ht hp12) (blkAt_mono hb hp12) hlen ks hkl hks htyD hvD
           hhint _))
-      (fun a w s5 C5 ⟨EH, envM, H, eC, hpE, hpH, hokN, hgt, hfl, hlp⟩ => ?_)
+      (fun a w s5 C5 ⟨EH, envM, tblM, H, eC, hpE, hpH, hokN, hgt, hfl, hlp⟩ => ?_)
     · exact ⟨by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ctxEnv]; exact cellA_add8 C o,
         by simp +decide [Env.get], by simp +decide [Env.get], trivial⟩
     subst eC
     exact specR_returnI _ w (by simp +decide [Env.get])
-      (fun t ht => ⟨EH, envM, H, hpE, hpH, hokN, sr_of_eq ht.sr rfl rfl rfl rfl, hgt, hfl, hlp⟩)
+      (fun t ht => ⟨EH, envM, tblM, H, hpE, hpH, hokN, sr_of_eq ht.sr rfl rfl rfl rfl, hgt, hfl, hlp⟩)
   case thmDecl cv v =>
     obtain ⟨h1, ⟨ol, ks, hn, hl, ht, hb, hlen, hkl, hks, htyD⟩, hv⟩ := hrec
     refine UD.specR_heapLoadI' (C := C) stT _ o _ h1 (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
@@ -232,19 +216,19 @@ theorem step_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ct
       [.op .add [vv stQ, .const 8], vv stV, vv stH] (ktBody C)
       [cellA C (o + 1), Enc.idxW v, 0] (by decide) rfl (by decide) hkt ?_
       (PostStep (ctxH C H2))
-      (fun a w s' C' => ∃ EH envM H, C' = ctxNew C a EH envM H ∧ C.EH <+: EH ∧ C.H <+: H ∧ CtxOK C' ∧
+      (fun a w s' C' => ∃ EH envM tblM H, C' = ctxNewT C a EH envM tblM H ∧ C.EH <+: EH ∧ C.H <+: H ∧ CtxOK C' ∧
         TblGate a ∧ FlagsOK a ∧ LitsPinned a C.pins)
-      (fun a w s' st ⟨EH, envM, H, hpE, hpH, hokN, hsr, hgt, hfl, hlp⟩ =>
-        ⟨ctxNew C a EH envM H, ⟨EH, envM, H, rfl, hpE, hp12.trans hpH, hokN, hgt, hfl, hlp⟩, hsr⟩)
+      (fun a w s' st ⟨EH, envM, tblM, H, hpE, hpH, hokN, hsr, hgt, hfl, hlp⟩ =>
+        ⟨ctxNewT C a EH envM tblM H, ⟨EH, envM, tblM, H, rfl, hpE, hp12.trans hpH, hokN, hgt, hfl, hlp⟩, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu kdParams _ rfl hlk)
         (kt_spec mode pins (ctxH C H2) hok2 (by ctx_tr hc) ra hs hpl hg hF hL (fun H u' v' s' lu lv h1 h2 h3 => heqS H u' v' s' lu lv h1 h2 h3) cv v (o + 1) ol
           (get_prefix hn hp12) (get_prefix hl hp12) (get_prefix ht hp12) (blkAt_mono hb hp12) hlen ks hkl hks htyD _))
-      (fun a w s5 C5 ⟨EH, envM, H, eC, hpE, hpH, hokN, hgt, hfl, hlp⟩ => ?_)
+      (fun a w s5 C5 ⟨EH, envM, tblM, H, eC, hpE, hpH, hokN, hgt, hfl, hlp⟩ => ?_)
     · exact ⟨by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ctxEnv]; exact cellA_add8 C o,
         by simp +decide [Env.get], by simp +decide [Env.get], trivial⟩
     subst eC
     exact specR_returnI _ w (by simp +decide [Env.get])
-      (fun t ht => ⟨EH, envM, H, hpE, hpH, hokN, sr_of_eq ht.sr rfl rfl rfl rfl, hgt, hfl, hlp⟩)
+      (fun t ht => ⟨EH, envM, tblM, H, hpE, hpH, hokN, sr_of_eq ht.sr rfl rfl rfl rfl, hgt, hfl, hlp⟩)
   case opaqueDecl cv v =>
     obtain ⟨h1, ⟨ol, ks, hn, hl, ht, hb, hlen, hkl, hks, htyD⟩, hv⟩ := hrec
     refine UD.specR_heapLoadI' (C := C) stT _ o _ h1 (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
@@ -303,19 +287,19 @@ theorem step_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ct
       [.op .add [vv stQ, .const 8], vv stV, vv stH] (koBody C)
       [cellA C (o + 1), Enc.idxW v, 0] (by decide) rfl (by decide) hko ?_
       (PostStep (ctxH C H2))
-      (fun a w s' C' => ∃ EH envM H, C' = ctxNew C a EH envM H ∧ C.EH <+: EH ∧ C.H <+: H ∧ CtxOK C' ∧
+      (fun a w s' C' => ∃ EH envM tblM H, C' = ctxNewT C a EH envM tblM H ∧ C.EH <+: EH ∧ C.H <+: H ∧ CtxOK C' ∧
         TblGate a ∧ FlagsOK a ∧ LitsPinned a C.pins)
-      (fun a w s' st ⟨EH, envM, H, hpE, hpH, hokN, hsr, hgt, hfl, hlp⟩ =>
-        ⟨ctxNew C a EH envM H, ⟨EH, envM, H, rfl, hpE, hp12.trans hpH, hokN, hgt, hfl, hlp⟩, hsr⟩)
+      (fun a w s' st ⟨EH, envM, tblM, H, hpE, hpH, hokN, hsr, hgt, hfl, hlp⟩ =>
+        ⟨ctxNewT C a EH envM tblM H, ⟨EH, envM, tblM, H, rfl, hpE, hp12.trans hpH, hokN, hgt, hfl, hlp⟩, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu kdParams _ rfl hlk)
         (ko_spec mode pins (ctxH C H2) hok2 (by ctx_tr hc) ra hs hpl hg hF hL cv v (o + 1) ol
           (get_prefix hn hp12) (get_prefix hl hp12) (get_prefix ht hp12) (blkAt_mono hb hp12) hlen ks hkl hks htyD _))
-      (fun a w s5 C5 ⟨EH, envM, H, eC, hpE, hpH, hokN, hgt, hfl, hlp⟩ => ?_)
+      (fun a w s5 C5 ⟨EH, envM, tblM, H, eC, hpE, hpH, hokN, hgt, hfl, hlp⟩ => ?_)
     · exact ⟨by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ctxEnv]; exact cellA_add8 C o,
         by simp +decide [Env.get], by simp +decide [Env.get], trivial⟩
     subst eC
     exact specR_returnI _ w (by simp +decide [Env.get])
-      (fun t ht => ⟨EH, envM, H, hpE, hpH, hokN, sr_of_eq ht.sr rfl rfl rfl rfl, hgt, hfl, hlp⟩)
+      (fun t ht => ⟨EH, envM, tblM, H, hpE, hpH, hokN, sr_of_eq ht.sr rfl rfl rfl rfl, hgt, hfl, hlp⟩)
   case axiomDecl _ =>
     obtain ⟨tw, h1, h2, h3, h4⟩ := hrec
     refine UD.specR_heapLoadI' (C := C) stT _ o _ h1 (by decide) (by simp +decide [Env.get, ctxEnv]) ?_

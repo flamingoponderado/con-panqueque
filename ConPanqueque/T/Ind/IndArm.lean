@@ -1,6 +1,6 @@
 import ConPanqueque.T.Ind.IndNames
 import ConPanqueque.T.Decl.BasisInv
-import ConPanqueque.T.Decl.Step
+import ConPanqueque.T.Decl.StepRuns
 
 /-!
 # The record of an inductive block: the twin's name checks

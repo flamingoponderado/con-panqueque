@@ -73,16 +73,18 @@ structure FoldCodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
   ko : C.code.lookup fKo = some (kdParams.map (fun p => (p, ShapeHOL.one)), koBody C, .one)
 
 theorem foldCodes_new {mode : ConLeche.CheckMode} {C : Ctx} (hc : FoldCodes mode C) (fe : IFEnv)
-    (EH : List (BitVec 64)) (envM : Std.HashMap NIdx (BitVec 64)) (H : List (BitVec 64)) :
-    FoldCodes mode (ctxNew C fe EH envM H) := by ctx_tr hc
+    (EH : List (BitVec 64)) (envM tblM : Std.HashMap NIdx (BitVec 64)) (H : List (BitVec 64)) :
+    FoldCodes mode (ctxNewT C fe EH envM tblM H) := by ctx_tr hc
 
 theorem recCV_new {C : Ctx} {q : Nat} {cv : IConstantVal} (h : RecCV C q cv) {fe : IFEnv} {EH : List (BitVec 64)}
-    {envM : Std.HashMap NIdx (BitVec 64)} {H : List (BitVec 64)} (hp : C.H <+: H) : RecCV (ctxNew C fe EH envM H) q cv := by
+    {envM tblM : Std.HashMap NIdx (BitVec 64)} {H : List (BitVec 64)} (hp : C.H <+: H) :
+    RecCV (ctxNewT C fe EH envM tblM H) q cv := by
   obtain ⟨ol, ks, hn, hl, ht, hb, hlen, hkl, hks, htyD⟩ := h
   exact ⟨ol, ks, get_prefix hn hp, get_prefix hl hp, get_prefix ht hp, blkAt_mono hb hp, hlen, hkl, hks, htyD⟩
 
 theorem recOK_new {C : Ctx} {o : Nat} {d : IDeclaration} (h : RecOK C o d) {fe : IFEnv} {EH : List (BitVec 64)}
-    {envM : Std.HashMap NIdx (BitVec 64)} {H : List (BitVec 64)} (hp : C.H <+: H) : RecOK (ctxNew C fe EH envM H) o d := by
+    {envM tblM : Std.HashMap NIdx (BitVec 64)} {H : List (BitVec 64)} (hp : C.H <+: H) :
+    RecOK (ctxNewT C fe EH envM tblM H) o d := by
   cases d with
   | defnDecl cv v hint =>
     obtain ⟨h1, h2, h3, h4, h5, h6⟩ := h
@@ -141,23 +143,23 @@ theorem fold_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : C
     rw [List.drop_eq_getElem_cons hil, List.map_cons, checkDeclsPureGo]
     refine specR_callNC (C := C) (D := ctxLocals ++ foLocals) foR fStep [stQ] [vv foQ] (stepBody C) [cellA C rs[i].1]
       (by decide) rfl (by decide) hc.step ?_ (PostStep C)
-      (fun a w s' C' => ∃ EH envM H, C' = ctxNew C a EH envM H ∧ C.H <+: H ∧ CtxOK C' ∧ TblGate a ∧ FlagsOK a ∧
-        LitsPinned a C.pins)
-      (fun a w s' st ⟨EH, envM, H, hpE, hpH, hokN, hsr, hgt, hfl, hlp⟩ =>
-        ⟨ctxNew C a EH envM H, ⟨EH, envM, H, rfl, hpH, hokN, hgt, hfl, hlp⟩, hsr⟩)
+      (fun a w s' C' => ∃ EH envM tblM H, C' = ctxNewT C a EH envM tblM H ∧ C.H <+: H ∧ CtxOK C' ∧ TblGate a ∧
+        FlagsOK a ∧ LitsPinned a C.pins)
+      (fun a w s' st ⟨EH, envM, tblM, H, hpE, hpH, hokN, hsr, hgt, hfl, hlp⟩ =>
+        ⟨ctxNewT C a EH envM tblM H, ⟨EH, envM, tblM, H, rfl, hpH, hokN, hgt, hfl, hlp⟩, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu [stQ] _ rfl hlk)
         (step_spec mode pins C hok hc.dc ra hs hpl hg hF hL hc.kd hc.kt hc.ko (eqvS_of hok hc.lc) rs[i].1 rs[i].2
           (hrec i hil (le_refl _)) s))
-      (fun a w s1 C1 ⟨EH, envM, H1, eC, hpH, hokN, hgt, hfl, hlp⟩ => ?_)
+      (fun a w s1 C1 ⟨EH, envM, tblM, H1, eC, hpH, hokN, hgt, hfl, hlp⟩ => ?_)
     · exact ⟨by simp +decide [Env.get], trivial⟩
     subst eC
     refine specR_bindPure ?_
-    refine specR_callNC (C := ctxNew C a EH envM H1) (D := ctxLocals ++ foLocals) foR fFold foParams
+    refine specR_callNC (C := ctxNewT C a EH envM tblM H1) (D := ctxLocals ++ foLocals) foR fFold foParams
       [vv foP, .op .add [vv foI, .const 1], vv foN] foldBody
       [cellA C ob, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 rs.length] (by decide) rfl (by decide) hc.fold ?_ PostFold
       (fun _ _ _ _ => True) (fun a w s' st ⟨C', h⟩ => ⟨C', trivial, h⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu foParams _ rfl hlk)
-        (ih (i + 1) (ctxNew C a EH envM H1) s1 hokN (foldCodes_new hc a EH envM H1) hs hpl hgt hfl hlp
+        (ih (i + 1) (ctxNewT C a EH envM tblM H1) s1 hokN (foldCodes_new hc a EH envM tblM H1) hs hpl hgt hfl hlp
           (blkAt_mono hb hpH) (fun j hj hij => recOK_new (hrec j hj (by omega)) hpH) (by omega) (by omega)))
       (fun _ w s2 C2 _ => ?_)
     · exact ⟨by simp +decide [Env.get, foParams, ctxEnv], by simp +decide [sev, Env.get, foParams, ctxEnv]; exact word_add1_eq i,
