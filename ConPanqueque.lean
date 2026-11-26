@@ -504,3 +504,4 @@ import ConPanqueque.T.Ind.OpenFvars
 import ConPanqueque.T.Ind.SumCtor
 import ConPanqueque.T.Ind.NestCtx
 import ConPanqueque.T.Ind.ClassRead
+import ConPanqueque.T.Ind.ReplaceFVars
