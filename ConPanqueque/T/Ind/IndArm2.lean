@@ -1,3 +1,4 @@
+import ConPanqueque.T.SameLay
 import ConPanqueque.T.Ind.IndArm
 import ConPanqueque.T.Ind.CheckBlockAny
 import ConPanqueque.T.Ind.ReadBlock
@@ -187,7 +188,7 @@ set_option maxHeartbeats 64000000 in
 theorem ki_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.RuntimeAssumptions)
     (C : Ctx) (hok : CtxOK C) (hs : C.side = false) (hpl : C.saved = none) (hc : KICodes mode C)
     (hf : ConPanqueque.Front.FrontOK C) (hg : TblGate C.fe) (hF : FlagsOK C.fe) (hL : LitsPinned C.fe C.pins)
-    (heqS : ∀ (C' : Ctx), C'.code = C.code → CtxOK C' → ∀ (H : List (BitVec 64)) (u v : LIdx) (s : AState)
+    (heqS : ∀ (C' : Ctx), SameLay C C' → CtxOK C' → ∀ (H : List (BitVec 64)) (u v : LIdx) (s : AState)
       (lu lv : ConLeche.Level), denoteL s.store.ls u = some lu → denoteL s.store.ls v = some lv → CachesOK s →
       SpecR (σ := σ) (Pre (ctxH C' H) s [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s (lvlEq? u v)
         (fun o w s' st => LLeq.PostOB (ctxH C' H) o w s' st))
@@ -345,7 +346,9 @@ theorem ki_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : Con
   have hrs16 : C.pins.reserved.length = 16 := by
     have hl : ∀ (xs : List NIdx) (ns : List ConLeche.Name), denoteNL st0 xs ns → xs.length = ns.length := by
       intro xs; induction xs with
-      | nil => intro ns h; cases ns <;> simp_all [denoteNL]
+      | nil => intro ns h; cases ns with
+        | nil => rfl
+        | cons => exact h.elim
       | cons x xs ih =>
         intro ns h
         cases ns with

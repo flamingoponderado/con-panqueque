@@ -1,4 +1,5 @@
 import ConPanqueque.Code.Table
+import ConPanqueque.Code.KRfl
 
 /-! # The code map and its lookups -/
 
@@ -24,7 +25,7 @@ theorem codeMap_lookup {V : Type} (l : List (MlS × V)) (k : MlS) : (codeMap l).
 set_option hygiene false in
 /-- Split code-requirement structures and close each lookup from the table. -/
 macro "code_auto" : tactic => `(tactic| repeat' (first
-  | (first | (rw [‹_ = C.code›]) | skip); rw [hC, codeMap_lookup]; rfl
+  | (first | (rw [‹_ = C.code›]) | skip); rw [hC, codeMap_lookup]; kernel_rfl
   | (intro (o : ConPanqueque.T.Big.BitOp); cases o)
   | (intro (b : Bool); cases b)
   | (intro (k : Nat) hk; rcases k with _ | _ | _ | _ | _ | _ | k <;> (try omega))

@@ -1,4 +1,5 @@
 import ConPanqueque.T.Decl.StepRuns
+import ConPanqueque.T.Ind.IndArm2
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena ConRon.Bridge
@@ -24,13 +25,23 @@ def RecCV (C : Ctx) (q : Nat) (cv : IConstantVal) : Prop :=
     (∀ j (hj : j < cv.levelParams.length), denoteN C.St.ns cv.levelParams[j] = some (ks[j]'(by omega))) ∧
     (denoteE C.St cv.type).isSome = true
 
+/-- The inductive step's facts about the twin and the store floor (not code), at the record's block. -/
+structure IndSem (C : Ctx) (block : List IConstantInfo) (nP : Nat) : Prop where
+  fr : ConPanqueque.Front.FrontOK C
+  an : denoteN C.St.ns anonH = some .anonymous
+  bi : BasisInv C
+  run : ∀ mode, Ind.IndRun mode C block nP
+
 /-- A record's declaration in the value heap at `o`. -/
 def RecOK (C : Ctx) (o : Nat) : IDeclaration → Prop
   | .defnDecl cv v hint => C.H[o]? = some 1 ∧ RecCV C (o + 1) cv ∧ C.H[o + 4]? = some (Enc.idxW v) ∧
       C.H[o + 5]? = some (BitVec.ofNat 64 (hintN hint)) ∧ hintN hint < 2 ^ 63 ∧ (denoteE C.St v).isSome = true
   | .thmDecl cv v => C.H[o]? = some 2 ∧ RecCV C (o + 1) cv ∧ C.H[o + 4]? = some (Enc.idxW v)
   | .opaqueDecl cv v => C.H[o]? = some 3 ∧ RecCV C (o + 1) cv ∧ C.H[o + 4]? = some (Enc.idxW v)
-  | _ => ∃ t : BitVec 64, C.H[o]? = some t ∧ t ≠ 1 ∧ t ≠ 2 ∧ t ≠ 3
+  | .indDecl block nP => C.H[o]? = some 4 ∧ IndSem C block nP ∧ ∃ ob, C.H[o + 1]? = some (BitVec.ofNat 64 nP) ∧
+      C.H[o + 2]? = some (cellA C ob) ∧ Ind.IndBlk C C.H ob block ∧ block.length < 2 ^ 59 ∧ nP < 2 ^ 59 ∧
+      ∀ i (hi : i < block.length), block[i].toConstantVal.levelParams.length < 2 ^ 59
+  | _ => ∃ t : BitVec 64, C.H[o]? = some t ∧ t ≠ 1 ∧ t ≠ 2 ∧ t ≠ 3 ∧ t ≠ 4
 
 def stQ := ofString "st_q"
 def stT := ofString "st_t"
@@ -63,7 +74,10 @@ def stepBody (C : Ctx) : ProgHOL 64 := prologue stLocals
   (.seq (.assign .local stT (.load .one (vv stQ)))
   (.ite (.cmp .equal (vv stT) (.const 1)) (stepKind C fKd true)
   (.ite (.cmp .equal (vv stT) (.const 2)) (stepKind C fKt false)
-  (.ite (.cmp .equal (vv stT) (.const 3)) (stepKind C fKo false) rejectP))))
+  (.ite (.cmp .equal (vv stT) (.const 3)) (stepKind C fKo false)
+  (.ite (.cmp .equal (vv stT) (.const 4))
+    (.seq (.call (some (some (.local, stR), none)) Ind.fKi [vv stQ]) (.return (vv stR)))
+    rejectP)))))
 
 
 
@@ -76,6 +90,12 @@ theorem st_none (C : Ctx) (vals : List (BitVec 64)) :
 
 theorem or_bw (a b : Bool) : (boolW a ||| boolW b) = boolW (a || b) := by cases a <;> cases b <;> decide
 
+/-- The inductive record's code. With `IndSem`, what its step needs beyond the fold's own invariants; both read
+only the code, the layout, the store floor and the pins, which the fold keeps. -/
+structure IndCodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
+  ki : C.code.lookup Ind.fKi = some (Ind.kiParams.map (fun p => (p, ShapeHOL.one)), Ind.kiBody C, .one)
+  kc : Ind.KICodes mode C
+
 /-- **One record** of the fold. -/
 theorem step_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ctx) (hok : CtxOK C)
     (hc : DeclCodes mode C) (ra : ConPanqueque.Hash.RuntimeAssumptions) (hs : C.side = false)
@@ -87,6 +107,15 @@ theorem step_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ct
       denoteL s.store.ls u = some lu → denoteL s.store.ls v = some lv → CachesOK s →
       SpecR (σ := σ) (Pre (ctxH C H) s [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s (lvlEq? u v)
         (fun o w s' st => LLeq.PostOB (ctxH C H) o w s' st))
+    (hic : IndCodes mode C)
+    (heqA : ∀ (C' : Ctx), SameLay C C' → CtxOK C' → ∀ (H : List (BitVec 64)) (u v : LIdx) (s : AState)
+      (lu lv : ConLeche.Level), denoteL s.store.ls u = some lu → denoteL s.store.ls v = some lv → CachesOK s →
+      SpecR (σ := σ) (Pre (ctxH C' H) s [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s (lvlEq? u v)
+        (fun o w s' st => LLeq.PostOB (ctxH C' H) o w s' st))
+    (hLE : ∀ (H : List (BitVec 64)) s1 (u v : LIdx), C.H <+: H → (denoteL s1.store.ls u).isSome = true →
+      (denoteL s1.store.ls v).isSome = true →
+      SpecR (σ := σ) (Pre (ctxH C H) s1 [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s1 (lvlEq? u v)
+        (LLeq.PostOB (ctxH C H)))
     (o : Nat) (d : IDeclaration) (hrec : RecOK C o d) (s : AState) :
     SpecR (σ := σ) (Pre C s [(stQ, cellA C o)]) (stepBody C) s (checkDeclStep mode pins C.fe d) (PostStep C) := by
   refine specR_prologue (postStep_locals C) (st_none C [cellA C o]) ?_
@@ -123,11 +152,11 @@ theorem step_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ct
       (boolW (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name)) (by simp +decide [sev, Env.get]; exact or_bw _ _)
       (fun h => by
         have e : (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name) = false := by
-          cases e : (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name) <;> simp_all
+          clear heqA hLE; cases e : (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name) <;> simp_all
         rw [e]; rfl)
       (fun h => by
         have e : (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name) = true := by
-          cases e : (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name) <;> simp_all
+          clear heqA hLE; cases e : (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name) <;> simp_all
         rw [e]; decide)
       (fun _ => ?_)
     simp only [pure_bind]
@@ -194,11 +223,11 @@ theorem step_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ct
       (boolW (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name)) (by simp +decide [sev, Env.get]; exact or_bw _ _)
       (fun h => by
         have e : (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name) = false := by
-          cases e : (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name) <;> simp_all
+          clear heqA hLE; cases e : (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name) <;> simp_all
         rw [e]; rfl)
       (fun h => by
         have e : (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name) = true := by
-          cases e : (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name) <;> simp_all
+          clear heqA hLE; cases e : (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name) <;> simp_all
         rw [e]; decide)
       (fun _ => ?_)
     simp only [pure_bind]
@@ -265,11 +294,11 @@ theorem step_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ct
       (boolW (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name)) (by simp +decide [sev, Env.get]; exact or_bw _ _)
       (fun h => by
         have e : (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name) = false := by
-          cases e : (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name) <;> simp_all
+          clear heqA hLE; cases e : (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name) <;> simp_all
         rw [e]; rfl)
       (fun h => by
         have e : (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name) = true := by
-          cases e : (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name) <;> simp_all
+          clear heqA hLE; cases e : (pinIn C 11 12 cv.name || pinIn C 48 50 cv.name) <;> simp_all
         rw [e]; decide)
       (fun _ => ?_)
     simp only [pure_bind]
@@ -301,31 +330,48 @@ theorem step_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ct
     exact specR_returnI _ w (by simp +decide [Env.get])
       (fun t ht => ⟨EH, envM, tblM, H, hpE, hpH, hokN, sr_of_eq ht.sr rfl rfl rfl rfl, hgt, hfl, hlp⟩)
   case axiomDecl _ =>
-    obtain ⟨tw, h1, h2, h3, h4⟩ := hrec
+    obtain ⟨tw, h1, h2, h3, h4, h5⟩ := hrec
     refine UD.specR_heapLoadI' (C := C) stT _ o _ h1 (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact h2) (fun h => absurd rfl h)
       (fun _ => ?_)
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact h3) (fun h => absurd rfl h)
       (fun _ => ?_)
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact h4) (fun h => absurd rfl h)
+      (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact h5) (fun h => absurd rfl h)
       (fun _ => specR_rejectI)
-  case indDecl _ _ =>
-    obtain ⟨tw, h1, h2, h3, h4⟩ := hrec
+  case indDecl block nP =>
+    obtain ⟨h1, hie, ob, hq1, hq2, hblk, hlen, hnP, hlp⟩ := hrec
     refine UD.specR_heapLoadI' (C := C) stT _ o _ h1 (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
-    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact h2) (fun h => absurd rfl h)
-      (fun _ => ?_)
-    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact h3) (fun h => absurd rfl h)
-      (fun _ => ?_)
-    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact h4) (fun h => absurd rfl h)
-      (fun _ => specR_rejectI)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+    refine specR_congr (m' := checkDeclStep mode pins C.fe (.indDecl block nP) >>= fun fe => pure fe) (by simp) ?_
+    refine specR_callNC (C := C) (D := ctxLocals ++ stLocals) stR Ind.fKi Ind.kiParams [vv stQ] (Ind.kiBody C)
+      [cellA C o] (by decide) rfl (by decide) hic.ki ?_ (Ind.PostBlk C)
+      (fun a w s' C' => ∃ EH envM tblM H, C' = ctxNewT C a EH envM tblM H ∧ C.EH <+: EH ∧ C.H <+: H ∧ CtxOK C' ∧
+        TblGate a ∧ FlagsOK a ∧ LitsPinned a C.pins)
+      (fun a w s' st ⟨EH, envM, tblM, H, hpE, hpH, hokN, hsr, hgt, hfl, hlp⟩ =>
+        ⟨ctxNewT C a EH envM tblM H, ⟨EH, envM, tblM, H, rfl, hpE, hpH, hokN, hgt, hfl, hlp⟩, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu Ind.kiParams _ rfl hlk)
+        (Ind.ki_spec mode pins ra C hok hs hpl hic.kc hie.fr hg hF hL heqA hLE hie.an hie.bi block nP o ob hq1 hq2
+          hblk hlen hnP hlp (hie.run mode) s))
+      (fun a w s5 C5 ⟨EH, envM, tblM, H, eC, hpE, hpH, hokN, hgt, hfl, hlp⟩ => ?_)
+    · exact ⟨by simp +decide [sev, Env.get, ctxEnv], trivial⟩
+    subst eC
+    exact specR_returnI _ w (by simp +decide [Env.get])
+      (fun t ht => ⟨EH, envM, tblM, H, hpE, hpH, hokN, sr_of_eq ht.sr rfl rfl rfl rfl, hgt, hfl, hlp⟩)
   case quotDecl _ _ =>
-    obtain ⟨tw, h1, h2, h3, h4⟩ := hrec
+    obtain ⟨tw, h1, h2, h3, h4, h5⟩ := hrec
     refine UD.specR_heapLoadI' (C := C) stT _ o _ h1 (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact h2) (fun h => absurd rfl h)
       (fun _ => ?_)
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact h3) (fun h => absurd rfl h)
       (fun _ => ?_)
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact h4) (fun h => absurd rfl h)
+      (fun _ => ?_)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact h5) (fun h => absurd rfl h)
       (fun _ => specR_rejectI)
 
 end

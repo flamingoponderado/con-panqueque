@@ -122,6 +122,7 @@ import ConPanqueque.T.PinRead
 import ConPanqueque.T.EnvCopy
 import ConPanqueque.T.Knot
 import ConPanqueque.T.Heap
+import ConPanqueque.T.SameLay
 import ConPanqueque.T.Loop
 import ConPanqueque.T.Blk
 import ConPanqueque.T.Copy

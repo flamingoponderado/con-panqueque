@@ -25,7 +25,7 @@ def cnfK := ofString "cnf_k"
 def cnfX := ofString "cnf_x"
 def cnfY := ofString "cnf_y"
 def cnfR := ofString "cnf_r"
-def fCnFillN := ofString "ctorNamesFill"
+def fCnFillN := ofString "ctorNamesFillN"
 
 def cnfParams : List MlS := [cnfQ, cnfD, cnfI, cnfK]
 def cnfLocals : List MlS := [cnfX, cnfY, cnfR]

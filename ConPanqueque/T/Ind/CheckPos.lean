@@ -1,3 +1,4 @@
+import ConPanqueque.T.SameLay
 import ConPanqueque.T.Ind.CheckAbs
 
 /-!
@@ -223,7 +224,7 @@ set_option maxHeartbeats 32000000 in
 /-- **`checkBlockPositivity`** (unnested blocks). -/
 theorem cbp_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode) (C : Ctx) (hok : CtxOK C)
     (hs : C.side = false) (hk : KCodes C Comp.kBodies) (hac : Comp.AllCodes mode C) (hc : CBPCodes C)
-    (heqS : ∀ (C' : Ctx), C'.code = C.code → CtxOK C' → ∀ (H : List (BitVec 64)) (u v : LIdx) (s : AState)
+    (heqS : ∀ (C' : Ctx), SameLay C C' → CtxOK C' → ∀ (H : List (BitVec 64)) (u v : LIdx) (s : AState)
       (lu lv : ConLeche.Level), denoteL s.store.ls u = some lu → denoteL s.store.ls v = some lv → CachesOK s →
       SpecR (σ := σ) (Pre (ctxH C' H) s [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s (lvlEq? u v)
         (fun o w s' st => LLeq.PostOB (ctxH C' H) o w s' st))

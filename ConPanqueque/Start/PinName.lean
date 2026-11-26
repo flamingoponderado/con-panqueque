@@ -1,5 +1,6 @@
-import ConPanqueque.Start.InitCtx
 import ConPanqueque.Front.Name
+import ConRon.Bridge.StateOK
+import ConRon.Bridge.Frontend.Rel
 
 /-! # Interning a static name
 
@@ -189,10 +190,17 @@ theorem internName_comps : ∀ (n : ConLeche.Name) (cs : List String), strComps 
     congr 1; funext a; rw [internComps_append]
   | .num _ _, cs, h => by simp [strComps] at h
 
+theorem pn_view_anon {ns : NStore} {i : NIdx} (h : denoteN ns i = some .anonymous) :
+    ns.view i = some .anonymous := by
+  unfold denoteN denoteNAux at h
+  cases hv : ns.view i with
+  | none => rw [hv] at h; simp at h
+  | some v => rw [hv] at h; cases v <;> simp at h ⊢
+
 /-- The anonymous name is a hit once it is interned: the handle word 0, the state unchanged. -/
 theorem anon_probe {s : AState} (hok : StateOK s) (hd : denoteN s.store.ns default = some .anonymous) :
     internNNode .anonymous s = .ok (default, s) := by
-  have hv := view_of_denoteN_anon hd
+  have hv := pn_view_anon hd
   obtain ⟨rk, hrk⟩ := ConRon.Bridge.Frontend.nsWF_of_StateOK hok
   have hf := (hrk.consP .anonymous default).mpr ⟨hv, by decide⟩
   simp [internNNode, NStore.find?, hf, bind, StateT.bind, get, getThe, MonadStateOf.get, StateT.get, pure,

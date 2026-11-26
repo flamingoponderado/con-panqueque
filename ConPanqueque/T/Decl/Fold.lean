@@ -41,6 +41,28 @@ theorem eqvS_of {C : Ctx} (hok : CtxOK C) (hl : LvlCodes C) :
   specR_mono (LLeq.lvlEqQ_spec C hok hl.sub hl.neq hl.simp hl.comb hl.byc hl.itag hl.imax hl.eq hl.rest hl.leq H u v s
     lu lv hu hv hco.rl hco.le) (fun _ h => h) (fun _ _ _ _ h => h.2.2)
 
+/-- The level comparison's spec at every context laid out as `C`, as the inductive step takes it. -/
+theorem eqvA_of {C : Ctx} (hl : LvlCodes C) :
+    ∀ (C' : Ctx), SameLay C C' → CtxOK C' → ∀ (H : List (BitVec 64)) (u v : LIdx) (s : AState)
+      (lu lv : ConLeche.Level), denoteL s.store.ls u = some lu → denoteL s.store.ls v = some lv → CachesOK s →
+      SpecR (σ := σ) (Pre (ctxH C' H) s [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s (lvlEq? u v)
+        (fun o w s' st => LLeq.PostOB (ctxH C' H) o w s' st) := by
+  intro C' hsl hok'
+  have hl' : LvlCodes C' := by rw [hsl]; ctx_tr hl
+  exact eqvS_of hok' hl'
+
+/-- The level comparison's spec at a denoting pair, the caches read off the entry state. -/
+theorem hLE_of {C : Ctx} (hok : CtxOK C) (hl : LvlCodes C) :
+    ∀ (H : List (BitVec 64)) s1 (u v : LIdx), C.H <+: H → (denoteL s1.store.ls u).isSome = true →
+      (denoteL s1.store.ls v).isSome = true →
+      SpecR (σ := σ) (Pre (ctxH C H) s1 [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s1 (lvlEq? u v)
+        (LLeq.PostOB (ctxH C H)) := by
+  intro H s1 u v _ hu hv
+  refine specR_atEntry fun t ht => ?_
+  obtain ⟨lu, hlu⟩ := Option.isSome_iff_exists.mp hu
+  obtain ⟨lv, hlv⟩ := Option.isSome_iff_exists.mp hv
+  exact eqvS_of hok hl H u v s1 lu lv hlu hlv ht.1.cok
+
 end
 
 
@@ -71,6 +93,7 @@ structure FoldCodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
   kd : C.code.lookup fKd = some (kdParams.map (fun p => (p, ShapeHOL.one)), kdBody C, .one)
   kt : C.code.lookup fKt = some (kdParams.map (fun p => (p, ShapeHOL.one)), ktBody C, .one)
   ko : C.code.lookup fKo = some (kdParams.map (fun p => (p, ShapeHOL.one)), koBody C, .one)
+  ic : IndCodes mode C
 
 theorem foldCodes_new {mode : ConLeche.CheckMode} {C : Ctx} (hc : FoldCodes mode C) (fe : IFEnv)
     (EH : List (BitVec 64)) (envM tblM : Std.HashMap NIdx (BitVec 64)) (H : List (BitVec 64)) :
@@ -96,7 +119,9 @@ theorem recOK_new {C : Ctx} {o : Nat} {d : IDeclaration} (h : RecOK C o d) {fe :
     obtain ⟨h1, h2, h3⟩ := h
     exact ⟨get_prefix h1 hp, recCV_new h2 hp, get_prefix h3 hp⟩
   | axiomDecl cv => obtain ⟨t, h1, h2⟩ := h; exact ⟨t, get_prefix h1 hp, h2⟩
-  | indDecl b n => obtain ⟨t, h1, h2⟩ := h; exact ⟨t, get_prefix h1 hp, h2⟩
+  | indDecl b n =>
+    obtain ⟨h1, hi, ob, h2, h3, h4, h5⟩ := h
+    exact ⟨get_prefix h1 hp, by ctx_tr hi, ob, get_prefix h2 hp, get_prefix h3 hp, Ind.indBlk_mono h4 hp, h5⟩
   | quotDecl k cv => obtain ⟨t, h1, h2⟩ := h; exact ⟨t, get_prefix h1 hp, h2⟩
 
 section
@@ -148,7 +173,8 @@ theorem fold_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : C
       (fun a w s' st ⟨EH, envM, tblM, H, hpE, hpH, hokN, hsr, hgt, hfl, hlp⟩ =>
         ⟨ctxNewT C a EH envM tblM H, ⟨EH, envM, tblM, H, rfl, hpH, hokN, hgt, hfl, hlp⟩, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu [stQ] _ rfl hlk)
-        (step_spec mode pins C hok hc.dc ra hs hpl hg hF hL hc.kd hc.kt hc.ko (eqvS_of hok hc.lc) rs[i].1 rs[i].2
+        (step_spec mode pins C hok hc.dc ra hs hpl hg hF hL hc.kd hc.kt hc.ko (eqvS_of hok hc.lc) hc.ic (eqvA_of hc.lc)
+          (hLE_of hok hc.lc) rs[i].1 rs[i].2
           (hrec i hil (le_refl _)) s))
       (fun a w s1 C1 ⟨EH, envM, tblM, H1, eC, hpH, hokN, hgt, hfl, hlp⟩ => ?_)
     · exact ⟨by simp +decide [Env.get], trivial⟩

@@ -1,3 +1,4 @@
+import ConPanqueque.T.SameLay
 import ConPanqueque.T.Ind.CheckInds
 import ConPanqueque.T.Ind.ClassPass
 import ConPanqueque.T.Ind.KindsFlat
@@ -138,7 +139,7 @@ set_option maxHeartbeats 64000000 in
 theorem cps_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
     (hs : C.side = false) (hpl : C.saved = none) (hc : CPSCodes mode C)
     (hg : TblGate C.fe) (hF : FlagsOK C.fe) (hL : LitsPinned C.fe C.pins)
-    (heqS : ∀ (C' : Ctx), C'.code = C.code → CtxOK C' → ∀ (H : List (BitVec 64)) (u v : LIdx) (s : AState)
+    (heqS : ∀ (C' : Ctx), SameLay C C' → CtxOK C' → ∀ (H : List (BitVec 64)) (u v : LIdx) (s : AState)
       (lu lv : ConLeche.Level), denoteL s.store.ls u = some lu → denoteL s.store.ls v = some lv → CachesOK s →
       SpecR (σ := σ) (Pre (ctxH C' H) s [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s (lvlEq? u v)
         (fun o w s' st => LLeq.PostOB (ctxH C' H) o w s' st))
