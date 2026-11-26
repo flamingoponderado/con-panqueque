@@ -524,3 +524,4 @@ import ConPanqueque.T.Ind.NestRoot
 import ConPanqueque.T.Ind.NestUniform
 import ConPanqueque.T.Ind.CheckAbs
 import ConPanqueque.T.Ind.CheckPos
+import ConPanqueque.T.Ind.Seeds
