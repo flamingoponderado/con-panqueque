@@ -514,3 +514,4 @@ import ConPanqueque.T.Ind.CloseTele
 import ConPanqueque.T.Ind.NestPos
 import ConPanqueque.T.Ind.NestFields
 import ConPanqueque.T.Ind.ReplaceApps
+import ConPanqueque.T.Ind.ReplaceAppsGo
