@@ -529,3 +529,4 @@ import ConPanqueque.T.Ind.CheckInds
 import ConPanqueque.T.Ind.IdxSorts
 import ConPanqueque.T.Ind.ConsCtors
 import ConPanqueque.T.Ind.RecPins
+import ConPanqueque.T.Ind.LargeElim
