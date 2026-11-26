@@ -192,7 +192,7 @@ theorem clearCode_core {K V : Type} [BEq K] [LawfulBEq K] [Hashable K] [Decidabl
   have hinv' : ConsModel.Inv (homeV enc g.b) ([] : List K) (List.replicate g.n 0) g.n :=
     ⟨by simp, hpos, hinv.home_lt, fun j i hji => by
       simp [List.getElem?_replicate] at hji, fun i hi => absurd hi (by simp), List.nodup_nil,
-      fun j _ i hji _ => by simp [List.getElem?_replicate] at hji⟩
+      fun j _ i hji _ => by simp [List.getElem?_replicate] at hji, fun i hi => absurd hi (by simp)⟩
   have hd4 : t4.memaddrs = t.memaddrs := by show t2.memaddrs = _; rw [hd2]
   have hds : DescV t4 G g 1 := fun j hj' =>
     ⟨by rw [hd4]; exact (hdesc j hj').1, by rw [hout _ (hGout j hj')]; exact (hdesc j hj').2⟩

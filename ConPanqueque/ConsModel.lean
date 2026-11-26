@@ -39,6 +39,23 @@ structure Inv (home : α → Nat) (rows : List α) (slots : List Nat) (n : Nat) 
   rows_nodup : rows.Nodup
   /-- A row is named by one slot only. -/
   uniq : ∀ (j j' i : Nat), slots[j]? = some (i + 1) → slots[j']? = some (i + 1) → j = j'
+  /-- Along a row's probe path, every slot before its own names an earlier row (insertion order). -/
+  ord : ∀ i (hi : i < rows.length) dd d k, dd < n → slots[at_ n (home rows[i]) dd]? = some (i + 1) → d < dd →
+    slots[at_ n (home rows[i]) d]? = some (k + 1) → k < i
+
+theorem at_inj {n h a b : Nat} (ha : a < n) (hb : b < n) (e : at_ n h a = at_ n h b) : a = b := by
+  unfold at_ at e
+  rcases Nat.lt_or_ge a b with hab | hab
+  · have h1 : n ∣ (h + b) - (h + a) := Nat.dvd_of_mod_eq_zero (Nat.sub_mod_eq_zero_of_mod_eq e.symm)
+    have h2 : (h + b) - (h + a) = b - a := by omega
+    rw [h2] at h1
+    have := Nat.le_of_dvd (by omega) h1; omega
+  · rcases Nat.eq_or_lt_of_le hab with e2 | hab
+    · exact e2.symm
+    · have h1 : n ∣ (h + a) - (h + b) := Nat.dvd_of_mod_eq_zero (Nat.sub_mod_eq_zero_of_mod_eq e)
+      have h2 : (h + a) - (h + b) = a - b := by omega
+      rw [h2] at h1
+      have := Nat.le_of_dvd (by omega) h1; omega
 
 /-- A hit names a row equal to the key. -/
 theorem probe_some (rows : List α) (slots : List Nat) (n : Nat) (a : α) :
@@ -147,7 +164,7 @@ theorem insert_inv (home : α → Nat) (rows : List α) (slots : List Nat) (n : 
     intro x; rw [List.getElem?_set]; by_cases e : j = x
     · subst e; simp [hjlt]
     · simp [e]
-  refine ⟨by simp [hinv.len], hinv.pos, hinv.home_lt, ?_, ?_, ?_, ?_⟩
+  refine ⟨by simp [hinv.len], hinv.pos, hinv.home_lt, ?_, ?_, ?_, ?_, ?_⟩
   · intro x i hx
     rw [get_set] at hx
     split at hx
@@ -185,6 +202,88 @@ theorem insert_inv (home : α → Nat) (rows : List α) (slots : List Nat) (n : 
     · rename_i e1 _; cases hx; have := hinv.named x' rows.length hx'; omega
     · rename_i _ e2; cases hx'; have := hinv.named x rows.length hx; omega
     · exact hinv.uniq x x' i hx hx'
+  · intro i hi dd d' k hdd hs hlt hk
+    rw [get_set] at hs hk
+    by_cases hold : i < rows.length
+    · have hri : (rows ++ [a])[i] = rows[i] := List.getElem_append_left hold
+      rw [hri] at hs hk
+      split at hs
+      · cases hs; omega
+      rename_i hjs
+      split at hk
+      · rename_i hjk
+        obtain ⟨d1, hd1, hs1, hne1⟩ := hinv.reach i hold
+        have := hinv.uniq _ _ i hs hs1
+        have e := at_inj hdd hd1 this
+        subst e
+        exact absurd (hjk ▸ hd0) (hne1 d' hlt)
+      · exact hinv.ord i hold dd d' k hdd hs hlt hk
+    · have hi' : i = rows.length := by simp at hi; omega
+      subst hi'
+      have hra : (rows ++ [a])[rows.length] = a := by simp
+      rw [hra] at hs hk
+      split at hk
+      · rename_i hjk
+        split at hs
+        · rename_i hjs
+          have := at_inj (by omega : d' < n) hdd (hjk.symm.trans hjs); omega
+        · exact absurd (hinv.named _ _ hs) (by omega)
+      · exact hinv.named _ k hk
+
+/-- **Undo the newest row**: its slot cleared, the table of the rows before it. -/
+theorem pop_inv (home : α → Nat) (rows : List α) (a : α) (slots : List Nat) (n : Nat)
+    (hinv : Inv (α := α) home (rows ++ [a]) slots n) (j : Nat) (hj : slots[j]? = some (rows.length + 1)) :
+    Inv (α := α) home rows (slots.set j 0) n := by
+  have hjlt : j < slots.length := (List.getElem?_eq_some_iff.mp hj).1
+  have get_set : ∀ x, (slots.set j 0)[x]? = if j = x then some 0 else slots[x]? := by
+    intro x; rw [List.getElem?_set]; by_cases e : j = x
+    · subst e; simp [hjlt]
+    · simp [e]
+  have hlen : (rows ++ [a]).length = rows.length + 1 := by simp
+  refine ⟨by simp [hinv.len], hinv.pos, hinv.home_lt, ?_, ?_, ?_, ?_, ?_⟩
+  · intro x i hx
+    rw [get_set] at hx
+    split at hx
+    · cases hx
+    · have h1 := hinv.named x i hx
+      rw [hlen] at h1
+      rcases Nat.lt_or_ge i rows.length with h | h
+      · exact h
+      · have : i = rows.length := by omega
+        subst this
+        rename_i hne; exact absurd (hinv.uniq _ _ _ hj hx) hne
+  · intro i hi
+    have hi' : i < (rows ++ [a]).length := by simp; omega
+    obtain ⟨d1, hd1, hs1, hne1⟩ := hinv.reach i hi'
+    have hri : (rows ++ [a])[i] = rows[i] := List.getElem_append_left hi
+    rw [hri] at hs1 hne1
+    refine ⟨d1, hd1, ?_, fun d' h' => ?_⟩
+    · rw [get_set]; split
+      · rename_i e; rw [← e] at hs1; rw [hj] at hs1; simp at hs1; omega
+      · exact hs1
+    · rw [get_set]; split
+      · rename_i e
+        exfalso
+        have hk := hinv.ord i hi' d1 d' rows.length hd1 (by rw [hri]; exact hs1) h' (by rw [hri, ← e]; exact hj)
+        omega
+      · exact hne1 d' h'
+  · exact (List.nodup_append.mp hinv.rows_nodup).1
+  · intro x x' i hx hx'
+    rw [get_set] at hx hx'
+    split at hx
+    · cases hx
+    split at hx'
+    · cases hx'
+    exact hinv.uniq x x' i hx hx'
+  · intro i hi dd d' k hdd hs hlt hk
+    have hi' : i < (rows ++ [a]).length := by simp; omega
+    have hri : (rows ++ [a])[i] = rows[i] := List.getElem_append_left hi
+    rw [get_set] at hs hk
+    split at hs
+    · cases hs
+    split at hk
+    · cases hk
+    exact hinv.ord i hi' dd d' k hdd (by rw [hri]; exact hs) hlt (by rw [hri]; exact hk)
 
 /-- Where the probe stops: at the row equal to the key, at an empty slot, or out of fuel. -/
 inductive PR where
