@@ -509,3 +509,4 @@ import ConPanqueque.T.Ind.ClassKeys
 import ConPanqueque.T.Ind.TargetMajor
 import ConPanqueque.T.Ind.ClassPass
 import ConPanqueque.T.Ind.NestOcc
+import ConPanqueque.T.Ind.DepthWalk
