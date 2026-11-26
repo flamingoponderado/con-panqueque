@@ -571,3 +571,4 @@ import ConPanqueque.T.Ind.CheckBlockK
 import ConPanqueque.T.Ind.IndNames
 import ConPanqueque.T.Decl.OffCheck
 import ConPanqueque.T.Decl.BasisInv
+import ConPanqueque.T.Ind.IndArm
