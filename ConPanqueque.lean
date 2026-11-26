@@ -108,6 +108,7 @@ import ConPanqueque.T.MemoRep
 import ConPanqueque.T.Memo
 import ConPanqueque.T.MemoClear
 import ConPanqueque.T.MemoPop
+import ConPanqueque.T.MemoUndo
 import ConPanqueque.T.MemoN
 import ConPanqueque.T.Mode
 import ConPanqueque.T.Eager
@@ -539,3 +540,4 @@ import ConPanqueque.T.Ind.ClassCtor
 import ConPanqueque.T.Ind.GenPre
 import ConPanqueque.T.Ind.GenMotive
 import ConPanqueque.T.Ind.ClassConst
+import ConPanqueque.T.Decl.EnvUndo
