@@ -73,8 +73,8 @@ theorem classCtorsOf_len {mode : ConLeche.CheckMode} {fe : IFEnv} {p : BlockShap
     obtain ⟨rfl, -⟩ := AM.pure_ok h
     simp [classCtorsOf_len cs h2]
 
-theorem postGR_H {C : Ctx} {H : List (BitVec 64)} (hp : C.H <+: H) :
-    ∀ a w s' (st : PState σ), PostGR (ctxH C H) a w s' st → PostGR C a w s' st := by
+theorem postGR_H {m0 : TargetMajor} {C : Ctx} {H : List (BitVec 64)} (hp : C.H <+: H) :
+    ∀ a w s' (st : PState σ), PostGR m0 (ctxH C H) a w s' st → PostGR m0 C a w s' st := by
   intro a w s' st ⟨EH, envM, H', o, h1, h2, h3, h4, h5⟩
   exact ⟨EH, envM, H', o, h1, hp.trans h2, h3, h4, h5⟩
 
@@ -438,8 +438,8 @@ theorem ga_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
         Enc.idxW ms0.cvT.type, cellA C pp, BitVec.ofNat 64 m.pfvs.length, cellA C pa, BitVec.ofNat 64 m.ds.length,
         Enc.idxW ms0.cvT.name, cellA C osl, BitVec.ofNat 64 rd.slots.length, cellA C om, BitVec.ofNat 64 p.numCtors,
         BitVec.ofNat 64 m.nIdx, Enc.idxW m.ind, BitVec.ofNat 64 m.nPc])) gaBody s
-      (genRecCheck mode C.fe p false params tbl rd [m] block) (PostGR C) := by
-  refine specR_prologue (postGR_locals C) (ga_none C _) ?_
+      (genRecCheck mode C.fe p false params tbl rd [m] block) (PostGR { m with nfs := tbl } C) := by
+  refine specR_prologue (postGR_locals _ C) (ga_none C _) ?_
   have hk : p.k = 1 := by simp [BlockShape.k, hms]
   rw [genRecCheck_eq mode C.fe p params tbl rd m block hk hmm]
   unfold genRecA
@@ -606,11 +606,11 @@ theorem ga_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
     hc.gb.self
     ⟨by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons],
       by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], trivial⟩
-    (PostGR (ctxH C H7))
+    (PostGR { m with nfs := tbl } (ctxH C H7))
     (fun r w s' C' => ∃ EH envM H o, C' = ctxNew (ctxH C H7) r.1 EH envM H ∧ C.EH <+: EH ∧ H7 <+: H ∧
       CtxOK (ctxNew (ctxH C H7) r.1 EH envM H) ∧ TblGate r.1 ∧ FlagsOK r.1 ∧ LitsPinned r.1 C.pins ∧
       (∀ n, r.1.find? n = C.fe.find? n) ∧ (∀ n, r.1.findTable? n = C.fe.findTable? n) ∧
-      ∃ cv m rhss orh oc, r.2 = [(cv, m, rhss)] ∧ w = cellA C o ∧ H[o]? = some (cellA C orh) ∧
+      ∃ cv rhss orh oc, r.2 = [(cv, { m with nfs := tbl }, rhss)] ∧ w = cellA C o ∧ H[o]? = some (cellA C orh) ∧
       H[o + 1]? = some (cellA C oc) ∧ BlkAt H orh (rhss.map Enc.idxW) ∧ CVRep C H oc cv)
     (fun r w s' st ⟨EH, envM, H, o, h1, h2, h3, h4, h5⟩ => ⟨_, ⟨EH, envM, H, o, rfl, h1, h2, h3, h5⟩, h4⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu gbParams _ rfl hlk)

@@ -100,8 +100,8 @@ theorem gb_none (C : Ctx) (vals : List (BitVec 64)) :
     ∀ x, x ∈ gbLocals → (ctxEnv C ++ gbParams.zip vals).get x = none :=
   Knot.params_none C gbLocals gbParams vals (by decide) (by decide)
 
-theorem postGR_lower {C : Ctx} {St : EStore} (hx : Ext C.St St) {H : List (BitVec 64)} (hp : C.H <+: H) :
-    ∀ a w s' (st : PState σ), PostGR (ctxSt (ctxH C H) St) a w s' st → PostGR C a w s' st := by
+theorem postGR_lower {m0 : TargetMajor} {C : Ctx} {St : EStore} (hx : Ext C.St St) {H : List (BitVec 64)} (hp : C.H <+: H) :
+    ∀ a w s' (st : PState σ), PostGR m0 (ctxSt (ctxH C H) St) a w s' st → PostGR m0 C a w s' st := by
   intro a w s' st ⟨EH, envM, H', o, h1, h2, h3, h4, h5⟩
   refine ⟨EH, envM, H', o, h1, hp.trans h2, ?_, sr_lower (St := St) h4 hx, h5⟩
   have := h3; cases this; constructor <;> assumption
@@ -129,8 +129,8 @@ theorem gb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
     SpecR (σ := σ) (Pre C s (gbParams.zip [cellA C opp, cellA C osl, BitVec.ofNat 64 g0.slots.length,
         BitVec.ofNat 64 g0.nP, cellA C oc, BitVec.ofNat 64 ccs.length, cellA C pd, BitVec.ofNat 64 m.ds.length,
         Enc.idxW fty, BitVec.ofNat 64 m.nIdx, Enc.idxW m.ind, Enc.idxW m.lvls, Enc.idxW g0.elim,
-        BitVec.ofNat 64 m.nPc, cellA C orr])) gbBody s (genRecB mode C.fe p g0 [rc.cvR] [0]) (PostGR C) := by
-  refine specR_prologue (postGR_locals C) (gb_none C _) ?_
+        BitVec.ofNat 64 m.nPc, cellA C orr])) gbBody s (genRecB mode C.fe p g0 [rc.cvR] [0]) (PostGR m C) := by
+  refine specR_prologue (postGR_locals m C) (gb_none C _) ?_
   unfold genRecB
   refine specR_callNIH (C := C) gbPr fPb pbParams
     [vv gbOpp, vv gbOsl, vv gbNsl, vv gbNp, vv gbOc, vv gbNc, vv gbPd, vv gbNd, vv gbFty, vv gbNi, vv gbInd, vv gbLv,
@@ -204,7 +204,7 @@ theorem gb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
   have hty := hcvd pre s1 s2 cvG hrun
   refine specR_atEntry fun t2 ht2 => ?_
   have hfl : Ext C.St s2.store := ht2.sr.floor
-  refine specR_invRaise (C := ctxH C H2) (R' := PostGR (ctxSt (ctxH C H2) s2.store)) ?_
+  refine specR_invRaise (C := ctxH C H2) (R' := PostGR m (ctxSt (ctxH C H2) s2.store)) ?_
     (fun a w s' t hx h => postGR_lower (C := C) (H := H2) hx hpC2 a w s' t h)
   have hokS := ctxOK_St (ctxOK_H hok H2) s2.store
   have hden : CVDen cvG s2.store :=
@@ -225,13 +225,13 @@ theorem gb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
       by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv],
       by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv],
       by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], trivial⟩
-    (PostGR (ctxSt (ctxH C H2) s2.store))
+    (PostGR m (ctxSt (ctxH C H2) s2.store))
     (fun r w s' C' => ∃ EH envM H o, C' = ctxNew (ctxSt (ctxH C H2) s2.store) r.1 EH envM H ∧
       (ctxSt (ctxH C H2) s2.store).EH <+: EH ∧ (ctxSt (ctxH C H2) s2.store).H <+: H ∧
       CtxOK (ctxNew (ctxSt (ctxH C H2) s2.store) r.1 EH envM H) ∧
       TblGate r.1 ∧ FlagsOK r.1 ∧ LitsPinned r.1 C.pins ∧ (∀ n, r.1.find? n = C.fe.find? n) ∧
       (∀ n, r.1.findTable? n = C.fe.findTable? n) ∧
-      ∃ cv m rhss orh oc, r.2 = [(cv, m, rhss)] ∧ w = cellA C o ∧ H[o]? = some (cellA C orh) ∧
+      ∃ cv rhss orh oc, r.2 = [(cv, m, rhss)] ∧ w = cellA C o ∧ H[o]? = some (cellA C orh) ∧
       H[o + 1]? = some (cellA C oc) ∧ BlkAt H orh (rhss.map Enc.idxW) ∧ CVRep C H oc cv)
     (fun r w s' st ⟨EH, envM, H, o, h1, h2, h3, h4, h5⟩ => ⟨_, ⟨EH, envM, H, o, rfl, h1, h2, h3, h5⟩, h4⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cfrParams _ rfl hlk)

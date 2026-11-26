@@ -167,16 +167,16 @@ theorem cfr_none (C : Ctx) (vals : List (BitVec 64)) :
   Knot.params_none C cfrLocals cfrParams vals (by decide) (by decide)
 
 /-- After the rules: the environment the twin hands back (answering as `C`'s), and the rules block. -/
-def PostGR (C : Ctx) (r : IFEnv × List (IConstantVal × TargetMajor × List EIdx)) (w : BitVec 64) (s' : AState)
+def PostGR (m0 : TargetMajor) (C : Ctx) (r : IFEnv × List (IConstantVal × TargetMajor × List EIdx)) (w : BitVec 64) (s' : AState)
     (st : PState σ) : Prop :=
   ∃ EH envM H o, C.EH <+: EH ∧ C.H <+: H ∧ CtxOK (ctxNew C r.1 EH envM H) ∧ SR (ctxNew C r.1 EH envM H) s' st ∧
     TblGate r.1 ∧ FlagsOK r.1 ∧ LitsPinned r.1 C.pins ∧ (∀ n, r.1.find? n = C.fe.find? n) ∧
     (∀ n, r.1.findTable? n = C.fe.findTable? n) ∧
-    ∃ cv m rhss orh oc, r.2 = [(cv, m, rhss)] ∧ w = cellA C o ∧ H[o]? = some (cellA C orh) ∧
+    ∃ cv rhss orh oc, r.2 = [(cv, m0, rhss)] ∧ w = cellA C o ∧ H[o]? = some (cellA C orh) ∧
       H[o + 1]? = some (cellA C oc) ∧ BlkAt H orh (rhss.map Enc.idxW) ∧ CVRep C H oc cv
 
-theorem postGR_locals (C : Ctx) : ∀ a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
-    PostGR C a w s' st → PostGR C a w s' { st with locals := L } :=
+theorem postGR_locals (m0 : TargetMajor) (C : Ctx) : ∀ a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
+    PostGR m0 C a w s' st → PostGR m0 C a w s' { st with locals := L } :=
   fun _ _ _ _ _ ⟨EH, envM, H, o, h1, h2, h3, h4, h5⟩ => ⟨EH, envM, H, o, h1, h2, h3, sr_of_eq h4 rfl rfl rfl rfl, h5⟩
 
 set_option maxHeartbeats 64000000 in
@@ -199,8 +199,8 @@ theorem cfr_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     (s : AState) :
     SpecR (σ := σ) (Pre C s (cfrParams.zip [cellA C q, cellA C orc, cellA C ocs, BitVec.ofNat 64 xs.length,
         BitVec.ofNat 64 g.pre.length, BitVec.ofNat 64 g.nP, cellA C opm, cellA C os, cellA C opr,
-        BitVec.ofNat 64 (g.nP + g.slots.length)])) (cfrBody C) s (genRules mode C.fe p g [0] [cvG]) (PostGR C) := by
-  refine specR_prologue (postGR_locals C) (cfr_none C _) ?_
+        BitVec.ofNat 64 (g.nP + g.slots.length)])) (cfrBody C) s (genRules mode C.fe p g [0] [cvG]) (PostGR m0 C) := by
+  refine specR_prologue (postGR_locals m0 C) (cfr_none C _) ?_
   rw [genRules_one]
   obtain ⟨hn0, ⟨wl, hwl, ol, hwlo, hebl⟩, hty⟩ := hcv
   have hbl : BlkAt C.H ol (cvG.levelParams.map Enc.idxW) := hebl
@@ -405,7 +405,7 @@ theorem cfr_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   exact specR_returnI _ (cellA C H10.length) (by simp [sev, Env.get_cons]; rfl)
     (fun t ht => ⟨EH2, (C.envM.insert ci.name (ecell C ox)).erase cvG.name, _, H10.length, hp1.trans hpE2,
       hpq, ctxOK_H hokFin _, sr_of_eq ht.sr rfl rfl rfl rfl, fe2_tblGate hg ci, fe2_flagsOK hF ci,
-      fe2_litsPinned hL ci, fe2_find C.fe ci, fe2_findTable C.fe ci, cvG, m0, rhss, orr, q, rfl, rfl, k0', k1',
+      fe2_litsPinned hL ci, fe2_find C.fe ci, fe2_findTable C.fe ci, cvG, rhss, orr, q, rfl, rfl, k0', k1',
       blkAt_mono hbr (hp9.trans hp10'), cvRep_mono hpq ⟨hn0, ⟨_, hwl, ol, rfl, hebl⟩, hty⟩⟩)
 
 end
