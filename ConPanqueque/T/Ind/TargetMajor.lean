@@ -124,13 +124,13 @@ def TMRep (C : Ctx) (H : List (BitVec 64)) (o : Nat) (m : TargetMajor) : Prop :=
   ∃ oa, H[o + 3]? = some (cellA C oa) ∧ H[oa]? = some (Enc.idxW m.ind) ∧ H[oa + 1]? = some (Enc.idxW m.lvls) ∧
     (∃ od, H[oa + 2]? = some (cellA C od) ∧ BlkAt H od (m.ds.map Enc.idxW)) ∧ NatE H (oa + 3) m.nPc ∧
     NatE H o m.nIdx ∧ (∃ oc, H[o + 1]? = some (cellA C oc) ∧ CtorsRep C H oc m.ctors) ∧
-    H[o + 2]? = some (optNatW m.member)
+    H[o + 2]? = some (optNatW m.member) ∧ ∀ t, m.member = some t → t < 2 ^ 62
 
 theorem tmRep_mono {C : Ctx} {H H' : List (BitVec 64)} (hp : H <+: H') {o : Nat} {m : TargetMajor}
     (h : TMRep C H o m) : TMRep C H' o m := by
-  obtain ⟨oa, a, b, c, ⟨od, d, e⟩, f, g, ⟨oc, i, j⟩, k⟩ := h
+  obtain ⟨oa, a, b, c, ⟨od, d, e⟩, f, g, ⟨oc, i, j⟩, k, l⟩ := h
   exact ⟨oa, get_prefix a hp, get_prefix b hp, get_prefix c hp, ⟨od, get_prefix d hp, blkAt_mono e hp⟩, natE_mono hp f,
-    natE_mono hp g, ⟨oc, get_prefix i hp, ctorsRep_mono hp j⟩, get_prefix k hp⟩
+    natE_mono hp g, ⟨oc, get_prefix i hp, ctorsRep_mono hp j⟩, get_prefix k hp, l⟩
 
 /-- A target major as a fresh record, at the openers `pfvs` with no normal forms. -/
 def PostTM (C : Ctx) (pfvs : List EIdx) (m : TargetMajor) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
@@ -410,7 +410,7 @@ theorem tmo_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
   refine ⟨_, H6.length, (hp1'.trans hp34).trans (hp45.trans hp56), rfl, ⟨H5.length, b3, get_prefix a0 hp56,
     get_prefix a1 hp56, ⟨pf, get_prefix a2 hp56, by rw [List.take_of_length_le (by omega)]; exact hpf6⟩,
     ⟨get_prefix a3 hp56, hpnP⟩, ⟨b0, hnI t htl⟩, ⟨oc, b1, ctorsRep_mono (hp34.trans (hp45.trans hp56)) hcr⟩, by
-      simpa [optNatW] using b2⟩, rfl, rfl, sr_of_eq htt.sr rfl rfl rfl rfl⟩
+      simpa [optNatW] using b2, fun t' ht' => by simp at ht'; omega⟩, rfl, rfl, sr_of_eq htt.sr rfl rfl rfl rfl⟩
 
 end
 
@@ -594,7 +594,7 @@ theorem cmj_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       (fun m w s3 H3 hp3 ⟨om3, hw, htm, hpv, hnf⟩ => ?_)
     subst hw
     have hp3' : H <+: H3 := hp3
-    obtain ⟨-, -, -, -, -, -, -, -, hmb⟩ := id htm
+    obtain ⟨-, -, -, -, -, -, -, -, hmb, -⟩ := id htm
     refine UD.specR_heapLoadI' (C := ctxH C H3) cmjMb _ (om3 + 2) _ hmb (by decide)
       (by simp +decide [sev, Env.get_cons]; exact cellA_add_ofNat C om3 2) ?_
     rcases hmm : m.member with _ | t
