@@ -80,13 +80,14 @@ theorem denoteCIList_names {st : EStore} : ∀ (r : List IConstantInfo) (cs : Li
       exact ⟨denoteCI_name hx, denoteCIList_names r xs hxs⟩
     · cases h
 
-/-- **A pinned block's names, on a run that moved nothing, are its reserved slice.** -/
-theorem basisDecls_names (k : ConLeche.BasisKind) (hk : k ≠ .quotK) {s : AState} {r : List IConstantInfo}
-    (hok : StateOK s) (hp : PinsOK s) (hrun : ConRon.Arena.BasisKind.decls k s = .ok (r, s)) :
+/-- **A pinned block's names, on a run that moved nothing, are its reserved slice** (the reserved names
+denoting suffices). -/
+theorem basisDecls_names' (k : ConLeche.BasisKind) (hk : k ≠ .quotK) {s : AState} {r : List IConstantInfo}
+    (hok : StateOK s) (hres : denoteNL s.store s.pins.reserved reservedBasisNameValues)
+    (hrun : ConRon.Arena.BasisKind.decls k s = .ok (r, s)) :
     r.map (·.name) = resSlice k s.pins.reserved := by
   obtain ⟨-, hden⟩ := BasisKind.decls_run hok hrun
   have h1 := denoteCIList_names r _ hden
-  have hres := hp.reserved
   cases k with
   | quotK => exact absurd rfl hk
   | eqK =>
@@ -109,5 +110,9 @@ theorem basisDecls_names (k : ConLeche.BasisKind) (hk : k ≠ .quotK) {s : AStat
     have hv : ((reservedBasisNameValues.drop 9).take 2) = (ConLeche.BasisKind.decls .falseK).map (·.name) := by rfl
     rw [hv] at h2
     exact denoteNL_inj hok.wf _ _ _ h1 h2
+
+theorem basisDecls_names (k : ConLeche.BasisKind) (hk : k ≠ .quotK) {s : AState} {r : List IConstantInfo}
+    (hok : StateOK s) (hp : PinsOK s) (hrun : ConRon.Arena.BasisKind.decls k s = .ok (r, s)) :
+    r.map (·.name) = resSlice k s.pins.reserved := basisDecls_names' k hk hok hp.reserved hrun
 
 end ConPanqueque.Logic.BasisNames
