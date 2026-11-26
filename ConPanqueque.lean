@@ -568,3 +568,4 @@ import ConPanqueque.T.Ind.CheckPass
 import ConPanqueque.T.Ind.CtorsFresh
 import ConPanqueque.T.Ind.CheckBlockInst
 import ConPanqueque.T.Ind.CheckBlockK
+import ConPanqueque.T.Ind.IndNames
