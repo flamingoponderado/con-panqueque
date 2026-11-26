@@ -506,3 +506,4 @@ import ConPanqueque.T.Ind.NestCtx
 import ConPanqueque.T.Ind.ClassRead
 import ConPanqueque.T.Ind.ReplaceFVars
 import ConPanqueque.T.Ind.ClassKeys
+import ConPanqueque.T.Ind.TargetMajor
