@@ -310,6 +310,7 @@ def codeEntries (C : ConPanqueque.T.Ctx) : List (MlS × (List (MlS × ShapeHOL) 
   (ConPanqueque.T.Decl.fKd, (List.map (fun p => (p, Flapjack.Pancake.PanLang.ShapeHOL.one)) ConPanqueque.T.Decl.kdParams, ConPanqueque.T.Decl.kdBody C, Flapjack.Pancake.PanLang.ShapeHOL.one)),
   (ConPanqueque.T.Decl.fKt, (List.map (fun p => (p, Flapjack.Pancake.PanLang.ShapeHOL.one)) ConPanqueque.T.Decl.kdParams, ConPanqueque.T.Decl.ktBody C, Flapjack.Pancake.PanLang.ShapeHOL.one)),
   (ConPanqueque.T.Decl.fKo, (List.map (fun p => (p, Flapjack.Pancake.PanLang.ShapeHOL.one)) ConPanqueque.T.Decl.kdParams, ConPanqueque.T.Decl.koBody C, Flapjack.Pancake.PanLang.ShapeHOL.one)),
+  (ConPanqueque.T.Decl.fKa, (List.map (fun p => (p, Flapjack.Pancake.PanLang.ShapeHOL.one)) ConPanqueque.T.Decl.kdParams, ConPanqueque.T.Decl.kaBody C, Flapjack.Pancake.PanLang.ShapeHOL.one)),
   (ConPanqueque.T.Ind.fKi, (List.map (fun p => (p, Flapjack.Pancake.PanLang.ShapeHOL.one)) ConPanqueque.T.Ind.kiParams, ConPanqueque.T.Ind.kiBody C, Flapjack.Pancake.PanLang.ShapeHOL.one)),
   (ConPanqueque.T.Ind.fIbn, (List.map (fun p => (p, Flapjack.Pancake.PanLang.ShapeHOL.one)) ConPanqueque.T.Ind.ibnParams, ConPanqueque.T.Ind.ibnBody, Flapjack.Pancake.PanLang.ShapeHOL.one)),
   (ConPanqueque.T.Ind.fIpo, (List.map (fun p => (p, Flapjack.Pancake.PanLang.ShapeHOL.one)) ConPanqueque.T.Ind.ipoParams, ConPanqueque.T.Ind.ipoBody, Flapjack.Pancake.PanLang.ShapeHOL.one)),

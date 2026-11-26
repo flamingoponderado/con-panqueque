@@ -93,6 +93,7 @@ structure FoldCodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
   kd : C.code.lookup fKd = some (kdParams.map (fun p => (p, ShapeHOL.one)), kdBody C, .one)
   kt : C.code.lookup fKt = some (kdParams.map (fun p => (p, ShapeHOL.one)), ktBody C, .one)
   ko : C.code.lookup fKo = some (kdParams.map (fun p => (p, ShapeHOL.one)), koBody C, .one)
+  ka : C.code.lookup fKa = some (kdParams.map (fun p => (p, ShapeHOL.one)), kaBody C, .one)
   ic : IndCodes mode C
 
 theorem foldCodes_new {mode : ConLeche.CheckMode} {C : Ctx} (hc : FoldCodes mode C) (fe : IFEnv)
@@ -118,7 +119,9 @@ theorem recOK_new {C : Ctx} {o : Nat} {d : IDeclaration} (h : RecOK C o d) {fe :
   | opaqueDecl cv v =>
     obtain ⟨h1, h2, h3⟩ := h
     exact ⟨get_prefix h1 hp, recCV_new h2 hp, get_prefix h3 hp⟩
-  | axiomDecl cv => obtain ⟨t, h1, h2⟩ := h; exact ⟨t, get_prefix h1 hp, h2⟩
+  | axiomDecl cv =>
+    obtain ⟨h1, h2, w, h3⟩ := h
+    exact ⟨get_prefix h1 hp, recCV_new h2 hp, w, get_prefix h3 hp⟩
   | indDecl b n =>
     obtain ⟨h1, hi, ob, h2, h3, h4, h5⟩ := h
     exact ⟨get_prefix h1 hp, by ctx_tr hi, ob, get_prefix h2 hp, get_prefix h3 hp, Ind.indBlk_mono h4 hp, h5⟩
@@ -173,7 +176,7 @@ theorem fold_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : C
       (fun a w s' st ⟨EH, envM, tblM, H, hpE, hpH, hokN, hsr, hgt, hfl, hlp⟩ =>
         ⟨ctxNewT C a EH envM tblM H, ⟨EH, envM, tblM, H, rfl, hpH, hokN, hgt, hfl, hlp⟩, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu [stQ] _ rfl hlk)
-        (step_spec mode pins C hok hc.dc ra hs hpl hg hF hL hc.kd hc.kt hc.ko (eqvS_of hok hc.lc) hc.ic (eqvA_of hc.lc)
+        (step_spec mode pins C hok hc.dc ra hs hpl hg hF hL hc.kd hc.kt hc.ko hc.ka (eqvS_of hok hc.lc) hc.ic (eqvA_of hc.lc)
           (hLE_of hok hc.lc) rs[i].1 rs[i].2
           (hrec i hil (le_refl _)) s))
       (fun a w s1 C1 ⟨EH, envM, tblM, H1, eC, hpH, hokN, hgt, hfl, hlp⟩ => ?_)
