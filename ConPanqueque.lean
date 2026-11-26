@@ -525,3 +525,4 @@ import ConPanqueque.T.Ind.NestUniform
 import ConPanqueque.T.Ind.CheckAbs
 import ConPanqueque.T.Ind.CheckPos
 import ConPanqueque.T.Ind.Seeds
+import ConPanqueque.T.Ind.CheckInds
