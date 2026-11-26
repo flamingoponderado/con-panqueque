@@ -548,3 +548,4 @@ import ConPanqueque.T.Ind.RuleCheck
 import ConPanqueque.T.Ind.FeR
 import ConPanqueque.T.Ind.GenRecCheck
 import ConPanqueque.T.Ind.GenRecHead
+import ConPanqueque.T.Ind.StreamK

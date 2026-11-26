@@ -130,7 +130,8 @@ def cfrRs := ofString "cfr_rs"
 def fCfr := ofString "genRules"
 
 def cfrParams : List MlS := [cfrQ, cfrRc, cfrCs, cfrK, cfrRpL, cfrNp, cfrPm, cfrSl, cfrPr, cfrN0]
-def cfrLocals : List MlS := [cfrNm, cfrLp, cfrLn, cfrY, cfrRb, cfrMi, cfrRp, cfrX, cfrRi, cfrFl, cfrPb, cfrRs, lJ0]
+def cfrO := ofString "cfr_o"
+def cfrLocals : List MlS := [cfrNm, cfrLp, cfrLn, cfrY, cfrRb, cfrMi, cfrRp, cfrX, cfrRi, cfrFl, cfrPb, cfrRs, cfrO, lJ0]
 
 def cfrBody (C : Ctx) : ProgHOL 64 := prologue cfrLocals
   (.seq (.assign .local cfrNm (.load .one (vv cfrQ)))
@@ -150,7 +151,7 @@ def cfrBody (C : Ctx) : ProgHOL 64 := prologue cfrLocals
   (undoCode (C.mg .env) (vv cfrNm)
   (.seq (.call (some (some (.local, cfrFl), none)) fFlags [])
   (flushCode C (flushRegions false)
-  (.return (vv cfrRs)))))))))))))))))))
+  (alloc2 C cfrO (vv cfrRs) (vv cfrQ) (.return (vv cfrO))))))))))))))))))))
 
 
 structure CFRCodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
@@ -171,7 +172,8 @@ def PostGR (C : Ctx) (r : IFEnv × List (IConstantVal × TargetMajor × List EId
   ∃ EH envM H o, C.EH <+: EH ∧ C.H <+: H ∧ CtxOK (ctxNew C r.1 EH envM H) ∧ SR (ctxNew C r.1 EH envM H) s' st ∧
     TblGate r.1 ∧ FlagsOK r.1 ∧ LitsPinned r.1 C.pins ∧ (∀ n, r.1.find? n = C.fe.find? n) ∧
     (∀ n, r.1.findTable? n = C.fe.findTable? n) ∧
-    ∃ cv m rhss, r.2 = [(cv, m, rhss)] ∧ w = cellA C o ∧ BlkAt H o (rhss.map Enc.idxW)
+    ∃ cv m rhss orh oc, r.2 = [(cv, m, rhss)] ∧ w = cellA C o ∧ H[o]? = some (cellA C orh) ∧
+      H[o + 1]? = some (cellA C oc) ∧ BlkAt H orh (rhss.map Enc.idxW) ∧ CVRep C H oc cv
 
 theorem postGR_locals (C : Ctx) : ∀ a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
     PostGR C a w s' st → PostGR C a w s' { st with locals := L } :=
@@ -394,10 +396,17 @@ theorem cfr_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   subst eC s9
   have hokFin := ctxOK_fe (ctxOK_H hokV H9) (fe := fe2) (fun n => hfV n) (fun n => htV n)
   refine specR_flushTopI hokFin hpl false flushCaches rfl (by decide) ?_
-  exact specR_returnI _ (cellA C orr) (by simp +decide [sev, Env.get_cons, Env.get, Env.kill])
-    (fun t ht => ⟨EH2, (C.envM.insert ci.name (ecell C ox)).erase cvG.name, H9, orr, hp1.trans hpE2,
-      hpC8.trans hp9, hokFin, sr_of_eq ht.sr rfl rfl rfl rfl, fe2_tblGate hg ci, fe2_flagsOK hF ci,
-      fe2_litsPinned hL ci, fe2_find C.fe ci, fe2_findTable C.fe ci, cvG, m0, rhss, rfl, rfl, blkAt_mono hbr hp9⟩)
+  refine specR_alloc2I hokFin cfrO (vv cfrRs) (vv cfrQ) (cellA C orr) (cellA C q) (by decide)
+    (fun _ => by simp +decide [sev, Env.get_cons, Env.get, Env.kill]) (fun _ => by simp +decide [sev, Env.get_cons, Env.get, Env.kill, cfrParams, ctxEnv])
+    (fun H10 ws10 hp10 hws10 => ?_)
+  obtain ⟨k0', k1'⟩ := img2_get H10 ws10 (cellA C orr) (cellA C q) hws10
+  have hp10' : H9 <+: _ := (hp10 : H9 <+: H10).trans (img2_prefix H10 ws10 (cellA C orr) (cellA C q) hws10)
+  have hpq : C.H <+: _ := hpC8.trans (hp9.trans hp10')
+  exact specR_returnI _ (cellA C H10.length) (by simp [sev, Env.get_cons]; rfl)
+    (fun t ht => ⟨EH2, (C.envM.insert ci.name (ecell C ox)).erase cvG.name, _, H10.length, hp1.trans hpE2,
+      hpq, ctxOK_H hokFin _, sr_of_eq ht.sr rfl rfl rfl rfl, fe2_tblGate hg ci, fe2_flagsOK hF ci,
+      fe2_litsPinned hL ci, fe2_find C.fe ci, fe2_findTable C.fe ci, cvG, m0, rhss, orr, q, rfl, rfl, k0', k1',
+      blkAt_mono hbr (hp9.trans hp10'), cvRep_mono hpq ⟨hn0, ⟨_, hwl, ol, rfl, hebl⟩, hty⟩⟩)
 
 end
 

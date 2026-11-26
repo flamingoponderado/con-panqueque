@@ -231,7 +231,8 @@ theorem gb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
       CtxOK (ctxNew (ctxSt (ctxH C H2) s2.store) r.1 EH envM H) ∧
       TblGate r.1 ∧ FlagsOK r.1 ∧ LitsPinned r.1 C.pins ∧ (∀ n, r.1.find? n = C.fe.find? n) ∧
       (∀ n, r.1.findTable? n = C.fe.findTable? n) ∧
-      ∃ cv m rhss, r.2 = [(cv, m, rhss)] ∧ w = cellA C o ∧ BlkAt H o (rhss.map Enc.idxW))
+      ∃ cv m rhss orh oc, r.2 = [(cv, m, rhss)] ∧ w = cellA C o ∧ H[o]? = some (cellA C orh) ∧
+      H[o + 1]? = some (cellA C oc) ∧ BlkAt H orh (rhss.map Enc.idxW) ∧ CVRep C H oc cv)
     (fun r w s' st ⟨EH, envM, H, o, h1, h2, h3, h4, h5⟩ => ⟨_, ⟨EH, envM, H, o, rfl, h1, h2, h3, h5⟩, h4⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cfrParams _ rfl hlk)
       (cfr_spec mode ra (ctxSt (ctxH C H2) s2.store) hokS hs hpl (by ctx_tr hc.cfr) hg hF hL p rc
