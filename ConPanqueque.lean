@@ -551,3 +551,4 @@ import ConPanqueque.T.Ind.GenRecHead
 import ConPanqueque.T.Ind.StreamK
 import ConPanqueque.T.Ind.StreamChk
 import ConPanqueque.T.Decl.FeSwitch
+import ConPanqueque.T.Ind.StructTbl
