@@ -518,3 +518,4 @@ import ConPanqueque.T.Ind.ReplaceAppsGo
 import ConPanqueque.T.Ind.Crest
 import ConPanqueque.T.Ind.RFHole
 import ConPanqueque.T.Ind.NestCtorNf
+import ConPanqueque.T.Ind.CtorChecks
