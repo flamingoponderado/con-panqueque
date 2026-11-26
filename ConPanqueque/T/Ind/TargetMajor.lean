@@ -414,4 +414,226 @@ theorem tmo_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
 
 end
 
+/-! ## `classMajors` -/
+
+/-- A block of key records. -/
+def KeyBlk (C : Ctx) (H : List (BitVec 64)) (o : Nat) (ks : List ClassKey) : Prop :=
+  ∃ ps : List Nat, ps.length = ks.length ∧ BlkAt H o (ps.map (cellA C)) ∧
+    ∀ k (hk : k < ks.length), ∃ op, ps[k]? = some op ∧ KeyRep C H op ks[k]
+
+theorem keyBlk_mono {C : Ctx} {H H' : List (BitVec 64)} (hp : H <+: H') {o : Nat} {ks : List ClassKey}
+    (h : KeyBlk C H o ks) : KeyBlk C H' o ks :=
+  let ⟨ps, hl, hb, hr⟩ := h
+  ⟨ps, hl, blkAt_mono hb hp, fun k hk => let ⟨op, h1, h2⟩ := hr k hk; ⟨op, h1, keyRep_mono hp h2⟩⟩
+
+/-- A block of target-major records at the openers `pfvs`. -/
+def TMBlk (C : Ctx) (H : List (BitVec 64)) (o : Nat) (pfvs : List EIdx) (ms : List TargetMajor) : Prop :=
+  ∃ ps : List Nat, ps.length = ms.length ∧ BlkAt H o (ps.map (cellA C)) ∧
+    ∀ k (hk : k < ms.length), ∃ op, ps[k]? = some op ∧ TMRep C H op ms[k] ∧ ms[k].pfvs = pfvs ∧ ms[k].nfs = []
+
+theorem tmBlk_mono {C : Ctx} {H H' : List (BitVec 64)} (hp : H <+: H') {o : Nat} {pfvs : List EIdx}
+    {ms : List TargetMajor} (h : TMBlk C H o pfvs ms) : TMBlk C H' o pfvs ms :=
+  let ⟨ps, hl, hb, hr⟩ := h
+  ⟨ps, hl, blkAt_mono hb hp, fun k hk => let ⟨op, h1, h2, h3, h4⟩ := hr k hk; ⟨op, h1, tmRep_mono hp h2, h3, h4⟩⟩
+
+/-- The majors' answer: a fresh block. -/
+def PostTMs (C : Ctx) (pfvs : List EIdx) (ms : List TargetMajor) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
+  ∃ H' o, C.H <+: H' ∧ w = cellA C o ∧ TMBlk C H' o pfvs ms ∧ SR (ctxH C H') s' st
+
+theorem postTMs_locals (C : Ctx) (pfvs : List EIdx) : ∀ a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
+    PostTMs (σ := σ) C pfvs a w s' st → PostTMs C pfvs a w s' { st with locals := L } :=
+  fun _ _ _ _ _ ⟨H', o, hp, hw, h1, hs⟩ => ⟨H', o, hp, hw, h1, sr_of_eq hs rfl rfl rfl rfl⟩
+
+def cmjK := ofString "cmj_k"
+def cmjI := ofString "cmj_i"
+def cmjN := ofString "cmj_n"
+def cmjM := ofString "cmj_m"
+def cmjP := ofString "cmj_p"
+def cmjL := ofString "cmj_l"
+def cmjF := ofString "cmj_f"
+def cmjKp := ofString "cmj_kp"
+def cmjIn := ofString "cmj_in"
+def cmjLv := ofString "cmj_lv"
+def cmjDs := ofString "cmj_ds"
+def cmjHd := ofString "cmj_hd"
+def cmjDn := ofString "cmj_dn"
+def cmjMt := ofString "cmj_mt"
+def cmjR := ofString "cmj_r"
+def cmjMb := ofString "cmj_mb"
+def fClassMajors := ofString "classMajors"
+
+def cmjParams : List MlS := [cmjK, cmjI, cmjN, cmjM, cmjP, cmjL, cmjF]
+def cmjLocals : List MlS := gaaLocals ++ [cmjKp, cmjIn, cmjLv, cmjDs, cmjHd, cmjDn, cmjMt, cmjR, cmjMb]
+
+def cmjBody (C : Ctx) : ProgHOL 64 := prologue cmjLocals
+  (.ite (.cmp .lower (vv cmjI) (vv cmjN))
+    (.seq (.assign .local cmjKp (.load .one (.op .add [vv cmjK, .op .add [.panop .mul [vv cmjI, .const 8], .const 8]])))
+    (.seq (.assign .local cmjIn (.load .one (vv cmjKp)))
+    (.seq (.assign .local cmjLv (.load .one (.op .add [vv cmjKp, .const 8])))
+    (.seq (.assign .local cmjDs (.load .one (.op .add [vv cmjKp, .const 16])))
+    (.seq (.call (some (some (.local, cmjHd), none)) fInternConst [vv cmjIn, vv cmjLv])
+    (.seq (.assign .local cmjDn (.load .one (vv cmjDs)))
+    (.seq (.call (some (some (.local, cmjMt), none)) ExK.fMka [vv cmjHd, vv cmjDs, .const 0, vv cmjDn])
+    (.seq (.call (some (some (.local, cmjR), none)) fTargetMajor [vv cmjM, vv cmjP, vv cmjL, vv cmjF, vv cmjMt])
+    (.seq (.assign .local cmjMb (.load .one (.op .add [vv cmjR, .const 16])))
+    (.ite (.cmp .equal (vv cmjMb) (.const 0)) hang
+    (.seq (.call (some (some (.local, ExS.lY), none)) fClassMajors
+        [vv cmjK, .op .add [vv cmjI, .const 1], vv cmjN, vv cmjM, vv cmjP, vv cmjL, vv cmjF])
+      (prependP C cmjR))))))))))))
+    (alloc1 C lW (.const 0) (.return (vv lW))))
+
+/-- The code `classMajors` runs. -/
+structure CMJCodes (C : Ctx) : Prop where
+  self : C.code.lookup fClassMajors = some (cmjParams.map (fun p => (p, ShapeHOL.one)), cmjBody C, .one)
+  tmo : TMOCodes C
+  ic : C.code.lookup fInternConst = some ([(lEn, .one), (lEus, .one)], constBody, .one)
+  mka : C.code.lookup ExK.fMka = some ([(ExK.pF, .one), (ExK.pP, .one), (ExK.pI, .one), (ExK.pN, .one)], ExK.mkaBody, .one)
+  app : C.code.lookup fInternApp = some ([(lEf, .one), (lEa, .one)], internAppBody, .one)
+
+section
+variable {σ : Type}
+
+theorem cmj_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ cmjLocals → (ctxEnv C ++ cmjParams.zip vals).get x = none :=
+  Knot.params_none C cmjLocals cmjParams vals (by decide) (by decide)
+
+theorem classMajors_drop (mode : ConLeche.CheckMode) (fe : IFEnv) (p : BlockShape) (pfvs : List EIdx)
+    (keys : List ClassKey) (i : Nat) (hi : i < keys.length) :
+    classMajors mode fe p pfvs (keys.drop i) = (do
+      let hd ← internE (.const keys[i].ind keys[i].lvls)
+      let mty ← mkAppN hd keys[i].ds
+      let m ← targetMajorOf mode fe p pfvs pfvs mty
+      targetMajorPins mode fe p.nP m
+      let ms ← classMajors mode fe p pfvs (keys.drop (i + 1))
+      pure (m :: ms)) := by
+  rw [List.drop_eq_getElem_cons hi, classMajors]
+
+set_option maxHeartbeats 8000000 in
+/-- **`classMajors`** from key `i` (a non-member class halts). -/
+theorem cmj_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : CMJCodes C)
+    (mode : ConLeche.CheckMode) (fe : IFEnv) (p : BlockShape) (pfvs : List EIdx) (keys : List ClassKey)
+    (ok om ol pf : Nat) (H0 : List (BitVec 64)) (hK : KeyBlk C H0 ok keys) (hM : PtrsRep C H0 om (MemberRep C H0) p.members)
+    (hml : p.members.length < 2 ^ 59) (hpnP : p.nP < 2 ^ 63)
+    (hnI : ∀ i (hi : i < p.members.length), p.members[i].nIdx < 2 ^ 63)
+    (hlps : EBlk H0 ol (p.lps.map Enc.idxW)) (hlpl : p.lps.length < 2 ^ 59) (hpf : BlkAt H0 pf (pfvs.map Enc.idxW))
+    (hkl : keys.length < 2 ^ 59) :
+    ∀ f i (H : List (BitVec 64)) (s : AState), keys.length - i = f → i ≤ keys.length → C.H <+: H → H0 <+: H →
+      SpecR (σ := σ) (Pre (ctxH C H) s (cmjParams.zip [cellA C ok, BitVec.ofNat 64 i, BitVec.ofNat 64 keys.length,
+        cellA C om, BitVec.ofNat 64 p.nP, cellA C ol, cellA C pf])) (cmjBody C) s
+        (classMajors mode fe p pfvs (keys.drop i)) (PostTMs (ctxH C H) pfvs) := by
+  obtain ⟨ps, hpl, hpb, hpr⟩ := hK
+  intro f
+  induction f with
+  | zero =>
+    intro i H s hf hi hp h0
+    have hin : i = keys.length := by omega
+    subst hin
+    refine specR_prologue (postTMs_locals _ _) (cmj_none _ _) ?_
+    have hlw := nd_lt_iff keys.length keys.length (by omega) (by omega)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, cmjParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    rw [List.drop_length, classMajors]
+    refine specR_alloc1I (ctxOK_H hok H) lW (.const 0) 0 (by decide) (fun _ => rfl) (fun H2 ws hp2 hws => ?_)
+    have hg : ((H2 ++ ws).set H2.length (0 : BitVec 64))[H2.length]? = some 0 := List.getElem?_set_self (by simp [hws])
+    have hpr' : H2 <+: (H2 ++ ws).set H2.length (0 : BitVec 64) := prefix_set (List.prefix_append _ _) (Nat.le_refl _) _
+    exact specR_returnI _ (cellA C H2.length) (by simp [sev, Env.get_cons]; rfl) (fun t ht => ⟨_, H2.length,
+      hp2.trans hpr', rfl, ⟨[], rfl, ⟨by simpa using hg, fun i hi => absurd hi (by simp)⟩, fun k hk => absurd hk (by simp)⟩,
+      sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  | succ f ih =>
+    intro i H s hf hi hp h0
+    have hin : i < keys.length := by omega
+    refine specR_prologue (postTMs_locals _ _) (cmj_none _ _) ?_
+    have hlw := nd_lt_iff i keys.length (by omega) (by omega)
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get, cmjParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw.mpr hin])
+      (fun _ => ?_) (fun h => absurd h (by decide))
+    rw [classMajors_drop mode fe p pfvs keys i hin]
+    obtain ⟨okp, hokp, hkr⟩ := hpr i hin
+    obtain ⟨hki, hkl', od, hkd, hds⟩ := hkr
+    have hpi : (ps.map (cellA C))[i]'(by simp; omega) = cellA C okp := by
+      simp only [List.getElem_map]; rw [List.getElem?_eq_some_iff] at hokp; obtain ⟨_, h⟩ := hokp; rw [h]
+    have hcell := hpb.2 i (by simp; omega)
+    rw [hpi] at hcell
+    refine UD.specR_heapLoadI' (C := ctxH C H) cmjKp _ (ok + 1 + i) _ (get_prefix hcell h0) (by decide)
+      (by simp +decide [sev, Env.get, cmjParams, ctxEnv]; exact cellA_mulIdx C ok i (by omega)) ?_
+    refine UD.specR_heapLoadI' (C := ctxH C H) cmjIn (vv cmjKp) okp _ (get_prefix hki h0) (by decide)
+      (by simp +decide [sev, Env.get_cons]; rfl) ?_
+    refine UD.specR_heapLoadI' (C := ctxH C H) cmjLv _ (okp + 1) _ (get_prefix hkl' h0) (by decide)
+      (by simp +decide [sev, Env.get_cons]; exact cellA_add8 C okp) ?_
+    refine UD.specR_heapLoadI' (C := ctxH C H) cmjDs _ (okp + 2) _ (get_prefix hkd h0) (by decide)
+      (by simp +decide [sev, Env.get_cons]; exact cellA_add_ofNat C okp 2) ?_
+    have hokH := ctxOK_H hok H
+    refine ILP.callE_spec (C := ctxH C H) cmjHd fInternConst [lEn, lEus] [vv cmjIn, vv cmjLv] constBody
+      [Enc.idxW keys[i].ind, Enc.idxW keys[i].lvls] (by decide) rfl (by decide) hc.ic
+      ⟨by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], trivial⟩
+      (by exact const_body_spec ra (ctxH C H) hokH s _ _) (fun hd s1 => ?_)
+    have hdsH := blkAt_mono hds h0
+    refine UD.specR_heapLoadI' (C := ctxH C H) cmjDn (vv cmjDs) od _ hdsH.1 (by decide) (by simp +decide [sev, Env.get_cons]; rfl) ?_
+    refine specR_atEntry fun t1 ht1 => ?_
+    have hdl := Big.blk_small0 hokH ht1.sr hdsH
+    simp only [List.length_map] at hdl
+    refine ILP.callE_spec (C := ctxH C H) cmjMt ExK.fMka [ExK.pF, ExK.pP, ExK.pI, ExK.pN]
+      [vv cmjHd, vv cmjDs, .const 0, vv cmjDn] ExK.mkaBody
+      [Enc.idxW hd, cellA C od, BitVec.ofNat 64 0, BitVec.ofNat 64 keys[i].ds.length] (by decide) rfl (by decide) hc.mka
+      ⟨by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], rfl,
+        by simp +decide [sev, Env.get_cons, List.length_map], trivial⟩
+      (by have := ExK.mkAppN_spec (σ := σ) ra (ctxH C H) hokH hc.mka hc.app od keys[i].ds hdsH (by omega) 0 (by omega) hd s1
+          simp only [List.drop_zero] at this; exact this)
+      (fun mty s2 => ?_)
+    have hM' := ptrsRep_mono h0 (fun _ _ h => memberRep_mono h0 h) hM
+    refine specR_callNIH (C := ctxH C H) cmjR fTargetMajor tmoParams [vv cmjM, vv cmjP, vv cmjL, vv cmjF, vv cmjMt]
+      (tmoBody C) [cellA C om, BitVec.ofNat 64 p.nP, cellA C ol, cellA C pf, Enc.idxW mty] (by decide) rfl (by decide)
+      hc.tmo.self
+      ⟨by simp +decide [sev, Env.get_cons, Env.get, cmjParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cmjParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, cmjParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cmjParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons], trivial⟩
+      (PostTM (ctxH C H) pfvs) (fun m w _ H' => ∃ o, w = cellA C o ∧ TMRep C H' o m ∧ m.pfvs = pfvs ∧ m.nfs = [])
+      (fun m w s' st ⟨H', o, hp', hw, h1, h2, h3, hsr⟩ => ⟨H', hp', ⟨o, hw, h1, h2, h3⟩, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu tmoParams _ rfl hlk)
+        (tmo_spec ra C hok hc.tmo mode fe p pfvs mty om ol pf H hp hM' hml hpnP hnI (eblk_mono hlps h0) hlpl
+          (blkAt_mono hpf h0) s2))
+      (fun m w s3 H3 hp3 ⟨om3, hw, htm, hpv, hnf⟩ => ?_)
+    subst hw
+    have hp3' : H <+: H3 := hp3
+    obtain ⟨-, -, -, -, -, -, -, -, hmb⟩ := id htm
+    refine UD.specR_heapLoadI' (C := ctxH C H3) cmjMb _ (om3 + 2) _ hmb (by decide)
+      (by simp +decide [sev, Env.get_cons]; exact cellA_add_ofNat C om3 2) ?_
+    rcases hmm : m.member with _ | t
+    · exact specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, optNatW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+        (fun _ => specR_hangI) (fun h => absurd h (by decide))
+    by_cases hz : optNatW (some t) = 0#64
+    · exact specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, hz, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+        (fun _ => specR_hangI) (fun h => absurd h (by decide))
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hz)
+      (fun h => absurd rfl h) (fun _ => ?_)
+    have hpins : targetMajorPins mode fe p.nP m = pure () := by unfold targetMajorPins; rw [hmm]
+    rw [hpins, pure_bind]
+    refine specR_callNIH (C := ctxH C H3) ExS.lY fClassMajors cmjParams
+      [vv cmjK, .op .add [vv cmjI, .const 1], vv cmjN, vv cmjM, vv cmjP, vv cmjL, vv cmjF] (cmjBody C)
+      [cellA C ok, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 keys.length, cellA C om, BitVec.ofNat 64 p.nP, cellA C ol,
+        cellA C pf] (by decide) rfl (by decide) hc.self
+      ⟨by simp +decide [sev, Env.get_cons, Env.get, cmjParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, cmjParams, ctxEnv]; exact word_add1_eq i,
+        by simp +decide [sev, Env.get_cons, Env.get, cmjParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cmjParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, cmjParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cmjParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, cmjParams, ctxEnv], trivial⟩
+      (PostTMs (ctxH C H3) pfvs) (fun ms w _ H' => ∃ o, w = cellA C o ∧ TMBlk C H' o pfvs ms)
+      (fun ms w s' st ⟨H', o, hp', hw, hb, hsr⟩ => ⟨H', hp', ⟨o, hw, hb⟩, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cmjParams _ rfl hlk)
+        (ih (i + 1) H3 s3 (by omega) (by omega) (hp.trans hp3') (h0.trans hp3')))
+      (fun ms w s4 H4 hp4 ⟨o4, hw, hb4⟩ => ?_)
+    subst hw
+    have hp4' : H3 <+: H4 := hp4
+    obtain ⟨qs, hql, hqb, hqr⟩ := hb4
+    refine ExPre.prepend_spec C hok (H := H4) cmjR (cellA C om3) o4 (qs.map (cellA C)) (by decide)
+      (by simp +decide [Env.get_cons]) (by simp +decide [Env.get_cons]) hqb (by decide)
+      (by simp +decide [Env.get_cons, Env.get, cmjParams, ctxEnv]) (by decide) (fun H' o t hp' hb hsr => ?_)
+    exact ⟨H', o, (hp3'.trans hp4').trans hp', rfl, ⟨om3 :: qs, by simp [hql], by simp only [List.map_cons]; exact hb, fun k hk => by
+      cases k with
+      | zero => exact ⟨om3, rfl, tmRep_mono (hp4'.trans hp') htm, hpv, hnf⟩
+      | succ k =>
+        obtain ⟨op, h1, h2, h3, h4⟩ := hqr k (by simpa using hk)
+        exact ⟨op, by simpa using h1, tmRep_mono hp' h2, h3, h4⟩⟩, hsr⟩
+
+end
+
 end ConPanqueque.T.Ind
