@@ -526,3 +526,5 @@ import ConPanqueque.T.Ind.CheckAbs
 import ConPanqueque.T.Ind.CheckPos
 import ConPanqueque.T.Ind.Seeds
 import ConPanqueque.T.Ind.CheckInds
+import ConPanqueque.T.Ind.IdxSorts
+import ConPanqueque.T.Ind.ConsCtors
