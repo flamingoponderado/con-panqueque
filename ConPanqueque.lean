@@ -1,6 +1,7 @@
 import ConPanqueque.Basic
 import ConPanqueque.Logic.Basic
 import ConPanqueque.Logic.InternRerun
+import ConPanqueque.Logic.BasisNames
 import ConPanqueque.Logic.Byte
 import ConPanqueque.Logic.Sep
 import ConPanqueque.Logic.Stop
