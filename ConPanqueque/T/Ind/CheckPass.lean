@@ -107,7 +107,7 @@ def PostCPS (C : Ctx) (p₀ : BlockShape) (q : BlockPass) (w : BitVec 64) (s' : 
     (∃ s0 ip, q.p = { p₀ with resSort := s0, isProp := ip } ∧ ∃ l, denoteL s'.store.ls s0 = some l) ∧
     (∃ ob opp, H[o + 1]? = some (cellA C ob) ∧ H[ob]? = some (cellA C opp) ∧ BlkAt H opp (q.params.map Enc.idxW)) ∧
     (∃ ocb ord oms, H[o + 2]? = some (cellA C ocb) ∧ H[ocb]? = some (cellA C ord) ∧ ClassReadRep C H ord q.rd ∧
-      H[ocb + 1]? = some (cellA C oms) ∧ TMBlk C H oms q.params q.cls) ∧
+      H[ocb + 1]? = some (cellA C oms) ∧ TMBlk C H oms q.params q.cls ∧ q.cls.length = 1) ∧
     (∃ ocp oo on outs, H[o + 3]? = some (cellA C ocp) ∧ H[ocp]? = some (cellA C oo) ∧ PRep C H oo (OutsRep C) outs ∧
       q.kinds = nestOutKinds outs ∧ H[ocp + 1]? = some (cellA C on) ∧ PRep C H on (NfRep C) q.tbl)
 
@@ -364,7 +364,7 @@ theorem cps_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     hf1, rfl, ⟨o1, g0, shapeRep_mono hp19 ⟨⟨om, hom, hM⟩, ⟨or_, hor, hR⟩, hnP1, ?_, hrs1, hlg1, hip1⟩⟩,
     ⟨s0, ip, rfl, l0, ?_⟩, ⟨orb, opp, g1, ConPanqueque.T.Decl.get_prefix hpp4 hp49, blkAt_mono hppb hp49⟩,
     ⟨ocb, ord, oms, g2, ConPanqueque.T.Decl.get_prefix hcb5 (hp6'.trans hp8'), classReadRep_mono (hp6'.trans hp8') hrd5,
-      ConPanqueque.T.Decl.get_prefix hms5 (hp6'.trans hp8'), tmBlk_mono (hp6'.trans hp8') htm5⟩,
+      ConPanqueque.T.Decl.get_prefix hms5 (hp6'.trans hp8'), tmBlk_mono (hp6'.trans hp8') htm5, hc1⟩,
     ⟨ocp, oo, on, outs, g3, ConPanqueque.T.Decl.get_prefix hcp6 hp8', pRep_mono hp8' (fun _ _ h => outsRep_mono hp8' h) hout6,
       rfl, ConPanqueque.T.Decl.get_prefix hon6 hp8', pRep_mono hp8' (fun _ _ h => nfRep_mono hp8' h) hnf6⟩⟩
   · exact hel1

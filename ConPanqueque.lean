@@ -563,3 +563,6 @@ import ConPanqueque.T.Ind.BlockTail
 import ConPanqueque.T.Ind.CtorNames
 import ConPanqueque.T.Ind.KindsFlat
 import ConPanqueque.T.Ind.CheckPass
+import ConPanqueque.T.Ind.CtorsFresh
+import ConPanqueque.T.Ind.CheckBlockInst
+import ConPanqueque.T.Ind.CheckBlockK
