@@ -42,6 +42,7 @@ import ConPanqueque.V.Probe
 import ConPanqueque.V.Ins
 import ConPanqueque.V.VTFrame
 import ConPanqueque.V.Intern
+import ConPanqueque.V.Pop
 import ConPanqueque.V.ProbeOnly
 import ConPanqueque.V.Two
 import ConPanqueque.V.StoreEq
@@ -106,6 +107,7 @@ import ConPanqueque.T.MemoModel
 import ConPanqueque.T.MemoRep
 import ConPanqueque.T.Memo
 import ConPanqueque.T.MemoClear
+import ConPanqueque.T.MemoPop
 import ConPanqueque.T.MemoN
 import ConPanqueque.T.Mode
 import ConPanqueque.T.Eager
