@@ -382,4 +382,191 @@ theorem crc_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
 
 end
 
+/-! ## A class's rules (`classRulesOk`, class `0`) -/
+
+def crlCs := ofString "crl_cs"
+def crlI := ofString "crl_i"
+def crlK := ofString "crl_k"
+def crlRp := ofString "crl_rp"
+def crlNp := ofString "crl_np"
+def crlPm := ofString "crl_pm"
+def crlSl := ofString "crl_sl"
+def crlPr := ofString "crl_pr"
+def crlLp := ofString "crl_lp"
+def crlLn := ofString "crl_ln"
+def crlN0 := ofString "crl_n0"
+def crlPn := ofString "crl_pn"
+def crlPl := ofString "crl_pl"
+def crlCc := ofString "crl_cc"
+def crlLv := ofString "crl_lv"
+def crlG := ofString "crl_g"
+def crlNf := ofString "crl_nf"
+def crlX := ofString "crl_x"
+def fCrl := ofString "classRulesOk"
+
+def crlParams : List MlS := [crlCs, crlI, crlK, crlRp, crlNp, crlPm, crlSl, crlPr, crlLp, crlLn, crlN0, crlPn, crlPl]
+def crlLocals : List MlS := gaaLocals ++ [crlCc, crlLv, crlG, crlNf, crlX]
+
+def crlBody (C : Ctx) : ProgHOL 64 := prologue crlLocals
+  (.ite (.cmp .lower (vv crlI) (vv crlK))
+    (.seq (.assign .local crlCc (.load .one (.op .add [vv crlCs, .op .add [.panop .mul [vv crlI, .const 8], .const 8]])))
+    (.seq (.call (some (some (.local, crlLv), none)) fParamLevels [vv crlLp])
+    (.seq (.call (some (some (.local, crlG), none)) fCgr [vv crlCc, vv crlRp, vv crlNp, vv crlPm, vv crlSl, vv crlPr])
+    (.seq (.assign .local crlNf (.load .one (.op .add [vv crlCc, .const 8])))
+    (.seq (.call (some (some (.local, crlX), none)) fCrc
+        [vv crlG, vv crlLp, vv crlLn, .op .add [vv crlN0, vv crlNf], vv crlPn, vv crlPl])
+    (.seq (.call (some (some (.local, ExS.lY), none)) fCrl
+        [vv crlCs, .op .add [vv crlI, .const 1], vv crlK, vv crlRp, vv crlNp, vv crlPm, vv crlSl, vv crlPr, vv crlLp,
+          vv crlLn, vv crlN0, vv crlPn, vv crlPl])
+      (prependP C crlG)))))))
+    (alloc1 C lW (.const 0) (.return (vv lW))))
+
+structure CRLCodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
+  pl : C.code.lookup fParamLevels = some (plParams.map (fun p => (p, ShapeHOL.one)), plBody C, .one)
+  pf : C.code.lookup fPlFill = some (pfParams.map (fun p => (p, ShapeHOL.one)), pfBody, .one)
+  lp : C.code.lookup fInternLParam = some ([(lEn, .one)], internLParamBody, .one)
+  ls : C.code.lookup fInternLs = some ([(pKey, .one), (lEc, .one)], internLsBody, .one)
+  cgr : CGRCodes C
+  crc : CRCCodes mode C
+  self : C.code.lookup fCrl = some (crlParams.map (fun p => (p, ShapeHOL.one)), crlBody C, .one)
+
+section
+variable {σ : Type}
+
+theorem crl_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ crlLocals → (ctxEnv C ++ crlParams.zip vals).get x = none :=
+  Knot.params_none C crlLocals crlParams vals (by decide) (by decide)
+
+/-- A block of handles, past the value heap. -/
+def PostRs (C : Ctx) (rs : List EIdx) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
+  ∃ H' o, C.H <+: H' ∧ w = cellA C o ∧ BlkAt H' o (rs.map Enc.idxW) ∧ SR (ctxH C H') s' st
+
+theorem postRs_locals (C : Ctx) : ∀ a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
+    PostRs C a w s' st → PostRs C a w s' { st with locals := L } :=
+  fun _ _ _ _ _ ⟨H', o, h1, h2, h3, h4⟩ => ⟨H', o, h1, h2, h3, sr_of_eq h4 rfl rfl rfl rfl⟩
+
+set_option maxHeartbeats 32000000 in
+/-- **`classRulesOk`** for the one class's constructors from `i` on, at the context's environment. -/
+theorem crl_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
+    (hs : C.side = false) (hpl : C.saved = none) (hc : CRLCodes mode C)
+    (g : ClassGen) (recCls : List Nat) (cvGs : List IConstantVal)
+    (opm : Nat) (hpm : BlkAt C.H opm (g.params.map Enc.idxW)) (hpml : g.params.length < 2 ^ 56)
+    (os : Nat) (hsb : SlotBlk C C.H os g.slots) (hsl : g.slots.length < 2 ^ 56)
+    (hcb : ∀ sl ∈ g.slots, ∀ c C' ihs, sl = .minor c C' ihs → c < 2 ^ 63)
+    (opr : Nat) (hpr : BlkAt C.H opr (g.pre.map Enc.idxW)) (hprl : g.pre.length < 2 ^ 56) (hnP : g.nP < 2 ^ 56)
+    (pushed : List NIdx) (pn : Nat) (hpsl : pushed.length < 2 ^ 59)
+    (cvR : IConstantVal) (o : Nat) (hb : BlkAt C.H o (cvR.levelParams.map Enc.idxW))
+    (hlen : cvR.levelParams.length < 2 ^ 59) (ks : List ConLeche.Name) (hkl : ks.length = cvR.levelParams.length)
+    (hks : ∀ j (hj : j < cvR.levelParams.length), denoteN C.St.ns cvR.levelParams[j] = some (ks[j]'(by omega)))
+    (xs : List ClassCtor) (ocs : Nat) (hcs : PRep C C.H ocs (fun H o cc => CCRep C H o cc) xs)
+    (hxl : xs.length < 2 ^ 58) (hnf : ∀ x ∈ xs, x.nF < 2 ^ 56) :
+    ∀ f i (H : List (BitVec 64)) (s : AState), xs.length - i = f → i ≤ xs.length → C.H <+: H → Elems H pn pushed →
+      SpecR (σ := σ) (Pre (ctxH C H) s (crlParams.zip [cellA C ocs, BitVec.ofNat 64 i, BitVec.ofNat 64 xs.length,
+        BitVec.ofNat 64 g.pre.length, BitVec.ofNat 64 g.nP, cellA C opm, cellA C os, cellA C opr, cellA C o,
+        BitVec.ofNat 64 cvR.levelParams.length, BitVec.ofNat 64 (g.nP + g.slots.length), cellA C pn,
+        BitVec.ofNat 64 pushed.length])) (crlBody C) s
+        (classRulesOk mode C.fe pushed g recCls cvGs cvR 0 (xs.drop i)) (PostRs (ctxH C H)) := by
+  obtain ⟨oss, hossl, hossb, hossr⟩ := hcs
+  intro f
+  induction f with
+  | zero =>
+    intro i H s hf hi hp hpn
+    have hin : i = xs.length := by omega
+    subst hin
+    refine specR_prologue (postRs_locals _) (crl_none _ _) ?_
+    have hlw := nd_lt_iff xs.length xs.length (by omega) (by omega)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv]; simp +decide [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw]) (fun h => absurd rfl h) (fun _ => ?_)
+    rw [List.drop_length]
+    simp only [classRulesOk]
+    refine specR_alloc1I (ctxOK_H hok H) lW (.const 0) 0 (by decide) (fun _ => rfl) (fun H2 ws hp2 hws => ?_)
+    have hg : ((H2 ++ ws).set H2.length (0 : BitVec 64))[H2.length]? = some 0 := List.getElem?_set_self (by simp [hws])
+    have hpr' : H2 <+: (H2 ++ ws).set H2.length (0 : BitVec 64) := prefix_set (List.prefix_append _ _) (Nat.le_refl _) _
+    exact specR_returnI _ (cellA C H2.length) (by simp [sev, Env.get_cons]; rfl) (fun t ht => ⟨_, H2.length,
+      (hp2 : H <+: H2).trans hpr', rfl, ⟨by simpa using hg, fun i hi => absurd hi (by simp)⟩, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  | succ f ih =>
+    intro i H s hf hi hp hpn
+    have hin : i < xs.length := by omega
+    refine specR_prologue (postRs_locals _) (crl_none _ _) ?_
+    have hlw := nd_lt_iff i xs.length (by omega) (by omega)
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv]; simp +decide [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw.mpr hin]) (fun _ => ?_) (fun h => absurd h (by decide))
+    have hio : i < oss.length := by omega
+    have hpe := hossb.2 i (by simp; omega)
+    simp only [List.getElem_map] at hpe
+    have hcc := ccRep_mono hp (hossr i hin hio)
+    refine UD.specR_heapLoadI' (C := ctxH C H) crlCc _ (ocs + 1 + i) _ (get_prefix hpe hp) (by decide)
+      (by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv]; exact cellA_mulIdx C ocs i (by omega)) ?_
+    rw [List.drop_eq_getElem_cons hin]
+    simp only [classRulesOk, classRuleOk, bind_assoc, pure_bind]
+    refine specR_callNIH (C := ctxH C H) crlLv fParamLevels plParams [vv crlLp] (plBody C) [cellA C o] (by decide) rfl
+      (by decide) hc.pl ⟨by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv], trivial⟩
+      (PostLsH (ctxH C H)) (fun _ _ _ _ => True) (fun a w s' st ⟨H', hp', _, hsr⟩ => ⟨H', hp', trivial, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu plParams _ rfl hlk)
+        (pl_spec ra C hok hc.pl hc.pf hc.lp hc.ls cvR.levelParams o (by omega) H s (blkAt_mono hb hp)))
+      (fun rlvls w s1 H1 hp1 _ => ?_)
+    have hp1' : H <+: H1 := hp1
+    have hpC1 : C.H <+: H1 := hp.trans hp1'
+    have hcc1 := ccRep_mono hp1' hcc
+    refine specR_callNIH (C := ctxH C H1) crlG fCgr cgrParams [vv crlCc, vv crlRp, vv crlNp, vv crlPm, vv crlSl, vv crlPr]
+      (cgrBody C) [cellA C oss[i], BitVec.ofNat 64 g.pre.length, BitVec.ofNat 64 g.nP, cellA C opm, cellA C os, cellA C opr]
+      (by decide) rfl (by decide) hc.cgr.self
+      ⟨by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv], trivial⟩
+      (PostSomeH (ctxH C H1)) (fun o w _ _ => ∃ t, o = some t ∧ w = Enc.idxW t)
+      (fun o w s' st ⟨H', t, hp', ho, hw, hsr⟩ => ⟨H', hp', ⟨t, ho, hw⟩, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cgrParams _ rfl hlk)
+        (cgr_spec ra (ctxH C H1) (ctxOK_H hok H1) (by ctx_tr hc.cgr) g recCls cvGs rlvls xs[i] oss[i] hcc1
+          (hnf _ (List.getElem_mem hin)) opm (blkAt_mono hpm hpC1) hpml os (slotBlk_mono hpC1 hsb) hsl hcb opr
+          (blkAt_mono hpr hpC1) hprl hnP s1))
+      (fun og w s2 H2 hp2 ⟨gen, hog, hw⟩ => ?_)
+    subst hog hw
+    have hp2' : H1 <+: H2 := hp2
+    have hpC2 : C.H <+: H2 := hpC1.trans hp2'
+    simp only
+    have hcc2 := ccRep_mono hp2' hcc1
+    refine UD.specR_heapLoadI' (C := ctxH C H2) crlNf _ (oss[i] + 1) _ hcc2.2.1 (by decide)
+      (by simp +decide [sev, Env.get_cons]; exact cellA_add8 C oss[i]) ?_
+    have hnfi := hnf _ (List.getElem_mem hin)
+    refine specR_callNIH (C := ctxH C H2) crlX fCrc crcParams
+      [vv crlG, vv crlLp, vv crlLn, .op .add [vv crlN0, vv crlNf], vv crlPn, vv crlPl] (crcBody C)
+      [Enc.idxW gen, cellA C o, BitVec.ofNat 64 cvR.levelParams.length, BitVec.ofNat 64 (g.nP + g.slots.length + xs[i].nF),
+        cellA C pn, BitVec.ofNat 64 pushed.length] (by decide) rfl (by decide) hc.crc.self
+      ⟨by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv]; simp only [BitVec.ofNat_add],
+        by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv], trivial⟩
+      (Decl.PostU (ctxH C H2)) (fun _ _ _ _ => True) (fun a w s' st ⟨H', hp', hsr⟩ => ⟨H', hp', trivial, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu crcParams _ rfl hlk)
+        (crc_spec mode ra (ctxH C H2) (ctxOK_H hok H2) hs hpl (by ctx_tr hc.crc) C.fe rfl pushed pn hpsl
+          (fun j hj => get_prefix (hpn j hj) (hp1'.trans hp2')) cvR o (blkAt_mono hb hpC2) (by omega) ks hkl hks
+          (g.nP + g.slots.length + xs[i].nF) (by omega) gen s2))
+      (fun _ w s3 H3 hp3 _ => ?_)
+    have hp3' : H2 <+: H3 := hp3
+    refine specR_callNIH (C := ctxH C H3) ExS.lY fCrl crlParams
+      [vv crlCs, .op .add [vv crlI, .const 1], vv crlK, vv crlRp, vv crlNp, vv crlPm, vv crlSl, vv crlPr, vv crlLp,
+        vv crlLn, vv crlN0, vv crlPn, vv crlPl] (crlBody C)
+      [cellA C ocs, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 xs.length, BitVec.ofNat 64 g.pre.length, BitVec.ofNat 64 g.nP,
+        cellA C opm, cellA C os, cellA C opr, cellA C o, BitVec.ofNat 64 cvR.levelParams.length,
+        BitVec.ofNat 64 (g.nP + g.slots.length), cellA C pn, BitVec.ofNat 64 pushed.length] (by decide) rfl (by decide) hc.self
+      ⟨by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv]; exact word_add1_eq i,
+        by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, crlParams, ctxEnv], trivial⟩
+      (PostRs (ctxH C H3)) (fun rs w _ H' => ∃ o, w = cellA C o ∧ BlkAt H' o (rs.map Enc.idxW))
+      (fun rs w s' st ⟨H', o, hp', hw, hr, hsr⟩ => ⟨H', hp', ⟨o, hw, hr⟩, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu crlParams _ rfl hlk)
+        (ih (i + 1) H3 s3 (by omega) (by omega) (hpC2.trans hp3') (fun j hj => get_prefix (hpn j hj) (hp1'.trans (hp2'.trans hp3')))))
+      (fun rs w s4 H4 hp4 ⟨oy, hw, hry⟩ => ?_)
+    subst hw
+    have hp4' : H3 <+: H4 := hp4
+    refine ExPre.prepend_spec C hok (H := H4) crlG (Enc.idxW gen) oy (rs.map Enc.idxW) (by decide)
+      (by simp +decide [Env.get_cons]) (by simp +decide [Env.get_cons]) hry (by decide)
+      (by simp +decide [Env.get_cons, Env.get, crlParams, ctxEnv]) (by decide) (fun H' o' t hp' hb' hsr => ?_)
+    exact ⟨H', o', hp1'.trans (hp2'.trans (hp3'.trans (hp4'.trans hp'))), rfl, by simpa using hb', hsr⟩
+
+end
+
 end ConPanqueque.T.Ind

@@ -545,3 +545,4 @@ import ConPanqueque.T.Decl.IdxInsRec
 import ConPanqueque.T.Ind.CloseLams
 import ConPanqueque.T.Ind.GenRule
 import ConPanqueque.T.Ind.RuleCheck
+import ConPanqueque.T.Ind.FeR
