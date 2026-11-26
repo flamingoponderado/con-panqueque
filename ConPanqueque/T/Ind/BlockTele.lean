@@ -1,4 +1,5 @@
 import ConPanqueque.T.Ind.IdxIns
+import ConRon.Bridge.Inductives.Run
 
 /-!
 # A former's telescope (`checkBlockTele`)
@@ -88,11 +89,34 @@ theorem ct_none (C : Ctx) (vals : List (BitVec 64)) :
 /-- `checkBlockTele`'s answer: the former as given, its sort's level as the word; the heap grown. -/
 def PostCT (C : Ctx) (cv : IConstantVal) (r : IConstantVal × LIdx) (w : BitVec 64) (s' : AState) (st : PState σ) :
     Prop :=
-  r.1 = cv ∧ w = Enc.idxW r.2 ∧ ∃ H', C.H <+: H' ∧ SR (ctxH C H') s' st
+  r.1 = cv ∧ w = Enc.idxW r.2 ∧ (∃ H', C.H <+: H' ∧ SR (ctxH C H') s' st) ∧ ∃ l, denoteL s'.store.ls r.2 = some l
 
 theorem postCT_locals (C : Ctx) (cv : IConstantVal) : ∀ a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
     PostCT C cv a w s' st → PostCT C cv a w s' { st with locals := L } :=
-  fun _ _ _ _ _ ⟨h1, h2, H', h3, h4⟩ => ⟨h1, h2, H', h3, sr_of_eq h4 rfl rfl rfl rfl⟩
+  fun _ _ _ _ _ ⟨h1, h2, ⟨H', h3, h4⟩, h5⟩ => ⟨h1, h2, ⟨H', h3, sr_of_eq h4 rfl rfl rfl rfl⟩, h5⟩
+
+/-- `stripPis` reads only. -/
+theorem stripPis_state : ∀ (k : Nat) (h : EIdx) (s s' : AState) (o : Option (List EIdx × EIdx)),
+    stripPis k h s = .ok (o, s') → s' = s
+  | 0, h, s, s', o, hr => by
+    simp only [stripPis, pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at hr
+    exact hr.2.symm
+  | k + 1, h, s, s', o, hr => by
+    rw [stripPis] at hr
+    split at hr
+    · obtain ⟨vb, s1, h0, h1⟩ := bind_ok_inv' hr
+      have e1 : s1 = s := by
+        rw [WC.viewBind_run] at h0; simp only [Except.ok.injEq, Prod.mk.injEq] at h0; exact h0.2.symm
+      subst e1
+      rcases vb with _ | ⟨ty, b'⟩
+      · simp [failDanglingE, fail, throwThe, MonadExceptOf.throw, StateT.lift] at h1
+      · obtain ⟨r, s2, h2, h3⟩ := bind_ok_inv' h1
+        have e2 := stripPis_state k b' s1 s2 r h2
+        subst e2
+        rcases r with _ | ⟨tys', b''⟩
+        · simp only [pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at h3; exact h3.2.symm
+        · simp only [pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at h3; exact h3.2.symm
+    · simp only [pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at hr; exact hr.2.symm
 
 /-- **`checkBlockTele`** at a member. -/
 theorem ct_spec (mode : ConLeche.CheckMode) (fe : IFEnv) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx)
@@ -170,6 +194,8 @@ theorem ct_spec (mode : ConLeche.CheckMode) (fe : IFEnv) (ra : ConPanqueque.Hash
     (fun h => absurd h (by simp [boolW, h2]))
   rcases vb with _ | _ | u | _ | _ | _ | _ | _ | _ | _ <;> simp [ENodeView.tagN] at h2
   have htb : b.tag = ETag.sort := by rw [hatb]; rfl
+  refine specR_atEntry fun t2 ht2 => ?_
+  obtain ⟨l2, hl2⟩ := sr_sortDen ht2.sr b u hvb
   simp only [htb, beq_self_eq_true, ite_true, bind_assoc]
   refine specR_runBind (show viewSort b s2 = .ok (some u, s2) by
     rw [Comp.viewSort_run, WC.viewSort_of_view htb hvb]) ?_
@@ -182,6 +208,8 @@ theorem ct_spec (mode : ConLeche.CheckMode) (fe : IFEnv) (ra : ConPanqueque.Hash
     (by simp +decide [sev, Env.get, ctParams, ctxEnv]) (by simp +decide [sev, Env.get])
     (fun o w s3 H3 hp3 hr3 hn3 hs3 => ?_)
   have hp3' : H2 <+: H3 := hp3
+  have e3 := stripPis_state _ _ _ _ _ hr3
+  subst e3
   rcases o with _ | ⟨tys', b'⟩
   · rw [hn3 rfl]
     exact specR_ifI _ 1 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
@@ -202,15 +230,22 @@ theorem ct_spec (mode : ConLeche.CheckMode) (fe : IFEnv) (ra : ConPanqueque.Hash
       rw [cellA_shl3]; congr 1; omega) ?_
   dsimp only
   -- the sort interned, compared
-  refine ILP.callE_spec ctSr fInternSort [lEu] [vv ctU] sortBody [Enc.idxW u] (by decide) rfl (by decide) hcS
-    ⟨by simp +decide [sev, Env.get], trivial⟩ (sort_body_spec ra (ctxH C H3) (ctxOK_H hok H3) s3 u) (fun srt s4 => ?_)
+  refine specR_callNIM ctSr fInternSort [lEu] [vv ctU] sortBody [Enc.idxW u] (by decide) rfl (by decide) hcS
+    ⟨by simp +decide [sev, Env.get], trivial⟩
+    (fun a w s' st => internSortE u s3 = .ok (a, s') ∧ PostE (ctxH C H3) a w s' st) (fun _ _ _ _ hp => hp.2.2)
+    (fun u' hu _ hlk => specR_run (Knot.specR_of_pre u' (pre_of_lookups hu [lEu] _ rfl hlk)
+      (sort_body_spec ra (ctxH C H3) (ctxOK_H hok H3) s3 u)))
+    (fun srt w s4 st ⟨hrun4, hw4, _⟩ => ?_)
+  subst hw4
+  have hl4 : denoteL s4.store.ls u = some l2 :=
+    denoteL_ext hl2 (ConRon.Bridge.Inductives.internSortE_run (sr_stateOK ht2.sr) hl2 hrun4).1.ext
   by_cases heq : b' = srt
   · subst heq
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
       (fun h => absurd h (by decide))
     simp only [beq_self_eq_true, ite_true]
     exact specR_returnI _ (Enc.idxW u) (by simp +decide [Env.get])
-      (fun t ht => ⟨rfl, rfl, H3, (hp1'.trans hp2').trans hp3', sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      (fun t ht => ⟨rfl, rfl, ⟨H3, (hp1'.trans hp2').trans hp3', sr_of_eq ht.sr rfl rfl rfl rfl⟩, l2, hl4⟩)
   · have hw : Enc.idxW b' ≠ Enc.idxW srt := fun h => heq (ConPanqueque.V.Enc.idxW_inj h)
     exact specR_ifI _ 0 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hw])
       (fun h => absurd rfl h) (fun _ => specR_hangI)
