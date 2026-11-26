@@ -541,3 +541,6 @@ import ConPanqueque.T.Ind.GenPre
 import ConPanqueque.T.Ind.GenMotive
 import ConPanqueque.T.Ind.ClassConst
 import ConPanqueque.T.Decl.EnvUndo
+import ConPanqueque.T.Decl.IdxInsRec
+import ConPanqueque.T.Ind.CloseLams
+import ConPanqueque.T.Ind.GenRule
