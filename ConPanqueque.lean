@@ -557,3 +557,5 @@ import ConPanqueque.T.Ind.BlockTables
 import ConPanqueque.T.Ind.BlockTables2
 import ConPanqueque.T.Decl.TblIns
 import ConPanqueque.T.Ind.TblWrite
+import ConPanqueque.T.Decl.IdxInsPlain
+import ConPanqueque.T.Ind.RecInstall
