@@ -510,3 +510,4 @@ import ConPanqueque.T.Ind.TargetMajor
 import ConPanqueque.T.Ind.ClassPass
 import ConPanqueque.T.Ind.NestOcc
 import ConPanqueque.T.Ind.DepthWalk
+import ConPanqueque.T.Ind.CloseTele
