@@ -115,7 +115,8 @@ theorem cbi_none (C : Ctx) (vals : List (BitVec 64)) :
 /-- After `checkBlockInds`: the next context (its environment the twin's), the new shape. -/
 def PostCBI (C : Ctx) (p : BlockShape) (r : IFEnv × BlockShape) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
   ∃ EH envM H o, C.EH <+: EH ∧ C.H <+: H ∧ CtxOK (ctxNew C r.1 EH envM H) ∧ SR (ctxNew C r.1 EH envM H) s' st ∧
-    TblGate r.1 ∧ FlagsOK r.1 ∧ LitsPinned r.1 C.pins ∧ w = cellA C o ∧ ShapeRep C H o r.2 ∧
+    TblGate r.1 ∧ FlagsOK r.1 ∧ LitsPinned r.1 C.pins ∧
+    (∀ n, (∀ ms ∈ p.members, ms.declared.name ≠ n) → r.1.find? n = C.fe.find? n) ∧ w = cellA C o ∧ ShapeRep C H o r.2 ∧
     ∃ s0 ip, r.2 = { p with resSort := s0, isProp := ip } ∧ ∃ l, denoteL s'.store.ls s0 = some l
 
 theorem postCBI_locals (C : Ctx) (p : BlockShape) : ∀ a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
@@ -348,6 +349,11 @@ theorem cbi_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     refine specR_returnI (vv cbiSh1) (cellA C H2.length) (by simp +decide [sev, Env.get_cons]; rfl) (fun t ht => ?_)
     refine ⟨EH5, C.envM.insert ci.name (ecell C ox), H6, H2.length, hpE.trans hpE5, hp1'.trans (hp7.trans ?_), hokF,
       sr_of_eq ht.sr rfl rfl rfl rfl, hg.push ci, hF.push ci, by unfold LitsPinned; rw [IFEnv.push_base]; exact hL,
+      fun n hn => by
+        rw [IFEnv.find?_push]
+        have : (ci.name == n) = false := by
+          simp only [hci, beq_eq_false_iff_ne]; exact hn ms0 (by simp [hms])
+        simp [this]; rfl,
       rfl, shapeRep_mono ?_ hsh7, s0, ip, by simp only [hp₁, hms], l0, denoteL_ext hl0 ht.sr.floor⟩
     · exact hp3'.trans (hp4'.trans (hp5'.trans hp6))
     · exact hp3'.trans (hp4'.trans (hp5'.trans hp6))

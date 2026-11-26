@@ -562,3 +562,4 @@ import ConPanqueque.T.Ind.RecInstall
 import ConPanqueque.T.Ind.BlockTail
 import ConPanqueque.T.Ind.CtorNames
 import ConPanqueque.T.Ind.KindsFlat
+import ConPanqueque.T.Ind.CheckPass
