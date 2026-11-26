@@ -559,3 +559,4 @@ import ConPanqueque.T.Decl.TblIns
 import ConPanqueque.T.Ind.TblWrite
 import ConPanqueque.T.Decl.IdxInsPlain
 import ConPanqueque.T.Ind.RecInstall
+import ConPanqueque.T.Ind.BlockTail
