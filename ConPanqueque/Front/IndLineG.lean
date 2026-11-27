@@ -198,7 +198,8 @@ theorem recRules_spec {α : Type} (C0 : Ctx) (hok : CtxOK C0) (cc : ILCodes σ C
     (hNc : Γ.get ilNc = some (BitVec.ofNat 64 cts.length)) (hOB : Γ.get ilOB = some (cellA C0 ob))
     (hDd : Γ.get ilD = some (BitVec.ofNat 64 r.numIndices))
     (hy : Γ.get fy = some (Enc.idxW rn)) (hz : Γ.get fz = some (Enc.idxW rty)) (hK0 : Γ.get kKA0 = some (cellA C0 ol))
-    (hfd : ConPanqueque.Bridge.IsFrontDecl C0.pins (.indDecl (indBlockD st t cts r T) t.numParams))
+    (hfd : (∀ ru ∈ r.rules, RuleOK st ru) → r.rules.length < B55 →
+      r.numParams + r.numMotives + r.numMinors + r.numIndices < 2 ^ 56 → IndBoundsP (indBlockD st t cts r T) t.numParams)
     {m : AM (StateD ⊕ RecordVerdict)}
     (hm : (∀ ru ∈ r.rules, RuleOK st ru) → r.rules.length < B55 →
       r.numParams + r.numMotives + r.numMinors + r.numIndices < 2 ^ 56 →
@@ -394,7 +395,7 @@ theorem recRules_spec {α : Type} (C0 : Ctx) (hok : CtxOK C0) (cc : ILCodes σ C
     hp08.length_le (declsRel_prefix hdr hp08) ?_ hcapD
     (by envg; exact hRB) (by envg; exact hCD) (by envg <;> rfl)) (fun u hu => hu) (fun a w s' u h => ⟨h, hrok, hnU', hmi56⟩)
   have hFob : F ≤ ob := by omega
-  refine ⟨hfd, by omega, by simpa using hw8 0 (by simp), by simpa using hw8 1 (by simp), ob, hFob,
+  refine ⟨hfd hrok hnU' hmi56, by omega, by simpa using hw8 0 (by simp), by simpa using hw8 1 (by simp), ob, hFob,
     by simpa using hw8 2 (by simp), ?_, by simp [indBlockD]; omega, by omega, fun i hi => ?_⟩
   · intro H' hk'
     exact indBlk_final C0 F st t cts r T H H8 ob oR os hosl (tr _ _ hob0 (by omega))

@@ -90,7 +90,7 @@ theorem main_spec3 (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx)
     (hBA : Γ.get kBA = some (cellA C (j0 + 1))) (hBN : Γ.get kBN = some (BitVec.ofNat 64 b.size))
     (hRB : Γ.get kRB = some (cellA C rb)) (hCD : Γ.get kCapD = some (BitVec.ofNat 64 capD))
     (hZL : Γ.get kZL = some (Enc.idxW s.pins.zeroLevel)) (hRA : Γ.get kRA = some (cellA C j0))
-    (hal2 : (cellA C (j0 + 4096 + 1 + capD)).toNat % 8 = 0) :
+    (hal2 : (cellA C (j0 + 4096 + 1 + capD)).toNat % 8 = 0) (hbi : ConPanqueque.T.Decl.BasisInv C) :
     SpecR (Inv (σ := σ) C s Γ M D) (mainP3 capM) s (twin3 s b) (Post3 s b) := by
   have hsz : b.size < USize.size := by
     have := hbuf.small
@@ -236,7 +236,7 @@ theorem main_spec3 (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx)
       simp only [List.mem_cons, List.not_mem_nil, or_false] at hx; rcases hx with rfl | rfl <;> simp [rest3Vars])
   have hRB7 : Γ7.get kRB = some (cellA (ctxH C3 H4) (j0 + 4096)) := by rw [hag7 _ (by decide)]; exact hRB6
   have hFC := foldCall_spec (σ := σ) [] ra (ctxH C3 H4) hokC hcC hfC hsC hplC hfeC s2 hA2' Γ7 D hDC
-    st3 hfs3 hd hlen hRB7 hpo2 hpp2 [] hpins2
+    st3 hfs3 hd hlen hRB7 hpo2 hpp2 [] hpins2 hbi
   refine specR_mono (specR_run hFC) (fun t ht => ht)
     (fun a w s3 t ⟨hm, _⟩ => ⟨stQ, s1, st2, s2, hrun1, hrun2, hOW, hHW, hval, hm⟩)
 
@@ -323,7 +323,7 @@ theorem rest_spec3 (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx)
     (hZL : Γ.get kZL = some (Enc.idxW s.pins.zeroLevel))
     (hRA : Γ.get kRA = some (cellA C j0)) (hRM : Γ.get kRM = some (BitVec.ofNat 64 (8 * Lw - 16)))
     (nb : List (BitVec 8)) (hl : nb.length = 8 * Lw) (Hb : List (BitVec 64)) (hHb : Hb.length = C.H.length)
-    (hH : C.H = writeH Hb (cellA C j0) j0 0 nb) :
+    (hH : C.H = writeH Hb (cellA C j0) j0 0 nb) (hbi : ConPanqueque.T.Decl.BasisInv C) :
     SpecR (Inv (σ := σ) C s Γ M D) (restP3 capM) s (twin3 s (inputOf nb (leNat (nb.take 8))))
       (Post3 s (inputOf nb (leNat (nb.take 8)))) := by
   have hD' : ∀ x, x ∈ rest3Vars ++ [kBA] → x ∈ D := hD
@@ -376,6 +376,6 @@ theorem rest_spec3 (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx)
     (by rw [g4 _ (by decide) (by decide) (by decide)]; exact hRB)
     (by rw [g4 _ (by decide) (by decide) (by decide)]; exact hCD)
     (by rw [g4 _ (by decide) (by decide) (by decide)]; exact hZL)
-    (by rw [g4 _ (by decide) (by decide) (by decide)]; exact hRA) hal2
+    (by rw [g4 _ (by decide) (by decide) (by decide)]; exact hRA) hal2 hbi
 
 end ConPanqueque.Prelude

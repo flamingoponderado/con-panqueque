@@ -49,7 +49,7 @@ theorem main_spec2 (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.RuntimeAss
     (hTE : Γ.get fTE = some (cellA C (jN + 2 * cap))) (hC : Γ.get fCap = some (BitVec.ofNat 64 cap))
     (hBA : Γ.get kBA = some (cellA C bufJ)) (hBN : Γ.get kBN = some (BitVec.ofNat 64 b.size))
     (hRB : Γ.get kRB = some (cellA C rb)) (hCD : Γ.get kCapD = some (BitVec.ofNat 64 capD))
-    (hZL : Γ.get kZL = some (Enc.idxW s.pins.zeroLevel)) :
+    (hZL : Γ.get kZL = some (Enc.idxW s.pins.zeroLevel)) (hbi : ConPanqueque.T.Decl.BasisInv C) :
     SpecR (Inv (σ := σ) C s Γ M D) mainP2 s (feedAll (stInit s) b 0 0 >>= fun st' => checkDeclsPure .verified pins st'.decls.toList)
       (MainPost2 s b pins C.EH) := by
   have hsz : b.size < USize.size := by
@@ -73,7 +73,7 @@ theorem main_spec2 (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.RuntimeAss
     hs hpl hfe s' (ConRon.Bridge.denoteN_ext hA hstep.ext) Γ' D (fun x hx => hD x (by
       simp only [List.mem_cons, List.not_mem_nil, or_false] at hx ⊢; rcases hx with rfl | rfl <;> simp)) st'
     (frontSt_ctxH H' hfs) hd hlen (by rw [hag' _ (by decide)]; exact hRB'')
-    (hpo.mono hstep.ext hstep.pins) (hpp.mono hstep.pins) pinsP (PinsDenote.mono hstep.ext _ _ hpins))) (fun t ht => ht)
+    (hpo.mono hstep.ext hstep.pins) (hpp.mono hstep.pins) pinsP (PinsDenote.mono hstep.ext _ _ hpins) hbi)) (fun t ht => ht)
     (fun a w s'' t ⟨hm, _⟩ => ⟨st', s', hrun, hval, hm, hforb⟩)
 
 end

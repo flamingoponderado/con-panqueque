@@ -61,7 +61,15 @@ def Verdict2 (nb : List (BitVec 8)) : Prop :=
   ∃ rc, ConLeche.Frontend.parseBytes (inputOf nb (leNat (nb.take 8))) = .ok rc ∧
     (∃ F', ConLeche.checkDeclsPure .verified (ConLeche.fueledOps .verified F') [] rc.decls.toList
       = .ok (ConLeche.streamEnv rc.decls.toList)) ∧
-    ∀ d ∈ rc.decls.toList, ∃ n, ConPanqueque.Pipeline.recName d = some n ∧ n ∉ FN
+    ∀ d ∈ rc.decls.toList, ∀ n, ConPanqueque.Pipeline.recName d = some n → n ∉ FN
+
+open ConPanqueque.Logic.InternRerun in
+/-- The pinned blocks interned by the basis phase: `BasisSt` at its end store. -/
+theorem basisSt_of_twin {s' : AState} (hok : StateOK s') (hpo : PinsOK s')
+    (hall : ∀ k ∈ ConPanqueque.T.Lit.basisKinds, ∃ (s0 s1 : AState) (r : List IConstantInfo), Off s0.store ∧
+      ConRon.Arena.BasisKind.decls k s0 = .ok (r, s1) ∧ FP s1.store s'.store) :
+    ConPanqueque.T.Decl.BasisSt s'.store s'.pins.reserved :=
+  ⟨s'.store, hok.wf, Ext.refl _, hpo.reserved, fun k => hall k (by cases k <;> simp [ConPanqueque.T.Lit.basisKinds])⟩
 
 theorem writeH_append (A B : List (BitVec 64)) (A0 : BitVec 64) (j0 : Nat) : ∀ (a : Nat) (xs : List (BitVec 8)),
     (∀ b, a ≤ b → b < a + xs.length → j0 + b / 8 < A.length) →
@@ -185,10 +193,12 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
         fun c hc j hj => List.mem_append_right _ (gv_mem_basisLocals hc hj)⟩
     rw [show C = ctxH C C.H from (ctxH_self C).symm]
     refine ConPanqueque.T.Lit.basisP_spec ra G _ C.H _ _ [] sP (fun s' Γ4 H'' hpH ag4 hrun => ?_)
-    obtain ⟨hist, hoff', -, -⟩ := ConPanqueque.T.Lit.basisTwin_step _ hokP hoffA hrun
+    obtain ⟨hist, hoff', -, hall⟩ := ConPanqueque.T.Lit.basisTwin_step _ hokP hoffA hrun
     have hpins' : s'.pins = sP.pins := hist.pins
     have hokP' := hist.ok
     have hpo' : PinsOK s' := hpo.mono hist.ext hist.pins
+    have hbiS : ConPanqueque.T.Decl.BasisSt s'.store sP.pins.reserved := by
+      rw [← hpins']; exact basisSt_of_twin hokP' hpo' hall
     have hpp' : PersPins s' := hpp.mono hist.pins
     have hb3' : PinBlock EH3 s'.pins := by rw [hpins']; exact hb3
     have hbd' : denoteN s'.store.ns bh = some boolRecName := denoteN_ext hbdP hist.ext
@@ -224,8 +234,9 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
       rw [← hextra]
       exact (writeH_append Himg extra (cA j0F) j0F 0 nb (fun b _ hb => by
         rw [Himg_length]; simp [NH]; rw [hl] at hb; omega)).symm
-    rcases rest_verdict2 [] [] ra (ctxH C H'') (ctxOK_H (ctxOK_C1 _ _ _ _ hb3) H'') (by ctx_tr (frontOK_C1 codeT H' EH3 sP.pins))
-        (frontCodes_ctxH (front_ok σ C hC)) (foldCodes_ctxH (fold_ok C hC) H'') rfl rfl rfl
+    rcases rest_verdict2 (hbi := hbiS) [] [] ra (ctxSt (ctxH C H'') s'.store) (ctxOK_St (ctxOK_H (ctxOK_C1 _ _ _ _ hb3) H'') _)
+        (by ctx_tr (frontOK_C1 codeT H' EH3 sP.pins))
+        (frontCodes_St (frontCodes_ctxH (front_ok σ C hC)) _) (foldCodes_St (foldCodes_ctxH (fold_ok C hC) H'') _) rfl rfl rfl
         (fun _ => rfl) (feed_ok C hC) s' hokP' hoff'.1 hpo' hpp' trivial
         (ConRon.Bridge.denoteN_ext (ConRon.Bridge.denoteN_ext hA1 hextP) hist.ext) hb3' bh hB3 hbd' hbp _ [] mainLocals2 (fun x hx => by
           simp only [List.mem_cons, List.not_mem_nil, or_false] at hx
@@ -244,7 +255,7 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
         (by simp (config := {decide := true}) [T.Env.get_cons]; rw [gRA]; rfl)
         (by simp (config := {decide := true}) [T.Env.get_cons]; exact gRL)
         (by simp (config := {decide := true}) [T.Env.get_cons])
-        nb hl hHimg tf htf with hs | ⟨⟨w, hret⟩, hv⟩
+        nb hl hHimg tf ⟨sr_raise htf.sr, htf.env, htf.mem, htf.decl⟩ with hs | ⟨⟨w, hret⟩, hv⟩
     · exact Or.inl hs
     · exact Or.inr ⟨w, hret, (), s', rfl, hv⟩
   -- `Bool.rec`, then the pins

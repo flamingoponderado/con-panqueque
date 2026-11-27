@@ -66,10 +66,12 @@ def stdPinSlots : List Nat := [PIN_PROPEXT, PIN_CHOICE, PIN_TRUST_COMPILER, PIN_
 /-- A name handle one of the accepted axioms' pins. -/
 def AxPinName (P : Pins) (n : NIdx) : Prop := ∃ i ∈ axPinSlots, P.names[i]? = some n
 
-/-- What the front end hands the fold: a value record, or an axiom record named by an accepted axiom's pin. -/
+/-- What the front end hands the fold: a value record, a quotient or inductive record, or an axiom record named by
+an accepted axiom's pin. -/
 def IsFrontDecl (P : Pins) : IDeclaration → Prop
   | .axiomDecl cv => AxPinName P cv.name
   | .quotDecl _ _ => True
+  | .indDecl _ _ => True
   | d => IsValueDecl d
 
 theorem axPin_cases {P : Pins} {n : NIdx} (h : AxPinName P n) :

@@ -63,13 +63,14 @@ theorem rest_verdict2 (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPin
     (hRA : Γ.get kRA = some (cellA C j0)) (hRL : Γ.get kRL = some (BitVec.ofNat 64 (8 * Lw)))
     (hRM : Γ.get kRM = some (BitVec.ofNat 64 (8 * Lw - 16)))
     (nb : List (BitVec 8)) (hl : nb.length = 8 * Lw) (hH : C.H = writeH Hb (cellA C j0) j0 0 nb)
+    (hbi : ConPanqueque.T.Decl.BasisInv C)
     (t : PState σ) (ht : Inv C s Γ M D t) :
     Stop (evaluateHOLFiniteState t (restP2 capM)).1 ∨
       ((∃ w, (evaluateHOLFiniteState t (restP2 capM)).1 = some (.returned (.val (.word w)))) ∧
         ∃ rc, ConLeche.Frontend.parseBytes (inputOf nb (leNat (nb.take 8))) = .ok rc ∧
           (∃ F', ConLeche.checkDeclsPure .verified (ConLeche.fueledOps .verified F') pinsP rc.decls.toList
             = .ok (ConLeche.streamEnv rc.decls.toList)) ∧
-          ∀ d ∈ rc.decls.toList, ∃ n, ConPanqueque.Pipeline.recName d = some n ∧ n ∉ FN) := by
+          ∀ d ∈ rc.decls.toList, ∀ n, ConPanqueque.Pipeline.recName d = some n → n ∉ FN) := by
   let Cp := ctxH C Hb
   have eC : C = ctxH Cp (writeH Hb (cellA C j0) j0 0 nb) := by
     simp only [Cp]; rw [ctxH_ctxH, ← hH, ctxH_self]
@@ -199,7 +200,7 @@ theorem rest_verdict2 (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPin
   have g8 : ∀ y, y ≠ fTE → y ≠ fTL → y ≠ kZn → y ≠ fCap → y ≠ kBA → y ≠ kBN → Γ8.get y = Γ.get y :=
     fun y h1 h2 h3 h4 h5 h6 => by
       simp only [Γ8, Γ7, Γ6, Γ5, T.Env.get_cons, ite_eq_right h1, ite_eq_right h2, ite_eq_right h3, ite_eq_right h4]; exact g3 y h5 h6
-  rcases front_verdict2 (F := j0 + Lw) (rb := rb) (capD := capD) (jN := jN) (cap := cap) (bufJ := j0 + 1) (b := b)
+  rcases front_verdict2 (hbi := hbi) (F := j0 + Lw) (rb := rb) (capD := capD) (jN := jN) (cap := cap) (bufJ := j0 + 1) (b := b)
       pins pinsP ra C1 (ctxOK_ctxH hokp) (frontOK_ctxH (frontOK_H hf Hb)) (frontCodes_ctxH (frontCodes_ctxH fc)) (foldCodes_ctxH (foldCodes_ctxH hc Hb) H') hs hpl hfe hcF
       hEB s hst hoff hpo hpp hpins hA hb bh hB hbd hbp Γ8 [] D (fun x hx => hD x (by
         simp only [List.mem_cons, List.not_mem_nil, or_false] at hx

@@ -159,10 +159,12 @@ theorem core_verdict3 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
         fun c hc j hj => List.mem_append_right _ (List.mem_append_right _ (gv_mem_basisLocals hc hj))⟩
     rw [show C = ctxH C C.H from (ctxH_self C).symm]
     refine ConPanqueque.T.Lit.basisP_spec ra G _ C.H _ _ [] sP (fun s' Γ4 H'' hpH ag4 hrun => ?_)
-    obtain ⟨hist, hoff', -, -⟩ := ConPanqueque.T.Lit.basisTwin_step _ hokP hoffA hrun
+    obtain ⟨hist, hoff', -, hall⟩ := ConPanqueque.T.Lit.basisTwin_step _ hokP hoffA hrun
     have hpins' : s'.pins = sP.pins := hist.pins
     have hokP' := hist.ok
     have hpo' : PinsOK s' := hpo.mono hist.ext hist.pins
+    have hbiS : ConPanqueque.T.Decl.BasisSt s'.store sP.pins.reserved := by
+      rw [← hpins']; exact basisSt_of_twin hokP' hpo' hall
     have hpp' : PersPins s' := hpp.mono hist.pins
     have hb3' : PinBlock EH3 s'.pins := by rw [hpins']; exact hb3
     have hbd' : denoteN s'.store.ns bh = some boolRecName := denoteN_ext hbdP hist.ext
@@ -207,9 +209,10 @@ theorem core_verdict3 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
       intro nb' hl'
       have h1 : (inputOf nb' (leNat (nb'.take 8))).size ≤ nb'.length := by simp [inputOf, ByteArray.size]
       rw [USize.size_eq_two_pow, hbits]; rw [hl'] at h1; simp [Lw] at h1; omega
-    rcases ConPanqueque.Prelude.rest_spec3 ra (ctxH C H'') (ctxOK_H (ctxOK_C1 _ _ _ _ hb3) H'')
+    rcases ConPanqueque.Prelude.rest_spec3 (hbi := hbiS) ra (ctxSt (ctxH C H'') s'.store)
+        (ctxOK_St (ctxOK_H (ctxOK_C1 _ _ _ _ hb3) H'') _)
         (by ctx_tr (frontOK_C1 codeT H' EH3 sP.pins))
-        (frontCodes_ctxH (front_ok σ C hC)) (foldCodes_ctxH (fold_ok C hC) H'') rfl rfl rfl
+        (frontCodes_St (frontCodes_ctxH (front_ok σ C hC)) _) (foldCodes_St (foldCodes_ctxH (fold_ok C hC) H'') _) rfl rfl rfl
         (feed_ok C hC) (fun _ => rfl) s' hokP' hoff'.1 hpo' hpp' trivial
         (ConRon.Bridge.denoteN_ext (ConRon.Bridge.denoteN_ext hA1 hextP) hist.ext) hb3' _ [] mainLocals3
         (fun x hx => by
@@ -220,7 +223,7 @@ theorem core_verdict3 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
             rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> decide)
         rbF capD 0 capF j0F Lw (by simp [capF]) (by simp [rbF]) (by simp [capF, natCap]) (by simp [j0F]; omega)
         (by simp [Lw, capD])
-        (by rw [hHimg, writeH_length, List.length_append, Himg_length]; simp [NH])
+        (by show j0F + Lw ≤ (ctxH C H'').H.length; rw [hHimg, writeH_length, List.length_append, Himg_length]; simp [NH])
         (by simp [Lw]) (by simp [Lw]) hal (by show (cA j0F).toNat + 8 * Lw + 8 < 2 ^ 64; exact hov) hbits
         (by simp [j0F, rbF, capF, capD]) hal2
         (by simp (config := {decide := true}) [T.Env.get_cons]; rfl)
@@ -230,7 +233,8 @@ theorem core_verdict3 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
         (by simp (config := {decide := true}) [T.Env.get_cons, hpins', hz])
         (by simp (config := {decide := true}) [T.Env.get_cons]; rw [gRA]; rfl)
         (by simp (config := {decide := true}) [T.Env.get_cons])
-        nb hl (Himg ++ extra) (by rw [hHimg, writeH_length]) hHimg tf htf with hs | ⟨w, hret, a, s3, -, hpost⟩
+        nb hl (Himg ++ extra) (by show _ = (ctxH C H'').H.length; rw [hHimg, writeH_length]) hHimg tf ⟨sr_raise htf.sr, htf.env, htf.mem, htf.decl⟩ with
+        hs | ⟨w, hret, a, s3, -, hpost⟩
     · exact Or.inl hs
     · exact Or.inr ⟨w, hret, (), s', rfl, ConPanqueque.Prelude.post3_verdict hokP' hoff'.1 hpo' hpp' trivial
         (hsz' nb hl) hpost⟩

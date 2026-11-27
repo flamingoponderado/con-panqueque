@@ -42,6 +42,7 @@ theorem recCV_of_enc {C : Ctx} {F : Nat} {H : List (BitVec 64)} {q : Nat} {cv : 
   · simp at hd
 
 theorem recOK_of_enc {C : Ctx} {F : Nat} {H : List (BitVec 64)} {o : Nat} {d : IDeclaration}
+    (hfr : FrontOK C) (hA : denoteN C.St.ns Ind.anonH = some .anonymous) (hbi : BasisInv C)
     (h : RecEnc C F H o d) (hd : (denoteDecl C.St d).isSome) : RecOK (ctxH C H) o d := by
   cases d with
   | defnDecl cv v hint =>
@@ -79,12 +80,13 @@ theorem recOK_of_enc {C : Ctx} {F : Nat} {H : List (BitVec 64)} {o : Nat} {d : I
       show H[o + 4]? = _
       rw [h3]; cases k <;> rfl
   | indDecl block nP =>
-    -- not yet a front record: the dispatcher rejects inductive lines.  Once it accepts them, `IndSem.run` is
-    -- `indRun_of_front` (Front/IndRun.lean) of the line's `IndShape`/`IndBounds` (as `IndFront`).
-    exact absurd h.1 (by simp [ConPanqueque.Bridge.IsFrontDecl, ConPanqueque.Bridge.IsValueDecl])
+    obtain ⟨hB, -, h1, h2, ob, -, h3, h4, h5⟩ := h
+    have hsem : IndSem (ctxH C H) block nP := ⟨frontOK_ctxH hfr, hA, hbi, indRun_of_front hB⟩
+    exact ⟨h1, hsem, ob, h2, h3, h4 H (keepsAbove_refl _ _), h5⟩
 
 /-- **The registry as the fold's block.** -/
 theorem registry_block {C : Ctx} {F rb capD : Nat} {H : List (BitVec 64)} {decls : Array IDeclaration}
+    (hfr : FrontOK C) (hA : denoteN C.St.ns Ind.anonH = some .anonymous) (hbi : BasisInv C)
     (h : DeclsRel C F rb capD H decls) (hd : ∀ k (hk : k < decls.size), (denoteDecl C.St decls[k]).isSome) :
     ∃ rs : List (Nat × IDeclaration), rs.map Prod.snd = decls.toList ∧
       BlkAt H rb (rs.map (fun r => cellA C r.1)) ∧ ∀ j (hj : j < rs.length), RecOK (ctxH C H) rs[j].1 rs[j].2 := by
@@ -99,6 +101,6 @@ theorem registry_block {C : Ctx} {F rb capD : Nat} {H : List (BitVec 64)} {decls
     simpa using (ho ⟨i, hi⟩).1
   · simp only [List.length_ofFn] at hj
     simp only [List.getElem_ofFn]
-    exact recOK_of_enc (ho ⟨j, hj⟩).2 (hd j hj)
+    exact recOK_of_enc hfr hA hbi (ho ⟨j, hj⟩).2 (hd j hj)
 
 end ConPanqueque.Front

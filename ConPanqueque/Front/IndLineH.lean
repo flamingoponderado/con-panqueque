@@ -50,7 +50,7 @@ theorem recP_spec {α : Type} (C0 : Ctx) (hok : CtxOK C0) (cc : ILCodes σ C0)
     (hRq : Γ.get ilRq = some (BitVec.ofNat 64 qR.toNat)) (hP : Γ.get ilP = some (BitVec.ofNat 64 t.numParams))
     (hNc : Γ.get ilNc = some (BitVec.ofNat 64 cts.length)) (hOB : Γ.get ilOB = some (cellA C0 ob))
     (hTy : Γ.get ilTy = some (Enc.idxW tyh))
-    (hfd : ConPanqueque.Bridge.IsFrontDecl C0.pins (.indDecl (indBlockD st t cts r T) t.numParams))
+    (hfd : RecTwin st s t cts r tyh → IndBoundsP (indBlockD st t cts r T) t.numParams)
     {m : AM (StateD ⊕ RecordVerdict)}
     (hm : RecTwin st s t cts r tyh →
       m s = (pure (.inl { st with decls := st.decls.push (.indDecl (indBlockD st t cts r T) t.numParams) }) :
@@ -178,7 +178,7 @@ theorem recP_spec {α : Type} (C0 : Ctx) (hok : CtxOK C0) (cc : ILCodes σ C0)
     ((gq _ (by decide) (by decide)).trans hCD) ((gq _ (by decide) (by decide)).trans hRq)
     ((gq _ (by decide) (by decide)).trans hP) ((gq _ (by decide) (by decide)).trans hNc)
     ((gq _ (by decide) (by decide)).trans hOB) (by envg) (by envg; exact h1y) (by envg; exact h1z)
-    (by envg; exact h1K) hfd (fun hr hnu hmi => hm (twin hr hnu hmi))) (fun u hu => hu)
+    (by envg; exact h1K) (fun hr hnu hmi => hfd (twin hr hnu hmi)) (fun hr hnu hmi => hm (twin hr hnu hmi))) (fun u hu => hu)
     (fun a w s' u ⟨h1, hr, hnu, hmi⟩ => ⟨h1, twin hr hnu hmi⟩)
 
 end ConPanqueque.Front

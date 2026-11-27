@@ -62,6 +62,13 @@ set_option maxRecDepth 8000 in
 theorem foldCodes_St {mode : ConLeche.CheckMode} {C : Ctx} (hc : FoldCodes mode C) (St : EStore) :
     FoldCodes mode (ctxSt C St) := by ctx_tr hc
 
+theorem ILCodes.toSt {C : Ctx} (cc : ILCodes σ C) (St : EStore) : ILCodes σ (ctxSt C St) :=
+  ⟨cc.nc, cc.sc, cc.ic, cc.cN, cc.cI, cc.cP, cc.cV, cc.rulesN, cc.ctorsN, cc.recsN, cc.typesN, cc.rulesAt, cc.ctorsAt,
+    cc.recsAt, cc.typesAt, cc.declF, cc.typeF, cc.ctorF, cc.recF, cc.ruleF⟩
+
+theorem frontCodes_St {C : Ctx} (h : FrontCodes σ C) (St : EStore) : FrontCodes σ (ctxSt C St) :=
+  ⟨h.hsc, h.hnc, h.hhc, h.hlc, h.cNth, h.cSafe, h.cHintV, h.cStr, h.cApp, h.cLam, h.cAll, h.cLet, h.cProj, h.cLs, h.cConst, h.cBVar, h.cSort, h.cSucc, h.cParam, h.cMax, h.cImax, h.cNNum, h.cNStr, h.fApp, h.fLam, h.fAll, h.fLet, h.fProj, h.fConst, h.fNum, h.fStrN, h.fThm, h.fOpq, h.fAx, h.fQt, h.cQK, h.fDef, h.cLnPl, h.cLnS0, h.cLnIx, h.cLnNx, h.l1, h.l2, h.l3, h.l4, h.l5, h.l6, h.l7, h.l8, h.l9, h.l10, h.l11, h.l12, h.l14, h.l15, h.l16, h.l21, h.l22, h.l18, h.l19, h.cLnKB, h.ilc.toSt St, h.cCL, h.cRL, h.l23⟩
+
 theorem declsRel_St {C : Ctx} {F rb capD : Nat} {H : List (BitVec 64)} {ds : Array IDeclaration}
     (h : DeclsRel C F rb capD H ds) (St : EStore) : DeclsRel (ctxSt C St) F rb capD H ds := by
   cases C; exact h
@@ -76,13 +83,16 @@ theorem foldCall_spec (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.Runtime
     (hd : ∀ k (hk : k < st.decls.size), (denoteDecl s.store st.decls[k]).isSome)
     (hlen : st.decls.size < 2 ^ 62) (hRB : Γ.get kRB = some (cellA C rb))
     (hpo : ConRon.Bridge.PinsOK s) (hpp : ConRon.Bridge.PersPins s) (pinsP : List ConLeche.NatOpPinSet)
-    (hpins : ConRon.Bridge.PinsDenote s.store pins pinsP) :
+    (hpins : ConRon.Bridge.PinsDenote s.store pins pinsP) (hbi : BasisInv C) :
     SpecR (Inv (σ := σ) C s Γ [] D) foldCallP s (checkDeclsPure .verified pins st.decls.toList)
       (fun (_ : IFEnv) (_ : BitVec 64) (_ : AState) (_ : PState σ) => True) := by
+  refine specR_atEntry fun t0 ht0 => ?_
+  have hx0 : Ext C.St s.store := ht0.sr.floor
   refine specR_invRaise (R' := fun (_ : IFEnv) (_ : BitVec 64) (_ : AState) (_ : PState σ) => True) ?_
     (fun _ _ _ _ _ h => h)
   let C' := ctxSt C s.store
-  obtain ⟨rs, hrs, hb, hrec⟩ := registry_block (declsRel_St hfs.dr s.store) hd
+  obtain ⟨rs, hrs, hb, hrec⟩ := registry_block (C := ctxSt C s.store) (by ctx_tr hfr) hA (hbi.mono hx0)
+    (declsRel_St hfs.dr s.store) hd
   have hrec' : ∀ j (hj : j < rs.length), RecOK C' rs[j].1 rs[j].2 := by
     intro j hj; have := hrec j hj; rwa [show ctxH (ctxSt C s.store) C.H = C' from by cases C; rfl] at this
   have hlenR : rs.length = st.decls.size := by

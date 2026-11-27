@@ -9,8 +9,7 @@ import ConPanqueque.T.Ind.CrtDischarge
 `IndRun C block nP` (`T/Ind/IndArm2.lean`) is what the fold's inductive arm (`ki_spec`) takes of the
 twin: facts of the block `readBlock` answers when it runs at a checking state (con-ron's `FoldOK`) at
 which the block denotes.  `indRun_of_front` derives it from what the front end establishes of the
-block (`IndFront`: the inductive line's `IndBounds` at a store below the fold's floor, where the block
-denotes).
+block (`IndBoundsP`: the inductive line's store-free bounds) and the store's size at the run.
 
 The derivation reads `readBlock` through con-ron's relational spec (`readBlock_run`: the answer
 denotes con-leche's `readBlock` of the denoted block) and con-leche's inversion (`readBlock_inv`):
@@ -134,37 +133,30 @@ theorem recFires_den {p : BlockShape} {pP : ConLeche.BlockShape} :
     · exact fireDen_ext hx2 (fireDen_of_denote hf)
     · exact hfs g hg
 
-/-! ## What the front end supplies, and what is left -/
-
-/-- **What the front end establishes of an inductive record's block**: the inductive line's bounds
-(`IndBounds`) at a state whose store is below the fold's floor, where the block denotes. -/
-def IndFront (C : Ctx) (block : List IConstantInfo) (nP : Nat) : Prop :=
-  ∃ s0 : AState, Ext s0.store C.St ∧ IndBounds s0 block nP ∧ (Frontend.denoteCIList s0.store block).isSome
+/-! ## What the front end supplies -/
 
 /-- **The inductive record's twin-run facts, from the front end's**: `readBlock`'s
 answer denotes con-leche's (`readBlock_run`), whose records are the block's (`readBlock_records`), whose
-counts and level-parameter lists the inductive line bounded (`IndBounds`). -/
-theorem indRun_of_front {C : Ctx} {block : List IConstantInfo} {nP : Nat} (hF : IndFront C block nP) :
+counts and level-parameter lists the inductive line bounded (`IndBoundsP`); the telescopes are bounded by the
+store's size (`teleLen_le_nodeCount`). -/
+theorem indRun_of_front {C : Ctx} {block : List IConstantInfo} {nP : Nat} (hB : IndBoundsP block nP) :
     IndRun C block nP := by
-  intro env fe b s p s' hfo hx hb hrun
-  obtain ⟨s0, hx0, hB, hd0⟩ := hF
-  obtain ⟨b0, hb0⟩ := Option.isSome_iff_exists.mp hd0
-  have hb0' : Frontend.denoteCIList s.store block = some b0 := ConRon.Bridge.denoteCIList_mono (hx0.trans hx) _ _ hb0
-  rw [hb0'] at hb
-  obtain rfl := (Option.some.inj hb).symm
+  intro env fe b s p s' hfo hx hnc hb0' hrun
   obtain ⟨hps, hrel⟩ := ConRon.Bridge.Inductives.readBlock_run nP block b s s' (.ok p) hfo.check hb0' hrun
   obtain ⟨pP, hpP, hdsh⟩ := hrel
   have hpPr : ConLeche.readBlock nP b = .ok pP := ConRon.Bridge.Inductives.toOption_eq_some hpP
   obtain ⟨hnPP, hmemP, hrecP, hsumP⟩ := readBlock_records hpPr
   obtain ⟨hmsD, hrsD, hnPD, -, -, -, -⟩ := ConRon.Bridge.Inductives.dShape_inv hdsh
-  have hlenb : block.length = b.length := denoteCIList_length hb0
+  have hlenb : block.length = b.length := denoteCIList_length hb0'
+  have hb0 := hb0'
   -- the block's records, bounded
   have H1 : ∀ c ∈ b, c.toConstantVal.levelParams.length < 2 ^ 55 ∧
       ConLeche.Frontend.indPiTeleLen c.toConstantVal.type < 2 ^ 55 := by
     intro c hc
     obtain ⟨ci, hci, hd⟩ := denoteCIList_mem hb0 c hc
     have hcv := denoteCI_toCV hd
-    refine ⟨by rw [← lps_len_of_denote hcv]; exact hB.lps ci hci, hB.tele ci hci _ (denoteCV_parts hcv).2⟩
+    refine ⟨by rw [← lps_len_of_denote hcv]; exact hB.lps ci hci,
+      Nat.lt_of_le_of_lt (teleLen_le_nodeCount (denoteCV_parts hcv).2) hnc⟩
   have H2 : ∀ cv np nf T, ConLeche.ConstantInfo.ctorInfo cv np nf T ∈ b → np < 2 ^ 55 ∧ nf < 2 ^ 55 := by
     intro cv np nf T hc
     obtain ⟨ci, hci, hd⟩ := denoteCIList_mem hb0 _ hc

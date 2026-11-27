@@ -4,6 +4,7 @@ import ConPanqueque.T.Ind.CheckBlockAny
 import ConPanqueque.T.Ind.ReadBlock
 import ConPanqueque.T.Ind.BlockReadsSpec
 import ConPanqueque.Bridge.SeqFold
+import ConPanqueque.T.Ind.NodeCount
 
 /-!
 # The record of an inductive block (`checkDeclStep` at `.indDecl`)
@@ -90,7 +91,7 @@ answers in — when it is run at a checking state (con-ron's `FoldOK`, the bridg
 flushed) at which the block denotes. -/
 def IndRun (C : Ctx) (block : List IConstantInfo) (nP : Nat) : Prop :=
   ∀ (env : ConLeche.Env) (fe : IFEnv) (b : List ConLeche.ConstantInfo) (s : AState) (p : BlockShape) (s' : AState),
-    FoldOK env fe s → Ext C.St s.store → Frontend.denoteCIList s.store block = some b →
+    FoldOK env fe s → Ext C.St s.store → s.store.nodeCount < 2 ^ 55 → Frontend.denoteCIList s.store block = some b →
     readBlock nP block s = .ok (.ok p, s') →
     BRFacts p s'.store ∧ ∀ C' : Ctx, C'.St = s'.store → C'.code = C.code →
       ∀ ms0 rc, p.members = [ms0] → p.recs = [rc] → CBKFacts .verified C' block p ms0 rc
@@ -305,7 +306,7 @@ theorem ki_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : Con
   subst hw hrp
   simp only
   have hp3' : C.H <+: H3 := hp2'.trans hp3
-  obtain ⟨hbrf, hcbkf⟩ := hrun env C.fe bP s2 p s3 hF2 hx2 hbP2 (unwrapE_ok hrb)
+  obtain ⟨hbrf, hcbkf⟩ := hrun env C.fe bP s2 p s3 hF2 hx2 (sr_nodeCount ht2.sr) hbP2 (unwrapE_ok hrb)
   obtain ⟨hps3, hrb3⟩ := ConRon.Bridge.Inductives.readBlock_run nP block bP s2 s3 (.ok p) hF2.check hbP2 (unwrapE_ok hrb)
   obtain ⟨pP, -, hdsh3⟩ := hrb3
   have hF3 : FoldOK env C.fe s3 := hF2.ofCore (hps3.toCore hF2.check)

@@ -32,6 +32,15 @@ def CVEnc (C : Ctx) (F : Nat) (H : List (BitVec 64)) (q : Nat) (cv : IConstantVa
 def KeepsAbove (F : Nat) (H H' : List (BitVec 64)) : Prop :=
   ∀ c, F ≤ c → ∀ v, H[c]? = some v → H'[c]? = some v
 
+/-- The bounds the inductive line checks on its block (store-free): the fold's inductive arm needs them. -/
+structure IndBoundsP (blk : List IConstantInfo) (nP : Nat) : Prop where
+  np : nP < 2 ^ 55
+  len : blk.length < 2 ^ 55 + 2
+  lps : ∀ ci ∈ blk, ci.toConstantVal.levelParams.length < 2 ^ 55
+  ctor : ∀ ci ∈ blk, ∀ cv np nf T, ci = .ctorInfo cv np nf T → np < 2 ^ 55 ∧ nf < 2 ^ 55
+  rcs : ∀ ci ∈ blk, ∀ cv mi rp k rules, ci = .recInfo cv mi rp k rules →
+    mi < 2 ^ 56 ∧ rp < 2 ^ 57 ∧ rules.length < 2 ^ 55 ∧ ∀ ru ∈ rules, ru.nfields < 2 ^ 55
+
 /-- A declaration record's cells at `o`.  An inductive block's records lie at or above `F`: its
 `IndBlk` holds in every image keeping the cells at or above `F`. -/
 def RecEnc (C : Ctx) (F : Nat) (H : List (BitVec 64)) (o : Nat) : IDeclaration → Prop
@@ -43,7 +52,7 @@ def RecEnc (C : Ctx) (F : Nat) (H : List (BitVec 64)) (o : Nat) : IDeclaration �
       ConPanqueque.Bridge.AxPinName C.pins cv.name
   | .quotDecl k cv => F ≤ o ∧ H[o]? = some 6 ∧ CVEnc C F H (o + 1) cv ∧
       H[o + 4]? = some (BitVec.ofNat 64 (match k with | .type => 1 | .ctor => 2 | .lift => 3 | .ind => 4 | .sound => 5))
-  | .indDecl block nP => ConPanqueque.Bridge.IsFrontDecl C.pins (.indDecl block nP) ∧ F ≤ o ∧ H[o]? = some 4 ∧ H[o + 1]? = some (BitVec.ofNat 64 nP) ∧
+  | .indDecl block nP => IndBoundsP block nP ∧ F ≤ o ∧ H[o]? = some 4 ∧ H[o + 1]? = some (BitVec.ofNat 64 nP) ∧
       ∃ ob, F ≤ ob ∧ H[o + 2]? = some (cellA C ob) ∧
       (∀ H', KeepsAbove F H H' → T.Ind.IndBlk C H' ob block) ∧ block.length < 2 ^ 59 ∧ nP < 2 ^ 59 ∧
       ∀ i (hi : i < block.length), block[i].toConstantVal.levelParams.length < 2 ^ 59

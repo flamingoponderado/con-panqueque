@@ -33,6 +33,7 @@ theorem top_verdict_table {σ : Type} (pins : List INatOpPinSet) (pinsP : List C
     (hZL : Γ.get kZL = some (Enc.idxW s.pins.zeroLevel))
     (hRA : Γ.get kRA = some (cellA C j0)) (hRL : Γ.get kRL = some (BitVec.ofNat 64 (8 * Lw)))
     (hRM : Γ.get kRM = some (BitVec.ofNat 64 (8 * Lw - 16)))
+    (hbi : ConPanqueque.T.Decl.BasisInv C)
     (t : PState σ) (ht : Inv C s Γ M D t) (hbe : t.be = false) :
     Stop (evaluateHOLFiniteState t topP).1 ∨
       ((∃ w, (evaluateHOLFiniteState t topP).1 = some (.returned (.val (.word w)))) ∧
@@ -41,7 +42,7 @@ theorem top_verdict_table {σ : Type} (pins : List INatOpPinSet) (pinsP : List C
           ∃ rc, ConLeche.Frontend.parseBytes (inputOf nb (leNat (nb.take 8))) = .ok rc ∧
             ∃ F', ConLeche.checkDeclsPure .verified (ConLeche.fueledOps .verified F') pinsP rc.decls.toList
               = .ok (ConLeche.streamEnv rc.decls.toList)) :=
-  top_verdict pins pinsP ra C hok hf (front_ok σ C hC) (fold_ok C hC) hs hpl hfe (feed_ok C hC) s hst hoff hpo hpp
+  top_verdict (hbi := hbi) pins pinsP ra C hok hf (front_ok σ C hC) (fold_ok C hC) hs hpl hfe (feed_ok C hC) s hst hoff hpo hpp
     hpins hA Γ M D hD rb capD jN cap j0 Lw hlay hbuf0 hcells hL16 h59 hal hov hbits hcap1 hcapN hcap8 hcapD8 hZb hZn hTN
     hTL hTE hCp hRB hCD hZL hRA hRL hRM t ht hbe
 

@@ -84,6 +84,9 @@ structure IndBounds (s : AState) (blk : List IConstantInfo) (nP : Nat) : Prop wh
   rcs : ∀ ci ∈ blk, ∀ cv mi rp k rules, ci = .recInfo cv mi rp k rules →
     mi < 2 ^ 56 ∧ rp < 2 ^ 57 ∧ rules.length < 2 ^ 55 ∧ ∀ ru ∈ rules, ru.nfields < 2 ^ 55
 
+theorem IndBounds.toP {s : AState} {blk : List IConstantInfo} {nP : Nat} (h : IndBounds s blk nP) :
+    IndBoundsP blk nP := ⟨h.np, h.len, h.lps, h.ctor, h.rcs⟩
+
 /-- The line's records in the supported shape. -/
 def IndShape (st : StateD) (s : AState) (tys : List IndTypeRec) (cts : List IndCtorRec) (rcs : List IndRecRec)
     (blk : List IConstantInfo) (nP : Nat) : Prop :=
@@ -120,7 +123,6 @@ theorem indLine_spec (C : Ctx) (hok : CtxOK C) (cc : ILCodes σ C)
     (hcapD : 8 * (rb + 1 + capD) < 2 ^ 64)
     (pos e : USize) (hpos : pos.toNat ≤ b.size) (tys : List IndTypeRec) (cts : List IndCtorRec) (rcs : List IndRecRec)
     (hd : scanIndDecl b pos = .ok (.ind tys cts rcs) e)
-    (hfd : ∀ blk nP, ConPanqueque.Bridge.IsFrontDecl C.pins (.indDecl blk nP))
     (hTN : Γ.get fTN = some (cellA C jN)) (hTE : Γ.get fTE = some (cellA C jE))
     (hC : Γ.get fCap = some (BitVec.ofNat 64 cap)) (hPos : Γ.get kPos = some (BitVec.ofNat 64 pos.toNat))
     (hBA : Γ.get kBA = some (cellA C bufJ)) (hBN : Γ.get kBN = some (BitVec.ofNat 64 b.size))
@@ -468,6 +470,41 @@ theorem indLine_spec (C : Ctx) (hok : CtxOK C) (cc : ILCodes σ C)
       (fun c hc => by obtain ⟨j, hj, e⟩ := List.getElem_of_mem hc; rw [← e]
                       obtain ⟨ch, h1, _⟩ := (hco j hj).ty; rw [h1]; rfl)]
     rfl
+  have mkB : RecTwin st s t cts r tyh → IndBounds s (indBlockD st t cts r T) t.numParams := by
+    intro tw
+    have hB : B55 = 2 ^ 55 := rfl
+    obtain ⟨rty, nR, hrty, hnR, hdenR⟩ := tw.tele
+    refine ⟨by rw [← hB]; exact hnP, by have := hnC; unfold B55 at this; simp [indBlockD]; omega,
+      fun ci hci => by rw [← hB]; exact indBlock_lps st t cts r T hlplT (fun c hc => by
+        obtain ⟨j, hj, e⟩ := List.getElem_of_mem hc; rw [← e]; exact (hco j hj).lpl) tw.lpl ci hci, ?_, ?_, ?_⟩
+    · intro ci hci ex hex
+      rcases indBlock_cases hci with rfl | ⟨j, hj, rfl⟩ | rfl
+      · simp only [IConstantInfo.toConstantVal, cvOfD, hty, Option.getD_some] at hex
+        rw [← hdenT ex hex, ← hB]; exact hnT
+      · obtain ⟨ch, h1, _, h3⟩ := (hco j hj).ty
+        simp only [IConstantInfo.toConstantVal, cvOfD, h1, Option.getD_some] at hex
+        rw [← h3 ex hex, ← hB]; exact (hco j hj).tl
+      · simp only [recInfoD, IConstantInfo.toConstantVal, cvOfD, hrty, Option.getD_some] at hex
+        rw [← hdenR ex hex, ← hB]; exact hnR
+    · intro ci hci cv np nf T' e
+      rcases indBlock_cases hci with rfl | ⟨j, hj, rfl⟩ | rfl
+      · cases e
+      · simp only [IConstantInfo.ctorInfo.injEq] at e
+        obtain ⟨-, rfl, rfl, -⟩ := e
+        rw [← hB]; exact ⟨(hco j hj).np, (hco j hj).nf⟩
+      · simp [recInfoD] at e
+    · intro ci hci cv mi rp k rules e
+      rcases indBlock_cases hci with rfl | ⟨j, hj, rfl⟩ | rfl
+      · cases e
+      · cases e
+      · simp only [recInfoD, IConstantInfo.recInfo.injEq] at e
+        obtain ⟨-, rfl, rfl, -, rfl⟩ := e
+        have := tw.ni; have := tw.nr; have hmi := tw.mi; unfold B55 at *
+        rw [tw.rp, tw.rm, tw.rmin] at hmi ⊢
+        refine ⟨by omega, by omega, by simp; omega, fun ru hru => ?_⟩
+        simp only [List.mem_map] at hru
+        obtain ⟨ru0, hru0, rfl⟩ := hru
+        have := tw.nf ru0 hru0; unfold B55 at this; simpa [ruleOfD] using this
   -- the recursor, the record and the push
   refine specR_mono (recP_spec (α := Unit) C hok cc hrL s _ D (fun x hx => hD x (by
       simp only [indMods, List.mem_append]; simp [hx])) st F rb capD jN jE cap bufJ b hreln hrele hcap hcapN hbuf
@@ -476,41 +513,7 @@ theorem indLine_spec (C : Ctx) (hok : CtxOK C) (cc : ILCodes σ C)
     H7 hp07 ob hob (by omega) hob7 os hosl hos7 hhead7
     (by envg; exact f1) (by envg; exact f2) (by envg; exact f3) (by envg; exact f4) (by envg; exact f5)
     (by envg; exact f6) (by envg; exact f7) (by envg; exact f9) (by envg; exact f10) (by envg; exact f11)
-    (by envg; exact f13) (by envg; exact f16) (hfd _ _) hm) (fun u hu => hu) (fun a w s' u ⟨hpost, tw⟩ => ?_)
-  refine ⟨_, _, hpost, t, r, T, rfl, rfl, hT, rfl, rfl, hnC, tw.rp, tw.rm, tw.rmin, tw.ni, tw.nr, ?_⟩
-  -- the bounds
-  have hB : B55 = 2 ^ 55 := rfl
-  obtain ⟨rty, nR, hrty, hnR, hdenR⟩ := tw.tele
-  refine ⟨by rw [← hB]; exact hnP, by have := hnC; unfold B55 at this; simp [indBlockD]; omega,
-    fun ci hci => by rw [← hB]; exact indBlock_lps st t cts r T hlplT (fun c hc => by
-      obtain ⟨j, hj, e⟩ := List.getElem_of_mem hc; rw [← e]; exact (hco j hj).lpl) tw.lpl ci hci, ?_, ?_, ?_⟩
-  · intro ci hci ex hex
-    rcases indBlock_cases hci with rfl | ⟨j, hj, rfl⟩ | rfl
-    · simp only [IConstantInfo.toConstantVal, cvOfD, hty, Option.getD_some] at hex
-      rw [← hdenT ex hex, ← hB]; exact hnT
-    · obtain ⟨ch, h1, _, h3⟩ := (hco j hj).ty
-      simp only [IConstantInfo.toConstantVal, cvOfD, h1, Option.getD_some] at hex
-      rw [← h3 ex hex, ← hB]; exact (hco j hj).tl
-    · simp only [recInfoD, IConstantInfo.toConstantVal, cvOfD, hrty, Option.getD_some] at hex
-      rw [← hdenR ex hex, ← hB]; exact hnR
-  · intro ci hci cv np nf T' e
-    rcases indBlock_cases hci with rfl | ⟨j, hj, rfl⟩ | rfl
-    · cases e
-    · simp only [IConstantInfo.ctorInfo.injEq] at e
-      obtain ⟨-, rfl, rfl, -⟩ := e
-      rw [← hB]; exact ⟨(hco j hj).np, (hco j hj).nf⟩
-    · simp [recInfoD] at e
-  · intro ci hci cv mi rp k rules e
-    rcases indBlock_cases hci with rfl | ⟨j, hj, rfl⟩ | rfl
-    · cases e
-    · cases e
-    · simp only [recInfoD, IConstantInfo.recInfo.injEq] at e
-      obtain ⟨-, rfl, rfl, -, rfl⟩ := e
-      have := tw.ni; have := tw.nr; have hmi := tw.mi; unfold B55 at *
-      rw [tw.rp, tw.rm, tw.rmin] at hmi ⊢
-      refine ⟨by omega, by omega, by simp; omega, fun ru hru => ?_⟩
-      simp only [List.mem_map] at hru
-      obtain ⟨ru0, hru0, rfl⟩ := hru
-      have := tw.nf ru0 hru0; unfold B55 at this; simpa [ruleOfD] using this
+    (by envg; exact f13) (by envg; exact f16) (fun tw => (mkB tw).toP) hm) (fun u hu => hu) (fun a w s' u ⟨hpost, tw⟩ => ?_)
+  refine ⟨_, _, hpost, t, r, T, rfl, rfl, hT, rfl, rfl, hnC, tw.rp, tw.rm, tw.rmin, tw.ni, tw.nr, mkB tw⟩
 
 end ConPanqueque.Front

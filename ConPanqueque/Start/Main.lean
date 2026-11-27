@@ -5,10 +5,9 @@ import ConPanqueque.Code.Top
 /-! # The whole program from the harness's start
 
 `mainBody`: declare the locals, store the initial image, read the input, run the pin phase, set
-the frontend's locals, then parse and check (`restP`).  `main_verdict`: from a harness start (a
-zeroed region, the globals as declared, little-endian), if the program returns, its trace records
-the read of bytes `nb`, con-leche parses the input they carry, and con-leche's checker accepts the
-declarations. -/
+the frontend's locals, then parse and check (`restP`).  This program does not intern the pinned
+basis blocks, which the fold's inductive arm needs (`BasisInv`), so its verdict theorem is gone now that
+inductive lines are accepted; the definitions here are the later programs' (`Main3`, `Main4`) pieces. -/
 
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V ConPanqueque.T ConPanqueque.T.Decl ConPanqueque.Code ConRon.Arena ConRon.Bridge
@@ -115,138 +114,5 @@ def Verdict (nb : List (BitVec 8)) : Prop :=
   ∃ rc, ConLeche.Frontend.parseBytes (inputOf nb (leNat (nb.take 8))) = .ok rc ∧
     ∃ F', ConLeche.checkDeclsPure .verified (ConLeche.fueledOps .verified F') [] rc.decls.toList
       = .ok (ConLeche.streamEnv rc.decls.toList)
-
-set_option maxHeartbeats 4000000 in
-/-- The body after the declarations. -/
-theorem core_verdict (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : System.Platform.numBits = 64)
-    (t : PState σ) (hm : InitMem t) (hg : InitGlobals t codeT) (hbe : t.be = false)
-    (hloc : ∀ x ∈ mainLocals, ∃ w, t.locals.lookup x = some (.val (.word w))) :
-    Stop (evaluateHOLFiniteState t mainCore).1 ∨
-      ((∃ w, (evaluateHOLFiniteState t mainCore).1 = some (.returned (.val (.word w)))) ∧
-        ∃ nb bs : List (BitVec 8), nb.length = 8 * Lw ∧
-          ⟨.extCall fRead, [], bs.zip nb⟩ ∈ (evaluateHOLFiniteState t mainCore).2.ffi.ioEvents ∧ Verdict nb) := by
-  have hD : ∀ x ∈ mainLocals, x ∈ mainLocals := fun x h => h
-  unfold mainCore
-  -- the initial image
-  generalize hR1 : (ProgHOL.seq (.assign .local kRA (.const (cA j0F)))
-    (.seq (.assign .local kRL (.const (BitVec.ofNat 64 (8 * Lw))))
-    (.seq (.extCall fRead (.const 0) (.const 0) (vv kRA) (vv kRL))
-      (pinsP Cprog (frontAssigns restP))))) = R1
-  have e0 : evaluateHOLFiniteState t (.seq (storesP initL) R1) = evaluateHOLFiniteState (tI t) R1 :=
-    seq_normal _ (storesP_spec initL t (fun p hp => (hm.zero p.1 (initL_dom p hp).1 (initL_dom p hp).2.1
-      (initL_dom p hp).2.2).1))
-  rw [e0, ← hR1]
-  have hinv0 : Inv (C0 codeT) (sBoot P0) [] [] mainLocals (tI t) :=
-    ⟨sr_init hm codeT hg, fun x v h => absurd h (by simp [T.Env.get]), fun _ _ h => absurd h (by simp),
-      fun x hx => hloc x hx⟩
-  -- the buffer's address and size
-  obtain ⟨wa, hwa⟩ := hloc kRA (by decide)
-  obtain ⟨wl, hwl⟩ := hloc kRL (by decide)
-  let t1 := setVarHOLFinite kRA (.val (.word (cA j0F))) (tI t)
-  let t2 := setVarHOLFinite kRL (.val (.word (BitVec.ofNat 64 (8 * Lw)))) t1
-  have ea1 : evaluateHOLFiniteState (tI t) (.assign .local kRA (.const (cA j0F))) = (none, t1) :=
-    ConsLoop.assign_local _ _ _ _ wa (by simp [evalHOLExact]) hwa
-  have ea2 : evaluateHOLFiniteState t1 (.assign .local kRL (.const (BitVec.ofNat 64 (8 * Lw)))) = (none, t2) :=
-    ConsLoop.assign_local _ _ _ _ wl (by simp [evalHOLExact])
-      (by simp only [t1]; rw [lookup_setVar_other _ _ (by decide)]; exact hwl)
-  rw [seq_normal _ ea1, seq_normal _ ea2]
-  let Γ2 : Env := [(kRL, BitVec.ofNat 64 (8 * Lw)), (kRA, cA j0F)]
-  have hinv2 : Inv (C0 codeT) (sBoot P0) Γ2 [] mainLocals t2 := inv_set (inv_set hinv0 kRA _) kRL _
-  have hbe2 : t2.be = false := hbe
-  -- the read
-  have hal : (cellA (C0 codeT) j0F).toNat % 8 = 0 := by
-    show (cA j0F).toNat % 8 = 0; simp only [cA]; addr_tac'
-  have hov : (cellA (C0 codeT) j0F).toNat + 8 * Lw + 8 < 2 ^ 64 := by
-    show (cA j0F).toNat + 8 * Lw + 8 < 2 ^ 64; simp only [cA]; addr_tac'
-  have hcells : j0F + Lw ≤ (C0 codeT).H.length := by
-    show j0F + Lw ≤ Himg.length; rw [Himg_length]; simp [NH]
-  rcases read_step (C0 codeT) (ctxOK_init codeT) (sBoot P0) Γ2 [] mainLocals j0F Lw fRead hal hcells (by omega)
-      (by simp [Γ2, T.Env.get_cons]; rfl) (by simp [Γ2, T.Env.get_cons]) fRead_ne t2 hinv2 hbe2 with
-    hs3 | ⟨hn3, nb, bs, hl, hio, hinv3⟩
-  · exact Or.inl (seq_stop _ _ _ hs3)
-  generalize ht3 : (evaluateHOLFiniteState t2 (.extCall fRead (.const 0) (.const 0) (vv kRA) (vv kRL))).2 = t3
-    at hio hinv3
-  rw [seq_normal (s := t2) (s₁ := t3) _ (by rw [← hn3, ← ht3])]
-  let H' := writeH Himg (cA j0F) j0F 0 nb
-  have hinv3' : Inv (Cb codeT H' EH0) (sBoot P0) Γ2 [] mainLocals t3 := hinv3
-  rw [show Cprog = Cb emptyCode [] EH0 from rfl, pinsP_Cb emptyCode codeT [] EH0 H' EH0]
-  have hmono := evaluateHOLFiniteState_ioEvents_mono (pinsP (Cb codeT H' EH0) (frontAssigns restP)) t3 _ _ rfl
-  have hev : (⟨.extCall fRead, [], bs.zip nb⟩ : _) ∈ t3.ffi.ioEvents := by rw [hio]; simp
-  -- the frontend's locals and the rest, after the pins
-  have hk : ∀ sP (EH' : List (BitVec 64)) (Γ' : Env), internReservedPins (sBoot P0) = .ok ((), sP) →
-      PinBlock EH' sP.pins → sP.pins.zeroLevel = default → EH'.length = 138 →
-      (∀ y, y ∉ [vPn, vKa, vPb, vRs] → Γ'.get y = Γ2.get y) →
-      SpecR (σ := σ) (Inv (C1 codeT H' EH' sP.pins) sP Γ' [] mainLocals) (frontAssigns restP) sP
-        ((fun _ => (pure () : AM Unit)) ()) (fun _ _ _ _ => Verdict nb) := by
-    intro sP EH' Γ' hrun hb hz _ hag
-    obtain ⟨hokP, hextP, hpo, hpp, hoff, -, -⟩ := internReservedPins_run (boot_ok P0).1 (boot_ok P0).2.1 hrun
-    let C := C1 codeT H' EH' sP.pins
-    have hC : C.code = codeMap (codeEntries C) := code_C1 _ _ _
-    unfold frontAssigns
-    refine specR_assignI kZb _ (cA 0) (by decide) rfl ?_
-    refine specR_assignI kZn _ (BitVec.ofNat 64 (3 * capF)) (by decide) rfl ?_
-    refine specR_assignI fTN _ (cA 0) (by decide) rfl ?_
-    refine specR_assignI fTL _ (cA capF) (by decide) rfl ?_
-    refine specR_assignI fTE _ (cA (2 * capF)) (by decide) rfl ?_
-    refine specR_assignI fCap _ (BitVec.ofNat 64 capF) (by decide) rfl ?_
-    refine specR_assignI kRB _ (cA rbF) (by decide) rfl ?_
-    refine specR_assignI kCapD _ (BitVec.ofNat 64 capD) (by decide) rfl ?_
-    refine specR_assignI kZL _ 0 (by decide) rfl ?_
-    refine specR_assignI kRM _ (BitVec.ofNat 64 (8 * Lw - 16)) (by decide) rfl ?_
-    intro tf htf
-    have gRA : Γ'.get kRA = some (cA j0F) := by rw [hag _ (by decide)]; decide
-    have gRL : Γ'.get kRL = some (BitVec.ofNat 64 (8 * Lw)) := by rw [hag _ (by decide)]; decide
-    rcases rest_verdict [] [] ra C (ctxOK_C1 _ _ _ _ hb) (frontOK_C1 _ _ _ _) (front_ok σ C hC) (fold_ok C hC) rfl rfl rfl
-        (feed_ok C hC) sP hokP hoff hpo hpp trivial (denoteN_ext (boot_ok P0).2.2.1 hextP) _ [] mainLocals (fun x hx => by
-          simp only [List.mem_cons, List.not_mem_nil, or_false] at hx
-          rcases hx with rfl | rfl | rfl | rfl | rfl | rfl <;> decide)
-        rbF capD 0 capF j0F Lw (by simp [rbF]) (by simp [j0F]; omega) Himg (by rw [Himg_length]; simp [NH])
-        (by simp [Lw]) (by simp [Lw]) hal (by show (cA j0F).toNat + 8 * Lw + 8 < 2 ^ 64; exact hov) hbits
-        (by simp [capF]) (by simp [capF, natCap]) (by simp [capF]) (by simp [rbF, capF, capD])
-        (by simp (config := {decide := true}) [T.Env.get_cons]; rfl)
-        (by simp (config := {decide := true}) [T.Env.get_cons])
-        (by simp (config := {decide := true}) [T.Env.get_cons]; rfl)
-        (by simp (config := {decide := true}) [T.Env.get_cons]; rfl)
-        (by simp (config := {decide := true}) [T.Env.get_cons]; rfl)
-        (by simp (config := {decide := true}) [T.Env.get_cons])
-        (by simp (config := {decide := true}) [T.Env.get_cons]; rfl)
-        (by simp (config := {decide := true}) [T.Env.get_cons])
-        (by simp (config := {decide := true}) [T.Env.get_cons, hz])
-        (by simp (config := {decide := true}) [T.Env.get_cons]; rw [gRA]; rfl)
-        (by simp (config := {decide := true}) [T.Env.get_cons]; exact gRL)
-        (by simp (config := {decide := true}) [T.Env.get_cons])
-        nb hl rfl tf htf with hs | ⟨⟨w, hret⟩, hv⟩
-    · exact Or.inl hs
-    · exact Or.inr ⟨w, hret, (), sP, rfl, hv⟩
-  -- the pins
-  rcases pins_spec (σ := σ) ra codeT pinCodes_T mainLocals (fun x hx => by
-      simp only [List.mem_cons, List.not_mem_nil, or_false] at hx
-      rcases hx with rfl | rfl | rfl | rfl <;> decide)
-      (rest := frontAssigns restP) (R := fun _ _ _ _ => Verdict nb) H' (sBoot P0) Γ2 [] (fun _ => pure ())
-      hk t3 hinv3' with hs4 | ⟨w, hret, -, -, -, hv⟩
-  · exact Or.inl hs4
-  · exact Or.inr ⟨⟨w, hret⟩, nb, bs, hl, hmono.subset hev, hv⟩
-
-/-- **The whole program's verdict.**  From the harness's start (the region zeroed, the globals as
-declared, little-endian), if `main`'s body returns, its FFI trace records the read of bytes `nb`,
-con-leche parses the input they carry (length header first), and con-leche's checker accepts the
-declarations.  Assumed: the Lean runtime's hashes are their reference models (`ra`), and con-leche
-runs on a 64-bit platform (`hbits`). -/
-theorem main_verdict (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : System.Platform.numBits = 64)
-    (t : PState σ) (hm : InitMem t) (hg : InitGlobals t codeT) (hbe : t.be = false) :
-    Stop (evaluateHOLFiniteState t mainBody).1 ∨
-      ((∃ w, (evaluateHOLFiniteState t mainBody).1 = some (.returned (.val (.word w)))) ∧
-        ∃ nb bs : List (BitVec 8), nb.length = 8 * Lw ∧
-          ⟨.extCall fRead, [], bs.zip nb⟩ ∈ (evaluateHOLFiniteState t mainBody).2.ffi.ioEvents ∧ Verdict nb) := by
-  obtain ⟨t', L, h1, h2, h3, h4, h5, h6, -, e⟩ := decsZ_eval mainCore mainLocals t
-  unfold mainBody
-  rw [e]
-  have hm' : InitMem t' := ⟨fun a hal hb1 hb2 => by rw [h1, h2]; exact hm.zero a hal hb1 hb2⟩
-  have hg' : InitGlobals t' codeT := by
-    obtain ⟨c, d, n1, n2, n3, n4, k, ht, eo, lit, et⟩ := hg
-    exact ⟨by rw [h4]; exact c, by rw [h3]; exact d, by rw [h3]; exact n1, by rw [h3]; exact n2, by rw [h3]; exact n3,
-      by rw [h3]; exact n4, by rw [h3]; exact k, by rw [h3]; exact ht, by rw [h3]; exact eo, by rw [h3]; exact lit,
-      by rw [h3]; exact et⟩
-  exact core_verdict ra hbits t' hm' hg' (by rw [h5]; exact hbe) h6
 
 end ConPanqueque.Start

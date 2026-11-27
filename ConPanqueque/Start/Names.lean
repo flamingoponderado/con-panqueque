@@ -204,13 +204,14 @@ theorem front_verdict2 {σ : Type} {F rb capD jN cap bufJ : Nat} {b : ByteArray}
     (hBA : Γ.get kBA = some (cellA C bufJ)) (hBN : Γ.get kBN = some (BitVec.ofNat 64 b.size))
     (hRB : Γ.get kRB = some (cellA C rb)) (hCD : Γ.get kCapD = some (BitVec.ofNat 64 capD))
     (hZL : Γ.get kZL = some (Enc.idxW s.pins.zeroLevel))
+    (hbi : ConPanqueque.T.Decl.BasisInv C)
     (t : PState σ) (ht : Inv C s Γ M D t) :
     Stop (evaluateHOLFiniteState t mainP2).1 ∨
       ((∃ w, (evaluateHOLFiniteState t mainP2).1 = some (.returned (.val (.word w)))) ∧
         ∃ rc, ConLeche.Frontend.parseBytes b = .ok rc ∧
           (∃ F', ConLeche.checkDeclsPure .verified (ConLeche.fueledOps .verified F') pinsP rc.decls.toList
             = .ok (ConLeche.streamEnv rc.decls.toList)) ∧
-          ∀ d ∈ rc.decls.toList, ∃ n, ConPanqueque.Pipeline.recName d = some n ∧ n ∉ FN) := by
+          ∀ d ∈ rc.decls.toList, ∀ n, ConPanqueque.Pipeline.recName d = some n → n ∉ FN) := by
   have hsz : b.size < USize.size := by
     have := hbuf.small
     simp only [USize.size_eq_two_pow, hbuf.plat.bits]; omega
@@ -221,7 +222,7 @@ theorem front_verdict2 {σ : Type} {F rb capD jN cap bufJ : Nat} {b : ByteArray}
     · exact ⟨_, hb.names i (by rw [hb.size]; simpa [pinCount] using hi)⟩
     · exact ⟨_, hb.res i (by rw [(denoteNL_get hpo.reserved).1, reserved_length]; exact hi)⟩
     · exact ⟨_, hB⟩
-  rcases main_spec2 pins ra C hok hf fc hc hs hpl hfe hcF hEB hcells s hst hoff hpo hpp pinsP hpins hA Γ M D hD hDF hfl hcap1 hcapN hcap8
+  rcases main_spec2 (hbi := hbi) pins ra C hok hf fc hc hs hpl hfe hcF hEB hcells s hst hoff hpo hpp pinsP hpins hA Γ M D hD hDF hfl hcap1 hcapN hcap8
       hcapD8 hFH hbuf hZb hZn hTN hTL hTE hC hBA hBN hRB hCD hZL t ht with
     hstop | ⟨w, hw, a, s'', -, st', s', hrun, hval, hm, hforb⟩
   · exact Or.inl hstop
@@ -233,8 +234,16 @@ theorem front_verdict2 {σ : Type} {F rb capD jN cap bufJ : Nat} {b : ByteArray}
   obtain ⟨dh, hdm, hdd⟩ := denoteDecls_mem hden d hd
   obtain ⟨k, hk, rfl⟩ := List.getElem_of_mem hdm
   have hk' : k < st'.decls.size := by simpa using hk
+  intro n0 hn0
+  by_cases hind : ∃ b nP, st'.decls.toList[k] = .indDecl b nP
+  · exfalso
+    obtain ⟨b, nP, e⟩ := hind
+    rw [e] at hdd
+    simp only [Frontend.denoteDecl] at hdd
+    obtain ⟨x, -, rfl⟩ := Option.map_eq_some_iff.mp hdd
+    simp [ConPanqueque.Pipeline.recName, ConPanqueque.Pipeline.valName] at hn0
   obtain ⟨nh, n, hrw, hpn, hdn, hvn⟩ := valName_denote (ConPanqueque.Bridge.isChecked_of_front (hpo.mono hstep.ext hstep.pins) (hval _ hdm))
-    (fun b nP e => by have := hval _ hdm; rw [e] at this; exact this)
+    (fun b nP e => hind ⟨b, nP, e⟩)
     (fun cv e => by
       have := hval _ hdm; rw [e] at this
       rcases ConPanqueque.Bridge.axPin_cases this with h01 | ⟨i, hi, hni⟩
@@ -251,7 +260,8 @@ theorem front_verdict2 {σ : Type} {F rb capD jN cap bufJ : Nat} {b : ByteArray}
       refine hforb k hk' (64 + i) (by simp [cellsF]; omega) ?_
       simp only [Array.getElem_toList] at e
       rw [e, hcell, hni']; rfl) (hpersR _ (by show st'.decls[k] ∈ st'.decls; exact Array.getElem_mem hk')) hdd
-  refine ⟨n, hvn, ?_⟩
+  rw [hvn, Option.some.injEq] at hn0
+  subst hn0
   have hpo' := hpo.mono hstep.ext hstep.pins
   have hwf : NStoreWF s'.store.ns := ConRon.Bridge.Frontend.nsWF_of_StateOK hstep.ok
   refine name_notMem s'.store hwf s.pins C.EH hb (by rw [← hstep.pins]; exact hpo'.names)

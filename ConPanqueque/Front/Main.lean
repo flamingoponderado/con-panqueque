@@ -48,7 +48,7 @@ theorem main_spec (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.RuntimeAssu
     (hTE : Γ.get fTE = some (cellA C (jN + 2 * cap))) (hC : Γ.get fCap = some (BitVec.ofNat 64 cap))
     (hBA : Γ.get kBA = some (cellA C bufJ)) (hBN : Γ.get kBN = some (BitVec.ofNat 64 b.size))
     (hRB : Γ.get kRB = some (cellA C rb)) (hCD : Γ.get kCapD = some (BitVec.ofNat 64 capD))
-    (hZL : Γ.get kZL = some (Enc.idxW s.pins.zeroLevel)) :
+    (hZL : Γ.get kZL = some (Enc.idxW s.pins.zeroLevel)) (hbi : ConPanqueque.T.Decl.BasisInv C) :
     SpecR (Inv (σ := σ) C s Γ M D) mainP s (feedAll (stInit s) b 0 0 >>= fun st' => checkDeclsPure .verified pins st'.decls.toList)
       (MainPost s b pins) := by
   have hsz : b.size < USize.size := by
@@ -70,7 +70,7 @@ theorem main_spec (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.RuntimeAssu
     hs hpl hfe s' (ConRon.Bridge.denoteN_ext hA hstep.ext) Γ'' D (fun x hx => hD x (by
       simp only [List.mem_cons, List.not_mem_nil, or_false] at hx ⊢; rcases hx with rfl | rfl <;> simp)) st'
     (frontSt_ctxH H' hfs) hd hlen (by rw [hag _ (by decide) (by decide)]; exact hRB)
-    (hpo.mono hstep.ext hstep.pins) (hpp.mono hstep.pins) pinsP (PinsDenote.mono hstep.ext _ _ hpins))) (fun t ht => ht)
+    (hpo.mono hstep.ext hstep.pins) (hpp.mono hstep.pins) pinsP (PinsDenote.mono hstep.ext _ _ hpins) hbi)) (fun t ht => ht)
     (fun a w s'' t ⟨hm, _⟩ => ⟨st', s', hrun, hval, hm⟩)
 
 /-- **The verdict**: when the program returns, con-leche's parse of the input succeeds and its
@@ -92,6 +92,7 @@ theorem front_verdict (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPin
     (hBA : Γ.get kBA = some (cellA C bufJ)) (hBN : Γ.get kBN = some (BitVec.ofNat 64 b.size))
     (hRB : Γ.get kRB = some (cellA C rb)) (hCD : Γ.get kCapD = some (BitVec.ofNat 64 capD))
     (hZL : Γ.get kZL = some (Enc.idxW s.pins.zeroLevel))
+    (hbi : ConPanqueque.T.Decl.BasisInv C)
     (t : PState σ) (ht : Inv C s Γ M D t) :
     Stop (evaluateHOLFiniteState t mainP).1 ∨
       ((∃ w, (evaluateHOLFiniteState t mainP).1 = some (.returned (.val (.word w)))) ∧
@@ -101,7 +102,7 @@ theorem front_verdict (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPin
   have hsz : b.size < USize.size := by
     have := hbuf.small
     simp only [USize.size_eq_two_pow, hbuf.plat.bits]; omega
-  rcases main_spec pins ra C hok hf fc hc hs hpl hfe hcF s hst hoff hpo hpp pinsP hpins hA Γ M D hD hfl hcap1 hcapN hcap8 hcapD8 hFH
+  rcases main_spec (hbi := hbi) pins ra C hok hf fc hc hs hpl hfe hcF s hst hoff hpo hpp pinsP hpins hA Γ M D hD hfl hcap1 hcapN hcap8 hcapD8 hFH
       hbuf hZb hZn hTN hTL hTE hC hBA hBN hRB hCD hZL t ht with hstop | ⟨w, hw, a, s'', -, st', s', hrun, hval, hm⟩
   · exact Or.inl hstop
   refine Or.inr ⟨⟨w, hw⟩, ?_⟩

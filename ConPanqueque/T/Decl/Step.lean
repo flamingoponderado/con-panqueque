@@ -30,7 +30,7 @@ def RecCV (C : Ctx) (q : Nat) (cv : IConstantVal) : Prop :=
 /-- The inductive step's facts about the twin and the store floor (not code), at the record's block. -/
 structure IndSem (C : Ctx) (block : List IConstantInfo) (nP : Nat) : Prop where
   fr : ConPanqueque.Front.FrontOK C
-  an : denoteN C.St.ns anonH = some .anonymous
+  an : denoteN C.St.ns Ind.anonH = some .anonymous
   bi : BasisInv C
   run : Ind.IndRun C block nP
 
