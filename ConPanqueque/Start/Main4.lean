@@ -216,11 +216,15 @@ theorem core_verdict3 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
         (feed_ok C hC) (fun _ => rfl) s' hokP' hoff'.1 hpo' hpp' trivial
         (ConRon.Bridge.denoteN_ext (ConRon.Bridge.denoteN_ext hA1 hextP) hist.ext) hb3' _ [] mainLocals3
         (fun x hx => by
-          simp only [ConPanqueque.Prelude.rest3Vars, ConPanqueque.Prelude.ovVars, ConPanqueque.Prelude.hsVars,
-            List.cons_append, List.nil_append, List.mem_cons, List.not_mem_nil, or_false] at hx
-          rcases hx with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
-            rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
-            rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> decide)
+          have h1 : ∀ y ∈ ConPanqueque.Prelude.ovVars, y ∈ mainLocals3 := fun y hy => by simp [mainLocals3, hy]
+          have h2 : ∀ y ∈ ConPanqueque.Prelude.hsVars, y ∈ mainLocals3 := fun y hy => by simp [mainLocals3, hy]
+          simp only [ConPanqueque.Prelude.rest3Vars, List.mem_append] at hx
+          rcases hx with ((hx | hx) | hx) | hx
+          · simp only [List.mem_cons, List.not_mem_nil, or_false] at hx
+            rcases hx with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> decide
+          · exact h1 x hx
+          · exact h2 x hx
+          · simp only [List.mem_cons, List.not_mem_nil, or_false] at hx; subst hx; decide)
         rbF capD 0 capF j0F Lw (by simp [capF]) (by simp [rbF]) (by simp [capF, natCap]) (by simp [j0F]; omega)
         (by simp [Lw, capD])
         (by show j0F + Lw ≤ (ctxH C H'').H.length; rw [hHimg, writeH_length, List.length_append, Himg_length]; simp [NH])

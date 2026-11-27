@@ -103,17 +103,11 @@ theorem keyOf_denote {st : EStore} {p : IDeclaration} {pP : Declaration}
         simp only [Option.some.injEq] at hn
         rw [← hk, hd, preludeKey, ← hn]; rfl
 
-theorem declares_val {st : EStore} (hwf : StoreWF st) {d : IDeclaration} {dP : Declaration} {p : IDeclaration}
+theorem declares_gen {st : EStore} (hwf : StoreWF st) {d : IDeclaration} {dP : Declaration} {p : IDeclaration}
     {pP : Declaration} (hd : ConRon.Arena.Frontend.denoteDecl st d = some dP)
-    (hp : ConRon.Arena.Frontend.denoteDecl st p = some pP) (hk : p.names.head? = some (keyOf p)) (hv : isVal d = true) :
-    declares (preludeKey pP) dP = (valName d == keyOf p) := by
-  rw [← declares_denote hwf (keyOf_denote hp hk) hd, ConRon.Arena.Frontend.declares, names_val hv]
-  by_cases e : valName d = keyOf p
-  · simp [List.contains, List.elem, e]
-  · have e' : keyOf p ≠ valName d := fun h => e h.symm
-    have h1 : (keyOf p == valName d) = false := beq_eq_false_iff_ne.mpr e'
-    have h2 : (valName d == keyOf p) = false := beq_eq_false_iff_ne.mpr e
-    simp only [List.contains, List.elem, h1, h2]
+    (hp : ConRon.Arena.Frontend.denoteDecl st p = some pP) (hk : p.names.head? = some (keyOf p)) :
+    declares (preludeKey pP) dP = d.names.contains (keyOf p) := by
+  rw [← declares_denote hwf (keyOf_denote hp hk) hd, ConRon.Arena.Frontend.declares]
 
 /-- **The pass's facts are con-leche's `OverOK`.** -/
 theorem overOK_of_overW {st : EStore} (hwf : StoreWF st) {Q P : List IDeclaration} {QP PP : List Declaration}
@@ -123,42 +117,36 @@ theorem overOK_of_overW {st : EStore} (hwf : StoreWF st) {Q P : List IDeclaratio
   have hkey := h.key _ (List.getElem_mem hj)
   refine ⟨fun dP hdP hdec => ?_, ?_⟩
   · obtain ⟨i, hi, hi', rfl, hdi⟩ := denoteDecls_mem' hQ hdP
-    have hv := h.val _ (List.getElem_mem hi)
-    rw [declares_val hwf hdi hpj hkey hv] at hdec
-    have e := h.eq _ (List.getElem_mem hi) _ (List.getElem_mem hj) (by simpa using hdec)
+    rw [declares_gen hwf hdi hpj hkey] at hdec
+    have e := h.eq _ (List.getElem_mem hi) _ (List.getElem_mem hj) hdec
     rw [e] at hdi
     exact Option.some.inj (hdi.symm.trans hpj)
   · refine filter_len_le_one _ QP (fun a b ha hb hab h1 h2 => ?_)
     have hl := denoteDecls_len hQ
     have hda := denoteDecls_get hQ a (by omega) ha
     have hdb := denoteDecls_get hQ b (by omega) hb
-    rw [declares_val hwf hda hpj hkey (h.val _ (List.getElem_mem _))] at h1
-    rw [declares_val hwf hdb hpj hkey (h.val _ (List.getElem_mem _))] at h2
-    have e1 : valName Q[a] = keyOf P[j] := by simpa using h1
-    have e2 : valName Q[b] = keyOf P[j] := by simpa using h2
-    exact h.uniq a b (by omega) (by omega) hab (by
-      rw [e2]; simp only [List.contains_iff_mem, List.mem_map]; exact ⟨P[j], List.getElem_mem hj, rfl⟩)
-      (e1.trans e2.symm)
+    rw [declares_gen hwf hda hpj hkey] at h1
+    rw [declares_gen hwf hdb hpj hkey] at h2
+    exact h.uniq a b (by omega) (by omega) hab _ (List.getElem_mem hj) h1 h2
 
 /-- **The kept stream records denote con-leche's rest.** -/
 theorem denoteDecls_keep {st : EStore} (hwf : StoreWF st) {Q P : List IDeclaration} {QP PP : List Declaration}
     (hQ : denoteDecls st Q = some QP) (hP : denoteDecls st P = some PP) (h : OverW Q P) :
     denoteDecls st (Q.filter (keepW (P.map keyOf))) = some (QP.filter (keep PP)) := by
   refine denoteDecls_filter _ _ (fun d hdm dP hd => ?_) hQ
-  have hv := h.val d hdm
   simp only [keepW, keep, Bool.not_inj_iff]
-  rw [Bool.eq_iff_iff, List.contains_iff_mem, List.any_eq_true]
+  rw [Bool.eq_iff_iff, List.any_eq_true, List.any_eq_true]
   constructor
-  · intro hm
-    obtain ⟨p, hpm, hpk⟩ := List.mem_map.mp hm
+  · intro ⟨k, hm, hc⟩
+    obtain ⟨p, hpm, rfl⟩ := List.mem_map.mp hm
     obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem hpm
     have hl := denoteDecls_len hP
     have hpj := denoteDecls_get hP j hj (by omega)
     refine ⟨PP[j], List.getElem_mem _, ?_⟩
-    rw [declares_val hwf hd hpj (h.key _ hpm) hv, hpk]; simp
+    rw [declares_gen hwf hd hpj (h.key _ hpm)]; exact hc
   · intro ⟨pP, hpP, hdec⟩
     obtain ⟨j, hj, hj', rfl, hpj⟩ := denoteDecls_mem' hP hpP
-    rw [declares_val hwf hd hpj (h.key _ (List.getElem_mem hj)) hv] at hdec
-    exact List.mem_map.mpr ⟨P[j], List.getElem_mem hj, (by simpa using hdec : valName d = keyOf P[j]).symm⟩
+    rw [declares_gen hwf hd hpj (h.key _ (List.getElem_mem hj))] at hdec
+    exact ⟨keyOf P[j], List.mem_map.mpr ⟨P[j], List.getElem_mem hj, rfl⟩, hdec⟩
 
 end ConPanqueque.Prelude

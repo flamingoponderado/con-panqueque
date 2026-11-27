@@ -3,7 +3,7 @@ import ConRon.Bridge.Frontend.Prepare
 /-! # Handle-level notions of the override pass
 
 `isVal`/`valName`: a value record (not a block) and its name handle; `keyOf`: a prelude record's key
-handle; `keepW`: a stream record whose name is no key; `OverW`: what the override pass establishes
+handle; `keepW`: a stream record declaring no key; `OverW`: what the override pass establishes
 of the stream `Q` against the prelude `P`. -/
 
 open ConRon.Arena
@@ -26,15 +26,15 @@ theorem names_val {d : IDeclaration} (h : isVal d = true) : d.names = [valName d
 /-- A prelude record's key handle. -/
 def keyOf (p : IDeclaration) : NIdx := p.names.head?.getD default
 
-/-- A stream record the pass keeps: its name is no key. -/
-def keepW (keys : List NIdx) (d : IDeclaration) : Bool := !(keys.contains (valName d))
+/-- A stream record the pass keeps: it declares no key (con-ron's `declares`: any of its names). -/
+def keepW (keys : List NIdx) (d : IDeclaration) : Bool := !(keys.any (fun k => d.names.contains k))
 
-/-- The facts the pass establishes of the stream `Q` and the prelude `P`. -/
+/-- The facts the pass establishes of the stream `Q` and the prelude `P`: a stream record declaring a
+prelude record's key is that record, and no two stream records declare the same key. -/
 structure OverW (Q P : List IDeclaration) : Prop where
   key : ∀ p ∈ P, p.names.head? = some (keyOf p)
-  val : ∀ d ∈ Q, isVal d = true
-  eq : ∀ d ∈ Q, ∀ p ∈ P, valName d = keyOf p → d = p
-  uniq : ∀ i j (hi : i < Q.length) (hj : j < Q.length), i < j → (P.map keyOf).contains (valName Q[j]) = true →
-    valName Q[i] ≠ valName Q[j]
+  eq : ∀ d ∈ Q, ∀ p ∈ P, d.names.contains (keyOf p) = true → d = p
+  uniq : ∀ i j (hi : i < Q.length) (hj : j < Q.length), i < j → ∀ p ∈ P,
+    Q[i].names.contains (keyOf p) = true → Q[j].names.contains (keyOf p) = true → False
 
 end ConPanqueque.Prelude

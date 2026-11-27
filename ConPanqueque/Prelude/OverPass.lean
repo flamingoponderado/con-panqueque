@@ -1,4 +1,4 @@
-import ConPanqueque.Prelude.OverStep
+import ConPanqueque.Prelude.BlkEq
 
 /-! # The override pass
 
@@ -7,9 +7,10 @@ The registry at `kRB` holds the stream's records `Q` (the first `nq = kNQ`) and 
 
 1. copies `P`'s record pointers into a second registry at `kRA + 8·4096` (checking every prelude
    record has a key);
-2. walks `Q`: a block hangs; a value record whose name is some prelude record's key must be that
-   record (`recEqP`) and the only stream record of that name (`scanP`), and is dropped; any other
-   record is appended to the second registry;
+2. walks `Q`: a record declaring some prelude record's key (`declP`: a value record's name, any
+   member's name of a block) must be that record (`eqP`: `recEqP`, or `blkEqP` for a block) and the
+   only stream record declaring that key (`scanP`), and is dropped; any other record is appended to
+   the second registry;
 3. points `kRB` at the second registry: `P` followed by the kept stream records.
 
 `overP_spec`: the continuation runs with the second registry (`DeclsRel`) and the facts the bridge
@@ -28,31 +29,33 @@ variable {σ : Type}
 /-- The stream's record count, saved before the prelude's parse. -/
 def kNQ := ofString "knq"
 
-/-- Hang if a stream record before index `ovK` has the name `ovNm`. -/
+/-- Hang if a stream record before index `ovK` declares the key in `ovKey`. -/
 def scanP : ProgHOL 64 :=
   .seq (.assign .local ovI (.const 0))
   (.while (.cmp .lower (vv ovI) (vv ovK))
     (.seq (.assign .local ovX (.load .one (slotE kRB ovI 1)))
-    (.seq (.assign .local ovY (.load .one (offE ovX 1)))
-    (.seq (.ite (.cmp .equal (vv ovY) (vv ovNm)) hang .skip)
+    (.seq declP
+    (.seq (.ite (.cmp .equal (vv ovFL) (.const 0)) .skip hang)
       (.assign .local ovI (.op .add [vv ovI, .const 1]))))))
+
+/-- Hang unless the stream record at `ovD` is the record at `ovP` (a block word by word, member by member). -/
+def eqP : ProgHOL 64 :=
+  .seq (.assign .local ovT (.load .one (vv ovD))) (.ite (.cmp .equal (vv ovT) (.const 4)) blkEqP recEqP)
 
 /-- One prelude record against the stream record at `ovD`. -/
 def innerBody : ProgHOL 64 :=
   .seq (.assign .local ovT (.op .add [vv kNQ, vv ovJ]))
   (.seq (.assign .local ovP (.load .one (slotE kRB ovT 1)))
   (.seq keyP
-  (.seq (.ite (.cmp .equal (vv ovKey) (vv ovNm))
-           (.seq scanP (.seq recEqP (.assign .local ovDrop (.const 1))))
-           .skip)
-    (.assign .local ovJ (.op .add [vv ovJ, .const 1])))))
+  (.seq (.assign .local ovX (vv ovD))
+  (.seq declP
+  (.seq (.ite (.cmp .equal (vv ovFL) (.const 0)) .skip
+           (.seq scanP (.seq eqP (.assign .local ovDrop (.const 1)))))
+    (.assign .local ovJ (.op .add [vv ovJ, .const 1])))))))
 
 /-- One stream record. -/
 def streamBody : ProgHOL 64 :=
   .seq (.assign .local ovD (.load .one (slotE kRB ovK 1)))
-  (.seq (.assign .local ovT (.load .one (vv ovD)))
-  (.seq (.ite (.cmp .equal (vv ovT) (.const 4)) hang .skip)
-  (.seq (.assign .local ovNm (.load .one (offE ovD 1)))
   (.seq (.assign .local ovDrop (.const 0))
   (.seq (.assign .local ovJ (.const 0))
   (.seq (.while (.cmp .lower (vv ovJ) (vv ovNP)) innerBody)
@@ -61,7 +64,7 @@ def streamBody : ProgHOL 64 :=
            (.seq (.store (slotE ovR2 ovT 1) (vv ovD))
              (.assign .local ovW (.op .add [vv ovW, .const 1]))))
            .skip)
-    (.assign .local ovK (.op .add [vv ovK, .const 1])))))))))
+    (.assign .local ovK (.op .add [vv ovK, .const 1]))))))
 
 /-- One prelude record copied (its key checked). -/
 def copyBody : ProgHOL 64 :=
@@ -112,50 +115,54 @@ theorem recEnc_ctxH {C : Ctx} {F : Nat} {H H' : List (BitVec 64)} {o : Nat} {d :
 
 @[simp] theorem cellA_ctxH (C : Ctx) (H : List (BitVec 64)) (j : Nat) : cellA (ctxH C H) j = cellA C j := rfl
 
-/-- `scanP`: it returns only if no stream record before `k` has the name word `nm`. -/
+def scanMods : List MlS := [ovI, ovX, ovY] ++ declMods
+
+/-- `scanP`: it returns only if no stream record before `k` declares `key`. -/
 theorem scanP_step {C : Ctx} {s : AState} {Γ : Env} {D : List MlS} (hD : ∀ x ∈ ovVars, x ∈ D)
     {F rb capD : Nat} {decls : Array IDeclaration} (hdr : DeclsRel C F rb capD C.H decls)
     (hcap : 8 * (rb + 1 + capD) < 2 ^ 64) (hRB : Γ.get kRB = some (cellA C rb)) (k : Nat) (hk : k ≤ decls.size)
-    (hval : ∀ k' (hk' : k' < k), isVal (decls[k']'(by omega)) = true)
-    (hK : Γ.get ovK = some (BitVec.ofNat 64 k)) (nm : NIdx) (hN : Γ.get ovNm = some (Enc.idxW nm)) :
-    Step (Inv (σ := σ) C s Γ [] D) scanP (fun t => (∀ k' (hk' : k' < k), valName (decls[k']'(by omega)) ≠ nm) ∧
-      ∃ Γ', (∀ y, y ∉ [ovI, ovX, ovY] → Γ'.get y = Γ.get y) ∧ Inv C s Γ' [] D t) := by
+    (hK : Γ.get ovK = some (BitVec.ofNat 64 k)) (key : NIdx) (hKey : Γ.get ovKey = some (Enc.idxW key)) :
+    Step (Inv (σ := σ) C s Γ [] D) scanP (fun t => (∀ k' (hk' : k' < k), (decls[k']'(by omega)).names.contains key = false) ∧
+      ∃ Γ', (∀ y, y ∉ scanMods → Γ'.get y = Γ.get y) ∧ Inv C s Γ' [] D t) := by
   have hle : decls.size ≤ capD := hdr.2.1
   refine step_seq (step_assignI ovI (.const 0) 0 (hD _ (by simp [ovVars])) rfl) ?_
   refine fun t ht => (step_whileCE (s := s) (D := D) _ _
     (fun C' Γ' => C' = C ∧ ∃ i, ∃ hik : i ≤ k, Γ'.get ovI = some (BitVec.ofNat 64 i) ∧
-      (∀ k' (hk' : k' < i), valName (decls[k']'(by omega)) ≠ nm) ∧ (∀ y, y ∉ [ovI, ovX, ovY] → Γ'.get y = Γ.get y))
-    (fun C' Γ' => C' = C ∧ (∀ k' (hk' : k' < k), valName (decls[k']'(by omega)) ≠ nm) ∧
-      (∀ y, y ∉ [ovI, ovX, ovY] → Γ'.get y = Γ.get y))
-    C _ ⟨rfl, 0, Nat.zero_le _, by simp (config := {decide := true}) [T.Env.get_cons], fun k' h => absurd h (by omega), fun y hy => by
-      have : y ≠ ovI := fun e => hy (by simp [e])
-      simp (config := {decide := true}) [T.Env.get_cons, this]⟩ ?_ t ht).imp id (fun ⟨hn, C', Γ', ⟨hC, hall, hag⟩, hq⟩ => by
-        subst C'; exact ⟨hn, hall, Γ', hag, hq⟩)
+      (∀ k' (hk' : k' < i), (decls[k']'(by omega)).names.contains key = false) ∧ (∀ y, y ∉ scanMods → Γ'.get y = Γ.get y))
+    (fun C' Γ' => C' = C ∧ (∀ k' (hk' : k' < k), (decls[k']'(by omega)).names.contains key = false) ∧
+      (∀ y, y ∉ scanMods → Γ'.get y = Γ.get y))
+    C _ ⟨rfl, 0, Nat.zero_le _, by simp (config := {decide := true}) [T.Env.get_cons], fun k' h => absurd h (by omega),
+      frame_cons (fun _ _ => rfl) ovI (by decide) _⟩ ?_ t ht).imp id
+    (fun ⟨hn, C', Γ', ⟨hC, hall, hag⟩, hq⟩ => by subst C'; exact ⟨hn, hall, Γ', hag, hq⟩)
   intro C' Γ' ⟨hC, i, hi, gI, hdone, hag⟩
   subst C'
-  have gK : Γ'.get ovK = some (BitVec.ofNat 64 k) := by rw [hag _ (by decide)]; exact hK
+  have gK : Γ'.get ovK = some (BitVec.ofNat 64 k) := frame_get hag (by decide) hK
   refine ⟨bw (i < k), sev_lowerV _ _ _ _ _ gI gK (by omega) (by omega), fun h0 => ?_, fun h1 => ?_⟩
   · have : i = k := by have := bw_eq0' h0; omega
     subst this; exact ⟨rfl, hdone, hag⟩
   · have hlt := bw_ne0' h1
     obtain ⟨o, ho, hro⟩ := regAt hdr i (by omega)
     refine step_seq (step_loadW ovX (slotE kRB ovI 1) _ _ ho (hD _ (by simp [ovVars]))
-      (by rw [sev_slot _ C kRB ovI rb i 1 (by rw [hag _ (by decide)]; exact hRB) gI (by omega)])) ?_
-    refine step_seq (step_loadW ovY (offE ovX 1) (o + 1) _ (name_of_val hro (hval i hlt)) (hD _ (by simp [ovVars]))
-      (sev_off _ C ovX o 1 (by simp (config := {decide := true}) [T.Env.get_cons]))) ?_
-    have gN : Γ'.get ovNm = some (Enc.idxW nm) := by rw [hag _ (by decide)]; exact hN
-    refine step_seq (Q := fun t => valName decls[i] ≠ nm ∧ _) (step_ifI _ _ (sev_eqv _ ovY ovNm (Enc.idxW (valName decls[i])) (Enc.idxW nm)
-      (by simp (config := {decide := true}) [T.Env.get_cons]) (by simp (config := {decide := true}) [T.Env.get_cons, gN])) (fun _ => step_hangI)
-      (fun he => fun t ht => (step_skipI t ht).imp id (fun ⟨h1, h2⟩ => ⟨h1, fun e => ite10_eq he (by rw [e]), h2⟩))) ?_
+      (by rw [sev_slot _ C kRB ovI rb i 1 (frame_get hag (by decide) hRB) gI (by omega)])) ?_
+    have f1 := frame_cons hag ovX (by decide) (cellA C o)
+    refine step_cont (declP_step hD hro (by simp (config := {decide := true}) [T.Env.get_cons]) key
+      (frame_get f1 (by decide) hKey)) (fun t ⟨Γ2, gF, hag2, ht2⟩ => step_here ?_ ht2)
+    have f2 : ∀ y, y ∉ scanMods → Γ2.get y = Γ.get y := fun y hy =>
+      (hag2 y (fun h => hy (List.mem_append_right _ h))).trans (f1 y hy)
+    refine step_seq (Q := fun t => decls[i].names.contains key = false ∧ Inv C s Γ2 [] D t)
+      (step_ifI _ _ (sev_eqC _ ovFL 0 _ gF) (fun he => fun t ht => (step_skipI t ht).imp id (fun ⟨a, b⟩ => ⟨a, by
+          cases e : decls[i].names.contains key
+          · rfl
+          · rw [e] at he; exact absurd (ite10_ne he) (by decide), b⟩))
+        (fun _ => step_hangI)) ?_
     intro t ⟨hne, ht⟩
-    refine (step_assignI ovI (.op .add [vv ovI, .const 1]) _ (hD _ (by simp [ovVars])) (sev_succV _ ovI i
-      ((by simp (config := {decide := true}) [T.Env.get_cons, gI]))) t ht).imp id (fun ⟨hn, hq⟩ => ⟨hn, C, _, ⟨rfl, i + 1, by omega,
-        by simp (config := {decide := true}) [T.Env.get_cons], fun k' hk' => ?_, fun y hy => ?_⟩, hq⟩)
-    · rcases Nat.lt_succ_iff_lt_or_eq.mp hk' with h | rfl
-      · exact hdone k' h
-      · exact hne
-    · simp only [List.mem_cons, List.not_mem_nil, or_false, not_or] at hy
-      simp (config := {decide := true}) [T.Env.get_cons, hy.1, hy.2.1, hy.2.2]; exact hag y (by simp [hy.1, hy.2.1, hy.2.2])
+    have gI2 : Γ2.get ovI = some (BitVec.ofNat 64 i) := by rw [hag2 _ (by decide)]; simp (config := {decide := true}) [T.Env.get_cons, gI]
+    refine (step_assignI ovI (.op .add [vv ovI, .const 1]) _ (hD _ (by simp [ovVars])) (sev_succV _ ovI i gI2)
+      t ht).imp id (fun ⟨hn, hq⟩ => ⟨hn, C, _, ⟨rfl, i + 1, by omega,
+        by simp (config := {decide := true}) [T.Env.get_cons], fun k' hk' => ?_, frame_cons f2 ovI (by decide) _⟩, hq⟩)
+    rcases Nat.lt_succ_iff_lt_or_eq.mp hk' with h | rfl
+    · exact hdone k' h
+    · exact hne
 
 end ConPanqueque.Prelude
 
@@ -214,145 +221,172 @@ theorem declsRel_agree {C : Ctx} {F rb capD a b : Nat} {H H' : List (BitVec 64)}
   obtain ⟨o, ho, hr⟩ := h5 k hk
   exact ⟨o, by rw [ha.2 _ (Or.inl (by omega))]; exact ho, recEnc_keeps hr (agree_keeps ha hbF)⟩
 
+def eqMods : List MlS := ovT :: (blkMods ++ recMods)
+
+/-- `eqP`: it returns only if the stream record at `ovD` is the record at `ovP`. -/
+theorem eqP_step {C : Ctx} {s : AState} {Γ : Env} {D : List MlS} (hD : ∀ x ∈ ovVars, x ∈ D)
+    (hHL : C.H.length < 2 ^ 61) {F od op : Nat} {d p : IDeclaration} (hrd : RecEnc C F C.H od d)
+    (hrp : RecEnc C F C.H op p) (hd : Γ.get ovD = some (cellA C od)) (hp : Γ.get ovP = some (cellA C op)) :
+    Step (Inv (σ := σ) C s Γ [] D) eqP (fun t => d = p ∧ ∃ Γ', (∀ y, y ∉ eqMods → Γ'.get y = Γ.get y) ∧
+      Inv C s Γ' [] D t) := by
+  refine step_seq (step_loadW ovT (vv ovD) od _ (recEnc_tag hrd) (hD _ (by simp [ovVars]))
+    (by simpa [sev, vv] using hd)) ?_
+  have f0 : ∀ y, y ∉ eqMods → T.Env.get ((ovT, BitVec.ofNat 64 (tagOf d)) :: Γ) y = Γ.get y :=
+    frame_cons (fun _ _ => rfl) ovT (by decide) _
+  have hd0 : T.Env.get ((ovT, BitVec.ofNat 64 (tagOf d)) :: Γ) ovD = some (cellA C od) := frame_get f0 (by decide) hd
+  have hp0 : T.Env.get ((ovT, BitVec.ofNat 64 (tagOf d)) :: Γ) ovP = some (cellA C op) := frame_get f0 (by decide) hp
+  refine step_ifI _ _ (sev_eqC _ ovT 4 (BitVec.ofNat 64 (tagOf d)) (by simp (config := {decide := true}) [T.Env.get_cons]))
+    (fun h4 => ?_) (fun h4 => ?_)
+  · have ht4 : tagOf d = 4 := tagOf_inj (tagOf_lt d) (by omega) (ite10_ne h4)
+    cases d with
+    | indDecl block nP =>
+      exact fun t ht => (blkEqP_step hD hHL hrd hrp hd0 hp0 t ht).imp id (fun ⟨hn, e, Γ', hag, hq⟩ =>
+        ⟨hn, e, Γ', fun y hy => (hag y (fun h => hy (List.mem_cons_of_mem _ (List.mem_append_left _ h)))).trans (f0 y hy), hq⟩)
+    | _ => simp [tagOf] at ht4
+  · have hv : isVal d = true := isVal_of_tag (fun e => ite10_eq h4 (by rw [e]))
+    exact fun t ht => (recEqP_step hD hrd hrp hv hd0 hp0 t ht).imp id (fun ⟨hn, e, Γ', hag, hq⟩ =>
+      ⟨hn, e, Γ', fun y hy => (hag y (fun h => hy (List.mem_cons_of_mem _ (List.mem_append_right _ h)))).trans (f0 y hy), hq⟩)
+
 /-- The locals the inner loop writes. -/
-def innerMods : List MlS := [ovJ, ovT, ovP, ovB, ovO, ovKey, ovDrop, ovX, ovY, ovI, ovA, ovB2]
+def innerMods0 : List MlS := [ovT, ovP, ovB, ovO, ovKey, ovDrop] ++ scanMods ++ eqMods
+def innerMods : List MlS := ovJ :: innerMods0
+
+theorem im0 {y : MlS} (h : y ∉ innerMods) : y ∉ innerMods0 := fun h' => h (List.mem_cons_of_mem _ h')
+
+/-- The keys among the first `j` declared by `d`. -/
+def anyKey (decls : Array IDeclaration) (nq j : Nat) (d : IDeclaration) : Bool :=
+  (keysUpTo decls nq j).any (fun key => d.names.contains key)
 
 /-- The inner loop: the stream record `d` at `od` (index `k`) against the prelude's records. -/
-theorem inner_step {C : Ctx} {s : AState} {D : List MlS} (hD : ∀ x ∈ ovVars, x ∈ D)
+theorem inner_step {C : Ctx} {s : AState} {D : List MlS} (hD : ∀ x ∈ ovVars, x ∈ D) (hHL : C.H.length < 2 ^ 61)
     {F rb capD nq np r2 : Nat} {decls : Array IDeclaration} (hdr : DeclsRel C F rb capD C.H decls)
     (hsz : decls.size = nq + np) (hcap : 8 * (rb + 1 + capD) < 2 ^ 64)
-    (k : Nat) (hk : k < nq) (hval : ∀ k' (hk' : k' ≤ k), isVal (decls[k']'(by omega)) = true)
-    (od : Nat) (hrd : RecEnc C F C.H od decls[k]) (Γ0 : Env) (hfix : OvFix C rb nq np r2 Γ0)
-    (hK : Γ0.get ovK = some (BitVec.ofNat 64 k)) (hDd : Γ0.get ovD = some (cellA C od))
-    (hNm : Γ0.get ovNm = some (Enc.idxW (valName decls[k]))) :
+    (k : Nat) (hk : k < nq) (od : Nat) (hrd : RecEnc C F C.H od decls[k]) (Γ0 : Env) (hfix : OvFix C rb nq np r2 Γ0)
+    (hK : Γ0.get ovK = some (BitVec.ofNat 64 k)) (hDd : Γ0.get ovD = some (cellA C od)) :
     Step (Inv (σ := σ) C s ((ovJ, 0) :: (ovDrop, 0) :: Γ0) [] D) (.while (.cmp .lower (vv ovJ) (vv ovNP)) innerBody)
-      (fun t => ∃ Γ', Γ'.get ovDrop = some (if (keysUpTo decls nq np).contains (valName decls[k]) then 1 else 0) ∧
-        (∀ j (hj : j < np), valName decls[k] = keyOf (decls[nq + j]'(by omega)) → decls[k] = decls[nq + j]'(by omega)) ∧
-        ((keysUpTo decls nq np).contains (valName decls[k]) = true →
-          ∀ k' (hk' : k' < k), valName (decls[k']'(by omega)) ≠ valName decls[k]) ∧
-        (∀ y, y ∉ innerMods → Γ'.get y = Γ0.get y) ∧ OvFix C rb nq np r2 Γ' ∧
-        Γ'.get ovK = some (BitVec.ofNat 64 k) ∧ Γ'.get ovD = some (cellA C od) ∧ Inv C s Γ' [] D t) := by
+      (fun t => ∃ Γ', Γ'.get ovDrop = some (if anyKey decls nq np decls[k] then 1 else 0) ∧
+        (∀ j (hj : j < np), decls[k].names.contains (keyOf (decls[nq + j]'(by omega))) = true →
+          decls[k] = decls[nq + j]'(by omega)) ∧
+        (∀ j (hj : j < np), decls[k].names.contains (keyOf (decls[nq + j]'(by omega))) = true →
+          ∀ k' (hk' : k' < k), (decls[k']'(by omega)).names.contains (keyOf (decls[nq + j]'(by omega))) = false) ∧
+        (∀ y, y ∉ innerMods → Γ'.get y = Γ0.get y) ∧ Inv C s Γ' [] D t) := by
   have hle : decls.size ≤ capD := hdr.2.1
   let d := decls[k]
   let I : Ctx → Env → Prop := fun C' Γ' => C' = C ∧ ∃ j, ∃ hjn : j ≤ np, Γ'.get ovJ = some (BitVec.ofNat 64 j) ∧
-    Γ'.get ovDrop = some (if (keysUpTo decls nq j).contains (valName d) then 1 else 0) ∧
-    (∀ j' (hj' : j' < j), valName d = keyOf (decls[nq + j']'(by omega)) → d = decls[nq + j']'(by omega)) ∧
-    ((keysUpTo decls nq j).contains (valName d) = true → ∀ k' (hk' : k' < k), valName (decls[k']'(by omega)) ≠ valName d) ∧
-    (∀ y, y ∉ innerMods → Γ'.get y = Γ0.get y) ∧ OvFix C rb nq np r2 Γ' ∧
-    Γ'.get ovK = some (BitVec.ofNat 64 k) ∧ Γ'.get ovD = some (cellA C od) ∧ Γ'.get ovNm = some (Enc.idxW (valName d))
-  have hne : ∀ y ∈ [ovJ, ovDrop], y ≠ kRB ∧ y ≠ kNQ ∧ y ≠ ovNP ∧ y ≠ ovR2 := by decide
+    Γ'.get ovDrop = some (if anyKey decls nq j d then 1 else 0) ∧
+    (∀ j' (hj' : j' < j), d.names.contains (keyOf (decls[nq + j']'(by omega))) = true → d = decls[nq + j']'(by omega)) ∧
+    (∀ j' (hj' : j' < j), d.names.contains (keyOf (decls[nq + j']'(by omega))) = true →
+      ∀ k' (hk' : k' < k), (decls[k']'(by omega)).names.contains (keyOf (decls[nq + j']'(by omega))) = false) ∧
+    (∀ y, y ∉ innerMods → Γ'.get y = Γ0.get y)
+  have f00 : ∀ y, y ∉ innerMods → T.Env.get ((ovJ, 0) :: (ovDrop, 0) :: Γ0) y = Γ0.get y :=
+    frame_cons (frame_cons (fun _ _ => rfl) ovDrop (by decide) 0) ovJ (by decide) 0
   refine fun t ht => (step_whileCE (s := s) (D := D) _ _ I
-    (fun C' Γ' => C' = C ∧ ∃ j, j = np ∧ I C' Γ' ∧ Γ'.get ovJ = some (BitVec.ofNat 64 j)) C _ ⟨rfl, 0, Nat.zero_le _,
-      by simp (config := {decide := true}) [T.Env.get_cons], by simp (config := {decide := true}) [T.Env.get_cons, keysUpTo], fun j' h => absurd h (by omega),
-      fun h => by simp [keysUpTo] at h,
-      fun y hy => by
-        have h1 : y ≠ ovJ := fun e => hy (by simp [e, innerMods])
-        have h2 : y ≠ ovDrop := fun e => hy (by simp [e, innerMods])
-        simp (config := {decide := true}) [T.Env.get_cons, h1, h2],
-      ovFix_cons (ovFix_cons hfix _ (hne _ (by simp)) _) _ (hne _ (by simp)) _,
-      (by simp (config := {decide := true}) [T.Env.get_cons, hK]), (by simp (config := {decide := true}) [T.Env.get_cons, hDd]),
-      (by simp (config := {decide := true}) [T.Env.get_cons, hNm, d])⟩ ?_ t ht).imp id (fun ⟨hn, C', Γ', ⟨hC, j, hj, ⟨_, j2, hj2, gJ, gDrop, heq,
-        hscan, hag, hfx, gK, gD, _⟩, gJ'⟩, hq⟩ => by
+    (fun C' Γ' => C' = C ∧ I C' Γ' ∧ Γ'.get ovJ = some (BitVec.ofNat 64 np)) C _ ⟨rfl, 0, Nat.zero_le _,
+      by simp (config := {decide := true}) [T.Env.get_cons],
+      by simp (config := {decide := true}) [T.Env.get_cons, anyKey, keysUpTo], fun j' h => absurd h (by omega),
+      fun j' h => absurd h (by omega), f00⟩ ?_ t ht).imp id (fun ⟨hn, C', Γ', ⟨hC, ⟨_, j2, hj2, gJ, gDrop, heq,
+        hscan, hag⟩, gJ'⟩, hq⟩ => by
       subst C'
-      have : j2 = j := by
+      have : j2 = np := by
         rw [gJ] at gJ'; exact ofNat_inj63 (by omega) (by omega) (Option.some.inj gJ')
-      subst this; subst hj
-      exact ⟨hn, Γ', gDrop, heq, hscan, hag, hfx, gK, gD, hq⟩)
+      subst this
+      exact ⟨hn, Γ', gDrop, heq, hscan, hag, hq⟩)
   intro C' Γ' hI
-  obtain ⟨hC, j, hj, gJ, gDrop, heq, hscan, hag, hfx, gK, gD, gNm⟩ := hI
+  obtain ⟨hC, j, hj, gJ, gDrop, heq, hscan, hag⟩ := hI
   subst C'
+  have hfx : OvFix C rb nq np r2 Γ' := ovFix_agree hfix (fun y hy => by
+    rcases hy with rfl | rfl | rfl | rfl <;> exact hag _ (by decide))
   refine ⟨bw (j < np), sev_lowerV _ _ _ _ _ gJ hfx.np (by omega) (by omega), fun h0 => ?_, fun h1 => ?_⟩
   · have : j = np := by have := bw_eq0' h0; omega
-    exact ⟨rfl, j, this, ⟨rfl, j, hj, gJ, gDrop, heq, hscan, hag, hfx, gK, gD, gNm⟩, gJ⟩
+    subst this
+    exact ⟨rfl, ⟨rfl, j, hj, gJ, gDrop, heq, hscan, hag⟩, gJ⟩
   · have hlt := bw_ne0' h1
     obtain ⟨op, hop, hrp⟩ := regAt hdr (nq + j) (by omega)
     refine step_seq (step_assignI ovT (.op .add [vv kNQ, vv ovJ]) _ (hD _ (by simp [ovVars]))
       (sev_addV _ _ _ nq j hfx.nq gJ)) ?_
-    have hfx1 := ovFix_cons hfx ovT (by decide) (BitVec.ofNat 64 (nq + j))
+    have f1 : ∀ y, y ∉ innerMods0 → T.Env.get ((ovT, BitVec.ofNat 64 (nq + j)) :: Γ') y = Γ'.get y :=
+      frame_cons (fun _ _ => rfl) ovT (by decide) _
     refine step_seq (step_loadW ovP (slotE kRB ovT 1) _ _ hop (hD _ (by simp [ovVars]))
-      (by rw [sev_slot _ C kRB ovT rb (nq + j) 1 hfx1.rb (by simp (config := {decide := true}) [T.Env.get_cons]) (by omega)])) ?_
-    let Γ2 : Env := (ovP, cellA C op) :: (ovT, BitVec.ofNat 64 (nq + j)) :: Γ'
-    refine step_cont (keyP_step hD hrp (by simp (config := {decide := true}) [Γ2, T.Env.get_cons])) (fun t ⟨key, Γ3, hkey, hag3, gKey, ht3⟩ => ?_)
+      (by rw [sev_slot _ C kRB ovT rb (nq + j) 1 (frame_get f1 (by decide) hfx.rb)
+        (by simp (config := {decide := true}) [T.Env.get_cons]) (by omega)])) ?_
+    have f2 := frame_cons f1 ovP (by decide) (cellA C op)
+    refine step_cont (keyP_step hD hrp (by simp (config := {decide := true}) [T.Env.get_cons]))
+      (fun t ⟨key, Γ3, hkey, hag3, gKey, ht3⟩ => step_here ?_ ht3)
     have hkeyOf : keyOf decls[nq + j] = key := by simp [keyOf, hkey]
-    have g3 : ∀ y, y ≠ ovT → y ≠ ovB → y ≠ ovO → y ≠ ovKey → y ≠ ovP → Γ3.get y = Γ'.get y := by
-      intro y h1 h2 h3 h4 h5
-      rw [hag3 y h1 h2 h3 h4]; simp (config := {decide := true}) [Γ2, T.Env.get_cons, h1, h5]
-    have gNm3 : Γ3.get ovNm = some (Enc.idxW (valName d)) := by
-      rw [g3 _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact gNm
-    refine step_here ?_ ht3
+    have f3 : ∀ y, y ∉ innerMods0 → Γ3.get y = Γ'.get y := fun y hy =>
+      (hag3 y (fun e => hy (by simp [e, innerMods0])) (fun e => hy (by simp [e, innerMods0]))
+        (fun e => hy (by simp [e, innerMods0])) (fun e => hy (by simp [e, innerMods0]))).trans (f2 y hy)
+    have gP3 : Γ3.get ovP = some (cellA C op) := by
+      rw [hag3 _ (by decide) (by decide) (by decide) (by decide)]; simp (config := {decide := true}) [T.Env.get_cons]
+    have gD3 : Γ3.get ovD = some (cellA C od) := frame_get f3 (by decide) (frame_get hag (by decide) hDd)
+    refine step_seq (step_assignI ovX (vv ovD) (cellA C od) (hD _ (by simp [ovVars]))
+      (by simp only [sev, vv]; exact gD3)) ?_
+    have f4 := frame_cons f3 ovX (by decide) (cellA C od)
+    refine step_cont (declP_step hD hrd (by simp (config := {decide := true}) [T.Env.get_cons]) key
+      (by rw [get_cons_ne _ _ _ _ (by decide)]; exact gKey)) (fun t ⟨Γ5, gF, hag5, ht5⟩ => step_here ?_ ht5)
+    have f5 : ∀ y, y ∉ innerMods0 → Γ5.get y = Γ'.get y := fun y hy =>
+      (hag5 y (fun h => hy (List.mem_append_left _ (List.mem_append_right _ (List.mem_append_right _ h))))).trans (f4 y hy)
+    have g5 : ∀ y, y ∉ declMods → y ≠ ovX → Γ5.get y = Γ3.get y := fun y h1 h2 => by
+      rw [hag5 y h1, get_cons_ne _ _ _ _ h2]
+    have hcK : (keysUpTo decls nq (j + 1)) = keysUpTo decls nq j ++ [key] := by
+      rw [keysUpTo_succ, getElem!_pos decls (nq + j) (by omega), hkeyOf]
     -- the comparison
-    refine step_seq (Q := fun t => ∃ Γ4, Γ4.get ovDrop = some (if (keysUpTo decls nq (j + 1)).contains (valName d)
-        then 1 else 0) ∧
-        (valName d = keyOf decls[nq + j] → d = decls[nq + j]) ∧
-        (valName d = keyOf decls[nq + j] → ∀ k' (hk' : k' < k), valName (decls[k']'(by omega)) ≠ valName d) ∧
-        (∀ y, y ≠ ovT → y ≠ ovB → y ≠ ovO → y ≠ ovKey → y ≠ ovP → y ∉ recMods → y ≠ ovDrop →
-          Γ4.get y = Γ'.get y) ∧ Inv C s Γ4 [] D t)
-      (step_ifI _ _ (sev_eqv _ ovKey ovNm _ _ gKey gNm3) (fun he => ?_) (fun he => ?_)) ?_
-    · have ek : key = valName d := Enc.idxW_inj (ite10_ne he)
-      have gK3 : Γ3.get ovK = some (BitVec.ofNat 64 k) := by
-        rw [g3 _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact gK
-      have gR3 : Γ3.get kRB = some (cellA C rb) := by
-        rw [g3 _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact hfx.rb
-      refine step_cont (scanP_step hD hdr hcap gR3 k (by omega) (fun k' hk' => hval k' (by omega)) gK3 _ gNm3) (fun t ⟨hsc, Γ5, hag5, ht5⟩ => ?_)
-      have gD5 : Γ5.get ovD = some (cellA C od) := by
-        rw [hag5 _ (by decide), g3 _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact gD
-      have gP5 : Γ5.get ovP = some (cellA C op) := by
-        rw [hag5 _ (by decide), hag3 _ (by decide) (by decide) (by decide) (by decide)]; simp (config := {decide := true}) [Γ2, T.Env.get_cons]
-      refine step_here ?_ ht5
-      refine step_seq (recEqP_step hD hrd hrp (hval k (Nat.le_refl _)) gD5 gP5) ?_
-      intro t ⟨hdp, Γ6, hag6, ht6⟩
-      refine (step_assignI ovDrop (.const 1) 1 (hD _ (by simp [ovVars])) rfl t ht6).imp id (fun ⟨hn, hq⟩ =>
-        ⟨hn, _, ?_, fun _ => hdp, fun _ => hsc, fun y h1 h2 h3 h4 h5 h6 h7 => ?_, hq⟩)
-      · have : valName d ∈ keysUpTo decls nq (j + 1) := by
-          rw [keysUpTo_succ, List.mem_append]; right
-          rw [getElem!_pos decls (nq + j) (by omega), hkeyOf, ek]; simp
-        simp (config := {decide := true}) [T.Env.get_cons, this]
-      · have hy1 : y ∉ [ovI, ovX, ovY] := by
-          simp only [recMods, List.mem_cons, List.not_mem_nil, or_false, not_or] at h6
-          simp [h6.1, h6.2.1, h6.2.2.1]
-        simp only [T.Env.get_cons, h7, ite_false]
-        rw [hag6 y h6, hag5 y hy1]; exact g3 y h1 h2 h3 h4 h5
-    · have nk : key ≠ valName d := fun e => ite10_eq he (by rw [e])
-      refine fun t ht => (step_skipI t ht).imp id (fun ⟨hn, hq⟩ => ⟨hn, Γ3, ?_, fun e => absurd (hkeyOf ▸ e.symm) nk,
-        fun e => absurd (hkeyOf ▸ e.symm) nk, fun y h1 h2 h3 h4 h5 _ _ => g3 y h1 h2 h3 h4 h5, hq⟩)
-      have : (keysUpTo decls nq (j + 1)).contains (valName d) = (keysUpTo decls nq j).contains (valName d) := by
-        rw [keysUpTo_succ, getElem!_pos decls (nq + j) (by omega), hkeyOf]
-        simp only [List.contains_append, List.contains_cons, List.contains_nil, Bool.or_false]
-        have : (valName d == key) = false := beq_eq_false_iff_ne.mpr (fun e => nk e.symm)
-        rw [this, Bool.or_false]
-      rw [this, g3 _ (by decide) (by decide) (by decide) (by decide) (by decide)]; exact gDrop
-    · intro t ⟨Γ4, gDrop4, heq4, hsc4, hag4, ht4⟩
-      have gJ4 : Γ4.get ovJ = some (BitVec.ofNat 64 j) := by
-        rw [hag4 _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)]; exact gJ
-      refine (step_assignI ovJ (.op .add [vv ovJ, .const 1]) _ (hD _ (by simp [ovVars])) (sev_succV _ ovJ j gJ4)
-        t ht4).imp id (fun ⟨hn, hq⟩ => ⟨hn, C, _, ⟨rfl, j + 1, by omega, by simp (config := {decide := true}) [T.Env.get_cons],
-          by rw [get_cons_ne _ _ _ _ (by decide)]; exact gDrop4, fun j' hj' => ?_, fun hc => ?_, fun y hy => ?_,
-          ?_, ?_, ?_, ?_⟩, hq⟩)
+    refine step_seq (Q := fun t => ∃ Γ6, Γ6.get ovDrop = some (if anyKey decls nq (j + 1) d then 1 else 0) ∧
+        (d.names.contains key = true → d = decls[nq + j]) ∧
+        (d.names.contains key = true → ∀ k' (hk' : k' < k), (decls[k']'(by omega)).names.contains key = false) ∧
+        (∀ y, y ∉ innerMods0 → Γ6.get y = Γ'.get y) ∧ Inv C s Γ6 [] D t)
+      (step_ifI _ _ (sev_eqC _ ovFL 0 _ gF) (fun he => ?_) (fun he => ?_)) ?_
+    · have hnc : d.names.contains key = false := by
+        cases e : d.names.contains key
+        · rfl
+        · simp only [d] at e; rw [e] at he; exact absurd (ite10_ne he) (by decide)
+      have e : anyKey decls nq (j + 1) d = anyKey decls nq j d := by
+        have hnc' : decls[k].names.contains key = false := hnc
+        rw [anyKey, anyKey, hcK, List.any_append]
+        simp only [List.any_cons, List.any_nil, Bool.or_false, hnc, hnc']
+      have gD5 : Γ5.get ovDrop = some (if anyKey decls nq j d then 1 else 0) := by
+        rw [g5 _ (by decide) (by decide), hag3 _ (by decide) (by decide) (by decide) (by decide)]
+        simp (config := {decide := true}) only [T.Env.get_cons, ite_false]; exact gDrop
+      refine fun t ht => (step_skipI t ht).imp id (fun ⟨hn, hq⟩ => ⟨hn, Γ5, by rw [e]; exact gD5,
+        fun h => absurd (h.symm.trans hnc) (by decide), fun h => absurd (h.symm.trans hnc) (by decide), f5, hq⟩)
+    · have hc : d.names.contains key = true := by
+        cases e : d.names.contains key
+        · simp only [d] at e; rw [e] at he; exact absurd he (by decide)
+        · rfl
+      have gR5 : Γ5.get kRB = some (cellA C rb) := frame_get f5 (by decide) hfx.rb
+      have gK5 : Γ5.get ovKey = some (Enc.idxW key) := by
+        rw [g5 _ (by decide) (by decide)]; exact gKey
+      refine step_cont (scanP_step hD hdr hcap gR5 k (by omega) (frame_get f5 (by decide) (frame_get hag (by decide) hK))
+        key gK5) (fun t ⟨hsc, Γ6, hag6, ht6⟩ => step_here ?_ ht6)
+      have f6 : ∀ y, y ∉ innerMods0 → Γ6.get y = Γ'.get y := fun y hy =>
+        (hag6 y (fun h => hy (List.mem_append_left _ (List.mem_append_right _ h)))).trans (f5 y hy)
+      have gP6 : Γ6.get ovP = some (cellA C op) := by
+        rw [hag6 _ (by decide), g5 _ (by decide) (by decide)]; exact gP3
+      refine step_cont (eqP_step hD hHL hrd hrp (frame_get f6 (by decide) (frame_get hag (by decide) hDd)) gP6)
+        (fun t ⟨hdp, Γ7, hag7, ht7⟩ => step_here ?_ ht7)
+      have f7 : ∀ y, y ∉ innerMods0 → Γ7.get y = Γ'.get y := fun y hy =>
+        (hag7 y (fun h => hy (List.mem_append_right _ h))).trans (f6 y hy)
+      have e : anyKey decls nq (j + 1) d = true := by
+        have hc' : decls[k].names.contains key = true := hc
+        rw [anyKey, hcK, List.any_append]
+        simp only [List.any_cons, List.any_nil, Bool.or_false, hc, hc', Bool.or_true]
+      refine fun t ht => (step_assignI ovDrop (.const 1) 1 (hD _ (by simp [ovVars])) rfl t ht).imp id (fun ⟨hn, hq⟩ =>
+        ⟨hn, _, by rw [e]; simp (config := {decide := true}) [T.Env.get_cons], fun _ => hdp, fun _ => hsc,
+          frame_cons f7 ovDrop (by decide) 1, hq⟩)
+    · intro t ⟨Γ6, gDrop6, heq6, hsc6, hag6, ht6⟩
+      have gJ6 : Γ6.get ovJ = some (BitVec.ofNat 64 j) := frame_get hag6 (by decide) gJ
+      refine (step_assignI ovJ (.op .add [vv ovJ, .const 1]) _ (hD _ (by simp [ovVars])) (sev_succV _ ovJ j gJ6)
+        t ht6).imp id (fun ⟨hn, hq⟩ => ⟨hn, C, _, ⟨rfl, j + 1, by omega, by simp (config := {decide := true}) [T.Env.get_cons],
+          by rw [get_cons_ne _ _ _ _ (by decide)]; exact gDrop6, fun j' hj' hc' => ?_, fun j' hj' hc' => ?_,
+          fun y hy => ?_⟩, hq⟩)
       · rcases Nat.lt_succ_iff_lt_or_eq.mp hj' with h | rfl
-        · exact heq j' h
-        · exact heq4
-      · rw [keysUpTo_succ, List.contains_append] at hc
-        rcases Bool.or_eq_true_iff.mp hc with hc | hc
-        · exact hscan hc
-        · rw [getElem!_pos decls (nq + j) (by omega)] at hc
-          exact hsc4 (by simpa using hc)
-      · have hm : ∀ z ∈ [ovJ, ovT, ovB, ovO, ovKey, ovP, ovDrop, ovX, ovY, ovI, ovA, ovB2], z ∈ innerMods := by decide
-        have h0 : y ≠ ovJ := fun e => hy (hm _ (by simp [e]))
-        simp only [T.Env.get_cons, h0, ite_false]
-        rw [hag4 y (fun e => hy (hm _ (by simp [e]))) (fun e => hy (hm _ (by simp [e]))) (fun e => hy (hm _ (by simp [e])))
-          (fun e => hy (hm _ (by simp [e]))) (fun e => hy (hm _ (by simp [e]))) (fun h => hy (by
-            simp only [recMods, List.mem_cons, List.not_mem_nil, or_false] at h
-            rcases h with rfl | rfl | rfl | rfl | rfl | rfl <;> decide)) (fun e => hy (hm _ (by simp [e])))]
-        exact hag y hy
-      · refine ovFix_cons (ovFix_agree hfx (fun y hy => ?_)) ovJ (by decide) _
-        rcases hy with rfl | rfl | rfl | rfl <;>
-          exact hag4 _ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)
-      · rw [get_cons_ne _ _ _ _ (by decide), hag4 _ (by decide) (by decide) (by decide) (by decide) (by decide)
-          (by decide) (by decide)]; exact gK
-      · rw [get_cons_ne _ _ _ _ (by decide), hag4 _ (by decide) (by decide) (by decide) (by decide) (by decide)
-          (by decide) (by decide)]; exact gD
-      · rw [get_cons_ne _ _ _ _ (by decide), hag4 _ (by decide) (by decide) (by decide) (by decide) (by decide)
-          (by decide) (by decide)]; exact gNm
+        · exact heq j' h hc'
+        · exact heq6 (hkeyOf ▸ hc')
+      · rcases Nat.lt_succ_iff_lt_or_eq.mp hj' with h | rfl
+        · exact hscan j' h hc'
+        · simp only [hkeyOf] at hc' ⊢; exact hsc6 hc'
+      · have h0 : y ≠ ovJ := fun e => hy (by simp [e, innerMods])
+        rw [get_cons_ne _ _ _ _ h0, hag6 y (im0 hy)]; exact hag y hy
 
 end ConPanqueque.Prelude
 
@@ -382,11 +416,11 @@ structure StreamInv (C : Ctx) (F rb capD nq np r2 : Nat) (decls : Array IDeclara
   pre : ∀ j, j < np → H'[r2 + 1 + j]? = C.H[rb + 1 + nq + j]?
   kept : ∀ i, i < (keptIdx decls (keysUpTo decls nq np) k).length →
     ∃ x, (keptIdx decls (keysUpTo decls nq np) k)[i]? = some x ∧ H'[r2 + 1 + np + i]? = C.H[rb + 1 + x]?
-  val : ∀ k' (hk' : k' < k) (hs : k' < decls.size), isVal decls[k'] = true
   eq : ∀ k' (hk' : k' < k) (hs : k' < decls.size) j (hj : nq + j < decls.size), j < np →
-    valName decls[k'] = keyOf decls[nq + j] → decls[k'] = decls[nq + j]
+    decls[k'].names.contains (keyOf decls[nq + j]) = true → decls[k'] = decls[nq + j]
   uniq : ∀ k1 k2 (h1 : k1 < decls.size) (h2 : k2 < decls.size), k1 < k2 → k2 < k →
-    (keysUpTo decls nq np).contains (valName decls[k2]) = true → valName decls[k1] ≠ valName decls[k2]
+    ∀ j (hj : nq + j < decls.size), j < np → decls[k1].names.contains (keyOf decls[nq + j]) = true →
+      decls[k2].names.contains (keyOf decls[nq + j]) = true → False
 
 end ConPanqueque.Prelude
 
@@ -397,10 +431,11 @@ open ConPanqueque.Front ConPanqueque.T
 variable {σ : Type}
 
 theorem streamInv_step {C : Ctx} {F rb capD nq np r2 : Nat} {decls : Array IDeclaration} {H' H'' : List (BitVec 64)}
-    {k : Nat} (hk : k < decls.size) (hI : StreamInv C F rb capD nq np r2 decls H' k) (hv : isVal decls[k] = true)
-    (heq : ∀ j (hj : j < np) (hj' : nq + j < decls.size), valName decls[k] = keyOf decls[nq + j] → decls[k] = decls[nq + j])
-    (hscan : (keysUpTo decls nq np).contains (valName decls[k]) = true →
-      ∀ k' (hk' : k' < k), valName (decls[k']'(by omega)) ≠ valName decls[k])
+    {k : Nat} (hk : k < decls.size) (hI : StreamInv C F rb capD nq np r2 decls H' k)
+    (heq : ∀ j (hj : j < np) (hj' : nq + j < decls.size), decls[k].names.contains (keyOf decls[nq + j]) = true →
+      decls[k] = decls[nq + j])
+    (hscan : ∀ j (hj : j < np) (hj' : nq + j < decls.size), decls[k].names.contains (keyOf decls[nq + j]) = true →
+      ∀ k' (hk' : k' < k), (decls[k']'(by omega)).names.contains (keyOf decls[nq + j]) = false)
     (hagree : Agree r2 (r2 + 1 + capD) C.H H'') (hpre : ∀ j, j < np → H''[r2 + 1 + j]? = H'[r2 + 1 + j]?)
     (hkept : ∀ i, i < (keptIdx decls (keysUpTo decls nq np) (k + 1)).length →
       ∃ x, (keptIdx decls (keysUpTo decls nq np) (k + 1))[i]? = some x ∧ H''[r2 + 1 + np + i]? = C.H[rb + 1 + x]?) :
@@ -408,23 +443,25 @@ theorem streamInv_step {C : Ctx} {F rb capD nq np r2 : Nat} {decls : Array IDecl
   agree := hagree
   pre j hj := (hpre j hj).trans (hI.pre j hj)
   kept := hkept
-  val k' hk' hs := by
-    rcases Nat.lt_succ_iff_lt_or_eq.mp hk' with h | rfl
-    · exact hI.val k' h hs
-    · exact hv
   eq k' hk' hs j hj h := by
     rcases Nat.lt_succ_iff_lt_or_eq.mp hk' with h' | rfl
     · exact hI.eq k' h' hs j hj h
     · exact heq j h hj
-  uniq k1 k2 h1 h2 h12 hk2 hc := by
+  uniq k1 k2 h1 h2 h12 hk2 j hj hjn hc1 hc2 := by
     rcases Nat.lt_succ_iff_lt_or_eq.mp hk2 with h | rfl
-    · exact hI.uniq k1 k2 h1 h2 h12 h hc
-    · exact hscan hc k1 h12
+    · exact hI.uniq k1 k2 h1 h2 h12 h j hj hjn hc1 hc2
+    · have := hscan j hjn hj hc2 k1 h12
+      rw [hc1] at this; cases this
+
+theorem inv_hlen {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env} {M : Mem} {D : List MlS} {t : PState σ}
+    (ht : Inv C s Γ M D t) : C.H.length < 2 ^ 61 := by
+  obtain ⟨H', hp, ha⟩ := ht.sr.heap
+  have := ha.len; have := hp.length_le; have := hok.heapLay; omega
 
 theorem streamBody_step {C : Ctx} (hok : CtxOK C) {s : AState} {D : List MlS} (hD : ∀ x ∈ ovVars, x ∈ D)
     {F rb capD nq np r2 : Nat} {decls : Array IDeclaration} (hdr : DeclsRel C F rb capD C.H decls)
     (hsz : decls.size = nq + np) (hcap : 8 * (r2 + 1 + capD) < 2 ^ 64) (hrb : rb + 1 + capD ≤ r2)
-    (hF : r2 + 1 + capD ≤ F)
+    (hF : r2 + 1 + capD ≤ F) (hHL0 : C.H.length < 2 ^ 61)
     (k : Nat) (hk : k < nq) (H' : List (BitVec 64)) (hI : StreamInv C F rb capD nq np r2 decls H' k)
     (Γ0 Γ : Env) (hfix : OvFix C rb nq np r2 Γ) (hK : Γ.get ovK = some (BitVec.ofNat 64 k))
     (hW : Γ.get ovW = some (BitVec.ofNat 64 (keptIdx decls (keysUpTo decls nq np) k).length))
@@ -433,47 +470,46 @@ theorem streamBody_step {C : Ctx} (hok : CtxOK C) {s : AState} {D : List MlS} (h
       OvFix C rb nq np r2 Γ' ∧ Γ'.get ovK = some (BitVec.ofNat 64 (k + 1)) ∧
       Γ'.get ovW = some (BitVec.ofNat 64 (keptIdx decls (keysUpTo decls nq np) (k + 1)).length) ∧
       (∀ y, y ∉ ovVars → Γ'.get y = Γ0.get y) ∧ Inv (ctxH C H'') s Γ' [] D t) := by
+  have hHL : (ctxH C H').H.length < 2 ^ 61 := by show H'.length < _; rw [hI.agree.1]; exact hHL0
   have hle : decls.size ≤ capD := hdr.2.1
   have hdr' : DeclsRel (ctxH C H') F rb capD (ctxH C H').H decls := declsRel_agree hdr hI.agree (by omega) hF
   obtain ⟨od, hod, hrd⟩ := regAt hdr' k (by omega)
   have hfix' := ovFix_ctxH hfix H'
   refine step_seq (step_loadW ovD (slotE kRB ovK 1) _ _ hod (hD _ (by simp [ovVars]))
     (by rw [sev_slot _ _ kRB ovK rb k 1 hfix'.rb hK (by omega)])) ?_
-  refine step_seq (step_loadW ovT (vv ovD) od _ (recEnc_tag hrd) (hD _ (by simp [ovVars]))
-    (by simp (config := {decide := true}) [sev, vv, T.Env.get_cons])) ?_
-  refine step_cont (Q := fun t => isVal decls[k] = true ∧ _) (step_ifI _ _ (sev_eqC _ ovT 4 (BitVec.ofNat 64 (tagOf decls[k]))
-    (by simp (config := {decide := true}) [T.Env.get_cons])) (fun _ => step_hangI) (fun h4 => fun t ht => (step_skipI t ht).imp id
-      (fun ⟨h1, h2⟩ => ⟨h1, isVal_of_tag (fun e => ite10_eq h4 (by rw [e])), h2⟩))) (fun t ⟨hv, ht⟩ => ?_)
-  refine step_here ?_ ht
-  refine step_seq (step_loadW ovNm (offE ovD 1) (od + 1) _ (name_of_val hrd hv) (hD _ (by simp [ovVars]))
-    (sev_off _ _ ovD od 1 (by simp (config := {decide := true}) [T.Env.get_cons]))) ?_
   refine step_seq (step_assignI ovDrop (.const 0) 0 (hD _ (by simp [ovVars])) rfl) ?_
   refine step_seq (step_assignI ovJ (.const 0) 0 (hD _ (by simp [ovVars])) rfl) ?_
-  let Γ1 : Env := (ovNm, Enc.idxW (valName decls[k])) :: (ovT, BitVec.ofNat 64 (tagOf decls[k])) ::
-    (ovD, cellA C od) :: Γ
-  have hfix1 : OvFix (ctxH C H') rb nq np r2 Γ1 :=
-    ovFix_cons (ovFix_cons (ovFix_cons hfix' _ (by decide) _) _ (by decide) _) _ (by decide) _
-  refine step_cont (inner_step hD hdr' hsz (by omega) k hk (fun k' hk' => by
-      rcases Nat.lt_or_eq_of_le hk' with h | rfl
-      · exact hI.val k' h (by omega)
-      · exact hv) od hrd Γ1 hfix1 ((by simp (config := {decide := true}) [Γ1, T.Env.get_cons, hK])) (by simp (config := {decide := true}) [Γ1, T.Env.get_cons])
-    (by simp (config := {decide := true}) [Γ1, T.Env.get_cons])) (fun t ⟨Γ2, gDrop, heq, hscan, hag2, hfix2, gK2, gD2, ht2⟩ => ?_)
+  let Γ1 : Env := (ovD, cellA C od) :: Γ
+  have hfix1 : OvFix (ctxH C H') rb nq np r2 Γ1 := ovFix_cons hfix' _ (by decide) _
+  refine step_cont (inner_step hD hHL hdr' hsz (by omega) k hk od hrd Γ1 hfix1
+    ((by simp (config := {decide := true}) [Γ1, T.Env.get_cons, hK])) (by simp (config := {decide := true}) [Γ1, T.Env.get_cons]))
+    (fun t ⟨Γ2, gDrop, heq, hscan, hag2, ht2⟩ => ?_)
+  have hfix2 : OvFix (ctxH C H') rb nq np r2 Γ2 := ovFix_agree hfix1 (fun y hy => by
+    rcases hy with rfl | rfl | rfl | rfl <;> exact hag2 _ (by decide))
+  have gK2 : Γ2.get ovK = some (BitVec.ofNat 64 k) := by
+    rw [hag2 _ (by decide)]; simp (config := {decide := true}) [Γ1, T.Env.get_cons, hK]
+  have gD2 : Γ2.get ovD = some (cellA C od) := by
+    rw [hag2 _ (by decide)]; simp (config := {decide := true}) [Γ1, T.Env.get_cons]
   have g2 : ∀ y, y ∉ ovVars → Γ2.get y = Γ0.get y := by
-    intro y hy; rw [hag2 y (fun h => hy (by
-      simp only [innerMods, List.mem_cons, List.not_mem_nil, or_false] at h
-      rcases h with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> decide))]
-    have h1 : y ≠ ovNm := fun e => hy (by simp [e, ovVars])
-    have h2 : y ≠ ovT := fun e => hy (by simp [e, ovVars])
+    intro y hy
+    have hy' : y ∉ innerMods := fun h => hy (by
+      have : ∀ z ∈ innerMods, z ∈ ovVars := by decide
+      exact this y h)
+    rw [hag2 y hy']
     have h3 : y ≠ ovD := fun e => hy (by simp [e, ovVars])
-    simp only [Γ1, T.Env.get_cons, h1, h2, h3, ite_false]; exact hag y hy
+    simp only [Γ1, get_cons_ne _ _ _ _ h3]; exact hag y hy
   have gW2 : Γ2.get ovW = some (BitVec.ofNat 64 (keptIdx decls (keysUpTo decls nq np) k).length) := by
-    rw [hag2 _ (by decide)]; simp only [Γ1, get_cons_ne _ _ _ _ (show ovW ≠ ovNm by decide),
-      get_cons_ne _ _ _ _ (show ovW ≠ ovT by decide), get_cons_ne _ _ _ _ (show ovW ≠ ovD by decide)]; exact hW
+    rw [hag2 _ (by decide)]; simp only [Γ1, get_cons_ne _ _ _ _ (show ovW ≠ ovD by decide)]; exact hW
   let keys := keysUpTo decls nq np
   let w := (keptIdx decls keys k).length
   have hwk : w ≤ k := by
     have := List.Sublist.length_le (List.filter_sublist (p := fun k' => keepW keys decls[k']!) (l := List.range k))
     simpa [keptIdx, w] using this
+  have heq' : ∀ j (hj : j < np) (hj' : nq + j < decls.size), decls[k].names.contains (keyOf decls[nq + j]) = true →
+      decls[k] = decls[nq + j] := fun j hj _ h => heq j hj h
+  have hscan' : ∀ j (hj : j < np) (hj' : nq + j < decls.size), decls[k].names.contains (keyOf decls[nq + j]) = true →
+      ∀ k' (hk' : k' < k), (decls[k']'(by omega)).names.contains (keyOf decls[nq + j]) = false :=
+    fun j hj _ h => hscan j hj h
   refine step_here ?_ ht2
   refine step_seq (Q := fun t => ∃ H'' Γ3, StreamInv C F rb capD nq np r2 decls H'' (k + 1) ∧
       OvFix C rb nq np r2 Γ3 ∧ Γ3.get ovK = some (BitVec.ofNat 64 k) ∧
@@ -483,11 +519,12 @@ theorem streamBody_step {C : Ctx} (hok : CtxOK C) {s : AState} {D : List MlS} (h
   · -- kept
     have h' := ite10_ne h0
     have hkeep : keepW keys decls[k] = true := by
-      have : keys.contains (valName decls[k]) = false := by
-        cases e : keys.contains (valName decls[k])
+      have : anyKey decls nq np decls[k] = false := by
+        cases e : anyKey decls nq np decls[k]
         · rfl
-        · exfalso; simp only [keys] at e; rw [e] at h'; exact absurd h' (by decide)
-      simp only [keepW, this, Bool.not_false, Bool.not_true]
+        · exfalso; rw [e] at h'; exact absurd h' (by decide)
+      show (!(anyKey decls nq np decls[k])) = true
+      rw [this]; rfl
     have hkk : keptIdx decls keys (k + 1) = keptIdx decls keys k ++ [k] := by
       rw [keptIdx_succ, getElem!_pos decls k (by omega), if_pos hkeep]
     refine step_seq (step_assignI ovT (.op .add [vv ovNP, vv ovW]) _ (hD _ (by simp [ovVars]))
@@ -495,7 +532,7 @@ theorem streamBody_step {C : Ctx} (hok : CtxOK C) {s : AState} {D : List MlS} (h
     have hj : r2 + 1 + (np + w) < (ctxH C H').H.length := by
       show _ < H'.length; rw [hI.agree.1]; have := hdr.2.2.2.1; omega
     refine step_seq (T.step_heapStoreI (ctxOK_ctxH hok) (slotE ovR2 ovT 1) (vv ovD) (r2 + 1 + (np + w)) hj (cellA C od)
-      (by rw [sev_slot _ _ ovR2 ovT r2 (np + w) 1 (ovFix_cons (ovFix_ctxH hfix2 H') ovT (by decide) _).r2
+      (by rw [sev_slot _ _ ovR2 ovT r2 (np + w) 1 (ovFix_cons hfix2 ovT (by decide) _).r2
         (by simp (config := {decide := true}) [T.Env.get_cons]) (by omega)]; try rfl)
       ((by simp (config := {decide := true}) [sev, vv, T.Env.get_cons, gD2]))) ?_
     refine fun t ht => (step_assignI ovW (.op .add [vv ovW, .const 1]) _ (hD _ (by simp [ovVars]))
@@ -504,7 +541,7 @@ theorem streamBody_step {C : Ctx} (hok : CtxOK C) {s : AState} {D : List MlS} (h
           (by simp (config := {decide := true}) [T.Env.get_cons, gK2]),
           (by simp (config := {decide := true}) [T.Env.get_cons, hkk, w]), fun y hy => ?_, hq⟩)
     · have hrbk : H'[rb + 1 + k]? = C.H[rb + 1 + k]? := hI.agree.2 _ (Or.inl (by omega))
-      refine streamInv_step (by omega) hI hv (fun j hj hj' => heq j hj) hscan
+      refine streamInv_step (by omega) hI heq' hscan'
         (agree_set hI.agree _ (by omega) (by omega) _) (fun j hj => by
           rw [List.getElem?_set, ite_eq_right (by omega)]) (fun i hi => ?_)
       rw [hkk, List.length_append, List.length_singleton] at hi
@@ -522,16 +559,17 @@ theorem streamBody_step {C : Ctx} (hok : CtxOK C) {s : AState} {D : List MlS} (h
   · -- dropped
     have h' := ite10_eq h0
     have hdrop : keepW keys decls[k] = false := by
-      have : keys.contains (valName decls[k]) = true := by
-        cases e : keys.contains (valName decls[k])
-        · exfalso; simp only [keys] at e; rw [e] at h'; exact h' (by decide)
+      have : anyKey decls nq np decls[k] = true := by
+        cases e : anyKey decls nq np decls[k]
+        · exfalso; rw [e] at h'; exact h' (by decide)
         · rfl
-      simp only [keepW, this, Bool.not_false, Bool.not_true]
+      show (!(anyKey decls nq np decls[k])) = false
+      rw [this]; rfl
     have hkk : keptIdx decls keys (k + 1) = keptIdx decls keys k := by
       rw [keptIdx_succ, getElem!_pos decls k (by omega), if_neg (by simp [hdrop])]; simp
     refine fun t ht => (step_skipI t ht).imp id (fun ⟨hn, hq⟩ => ⟨hn, H', Γ2, ?_, ovFix_of_ctxH hfix2, gK2,
       by rw [hkk]; exact gW2, g2, hq⟩)
-    exact streamInv_step (by omega) hI hv (fun j hj hj' => heq j hj) hscan hI.agree (fun _ _ => rfl)
+    exact streamInv_step (by omega) hI heq' hscan' hI.agree (fun _ _ => rfl)
       (fun i hi => by
         rw [hkk] at hi
         obtain ⟨x, hx, he⟩ := hI.kept i hi
@@ -643,7 +681,8 @@ variable {σ : Type}
 theorem stream_step {C : Ctx} (hok : CtxOK C) {s : AState} {D : List MlS} (hD : ∀ x ∈ ovVars, x ∈ D)
     {F rb capD nq np r2 : Nat} {decls : Array IDeclaration} (hdr : DeclsRel C F rb capD C.H decls)
     (hsz : decls.size = nq + np) (hcap : 8 * (r2 + 1 + capD) < 2 ^ 64) (hrb : rb + 1 + capD ≤ r2)
-    (hF : r2 + 1 + capD ≤ F) (H0 : List (BitVec 64)) (hI0 : StreamInv C F rb capD nq np r2 decls H0 0)
+    (hF : r2 + 1 + capD ≤ F) (hHL0 : C.H.length < 2 ^ 61) (H0 : List (BitVec 64))
+    (hI0 : StreamInv C F rb capD nq np r2 decls H0 0)
     (Γ0 Γ : Env) (hfix : OvFix C rb nq np r2 Γ) (hK : Γ.get ovK = some 0) (hW : Γ.get ovW = some 0)
     (hag : ∀ y, y ∉ ovVars → Γ.get y = Γ0.get y) :
     Step (Inv (σ := σ) (ctxH C H0) s Γ [] D) (.while (.cmp .lower (vv ovK) (vv kNQ)) streamBody)
@@ -670,7 +709,7 @@ theorem stream_step {C : Ctx} (hok : CtxOK C) {s : AState} {D : List MlS} (hD : 
   · have : k = nq := by have := bw_eq0' h0; omega
     subst this; exact ⟨H', rfl, hI, hfx, gW, hag'⟩
   · have hlt := bw_ne0' h1
-    exact fun t ht => (streamBody_step hok hD hdr hsz hcap hrb hF k hlt H' hI Γ0 Γ' hfx gK gW hag' t ht).imp id
+    exact fun t ht => (streamBody_step hok hD hdr hsz hcap hrb hF hHL0 k hlt H' hI Γ0 Γ' hfx gK gW hag' t ht).imp id
       (fun ⟨hn, H'', Γ'', a, b, c, d, e, hq⟩ => ⟨hn, _, Γ'', ⟨H'', k + 1, rfl, by omega, a, b, c, d, e⟩, hq⟩)
 
 /-- **The override pass**: the continuation runs at the second registry, `P` then the kept stream
@@ -691,6 +730,8 @@ theorem overP_spec {β : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env}
     SpecR (Inv C s Γ M D) (overP rest) s m R := by
   suffices hM : SpecR (Inv C s Γ [] D) (overP rest) s m R from
     fun t ht => hM t ⟨ht.sr, ht.env, fun _ _ h => absurd h (by simp), ht.decl⟩
+  refine specR_atEntry fun t0 ht0 => ?_
+  have hHL0 : C.H.length < 2 ^ 61 := inv_hlen hok ht0
   have hle : decls.size ≤ capD := hdr.2.1
   let np := decls.size - nq
   let r2 := j0 + 4096
@@ -723,8 +764,8 @@ theorem overP_spec {β : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env}
   refine specR_assignI ovW (.const 0) 0 (hD _ (by simp [ovVars])) rfl ?_
   have hI0 : StreamInv C F rb capD nq np r2 decls H1 0 :=
     ⟨hA1, hpre1, fun i hi => absurd hi (by simp [keptIdx]), fun _ h => absurd h (by omega),
-      fun _ h => absurd h (by omega), fun _ _ _ _ _ h => absurd h (by omega)⟩
-  refine specR_cont (stream_step hok hD hdr hsz (by omega) hrb hF H1 hI0 Γ _
+      fun _ _ _ _ _ h => absurd h (by omega)⟩
+  refine specR_cont (stream_step hok hD hdr hsz (by omega) hrb hF hHL0 H1 hI0 Γ _
     (ovFix_cons (ovFix_cons hfix2 _ (by decide) _) _ (by decide) _) (by simp (config := {decide := true}) [T.Env.get_cons])
     (by simp (config := {decide := true}) [T.Env.get_cons]) (fun y hy => by
       have h1 : y ≠ ovW := fun e => hy (by simp [e, ovVars])
@@ -753,20 +794,17 @@ theorem overP_spec {β : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ : Env}
     exact hag3 y hy.2
   · -- the facts
     have hkeys := keysUpTo_eq decls nq np hsz
-    refine ⟨fun p hp => ?_, fun d hd => ?_, fun d hd p hp he => ?_, fun i j hi hj hij hc => ?_⟩
+    refine ⟨fun p hp => ?_, fun d hd p hp he => ?_, fun i j hi hj hij p hp h1 h2 => ?_⟩
     · obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem hp
       simp only [List.getElem_drop, Array.getElem_toList]
       exact hkey1 j (by simp at hj; omega) (by simp at hj; omega)
     · obtain ⟨k, hk', rfl⟩ := List.getElem_of_mem hd
-      simp only [List.getElem_take, Array.getElem_toList]
-      exact hI.val k (by simp at hk'; omega) (by simp at hk'; omega)
-    · obtain ⟨k, hk', rfl⟩ := List.getElem_of_mem hd
       obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem hp
       simp only [List.getElem_take, List.getElem_drop, Array.getElem_toList] at he ⊢
       exact hI.eq k (by simp at hk'; omega) _ j _ (by simp at hj; omega) he
-    · simp only [List.getElem_take, Array.getElem_toList] at hc ⊢
-      rw [hkeys] at hc
-      exact hI.uniq i j _ _ hij (by simp at hj; omega) hc
+    · obtain ⟨j', hj', rfl⟩ := List.getElem_of_mem hp
+      simp only [List.getElem_take, List.getElem_drop, Array.getElem_toList] at h1 h2
+      exact hI.uniq i j _ _ hij (by simp at hj; omega) j' _ (by simp at hj'; omega) h1 h2
   · -- the second registry
     have hkeys := keysUpTo_eq decls nq np hsz
     have hfil : (decls.toList.take nq).filter (keepW ((decls.toList.drop nq).map keyOf)) =

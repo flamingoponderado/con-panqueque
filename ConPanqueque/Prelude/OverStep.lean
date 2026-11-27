@@ -38,10 +38,28 @@ def ovY := ofString "ov_y"
 def ovKA := ofString "ov_ka"
 def ovFL := ofString "ov_fl"
 def ovR2 := ofString "ov_r2"
+def ovQ := ofString "ov_q"
+def ovQN := ofString "ov_qn"
+def ovQB := ofString "ov_qb"
+def ovQX := ofString "ov_qx"
+def ovM := ofString "ov_m"
+def ovMN := ofString "ov_mn"
+def ovMA := ofString "ov_ma"
+def ovMB := ofString "ov_mb"
+def ovCX := ofString "ov_cx"
+def ovCY := ofString "ov_cy"
+def ovCT := ofString "ov_ct"
+def ovRI := ofString "ov_ri"
+def ovRN := ofString "ov_rn"
+def ovRA := ofString "ov_ra"
+def ovRB := ofString "ov_rb"
+def ovRX := ofString "ov_rx"
+def ovRY := ofString "ov_ry"
 
 /-- The pass's locals. -/
 def ovVars : List MlS := [ovN, ovNP, ovJ, ovK, ovW, ovP, ovD, ovT, ovB, ovO, ovKey, ovNm, ovDrop, ovA, ovB2, ovI,
-  ovX, ovY, ovKA, ovFL, ovR2]
+  ovX, ovY, ovKA, ovFL, ovR2, ovQ, ovQN, ovQB, ovQX, ovM, ovMN, ovMA, ovMB, ovCX, ovCY, ovCT, ovRI, ovRN, ovRA, ovRB,
+  ovRX, ovRY]
 
 /-- `x + 8 k`. -/
 def offE (x : MlS) (k : Nat) : ExpHOL 64 := .op .add [vv x, .const (BitVec.ofNat 64 (8 * k))]
@@ -317,7 +335,7 @@ def lpMods : List MlS := [ovX, ovY, ovI, ovA, ovB2, ovT]
 /-- `lpEqP` at two blocks: it returns only if they hold the same words. -/
 theorem lpEq_step {C : Ctx} {s : AState} {Γ : Env} {D : List MlS} (hD : ∀ x ∈ ovVars, x ∈ D)
     {ol ol' : Nat} {xs ys : List (BitVec 64)} (hx : BlkAt C.H ol xs) (hy : BlkAt C.H ol' ys)
-    (hx59 : xs.length < 2 ^ 59) (hy59 : ys.length < 2 ^ 59)
+    (hx59 : xs.length < 2 ^ 63) (hy59 : ys.length < 2 ^ 63)
     (ha : Γ.get ovA = some (cellA C ol)) (hb : Γ.get ovB2 = some (cellA C ol')) :
     Step (Inv (σ := σ) C s Γ [] D) lpEqP (fun t => C.H[ol]? = C.H[ol']? ∧
       (∀ i, i < xs.length → C.H[ol + 1 + i]? = C.H[ol' + 1 + i]?) ∧
@@ -455,7 +473,7 @@ theorem recEqP_step {C : Ctx} {s : AState} {Γ : Env} {D : List MlS} (hD : ∀ x
     (sev_off _ C ovD od 2 (by rw [hag3 _ (by decide)]; exact hd))) ?_
   refine step_seq (step_loadW ovB2 (offE ovP 2) (op + 2) _ hl' (hD _ (by simp [ovVars]))
     (sev_off _ C ovP op 2 (by rw [get_cons_ne _ _ _ _ (by decide), hag3 _ (by decide)]; exact hp))) ?_
-  refine step_cont (lpEq_step hD hblk hblk' (by simpa using h59) (by simpa using h59')
+  refine step_cont (lpEq_step hD hblk hblk' (by simp; omega) (by simp; omega)
     (by rw [get_cons_ne _ _ _ _ (by decide)]; simp (config := {decide := true}) [T.Env.get_cons]) (by simp (config := {decide := true}) [T.Env.get_cons])) (fun t ⟨hb0, hbe, Γ4, hag4, ht4⟩ => ?_)
   have hcv : cvOf d = cvOf p := cv_eq_at (C := C) hn hty hblk h59 hn' hty' hblk' h59'
     (by rw [hn, hn', hne]) (by rw [hty, hty', htye]) hb0 (fun i hi => hbe i (by simpa using hi))
