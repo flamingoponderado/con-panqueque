@@ -69,15 +69,15 @@ section
 variable {σ : Type}
 
 /-- The names from position `i` on, past the frozen prefix `Hc`. -/
-def PostCNF (C : Ctx) (Hc : List (BitVec 64)) (o : Nat) (ms : List (IConstantVal × Nat)) (i : Nat) (_ : Unit) (_ : BitVec 64)
-    (s' : AState) (st : PState σ) : Prop :=
-  ∃ H', Hc <+: H' ∧ SR (ctxH C H') s' st ∧
+def PostCNF (C : Ctx) (Hc : List (BitVec 64)) (o : Nat) (ms : List (IConstantVal × Nat)) (i n : Nat) (_ : Unit)
+    (_ : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
+  ∃ H', Hc <+: H' ∧ n ≤ H'.length ∧ SR (ctxH C H') s' st ∧
     ∀ j (hj : j < ms.length), i ≤ j → H'[o + 1 + j]? = some (Enc.idxW ms[j].1.name)
 
-theorem postCNF_locals (C : Ctx) (Hc : List (BitVec 64)) (o : Nat) (ms : List (IConstantVal × Nat)) (i : Nat) :
+theorem postCNF_locals (C : Ctx) (Hc : List (BitVec 64)) (o : Nat) (ms : List (IConstantVal × Nat)) (i n : Nat) :
     ∀ a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
-    PostCNF C Hc o ms i a w s' st → PostCNF C Hc o ms i a w s' { st with locals := L } :=
-  fun _ _ _ _ _ ⟨H', hp, hs, h⟩ => ⟨H', hp, sr_of_eq hs rfl rfl rfl rfl, h⟩
+    PostCNF C Hc o ms i n a w s' st → PostCNF C Hc o ms i n a w s' { st with locals := L } :=
+  fun _ _ _ _ _ ⟨H', hp, hl, hs, h⟩ => ⟨H', hp, hl, sr_of_eq hs rfl rfl rfl rfl, h⟩
 
 theorem cnf_none (C : Ctx) (vals : List (BitVec 64)) :
     ∀ x, x ∈ cnfLocals → (ctxEnv C ++ cnfParams.zip vals).get x = none :=
@@ -90,23 +90,23 @@ theorem cnf_spec (C : Ctx) (hok : CtxOK C)
     ∀ k i (H Hc : List (BitVec 64)) (s : AState), ms.length - i = k → i ≤ ms.length → H0 <+: Hc →
       Hc.length ≤ o + 1 + i → Hc <+: H → o + 1 + ms.length ≤ H.length →
       SpecR (Pre (σ := σ) (ctxH C H) s (cnfParams.zip [cellA C om, cellA C o, BitVec.ofNat 64 i,
-        BitVec.ofNat 64 ms.length])) cnfBody s (pure ()) (PostCNF C Hc o ms i) := by
+        BitVec.ofNat 64 ms.length])) cnfBody s (pure ()) (PostCNF C Hc o ms i H.length) := by
   intro k
   induction k with
   | zero =>
     intro i H Hc s hk hi h0 hHc hp hl
-    refine specR_prologue (postCNF_locals _ _ _ _ _) (cnf_none _ _) ?_
+    refine specR_prologue (postCNF_locals _ _ _ _ _ _) (cnf_none _ _) ?_
     refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN => ?_)
     have hHN' : H.length ≤ C.HN := hHN
     have hlay := hok.heapLay
     refine specR_ifI _ 0 (by
         simp +decide [sev, Env.get, cnfParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
         rw [Nat.mod_eq_of_lt (by omega), Nat.mod_eq_of_lt (by omega)]; omega) (fun h => absurd rfl h) (fun _ => ?_)
-    exact specR_returnI _ 0 rfl (fun t ht => ⟨H, hp, sr_of_eq ht.sr rfl rfl rfl rfl, fun j hj hij => by omega⟩)
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨H, hp, le_refl _, sr_of_eq ht.sr rfl rfl rfl rfl, fun j hj hij => by omega⟩)
   | succ k ih =>
     intro i H Hc s hk hi h0 hHc hp hl
     have hil : i < ms.length := by omega
-    refine specR_prologue (postCNF_locals _ _ _ _ _) (cnf_none _ _) ?_
+    refine specR_prologue (postCNF_locals _ _ _ _ _ _) (cnf_none _ _) ?_
     refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN => ?_)
     have hHN' : H.length ≤ C.HN := hHN
     have hlay := hok.heapLay
@@ -144,20 +144,20 @@ theorem cnf_spec (C : Ctx) (hok : CtxOK C)
         by simp +decide [sev, Env.get_cons, Env.get, cnfParams, ctxEnv],
         by simp +decide [sev, Env.get_cons, Env.get, cnfParams, ctxEnv]; exact word_add1_eq i,
         by simp +decide [sev, Env.get_cons, Env.get, cnfParams, ctxEnv], trivial⟩
-      (fun a w s' st => (pure () : AM Unit) s = .ok (a, s') ∧ PostCNF C Hc' o ms (i + 1) a w s' st)
-      (fun a w s' H' => s' = s ∧ Hc' <+: H' ∧
+      (fun a w s' st => (pure () : AM Unit) s = .ok (a, s') ∧ PostCNF C Hc' o ms (i + 1) B.length a w s' st)
+      (fun a w s' H' => s' = s ∧ Hc' <+: H' ∧ H.length ≤ H'.length ∧
         ∀ j (hj : j < ms.length), i + 1 ≤ j → H'[o + 1 + j]? = some (Enc.idxW ms[j].1.name))
-      (fun a w s' st ⟨hr, H', hp', hs', hc'⟩ => by
+      (fun a w s' st ⟨hr, H', hp', hl', hs', hc'⟩ => by
         simp only [pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at hr
         obtain ⟨-, rfl⟩ := hr
-        exact ⟨H', ⟨rfl, hp', hc'⟩, hs'⟩)
+        exact ⟨H', ⟨rfl, hp', hBl ▸ hl', hc'⟩, hs'⟩)
       (fun u hu _ hlk => specR_run (fun w hw => by
         subst hw
         exact ih (i + 1) B Hc' s (by omega) (by omega) (h0.trans hHcc) (by simp [Hc']; omega) hpc' (by omega) _
           (pre_of_lookups hu cnfParams _ rfl hlk)))
-      (fun a w s' H' ⟨hs', hp', hc'⟩ => ?_)
+      (fun a w s' H' ⟨hs', hp', hl', hc'⟩ => ?_)
     subst hs'
-    exact specR_returnI _ 0 rfl (fun t ht => ⟨H', hHcc.trans hp', sr_of_eq ht.sr rfl rfl rfl rfl, fun j hj hij => by
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨H', hHcc.trans hp', hl', sr_of_eq ht.sr rfl rfl rfl rfl, fun j hj hij => by
       rcases Nat.lt_or_ge i j with h | h
       · exact hc' j hj (by omega)
       · have e : j = i := by omega
@@ -207,10 +207,10 @@ theorem cnn_spec (C : Ctx) (hok : CtxOK C) (hc : CNNCodes C)
     [cellA C om, cellA C H2.length, BitVec.ofNat 64 0, BitVec.ofNat 64 cs.length] (by decide) rfl (by decide) hc.fill
     ⟨by simp +decide [sev, Env.get_cons, Env.get, cnnParams, ctxEnv], by simp +decide [sev, Env.get_cons]; rfl, rfl,
       by simp +decide [sev, Env.get_cons, Env.get, cnnParams, ctxEnv], trivial⟩
-    (fun a w s' st => (pure () : AM Unit) s = .ok (a, s') ∧ PostCNF C Hc H2.length cs 0 a w s' st)
+    (fun a w s' st => (pure () : AM Unit) s = .ok (a, s') ∧ PostCNF C Hc H2.length cs 0 B.length a w s' st)
     (fun a w s' H' => s' = s ∧ Hc <+: H' ∧
       ∀ j (hj : j < cs.length), 0 ≤ j → H'[H2.length + 1 + j]? = some (Enc.idxW cs[j].1.name))
-    (fun a w s' st ⟨hr, H', hp', hs', hc'⟩ => by
+    (fun a w s' st ⟨hr, H', hp', _, hs', hc'⟩ => by
       simp only [pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at hr
       obtain ⟨-, rfl⟩ := hr
       exact ⟨H', ⟨rfl, hp', hc'⟩, hs'⟩)

@@ -73,22 +73,21 @@ theorem bis_none (C : Ctx) (vals : List (BitVec 64)) :
   Knot.params_none C bisLocals bisParams vals (by decide) (by decide)
 
 set_option maxHeartbeats 16000000 in
-/-- **`checkBlockIdxSorts`** on a single-member block. -/
-theorem bis_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
+/-- **`checkBlockIdxSorts`** at one member, whose record the cell at `om + 1` points to. -/
+theorem bis_spec1 (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
     (hs : C.side = false) (hk : KCodes C Comp.kBodies) (hac : Comp.AllCodes mode C) (hc : BISCodes C)
     (heqS : ∀ (H : List (BitVec 64)) (u v : LIdx) (s : AState) (lu lv : ConLeche.Level),
       denoteL s.store.ls u = some lu → denoteL s.store.ls v = some lv → CachesOK s →
       SpecR (σ := σ) (Pre (ctxH C H) s [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s (lvlEq? u v)
         (fun o w s' st => LLeq.PostOB (ctxH C H) o w s' st))
-    (p : BlockShape) (ms0 : MemberShape) (hms : p.members = [ms0]) (om : Nat)
-    (hM : PtrsRep C C.H om (MemberRep C C.H) [ms0]) (lsr : ConLeche.Level) (hSd : denoteL C.St.ls p.resSort = some lsr)
+    (p : BlockShape) (ms0 : MemberShape) (om : Nat)
+    (hslot : ∃ o0, C.H[om + 1]? = some (cellA C o0) ∧ MemberRep C C.H o0 ms0) (lsr : ConLeche.Level)
+    (hSd : denoteL C.St.ls p.resSort = some lsr)
     (hnP : p.nP < 2 ^ 56) (hni : ms0.nIdx < 2 ^ 56) (s : AState) :
     SpecR (σ := σ) (Pre C s (bisParams.zip [cellA C om, BitVec.ofNat 64 p.nP, Enc.idxW p.resSort])) (bisBody C) s
-      (checkBlockIdxSorts mode C.fe p p.members) (Decl.PostU C) := by
+      (checkBlockIdxSorts mode C.fe p [ms0]) (Decl.PostU C) := by
   refine specR_prologue (Decl.postU_locals _) (bis_none _ _) ?_
-  obtain ⟨-, hptr⟩ := hM
-  obtain ⟨o0, ho0, hrep⟩ := hptr 0 (by simp)
-  simp only [List.getElem_cons_zero, Nat.add_zero] at ho0 hrep
+  obtain ⟨o0, ho0, hrep⟩ := hslot
   obtain ⟨⟨oc, hoc, hcv⟩, -, hnI, -⟩ := hrep
   have hp0 : C.H <+: C.H := List.prefix_refl _
   refine UD.specR_heapLoadI' (C := ctxH C C.H) bisP0 _ (om + 1) _ ho0 (by decide)
@@ -99,7 +98,6 @@ theorem bis_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     (by simp +decide [sev, Env.get_cons]; exact cellA_add_ofNat C o0 2) ?_
   refine UD.specR_heapLoadI' (C := ctxH C C.H) bisTy _ (oc + 2) _ hcv.2.2 (by decide)
     (by simp +decide [sev, Env.get_cons]; exact cellA_add_ofNat C oc 2) ?_
-  rw [hms]
   simp only [checkBlockIdxSorts, bind_assoc]
   refine specR_callNIH (C := ctxH C C.H) bisX fOpenFvars ofParams [.op .add [vv bisNP, vv bisNi], vv bisTy, .const 0]
     (ofBody C) [BitVec.ofNat 64 (p.nP + ms0.nIdx), Enc.idxW ms0.cvT.type, BitVec.ofNat 64 0] (by decide) rfl
@@ -185,6 +183,22 @@ theorem bis_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     (fun r w s4 H6 hp6 _ => ?_)
   have hp6' : _ <+: H6 := hp6
   exact specR_returnI _ 0 rfl (fun t ht => ⟨H6, hpC5.trans hp6', sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+/-- **`checkBlockIdxSorts`** on a single-member block. -/
+theorem bis_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
+    (hs : C.side = false) (hk : KCodes C Comp.kBodies) (hac : Comp.AllCodes mode C) (hc : BISCodes C)
+    (heqS : ∀ (H : List (BitVec 64)) (u v : LIdx) (s : AState) (lu lv : ConLeche.Level),
+      denoteL s.store.ls u = some lu → denoteL s.store.ls v = some lv → CachesOK s →
+      SpecR (σ := σ) (Pre (ctxH C H) s [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s (lvlEq? u v)
+        (fun o w s' st => LLeq.PostOB (ctxH C H) o w s' st))
+    (p : BlockShape) (ms0 : MemberShape) (hms : p.members = [ms0]) (om : Nat)
+    (hM : PtrsRep C C.H om (MemberRep C C.H) [ms0]) (lsr : ConLeche.Level) (hSd : denoteL C.St.ls p.resSort = some lsr)
+    (hnP : p.nP < 2 ^ 56) (hni : ms0.nIdx < 2 ^ 56) (s : AState) :
+    SpecR (σ := σ) (Pre C s (bisParams.zip [cellA C om, BitVec.ofNat 64 p.nP, Enc.idxW p.resSort])) (bisBody C) s
+      (checkBlockIdxSorts mode C.fe p p.members) (Decl.PostU C) := by
+  rw [hms]
+  obtain ⟨o0, ho0, hrep⟩ := hM.2 0 (by simp)
+  exact bis_spec1 mode ra C hok hs hk hac hc heqS p ms0 om ⟨o0, by simpa using ho0, by simpa using hrep⟩ lsr hSd hnP hni s
 
 end
 
