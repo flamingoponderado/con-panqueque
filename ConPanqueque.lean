@@ -1,6 +1,7 @@
 import ConPanqueque.Basic
 import ConPanqueque.Logic.Basic
 import ConPanqueque.Logic.InternRerun
+import ConPanqueque.Logic.PlainIntern
 import ConPanqueque.Logic.BasisNames
 import ConPanqueque.Logic.Byte
 import ConPanqueque.Logic.Sep
@@ -576,3 +577,6 @@ import ConPanqueque.T.Decl.BasisInv
 import ConPanqueque.T.Ind.IndArm
 import ConPanqueque.T.Ind.CheckBlockAny
 import ConPanqueque.T.Ind.IndArm2
+import ConPanqueque.T.LitIntern
+import ConPanqueque.Start.BasisPhase
+import ConPanqueque.Code.Basis
