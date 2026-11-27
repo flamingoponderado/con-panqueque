@@ -404,6 +404,18 @@ theorem blockFormers_eq (p : BlockShape) (isRec : Bool) :
 def recsOf (rcs : List RecShape) (fs : List IRecRuleFire) : List IConstantInfo :=
   (rcs.zip fs).map fun a => .recInfo a.1.cvR a.1.mI a.1.rP a.1.isK (a.1.rules.map ({ · with fire := a.2 }))
 
+theorem recsOf_fire {rcs : List RecShape} {fs : List IRecRuleFire} {ci : IConstantInfo} (hci : ci ∈ recsOf rcs fs)
+    {cv : IConstantVal} {mI rP : Nat} {isK : Bool} {rules : List IRecRule} (h : ci = .recInfo cv mI rP isK rules) :
+    ∀ rl ∈ rules, rl.fire ∈ fs := by
+  intro rl hrl
+  simp only [recsOf, List.mem_map] at hci
+  obtain ⟨a, ha, rfl⟩ := hci
+  simp only [IConstantInfo.recInfo.injEq] at h
+  obtain ⟨-, -, -, -, rfl⟩ := h
+  simp only [List.mem_map] at hrl
+  obtain ⟨r0, -, rfl⟩ := hrl
+  exact (List.of_mem_zip ha).2
+
 theorem blockRecs_eq (p : BlockShape) : ∀ rcs : List RecShape,
     blockRecs p rcs = (rcs.mapM (recFire p)) >>= fun fs => pure (recsOf rcs fs)
   | [] => by simp [blockRecs, recsOf]

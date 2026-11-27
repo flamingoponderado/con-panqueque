@@ -37,7 +37,7 @@ structure CBKFacts (mode : ConLeche.CheckMode) (C : Ctx) (block : List IConstant
   dd : CVDen ms0.declared C.St
   cs : ∀ c ∈ ms0.ctors, CVDen c.1 C.St ∧ SumCtorOK C p₀.nP c
   rd : CVDen rc.cvR C.St
-  run : CBKRun mode C p₀ ms0 rc
+  run : CBKRun mode C block p₀ ms0 rc
 
 section
 variable {σ : Type}

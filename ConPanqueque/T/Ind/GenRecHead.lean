@@ -299,6 +299,22 @@ def genRecA (mode : ConLeche.CheckMode) (fe : IFEnv) (p : BlockShape) (params : 
   let elim ← structElimLevel p.elim p.large
   genRecB mode fe p ⟨p.nP, params, ms2, formerTysC, rd.slots, ctors, elim, []⟩ cvRis rd.recCls
 
+/-- `genRecA` up to the generator's record (the generator and the stream's checked recursor types). -/
+def gaPre (mode : ConLeche.CheckMode) (fe : IFEnv) (p : BlockShape) (params : List EIdx) (tbl : List NestCtorNf)
+    (rd : ClassRead) (m : TargetMajor) (block : List IConstantInfo) : AM (ClassGen × List IConstantVal) := do
+  targetRecPins p block
+  let cvRis ← classStreamRecs mode fe p.recs
+  (if p.large then (blockLargeElimAllowed p false >>= fun b => if b then pure () else
+    fail (.invalid "generated recursor: large eliminator on a block whose sort may be Prop (official: elim_only_at_universe_zero)"))
+    else pure ())
+  let ms2 ← classesNfs mode fe p (p.formers.map (·.type)) tbl [m]
+  let ctors ← classesCtors mode fe p (p.formers.map (·.type)) rd ms2 0 ms2
+  (if ((rd.slots.filter ClassSlot.isMinor).length == (ctors.map List.length).sum) = true then pure () else
+    fail (.invalid "generated recursor: the recursors' prefix has a minor premise for no constructor of a class (official: invalid recursor)"))
+  let formerTysC ← ms2.mapM (classFormerTy mode fe p.formers)
+  let elim ← structElimLevel p.elim p.large
+  pure (⟨p.nP, params, ms2, formerTysC, rd.slots, ctors, elim, []⟩, cvRis)
+
 theorem genRecCheck_eq (mode : ConLeche.CheckMode) (fe : IFEnv) (p : BlockShape) (params : List EIdx)
     (tbl : List NestCtorNf) (rd : ClassRead) (m : TargetMajor) (block : List IConstantInfo)
     (hk : p.k = 1) (hmm : m.member = some 0) :
@@ -418,7 +434,7 @@ theorem ga_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
     (lsr : ConLeche.Level) (hSd : denoteL C.St.ls p.resSort = some lsr) (hnc : p.numCtors < 2 ^ 63)
     (params : List EIdx) (opm : Nat) (hpm : BlkAt C.H opm (params.map Enc.idxW)) (hpml : params.length < 2 ^ 56)
     (tbl : List NestCtorNf) (ot : Nat) (htb : PRep C C.H ot (fun H o nf => NfRep C H o nf) tbl)
-    (htl : tbl.length < 2 ^ 58) (hel : ∀ e ∈ tbl, e.ds.length < 2 ^ 58)
+    (htl : tbl.length < 2 ^ 58) (hel : ∀ e ∈ tbl, e.ds.length < 2 ^ 61)
     (m : TargetMajor) (hmm : m.member = some 0) (oq : Nat) (hcr : CtorsRep C C.H oq m.ctors)
     (hcsl : m.ctors.length < 2 ^ 58) (hnfc : ∀ c ∈ m.ctors, c.2 < 2 ^ 56)
     (olp : Nat) (hlp : EBlk C.H olp (ms0.cvT.levelParams.map Enc.idxW)) (pp : Nat)
@@ -429,10 +445,11 @@ theorem ga_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
     (hsl0 : rd.slots[0]? = some (.motive k0))
     (om : Nat) (hM : PtrsRep C C.H om (MemberRep C C.H) p.members) (hnk : p.nP + p.k < 2 ^ 56)
     (hni : m.nIdx < 2 ^ 56) (hnpc : m.nPc < 2 ^ 62)
-    (hcvd : ∀ (xs : List ClassCtor) (el : LIdx) (pre : List EIdx) s s' cv,
-      classRecTyOk mode C.fe ⟨p.nP, params, [{ m with nfs := tbl }], [ms0.cvT.type], rd.slots, [xs], el, pre⟩
-        p.k rc rc.cvR 0 s = .ok (cv, s') → (denoteE s'.store cv.type).isSome = true)
-    (hrc0 : rd.recCls = [0]) (s : AState) (hpins : s.pins = C.pins) :
+    (hrc0 : rd.recCls = [0]) (s : AState) (hpins : s.pins = C.pins)
+    (hcvd : ∀ (g0 : ClassGen) (cvRis : List IConstantVal) (s7 : AState) (pre : List EIdx) s1 s' cv,
+      gaPre mode C.fe p params tbl rd m block s = .ok ((g0, cvRis), s7) → g0.prefixBinders s7 = .ok (some pre, s1) →
+      classRecTyOk mode C.fe { g0 with pre := pre } p.k rc rc.cvR 0 s1 = .ok (cv, s') →
+      (denoteE s'.store cv.type).isSome = true) :
     SpecR (σ := σ) (Pre C s (gaParams.zip [cellA C osh, cellA C orr, cellA C opm, cellA C ot,
         BitVec.ofNat 64 tbl.length, cellA C oq, BitVec.ofNat 64 m.ctors.length, Enc.idxW m.lvls, cellA C olp,
         Enc.idxW ms0.cvT.type, cellA C pp, BitVec.ofNat 64 m.pfvs.length, cellA C pa, BitVec.ofNat 64 m.ds.length,
@@ -444,11 +461,13 @@ theorem ga_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
   rw [genRecCheck_eq mode C.fe p params tbl rd m block hk hmm]
   unfold genRecA
   refine specR_callNIH (C := C) gaX fTrp trpParams [vv gaSh] (trpBody C) [cellA C osh] (by decide) rfl (by decide) hc.trpS
-    ⟨by simp +decide [sev, Env.get, gaParams, ctxEnv], trivial⟩ (Decl.PostU C) (fun _ _ _ _ => True)
-    (fun a w s' st ⟨H', hp', hsr⟩ => ⟨H', hp', trivial, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu trpParams _ rfl hlk)
-      (trp_spec ra C hok hf hc.trp p ms0 hms block hsp osh hsh hlq hlr s hpins))
-    (fun _ w s1 H1 hp1 _ => ?_)
+    ⟨by simp +decide [sev, Env.get, gaParams, ctxEnv], trivial⟩
+    (fun a w s' st => targetRecPins p block s = .ok (a, s') ∧ Decl.PostU C a w s' st)
+    (fun a _ s' _ => targetRecPins p block s = .ok (a, s'))
+    (fun a w s' st ⟨hr, H', hp', hsr⟩ => ⟨H', hp', hr, hsr⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu trpParams _ rfl hlk)
+      (trp_spec ra C hok hf hc.trp p ms0 hms block hsp osh hsh hlq hlr s hpins)))
+    (fun _ w s1 H1 hp1 htrp => ?_)
   have hp1' : C.H <+: H1 := hp1
   have hrr0 := hrr
   obtain ⟨⟨ocv, hocv, hcvr⟩, -, -, -, -, -⟩ := hrr
@@ -462,15 +481,17 @@ theorem ga_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
   have hok1 := ctxOK_H hok H1
   refine specR_callNIH (C := ctxH C H1) gaX fCcv ccvParams [vv gaQ, .const 0, .const 0, .const 0] (ccvBody C)
     [cellA C ocv, boolW false, boolW false, boolW false] (by decide) rfl (by decide) hc.ccv
-    ⟨by simp +decide [sev, Env.get_cons], rfl, rfl, rfl, trivial⟩ (Decl.PostU (ctxH C H1)) (fun _ _ _ _ => True)
-    (fun a w s' st ⟨H', hp', hsr⟩ => ⟨H', hp', trivial, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ccvParams _ rfl hlk)
+    ⟨by simp +decide [sev, Env.get_cons], rfl, rfl, rfl, trivial⟩
+    (fun a w s' st => checkConstantVal mode C.fe rc.cvR false false false s1 = .ok (a, s') ∧ Decl.PostU (ctxH C H1) a w s' st)
+    (fun a _ s' _ => checkConstantVal mode C.fe rc.cvR false false false s1 = .ok (a, s'))
+    (fun a w s' st ⟨hr, H', hp', hsr⟩ => ⟨H', hp', hr, hsr⟩)
+    (fun u hu _ hlk => specR_run <| Knot.specR_of_pre u (pre_of_lookups hu ccvParams _ rfl hlk)
       (ccv_full mode (ctxH C H1) hok1 hc.gcc.hg hc.gcc.hpr hc.trp.pim ra hs (kcodes_H hc.gb.cro.k H1) (allCodes_H hc.gb.cro.ac H1)
         hc.gcc.hcl (by ctx_tr hc.gcc.hlso) hc.gcc.hndh hc.gcc.hndg hc.gcc.hlbb (by ctx_tr hc.gcc.hcB) hc.gcc.hbvb hc.gcc.hhf
         (by ctx_tr hc.gcc.hcF) hc.gcc.hfvb hc.gcc.hat (by ctx_tr hc.gcc.hal) hc.gcc.hcrff (by ctx_tr hc.gcc.hcrf)
         hc.gcc.hens C.fe rfl rc.cvR false false false ocv ol (get_prefix hn0 hp1') (get_prefix hwl hp1')
         (get_prefix hty hp1') (blkAt_mono hebl hp1') (by omega) ks hkl hks s1))
-    (fun _ w s2 H2 hp2 _ => ?_)
+    (fun _ w s2 H2 hp2 hccv => ?_)
   have hp2' : H1 <+: H2 := hp2
   have hpC2 : C.H <+: H2 := hp1'.trans hp2'
   obtain ⟨-, -, ⟨hnPw, hnPb⟩, helw, hrsw, hlgw, -⟩ := hsh
@@ -482,10 +503,16 @@ theorem ga_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
     [boolW p.large, Enc.idxW p.resSort, BitVec.ofNat 64 p.numCtors] (by decide) rfl (by decide) hc.lgd
     ⟨by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons],
       by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], trivial⟩
-    (Decl.PostU (ctxH C H2)) (fun _ _ _ _ => True) (fun a w s' st ⟨H', hp', hsr⟩ => ⟨H', hp', trivial, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu lgdParams _ rfl hlk)
-      (lgd_spec (ctxH C H2) hc.nz hc.lea p hk lsr hSd hnc _ s2))
-    (fun _ w s3 H3 hp3 _ => ?_)
+    (fun a w s' st => (if p.large then (blockLargeElimAllowed p false >>= fun b => if b then pure () else
+      fail (.invalid "generated recursor: large eliminator on a block whose sort may be Prop (official: elim_only_at_universe_zero)"))
+      else pure ()) s2 = .ok (a, s') ∧ Decl.PostU (ctxH C H2) a w s' st)
+    (fun a _ s' _ => (if p.large then (blockLargeElimAllowed p false >>= fun b => if b then pure () else
+      fail (.invalid "generated recursor: large eliminator on a block whose sort may be Prop (official: elim_only_at_universe_zero)"))
+      else pure ()) s2 = .ok (a, s'))
+    (fun a w s' st ⟨hr, H', hp', hsr⟩ => ⟨H', hp', hr, hsr⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu lgdParams _ rfl hlk)
+      (lgd_spec (ctxH C H2) hc.nz hc.lea p hk lsr hSd hnc _ s2)))
+    (fun _ w s3 H3 hp3 hlgdr => ?_)
   have hp3' : H2 <+: H3 := hp3
   have hpC3 : C.H <+: H3 := hpC2.trans hp3'
   have hfts : List.map (fun x => x.type) p.formers = [ms0.cvT.type] := by simp [BlockShape.formers, hms]
@@ -503,13 +530,16 @@ theorem ga_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
       by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv],
       by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv],
       by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], trivial⟩
-    (fun r w s' st => r = tbl.drop 0 ∧ Decl.PostU (ctxH C H3) () w s' st) (fun r _ _ _ => r = tbl)
-    (fun r w s' st ⟨hr, H', hp', hsr⟩ => ⟨H', hp', by simpa using hr, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu tmnParams _ rfl hlk)
+    (fun r w s' st => targetMajorNfs mode C.fe p [ms0.cvT.type] m.pfvs m.lvls m.ds m.ctors (tbl.drop 0) s3 = .ok (r, s') ∧
+      r = tbl.drop 0 ∧ Decl.PostU (ctxH C H3) () w s' st)
+    (fun r _ s' _ => targetMajorNfs mode C.fe p [ms0.cvT.type] m.pfvs m.lvls m.ds m.ctors (tbl.drop 0) s3 = .ok (r, s') ∧
+      r = tbl)
+    (fun r w s' st ⟨hrr, hr, H', hp', hsr⟩ => ⟨H', hp', ⟨hrr, by simpa using hr⟩, hsr⟩)
+    (fun u hu _ hlk => specR_run <| Knot.specR_of_pre u (pre_of_lookups hu tmnParams _ rfl hlk)
       (tmn_spec mode ra C hok hs hc.tmn p ms0 hms ms0.cvT.type m.pfvs m.ds m.lvls m.ctors tbl olp pp pa oq ot
         (by omega) (by omega) hppl hcsl htl hel C.H (List.prefix_refl _) hlp hpf hA hcr htb tbl.length 0 H3 s3
         (by omega) (by omega) hpC3))
-    (fun es w s4 H4 hp4 hes => ?_)
+    (fun es w s4 H4 hp4 ⟨htmnr, hes⟩ => ?_)
   subst es
   have hp4' : H3 <+: H4 := hp4
   have hpC4 : C.H <+: H4 := hpC3.trans hp4'
@@ -588,13 +618,28 @@ theorem ga_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
     (by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv]; exact cellA_add_ofNat C osh 3) ?_
   refine specR_callNIH (C := ctxH C H5) gaEv fElv elvParams [vv gaLg, vv gaEl] elvBody [boolW p.large, Enc.idxW p.elim]
     (by decide) rfl (by decide) hc.elv ⟨by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], trivial⟩
-    (PostL (ctxH C H5)) (fun e w _ _ => w = Enc.idxW e) (fun e w s' st ⟨hw, hsr⟩ => ⟨H5, List.prefix_refl _, hw, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu elvParams _ rfl hlk)
-      (elv_spec ra (ctxH C H5) (ctxOK_H hok H5) hc.lp hc.lz p.elim p.large s6))
-    (fun elim w s7 H7 hp7 hw => ?_)
+    (fun e w s' st => structElimLevel p.elim p.large s6 = .ok (e, s') ∧ PostL (ctxH C H5) e w s' st)
+    (fun e w s' _ => structElimLevel p.elim p.large s6 = .ok (e, s') ∧ w = Enc.idxW e)
+    (fun e w s' st ⟨hr, hw, hsr⟩ => ⟨H5, List.prefix_refl _, ⟨hr, hw⟩, hsr⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu elvParams _ rfl hlk)
+      (elv_spec ra (ctxH C H5) (ctxOK_H hok H5) hc.lp hc.lz p.elim p.large s6)))
+    (fun elim w s7 H7 hp7 ⟨helvr, hw⟩ => ?_)
   subst hw
   have hp7' : H5 <+: H7 := hp7
   have hpC7 : C.H <+: H7 := hpC5.trans hp7'
+  have hgaPre : gaPre mode C.fe p params tbl rd m block s = .ok ((⟨p.nP, params, [{ m with nfs := tbl }],
+      [ms0.cvT.type], rd.slots, [xs], elim, []⟩, [rc.cvR]), s7) := by
+    have hcnt : (rd.slots.filter ClassSlot.isMinor).length = xs.length := by
+      obtain ⟨e, -⟩ := AM.pure_ok hrun; rw [← hce]; simpa using e.symm
+    unfold gaPre
+    rw [am_bind_run htrp, hrecs]
+    simp only [classStreamRecs, bind_assoc, pure_bind]
+    rw [am_bind_run hccv, am_bind_run hlgdr, hfts]
+    simp only [classesNfs, classesCtors, bind_assoc, pure_bind]
+    rw [am_bind_run (by simpa using htmnr), am_bind_run (by simpa using hrun5)]
+    simp only [List.map_cons, List.map_nil, List.sum_cons, List.sum_nil, Nat.add_zero, hcnt, beq_self_eq_true,
+      ite_true, pure_bind, hft']
+    rw [am_bind_run helvr]; rfl
   rw [hrc0]
   refine specR_congr (m' := _ >>= fun r => pure r) (by rw [bind_pure]) ?_
   refine specR_callNC (C := ctxH C H7) (D := ctxLocals ++ gaLocals) gaRs fGb gbParams
@@ -619,7 +664,8 @@ theorem ga_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
         ⟨p.nP, params, [{ m with nfs := tbl }], [ms0.cvT.type], rd.slots, [xs], elim, []⟩ { m with nfs := tbl } rfl hmm
         ms0.cvT.type rfl xs rfl k0 hsl0 opm osl ocs pa hpml (blkAt_mono hpm hpC7) hsl (slotBlk_mono hpC7 hsb) hxlb
         (pRep_mono hp7' (fun _ _ => ccRep_mono hp7') hcs) hxnf (blkAt_mono hA hpC7) hdl hni (by show p.nP < _; omega) hnpc
-        (fun sl h c C' ihs e => (hcb sl h c C' ihs e).1) (fun pre s s' cv h => hcvd xs elim pre s s' cv h) s7))
+        (fun sl h c C' ihs e => (hcb sl h c C' ihs e).1) s7
+        (fun pre s1 s' cv hpb h => hcvd _ [rc.cvR] s7 pre s1 s' cv hgaPre hpb h)))
     (fun r w s8 C8 ⟨EH, envM, H, o, eC, h1, h2, h3, h4⟩ => ?_)
   subst eC
   exact specR_returnI _ _ (by simp [sev, Env.get_cons]) (fun t ht => ⟨EH, envM, H, o, h1, hpC7.trans h2, h3,

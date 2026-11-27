@@ -106,7 +106,7 @@ theorem br_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (hCV : (∀ ms ∈ p.members, CVDen ms.declared C.St ∧ (CVDen ms.cvT C.St) ∧ ∀ c ∈ ms.ctors, CVDen c.1 C.St) ∧
       ∀ rc ∈ p.recs, CVDen rc.cvR C.St)
     (hRD : ∀ sa sb fs, StateOK sa → PinsOK sa → Ext C.St sa.store → p.recs.mapM (recFire p) sa = .ok (fs, sb) →
-      ∀ ci ∈ recsOf p.recs fs, ∀ cv mI rP isK rules, ci = .recInfo cv mI rP isK rules → ∀ rl ∈ rules, RuleDen rl sb.store)
+      ∀ f ∈ fs, FireDen f sb.store)
     (s : AState) :
     SpecR (σ := σ) (Pre C s (brParams.zip [cellA C os])) (brBody C) s (blockReadsAt C.fe p) (PostBR C) := by
   refine specR_prologue (postBR_locals _) (br_none _ _) ?_
@@ -562,7 +562,10 @@ theorem br_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
   have hfe : ∀ n, (consBlockRecsTemp cs C.fe []).1.find? n = bfLook es C2.fe n := fun n => by
     show _ = bfLook es C.fe n
     rw [bfLook_crt es C.fe hesn n, hes2]
-  refine specR_fact (fun t ht => And.intro ht.sr.envd.1 ht.sr.floor) (fun ⟨hcd, hfl⟩ => ?_)
+  refine specR_fact (fun t ht => And.intro ht.sr.envd.1 (And.intro ht.sr.floor ht.sr.env.1.len))
+    (fun ⟨hcd, hfl, hEN⟩ => ?_)
+  have hEN61 : EH5.length < 2 ^ 61 := by
+    have := hok.envLay; have h' : EH5.length ≤ C.EN := hEN; omega
   have hfD : ConstDen (consBlockRecsTemp cs C.fe []).1 C2.St :=
     constDen_bfLook hfe hcd (by
       rw [hes2]
@@ -574,8 +577,11 @@ theorem br_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     have hl2 : (recsOf p.recs fs2).length = p.recs.length := by simp [recsOf, hfs2l]
     refine ⟨by rw [hl2]; exact get_prefix hHc130 hp14, fun i hi => ?_⟩
     obtain ⟨o, ho1, ho2⟩ := hrs2 i hi (Nat.zero_le _)
-    exact ⟨o, ho1, ho2, fun cv mI rP isK rules h rl hrl =>
-      hRD s3 s4 fs2 hst3 hpo3 hx3 hr4' _ (List.getElem_mem hi) cv mI rP isK rules h rl hrl⟩
+    refine ⟨o, ho1, ho2, fun cv mI rP isK rules h rl hrl => ?_⟩
+    have hci := ho2
+    rw [h] at hci
+    refine ruleDen_of_fire (hRD s3 s4 fs2 hst3 hpo3 hx3 hr4' _ (recsOf_fire (List.getElem_mem hi) h rl hrl))
+      (fun lv hlv => Nat.lt_trans (cie_rec_len hci rl hrl lv hlv) hEN61)
   have hAn2 : denoteN C2.St.ns anonH = some .anonymous := hfl.lss.ls.ns _ _ hAn
   have hf2 : Front.FrontOK C2 := by cases hf; constructor <;> assumption
   have hok2 : CtxOK C2 := ctxOK_St (ctxOK_E hok hpe5A) _

@@ -592,3 +592,5 @@ import ConPanqueque.Front.IndRun
 import ConPanqueque.T.Ind.ReadBlockRecs
 import ConPanqueque.T.Ind.NestCtxRun
 import ConPanqueque.T.Ind.ReadBlockSplit
+import ConPanqueque.T.Ind.PassCls
+import ConPanqueque.T.Ind.CrtDischarge

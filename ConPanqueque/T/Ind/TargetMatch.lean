@@ -364,7 +364,7 @@ set_option maxHeartbeats 16000000 in
 theorem tcc_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
     (hs : C.side = false) (hc : TCCCodes mode C) (p : BlockShape) (ms0 : MemberShape) (hms : p.members = [ms0])
     (ty0 : EIdx) (pfvs ds eds : List EIdx) (us lvls : LsIdx) (olp pp pa pb : Nat)
-    (hlpl : ms0.cvT.levelParams.length < 2 ^ 59) (hdl : ds.length < 2 ^ 58) (heds : eds.length < 2 ^ 58)
+    (hlpl : ms0.cvT.levelParams.length < 2 ^ 59) (hdl : ds.length < 2 ^ 58) (heds : eds.length < 2 ^ 61)
     (hpl : pfvs.length < 2 ^ 58)
     (H0 : List (BitVec 64)) (hp0 : C.H <+: H0) (hlp : EBlk H0 olp (ms0.cvT.levelParams.map Enc.idxW))
     (hpf : BlkAt H0 pp (pfvs.map Enc.idxW)) (hA : BlkAt H0 pa (ds.map Enc.idxW)) (hB : BlkAt H0 pb (eds.map Enc.idxW))

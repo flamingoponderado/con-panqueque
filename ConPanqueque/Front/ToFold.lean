@@ -80,7 +80,7 @@ theorem recOK_of_enc {C : Ctx} {F : Nat} {H : List (BitVec 64)} {o : Nat} {d : I
       rw [h3]; cases k <;> rfl
   | indDecl block nP =>
     -- not yet a front record: the dispatcher rejects inductive lines.  Once it accepts them, `IndSem.run` is
-    -- `indRun_of_front` (Front/IndRun.lean) of the line's `IndShape`/`IndBounds` (as `IndFront`) and `IndRunGap`.
+    -- `indRun_of_front` (Front/IndRun.lean) of the line's `IndShape`/`IndBounds` (as `IndFront`).
     exact absurd h.1 (by simp [ConPanqueque.Bridge.IsFrontDecl, ConPanqueque.Bridge.IsValueDecl])
 
 /-- **The registry as the fold's block.** -/

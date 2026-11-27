@@ -51,6 +51,11 @@ def tailS (mode : ConLeche.CheckMode) (p : BlockShape) (Q : List IProjTable)
     checkBlockTables fe₃ Q
     pure fe₃
 
+/-- `checkBlockTail` before the recursor stage: the index binders' sorts, the flush. -/
+def ctbPre (mode : ConLeche.CheckMode) (fe : IFEnv) (p : BlockShape) : AM Unit := do
+  checkBlockIdxSorts mode fe p p.members
+  flushCaches
+
 theorem checkBlockTail_eq (mode : ConLeche.CheckMode) (block : List IConstantInfo) (q : BlockPass)
     (Q : List IProjTable) :
     checkBlockTail mode block q Q = (do
@@ -435,7 +440,7 @@ theorem ctb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     (hnP : p.nP < 2 ^ 56)
     (opm : Nat) (hpm : BlkAt C.H opm (q.params.map Enc.idxW)) (hpml : q.params.length < 2 ^ 56)
     (ot : Nat) (htb : PRep C C.H ot (fun H o nf => NfRep C H o nf) q.tbl)
-    (htl : q.tbl.length < 2 ^ 58) (hel : ∀ e ∈ q.tbl, e.ds.length < 2 ^ 58)
+    (htl : q.tbl.length < 2 ^ 58) (hel : ∀ e ∈ q.tbl, e.ds.length < 2 ^ 61)
     (m : TargetMajor) (hcls : q.cls = [m]) (hmm : m.member = some 0) (hmc : m.ctors = ms0.ctors) (oq : Nat)
     (hcr : CtorsRep C C.H oq m.ctors)
     (hcsl : m.ctors.length < 2 ^ 58) (hnfc : ∀ c ∈ m.ctors, c.2 < 2 ^ 56)
@@ -449,17 +454,19 @@ theorem ctb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     (hsl0 : q.rd.slots[0]? = some (.motive k0))
     (om : Nat) (hM : PtrsRep C C.H om (MemberRep C C.H) p.members) (hnk : p.nP + p.k < 2 ^ 56)
     (hni : m.nIdx < 2 ^ 56) (hnpc : m.nPc < 2 ^ 62) (hni0 : ms0.nIdx < 2 ^ 56)
-    (hcvd : ∀ (xs : List ClassCtor) (el : LIdx) (pre : List EIdx) s s' cv,
-      classRecTyOk mode (consSumCtors p.nP ms0.cvT.name ms0.ctors C.fe)
-        ⟨p.nP, q.params, [{ m with nfs := q.tbl }], [ms0.cvT.type], q.rd.slots, [xs], el, pre⟩
-        p.k rc rc.cvR 0 s = .ok (cv, s') → (denoteE s'.store cv.type).isSome = true)
     (hrc0 : q.rd.recCls = [0]) (hnest : blockNestedBit p q.kinds = false)
     (Q : List IProjTable) (hQ : Q.length ≤ 1) (oQ : Nat)
     (hqQ : PRep C C.H oQ (fun H o t => TblVRep C H o t) Q)
     (hden : ∀ t ∈ Q, ∃ ks : List ConLeche.Name, ∃ hkl : ks.length = t.levelParams.length,
       ∀ j (hj : j < t.levelParams.length), denoteN C.St.ns t.levelParams[j] = some (ks[j]'(by rw [hkl]; exact hj)))
     (hbd : ∀ t ∈ Q, t.levelParams.length < 2 ^ 62 ∧ t.numParams < 2 ^ 62 ∧ t.numFields < 2 ^ 64 ∧ t.bodies.size < 2 ^ 58)
-    (s : AState) :
+    (s : AState)
+    (hcvd : ∀ (s3 : AState) (g0 : ClassGen) (cvRis : List IConstantVal) (s7 : AState) (pre : List EIdx) s1 s' cv,
+      ctbPre mode C.fe p s = .ok ((), s3) →
+      gaPre mode (consSumCtors p.nP ms0.cvT.name ms0.ctors C.fe) p q.params q.tbl q.rd m block s3 = .ok ((g0, cvRis), s7) →
+      g0.prefixBinders s7 = .ok (some pre, s1) →
+      classRecTyOk mode (consSumCtors p.nP ms0.cvT.name ms0.ctors C.fe) { g0 with pre := pre } p.k rc rc.cvR 0 s1 =
+        .ok (cv, s') → (denoteE s'.store cv.type).isSome = true) :
     SpecR (σ := σ) (Pre C s (ctbParams.zip ([cellA C osh, cellA C orr, cellA C opm, cellA C ot,
         BitVec.ofNat 64 q.tbl.length, cellA C oq, BitVec.ofNat 64 m.ctors.length, Enc.idxW m.lvls, cellA C olp,
         Enc.idxW ms0.cvT.type, cellA C pp, BitVec.ofNat 64 m.pfvs.length, cellA C pa, BitVec.ofNat 64 m.ds.length,
@@ -474,11 +481,12 @@ theorem ctb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     [cellA C om, BitVec.ofNat 64 p.nP, Enc.idxW p.resSort] (by decide) rfl (by decide) hc.bis.self
     ⟨by simp +decide [sev, Env.get, ctbParams, ctxEnv], by simp +decide [sev, Env.get, ctbParams, ctxEnv],
       by simp +decide [sev, Env.get, ctbParams, ctxEnv], trivial⟩
-    (Decl.PostU C) (fun _ _ _ _ => True)
-    (fun a w s' st ⟨H', hp', hsr⟩ => ⟨H', hp', trivial, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu bisParams _ rfl hlk)
-      (bis_spec mode ra C hok hs hc.k hc.ac hc.bis heqS p ms0 hms om (by rw [← hms]; exact hM) lsr hSd (by omega) hni0 s))
-    (fun _ w s1 H1 hp1 _ => ?_)
+    (fun a w s' st => checkBlockIdxSorts mode C.fe p p.members s = .ok (a, s') ∧ Decl.PostU C a w s' st)
+    (fun a _ s' _ => checkBlockIdxSorts mode C.fe p p.members s = .ok (a, s'))
+    (fun a w s' st ⟨hr, H', hp', hsr⟩ => ⟨H', hp', hr, hsr⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu bisParams _ rfl hlk)
+      (bis_spec mode ra C hok hs hc.k hc.ac hc.bis heqS p ms0 hms om (by rw [← hms]; exact hM) lsr hSd (by omega) hni0 s)))
+    (fun _ w s1 H1 hp1 hbisr => ?_)
   have hp1' : C.H <+: H1 := hp1
   have hok1 := ctxOK_H hok H1
   refine specR_congr (m' := pure (consSumCtors p.nP ms0.cvT.name (ms0.ctors.drop 0) C.fe) >>= fun fe₂ =>
@@ -507,7 +515,11 @@ theorem ctb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   subst eC er es
   have hpC2 : C.H <+: H2 := hp1'.trans hp2
   refine specR_flushTopI hok2 hpl false flushCaches rfl (by decide) ?_
-  generalize flushedS false s2 = s3
+  generalize hs3 : flushedS false s2 = s3
+  have hpre3 : ctbPre mode C.fe p s = .ok ((), s3) := by
+    unfold ctbPre
+    rw [am_bind_run hbisr]
+    rw [← hs3]; rfl
   set fe₂ := consSumCtors p.nP ms0.cvT.name ms0.ctors C.fe with hfe₂
   set C2 := ctxNew (ctxH C H1) fe₂ EH2 envM2 H2 with hC2
   refine specR_callNC (C := C2) ctbR fGa gaParams
@@ -532,7 +544,7 @@ theorem ctb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
         q.tbl ot (pRep_mono hpC2 (fun _ _ h => nfRep_mono hpC2 h) htb) htl hel m hmm oq (ctorsRep_mono hpC2 hcr) hcsl
         hnfc olp (eblk_mono hlp hpC2) pp (blkAt_mono hpf hpC2) hppl pa (blkAt_mono hA hpC2) hdl q.rd osl
         (slotBlk_mono hpC2 hsb) hsl hcb k0 hsl0 om (ptrsRep_mono hpC2 (fun _ _ h => memberRep_mono hpC2 h) hM) hnk hni hnpc
-        hcvd hrc0 s3 hu.pins))
+        hrc0 s3 hu.pins (fun g0 cvRis s7 pre s1' s' cv hga hpb h => hcvd s3 g0 cvRis s7 pre s1' s' cv hpre3 hga hpb h)))
     (fun r w s4 C3 ⟨EH3, envM3, H3, o, eC, hpE3, hp3, hok3, hg3, hF3, hL3, hf3, ht3, cv, rhss, orh, oc, er, ew, ho1, ho2,
       hrh, hcv⟩ => ?_)
   subst eC ew

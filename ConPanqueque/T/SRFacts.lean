@@ -109,7 +109,7 @@ theorem sr_recDen {C : Ctx} {s : AState} {t : PState σ} (h : SR C s t) {c : NId
     {mI rP : Nat} {isK : Bool} {rules : List IRecRule} (hc : C.fe.find? c = some (.recInfo cv mI rP isK rules))
     {rl : IRecRule} (hrl : rl ∈ rules) :
     (∀ lv, ((∃ pins, rl.fire = .nested lv pins) ∨ rl.fire = .levels lv) →
-      (∀ u ∈ lv, (denoteL s.store.ls u).isSome = true) ∧ lv.length < 2 ^ 60) ∧
+      (∀ u ∈ lv, (denoteL s.store.ls u).isSome = true) ∧ lv.length < 2 ^ 61) ∧
     (∀ lv pins, rl.fire = .nested lv pins → ∀ p ∈ pins, (denoteE s.store p).isSome = true) :=
   h.envd.2.2.2 c cv mI rP isK rules hc rl hrl
 

@@ -72,7 +72,7 @@ end
 def RulesDen (ci : IConstantInfo) (st : EStore) : Prop :=
   ∀ cv mI rP isK rules, ci = .recInfo cv mI rP isK rules → ∀ rl ∈ rules,
     (∀ lv, ((∃ pins, rl.fire = .nested lv pins) ∨ rl.fire = .levels lv) →
-      (∀ u ∈ lv, (denoteL st.ls u).isSome = true) ∧ lv.length < 2 ^ 60) ∧
+      (∀ u ∈ lv, (denoteL st.ls u).isSome = true) ∧ lv.length < 2 ^ 61) ∧
     (∀ lv pins, rl.fire = .nested lv pins → ∀ p ∈ pins, (denoteE st p).isSome = true)
 
 theorem envDen_pushR {fe fe' : IFEnv} {p : Pins} {st : EStore} {ci : IConstantInfo}

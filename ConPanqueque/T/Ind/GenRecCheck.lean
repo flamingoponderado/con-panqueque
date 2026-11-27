@@ -123,9 +123,10 @@ theorem gb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
     (hnf : ∀ x ∈ ccs, x.nF < 2 ^ 56) (hds : BlkAt C.H pd (m.ds.map Enc.idxW)) (hdl : m.ds.length < 2 ^ 56)
     (hni : m.nIdx < 2 ^ 56) (hnP : g0.nP < 2 ^ 56) (hnpc : m.nPc < 2 ^ 62)
     (hcb : ∀ sl ∈ g0.slots, ∀ c C' ihs, sl = .minor c C' ihs → c < 2 ^ 63)
-    (hcvd : ∀ (pre : List EIdx) s s' cv, classRecTyOk mode C.fe { g0 with pre := pre } p.k rc rc.cvR 0 s = .ok (cv, s') →
-      (denoteE s'.store cv.type).isSome = true)
-    (s : AState) :
+    (s : AState)
+    (hcvd : ∀ (pre : List EIdx) s1 s' cv, g0.prefixBinders s = .ok (some pre, s1) →
+      classRecTyOk mode C.fe { g0 with pre := pre } p.k rc rc.cvR 0 s1 = .ok (cv, s') →
+      (denoteE s'.store cv.type).isSome = true) :
     SpecR (σ := σ) (Pre C s (gbParams.zip [cellA C opp, cellA C osl, BitVec.ofNat 64 g0.slots.length,
         BitVec.ofNat 64 g0.nP, cellA C oc, BitVec.ofNat 64 ccs.length, cellA C pd, BitVec.ofNat 64 m.ds.length,
         Enc.idxW fty, BitVec.ofNat 64 m.nIdx, Enc.idxW m.ind, Enc.idxW m.lvls, Enc.idxW g0.elim,
@@ -145,12 +146,13 @@ theorem gb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
       by simp +decide [sev, Env.get, gbParams, ctxEnv], by simp +decide [sev, Env.get, gbParams, ctxEnv],
       by simp +decide [sev, Env.get, gbParams, ctxEnv], by simp +decide [sev, Env.get, gbParams, ctxEnv],
       by simp +decide [sev, Env.get, gbParams, ctxEnv], by simp +decide [sev, Env.get, gbParams, ctxEnv], trivial⟩
-    (PostSL C) (fun o w _ H' => ∃ ds ob, o = some ds ∧ w = cellA C ob ∧ BlkAt H' ob (ds.map Enc.idxW))
-    (fun o w s' st ⟨ds, H', ob, h0, hp', hw, hb, hsr⟩ => ⟨H', hp', ⟨ds, ob, h0, hw, hb⟩, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu pbParams _ rfl hlk)
+    (fun o w s' st => g0.prefixBinders s = .ok (o, s') ∧ PostSL C o w s' st)
+    (fun o w s' H' => g0.prefixBinders s = .ok (o, s') ∧ ∃ ds ob, o = some ds ∧ w = cellA C ob ∧ BlkAt H' ob (ds.map Enc.idxW))
+    (fun o w s' st ⟨hpbr, ds, H', ob, h0, hp', hw, hb, hsr⟩ => ⟨H', hp', ⟨hpbr, ds, ob, h0, hw, hb⟩, hsr⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu pbParams _ rfl hlk)
       (pb_spec ra C hok hc.pb g0 m hcls fty hft ccs hctors k0 hsl0 opp osl oc pd hppl hpp hsll hsb hcl hcs hnf hds hdl
-        hni hnP hnpc hcb s))
-    (fun o w s1 H1 hp1 ⟨pre, opr, ho, hw, hpr⟩ => ?_)
+        hni hnP hnpc hcb s)))
+    (fun o w s1 H1 hp1 ⟨hpbr, pre, opr, ho, hw, hpr⟩ => ?_)
   subst ho hw
   have hp1' : C.H <+: H1 := hp1
   simp only
@@ -201,7 +203,7 @@ theorem gb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
   have hp2' : H1 <+: H2 := hp2
   have hpC2 : C.H <+: H2 := hp1'.trans hp2'
   obtain ⟨hnm, hlps⟩ := classRecTyOk_shape hrun
-  have hty := hcvd pre s1 s2 cvG hrun
+  have hty := hcvd pre s1 s2 cvG hpbr hrun
   refine specR_atEntry fun t2 ht2 => ?_
   have hfl : Ext C.St s2.store := ht2.sr.floor
   refine specR_invRaise (C := ctxH C H2) (R' := PostGR m (ctxSt (ctxH C H2) s2.store)) ?_

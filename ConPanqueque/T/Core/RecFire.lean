@@ -250,7 +250,7 @@ theorem rgL_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       BlkAt H ko (khs.map Enc.idxW) → Frontend.denoteNList s.store.ns khs = some ks →
       s.store.lss.view us = some uh → denoteLList s.store.ls uh = some vs → StoreWF s.store →
       ReadLCacheOK s.caches.readLC s.store → (∀ j (hj : j < src.length), (denoteL s.store.ls src[j]).isSome = true) →
-      src.length < 2 ^ 60 → L ≤ oa → L ≤ H.length →
+      src.length < 2 ^ 61 → L ≤ oa → L ≤ H.length →
       SpecR (σ := σ) (Pre (ctxH C H) s (rgParams.zip [boolW false, ecell C qs, BitVec.ofNat 64 src.length, cellA C ko,
         Enc.idxW us, cellA C oa])) (rgBody C) s (substLevelsAt ks vs src >>= fun hs => pure (acc ++ hs))
         (PostAL (ctxH C H) L) := by
@@ -825,7 +825,7 @@ theorem rf_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (hpl : rl.fire = .plain → ∃ pns, Frontend.denoteNList s.store.ns cvjLps = some pns)
     (hlv : ∀ lv, (∃ pins, rl.fire = .nested lv pins) ∨ rl.fire = .levels lv →
       ∀ j (hj : j < lv.length), (denoteL s.store.ls lv[j]).isSome = true)
-    (hlvl : ∀ lv, (∃ pins, rl.fire = .nested lv pins) ∨ rl.fire = .levels lv → lv.length < 2 ^ 60)
+    (hlvl : ∀ lv, (∃ pins, rl.fire = .nested lv pins) ∨ rl.fire = .levels lv → lv.length < 2 ^ 61)
     (hll : lps.length + 1 < 2 ^ 60) (hjl : cvjLps.length < 2 ^ 60) (H : List (BitVec 64)) (hp : C.H <+: H) :
     SpecR (σ := σ) (Pre (ctxH C H) s (rfParams.zip [ecell C qr, ecell C ok, Enc.idxW us, ecell C oj])) (rfBody C) s
       (recFireLevels rl lps us cvjLps) (PostLI (ctxH C H)) := by

@@ -165,7 +165,7 @@ theorem tmn_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     (ty0 : EIdx) (pfvs ds : List EIdx) (us : LsIdx) (ctors : List (IConstantVal × Nat)) (tbl : List NestCtorNf)
     (olp pp pa oq ot : Nat) (hlpl : ms0.cvT.levelParams.length < 2 ^ 59) (hdl : ds.length < 2 ^ 58)
     (hpl : pfvs.length < 2 ^ 58) (hcsl : ctors.length < 2 ^ 58) (htl : tbl.length < 2 ^ 58)
-    (hel : ∀ e ∈ tbl, e.ds.length < 2 ^ 58)
+    (hel : ∀ e ∈ tbl, e.ds.length < 2 ^ 61)
     (H0 : List (BitVec 64)) (hp0 : C.H <+: H0) (hlp : EBlk H0 olp (ms0.cvT.levelParams.map Enc.idxW))
     (hpf : BlkAt H0 pp (pfvs.map Enc.idxW)) (hA : BlkAt H0 pa (ds.map Enc.idxW)) (hcr : CtorsRep C H0 oq ctors)
     (htb : PRep C H0 ot (fun H o nf => NfRep C H o nf) tbl) :

@@ -2,6 +2,7 @@ import ConPanqueque.Front.IndLine
 import ConPanqueque.T.Ind.ReadBlockRecs
 import ConPanqueque.T.Ind.NestCtxRun
 import ConPanqueque.T.Ind.ReadBlockSplit
+import ConPanqueque.T.Ind.CrtDischarge
 
 /-! # The inductive record's twin-run facts, from the front end
 
@@ -9,7 +10,7 @@ import ConPanqueque.T.Ind.ReadBlockSplit
 twin: facts of the block `readBlock` answers when it runs at a checking state (con-ron's `FoldOK`) at
 which the block denotes.  `indRun_of_front` derives it from what the front end establishes of the
 block (`IndFront`: the inductive line's `IndBounds` at a store below the fold's floor, where the block
-denotes) and the facts not yet derived (`IndRunGap`).
+denotes).
 
 The derivation reads `readBlock` through con-ron's relational spec (`readBlock_run`: the answer
 denotes con-leche's `readBlock` of the denoted block) and con-leche's inversion (`readBlock_inv`):
@@ -72,6 +73,67 @@ theorem ks_of_denote {st : EStore} {v : IConstantVal} {c : ConLeche.ConstantVal}
   have hl := denoteNList_length h1
   exact ⟨c.levelParams, hl.symm, fun j hj => denoteNList_get h1 j hj (by omega)⟩
 
+/-! ## The firing modes -/
+
+theorem fireDen_of_denote {st : EStore} {f : IRecRuleFire} {x : ConLeche.RecRuleFire}
+    (h : Frontend.denoteFire st f = some x) : FireDen f st := by
+  have hl : ∀ (lv : List LIdx) (ls : List ConLeche.Level), denoteLList st.ls lv = some ls →
+      ∀ u ∈ lv, (denoteL st.ls u).isSome = true := fun lv ls hd u hu => by
+    obtain ⟨hlen, hg⟩ := ConPanqueque.T.LLeq.denoteLList_get st.ls lv ls hd
+    obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem hu
+    rw [hg j hj]; rfl
+  cases f with
+  | plain =>
+    refine ⟨fun lv h => ?_, fun lv pins h => ?_⟩
+    · rcases h with ⟨_, h⟩ | h <;> cases h
+    · cases h
+  | nested lvls pins =>
+    simp only [Frontend.denoteFire] at h
+    cases h1 : denoteLList st.ls lvls <;> cases h2 : Frontend.denoteEList st pins <;> simp only [h1, h2, reduceCtorEq] at h
+    rename_i ls ps
+    refine ⟨fun lv hlv u hu => ?_, fun lv pins' he p hp => ?_⟩
+    · rcases hlv with ⟨_, he⟩ | he <;> cases he
+      exact hl _ _ h1 u hu
+    · cases he
+      exact denoteEList_get h2 p hp
+  | levels lvls =>
+    simp only [Frontend.denoteFire] at h
+    cases h1 : denoteLList st.ls lvls <;> simp only [h1, Option.map_none, Option.map_some, reduceCtorEq] at h
+    refine ⟨fun lv hlv u hu => ?_, fun lv pins' he => by cases he⟩
+    rcases hlv with ⟨_, he⟩ | he <;> cases he
+    exact hl _ _ h1 u hu
+
+theorem fireDen_ext {st st' : EStore} (hx : Ext st st') {f : IRecRuleFire} (h : FireDen f st) : FireDen f st' :=
+  ⟨fun lv hlv u hu => by
+    obtain ⟨l, hl⟩ := Option.isSome_iff_exists.mp (h.1 lv hlv u hu)
+    rw [ConRon.Bridge.denoteL_ext hl hx]; rfl,
+   fun lv pins hf p hp => denoteE_isSome_ext hx (h.2 lv pins hf p hp)⟩
+
+theorem recFires_den {p : BlockShape} {pP : ConLeche.BlockShape} :
+    ∀ (rcs : List RecShape) (rcsP : List ConLeche.RecShape) (sa sb : AState) (fs : List IRecRuleFire),
+      StateOK sa → PinsOK sa → ConRon.Bridge.Inductives.dShape sa.store p = some pP →
+      rcs.mapM (ConRon.Bridge.Inductives.dRec sa.store) = some rcsP → rcs.mapM (recFire p) sa = .ok (fs, sb) →
+      Ext sa.store sb.store ∧ ∀ f ∈ fs, FireDen f sb.store
+  | [], rcsP, sa, sb, fs, hok, hpo, hp, hrs, hrun => by
+    simp only [List.mapM_nil, pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at hrun
+    obtain ⟨rfl, rfl⟩ := hrun
+    exact ⟨Ext.refl _, fun f hf => absurd hf List.not_mem_nil⟩
+  | rc :: rest, rcsP, sa, sb, fs, hok, hpo, hp, hrs, hrun => by
+    obtain ⟨rcP, rsP', -, hrc, hrs'⟩ := ConRon.Bridge.Inductives.mapM_option_cons_inv hrs
+    rw [List.mapM_cons] at hrun
+    obtain ⟨f, s1, k1, z1⟩ := bind_ok_inv' hrun
+    obtain ⟨fs', s2, k2, z2⟩ := bind_ok_inv' z1
+    simp only [pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at z2
+    obtain ⟨rfl, rfl⟩ := z2
+    obtain ⟨p1, -, hf⟩ := ConRon.Bridge.Inductives.recFire_run hok hpo hp hrc k1
+    obtain ⟨hx2, hfs⟩ := recFires_den rest rsP' s1 s2 fs' p1.ok (hpo.mono p1.ext p1.pins)
+      (ConRon.Bridge.Inductives.dShape_ext p1.ext _ _ hp)
+      (ConRon.Bridge.Inductives.dRec_ext.list p1.ext _ _ hrs') k2
+    refine ⟨p1.ext.trans hx2, fun g hg => ?_⟩
+    rcases List.mem_cons.mp hg with rfl | hg
+    · exact fireDen_ext hx2 (fireDen_of_denote hf)
+    · exact hfs g hg
+
 /-! ## What the front end supplies, and what is left -/
 
 /-- **What the front end establishes of an inductive record's block**: the inductive line's bounds
@@ -79,46 +141,11 @@ theorem ks_of_denote {st : EStore} {v : IConstantVal} {c : ConLeche.ConstantVal}
 def IndFront (C : Ctx) (block : List IConstantInfo) (nP : Nat) : Prop :=
   ∃ s0 : AState, Ext s0.store C.St ∧ IndBounds s0 block nP ∧ (Frontend.denoteCIList s0.store block).isSome
 
-/-- `CBKRun` less its walk's-context clause (`bn`, derived by `blockNestCtx_facts`) and its tables clause
-(`tables`, derived by con-ron's `blockTables_run`). -/
-structure CBKRunRest (mode : ConLeche.CheckMode) (C : Ctx) (p₀ : BlockShape) (ms0 : MemberShape) (rc : RecShape) :
-    Prop where
-  pass : ∀ (env : ConLeche.Env) (s0 : AState) (ms : List MemberShape) (isRec : Bool) (s : AState) (q : BlockPass)
-    (s' : AState), CheckOK false env C.fe s0 → ConLeche.EnvWF env →
-    ConRon.Bridge.Inductives.EnvRel env C.fe s0.store → Ext C.St s0.store →
-    cbkPre mode C.fe p₀ s0 = .ok ((ms, isRec), s) →
-    checkBlockPass mode C.fe { p₀ with members := ms } isRec s = .ok (q, s') → PassFacts q ms0
-  crt : ∀ (env : ConLeche.Env) (s0 : AState) (ms : List MemberShape) (isRec : Bool) (s : AState) (q : BlockPass)
-    (s' : AState), CheckOK false env C.fe s0 → ConLeche.EnvWF env →
-    ConRon.Bridge.Inductives.EnvRel env C.fe s0.store → Ext C.St s0.store →
-    cbkPre mode C.fe p₀ s0 = .ok ((ms, isRec), s) →
-    checkBlockPass mode C.fe { p₀ with members := ms } isRec s = .ok (q, s') →
-    (∀ m ∈ q.cls, ∀ (xs : List ClassCtor) (el : LIdx) (pre : List EIdx) s s' cv,
-      classRecTyOk mode (consSumCtors p₀.nP ms0.cvT.name ms0.ctors q.env1)
-        ⟨p₀.nP, q.params, [{ m with nfs := q.tbl }], [ms0.cvT.type], q.rd.slots, [xs], el, pre⟩
-        p₀.k rc rc.cvR 0 s = .ok (cv, s') → (denoteE s'.store cv.type).isSome = true)
-
-/-- **The facts `indRun_of_front` does not derive yet**, each in the shape `IndRun` asks for it: the firing
-modes' rules denoting with level lists below `2⁶⁰` (`RecDen`'s bound; the store's and the heap's layouts only give
-`2⁶¹`), and `checkBlock`'s pass facts (`CBKRunRest`: `PassFacts`, and the generated recursor types denoting). -/
-structure IndRunGap (C : Ctx) (block : List IConstantInfo) (nP : Nat) : Prop where
-  fire : ∀ (env : ConLeche.Env) (fe : IFEnv) (b : List ConLeche.ConstantInfo) (s : AState) (p : BlockShape)
-    (s' : AState), FoldOK env fe s → Ext C.St s.store → Frontend.denoteCIList s.store block = some b →
-    readBlock nP block s = .ok (.ok p, s') →
-    ∀ sa sb fs, StateOK sa → PinsOK sa → Ext s'.store sa.store → p.recs.mapM (recFire p) sa = .ok (fs, sb) →
-      ∀ ci ∈ recsOf p.recs fs, ∀ cv mI rP isK rules, ci = .recInfo cv mI rP isK rules → ∀ rl ∈ rules,
-        RuleDen rl sb.store
-  cbk : ∀ (env : ConLeche.Env) (fe : IFEnv) (b : List ConLeche.ConstantInfo) (s : AState) (p : BlockShape)
-    (s' : AState), FoldOK env fe s → Ext C.St s.store → Frontend.denoteCIList s.store block = some b →
-    readBlock nP block s = .ok (.ok p, s') →
-    ∀ C' : Ctx, C'.St = s'.store → C'.code = C.code → ∀ ms0 rc, p.members = [ms0] → p.recs = [rc] →
-      CBKRunRest .verified C' p ms0 rc
-
-/-- **The inductive record's twin-run facts, from the front end's** (and `IndRunGap`): `readBlock`'s
+/-- **The inductive record's twin-run facts, from the front end's**: `readBlock`'s
 answer denotes con-leche's (`readBlock_run`), whose records are the block's (`readBlock_records`), whose
 counts and level-parameter lists the inductive line bounded (`IndBounds`). -/
-theorem indRun_of_front {C : Ctx} {block : List IConstantInfo} {nP : Nat} (hF : IndFront C block nP)
-    (hG : IndRunGap C block nP) : IndRun C block nP := by
+theorem indRun_of_front {C : Ctx} {block : List IConstantInfo} {nP : Nat} (hF : IndFront C block nP) :
+    IndRun C block nP := by
   intro env fe b s p s' hfo hx hb hrun
   obtain ⟨s0, hx0, hB, hd0⟩ := hF
   obtain ⟨b0, hb0⟩ := Option.isSome_iff_exists.mp hd0
@@ -202,8 +229,9 @@ theorem indRun_of_front {C : Ctx} {block : List IConstantInfo} {nP : Nat} (hF : 
     fun rc hrc => by have := (HRb rc hrc).2.1; omega, hsum,
     ⟨fun ms hms => ⟨(HMb ms hms).2.2.1, (HMb ms hms).2.1, fun c hc => ((HMb ms hms).2.2.2.2.2 c hc).1⟩,
       fun rc hrc => (HRb rc hrc).1⟩,
-    hG.fire env fe b s p s' hfo hx hb0' hrun⟩, fun C' hSt hcode ms0 rc hm hr => ?_⟩
-  have hcbk := hG.cbk env fe b s p s' hfo hx hb0' hrun C' hSt hcode ms0 rc hm hr
+    fun sa sb fs hst hpo hxa hfr => (recFires_den p.recs pP.recs sa sb fs hst hpo
+      (ConRon.Bridge.Inductives.dShape_ext hxa _ _ hdsh)
+      (ConRon.Bridge.Inductives.dRec_ext.list hxa _ _ hrsD) hfr).2⟩, fun C' hSt hcode ms0 rc hm hr => ?_⟩
   have hsp : SplitOK p block := readBlock_splitOK hrun (by rw [hm]; rfl)
   have hms0 : ms0 ∈ p.members := by rw [hm]; exact List.mem_singleton_self _
   have hrc0 : rc ∈ p.recs := by rw [hr]; exact List.mem_singleton_self _
@@ -266,7 +294,11 @@ theorem indRun_of_front {C : Ctx} {block : List IConstantInfo} {nP : Nat} (hF : 
       exact denoteEList_get hys x hx
   refine ⟨hsp, by omega, by omega, by omega, hcl, fun c hc => ?_, hmI, by omega, by omega, by omega,
     by rw [hSt]; exact ks_of_denote hcvT', by rw [hSt]; exact ks_of_denote hcvR', by rw [hSt]; exact hdd,
-    fun c hc => ?_, by rw [hSt]; exact hrd, ⟨hbn, hcbk.pass, hcbk.crt, htb⟩⟩
+    fun c hc => ?_, by rw [hSt]; exact hrd, ⟨hbn, fun env' s0 ms isRec s₁ q s5 Q s6 s3 m g0 cvRis s7 pre s₂ s'' cv hck henv hrel hx0 hpre hpass htab hm hrc
+      hctb hga hpb hcro => crt_discharge (ConLeche.readBlock_declared hpPr) hck henv hrel
+        (ConRon.Bridge.Inductives.dShape_ext (by rw [hSt] at hx0; exact hx0) _ _ hdsh)
+        (ConRon.Bridge.denoteCIList_mono (hps.ext.trans (by rw [hSt] at hx0; exact hx0)) _ _ hb0')
+        hpre hpass htab hm hrc hctb hga hpb hcro, htb⟩⟩
   · have := (hcts c hc).2.2; omega
   · obtain ⟨hcd, hcl', hc2⟩ := hcts c hc
     refine ⟨by rw [hSt]; exact hcd, by omega, by omega, ?_⟩

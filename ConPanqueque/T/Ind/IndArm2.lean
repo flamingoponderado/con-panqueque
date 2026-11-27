@@ -83,7 +83,7 @@ def BRFacts (p : BlockShape) (st : EStore) : Prop :=
   ((∀ ms ∈ p.members, CVDen ms.declared st ∧ (CVDen ms.cvT st) ∧ ∀ c ∈ ms.ctors, CVDen c.1 st) ∧
     ∀ rc ∈ p.recs, CVDen rc.cvR st) ∧
   (∀ sa sb fs, StateOK sa → PinsOK sa → Ext st sa.store → p.recs.mapM (recFire p) sa = .ok (fs, sb) →
-    ∀ ci ∈ recsOf p.recs fs, ∀ cv mI rP isK rules, ci = .recInfo cv mI rP isK rules → ∀ rl ∈ rules, RuleDen rl sb.store)
+    ∀ f ∈ fs, FireDen f sb.store)
 
 /-- **The twin-run facts the inductive record relies on**: of the block `readBlock` answers, at the store it
 answers in — when it is run at a checking state (con-ron's `FoldOK`, the bridge's invariant with the caches

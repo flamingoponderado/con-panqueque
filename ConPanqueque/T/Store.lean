@@ -465,7 +465,7 @@ def PinDen (p : Pins) (st : EStore) : Prop :=
 def RecDen (fe : IFEnv) (st : EStore) : Prop :=
   ∀ c cv mI rP isK rules, fe.find? c = some (.recInfo cv mI rP isK rules) → ∀ rl ∈ rules,
     (∀ lv, ((∃ pins, rl.fire = .nested lv pins) ∨ rl.fire = .levels lv) →
-      (∀ u ∈ lv, (denoteL st.ls u).isSome = true) ∧ lv.length < 2 ^ 60) ∧
+      (∀ u ∈ lv, (denoteL st.ls u).isSome = true) ∧ lv.length < 2 ^ 61) ∧
     (∀ lv pins, rl.fire = .nested lv pins → ∀ p ∈ pins, (denoteE st p).isSome = true)
 
 def EnvDen (fe : IFEnv) (p : Pins) (st : EStore) : Prop :=

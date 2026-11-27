@@ -332,8 +332,42 @@ theorem constDen_ext {fe : IFEnv} {st st' : EStore} (h : ConstDen fe st) (hx : E
 /-- A recursor rule's firing data denote (the per-rule clause of `RecDen`). -/
 def RuleDen (rl : IRecRule) (st : EStore) : Prop :=
   (∀ lv, ((∃ pins, rl.fire = .nested lv pins) ∨ rl.fire = .levels lv) →
-    (∀ u ∈ lv, (denoteL st.ls u).isSome = true) ∧ lv.length < 2 ^ 60) ∧
+    (∀ u ∈ lv, (denoteL st.ls u).isSome = true) ∧ lv.length < 2 ^ 61) ∧
   (∀ lv pins, rl.fire = .nested lv pins → ∀ p ∈ pins, (denoteE st p).isSome = true)
+
+/-- A firing mode's data denote (`RuleDen` less the levels' length bound). -/
+def FireDen (f : IRecRuleFire) (st : EStore) : Prop :=
+  (∀ lv, ((∃ pins, f = .nested lv pins) ∨ f = .levels lv) → ∀ u ∈ lv, (denoteL st.ls u).isSome = true) ∧
+  (∀ lv pins, f = .nested lv pins → ∀ p ∈ pins, (denoteE st p).isSome = true)
+
+theorem eblk_len {H : List (BitVec 64)} {o : Nat} {xs : List (BitVec 64)} (h : EBlk H o xs) : xs.length < H.length := by
+  have h0 := (List.getElem?_eq_some_iff.mp h.1).1
+  rcases Nat.eq_zero_or_pos xs.length with he | hp
+  · omega
+  · have := (List.getElem?_eq_some_iff.mp (h.2 (xs.length - 1) (by omega))).1; omega
+
+theorem fireE_len {EB : BitVec 64} {H : List (BitVec 64)} {o : Nat} {f : IRecRuleFire} (h : FireE EB H o f) :
+    ∀ lv, ((∃ pins, f = .nested lv pins) ∨ f = .levels lv) → lv.length < H.length := by
+  intro lv hlv
+  rcases hlv with ⟨pins, rfl⟩ | rfl
+  · obtain ⟨-, ⟨w, -, o', -, hb⟩, -⟩ := h
+    have := eblk_len hb; simpa using this
+  · obtain ⟨-, w, -, o', -, hb⟩ := h
+    have := eblk_len hb; simpa using this
+
+/-- A stored recursor's rules: their levels are shorter than the heap. -/
+theorem cie_rec_len {EB : BitVec 64} {H : List (BitVec 64)} {o : Nat} {cv : IConstantVal} {mI rP : Nat} {isK : Bool}
+    {rules : List IRecRule} (h : CIE EB H o (.recInfo cv mI rP isK rules)) :
+    ∀ rl ∈ rules, ∀ lv, ((∃ pins, rl.fire = .nested lv pins) ∨ rl.fire = .levels lv) → lv.length < H.length := by
+  intro rl hrl lv hlv
+  obtain ⟨-, -, -, -, -, w, -, o', -, -, hrs⟩ := h
+  obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem hrl
+  obtain ⟨q, -, hq⟩ := hrs i hi
+  exact fireE_len hq.2.2.1 lv hlv
+
+theorem ruleDen_of_fire {rl : IRecRule} {st : EStore} (hf : FireDen rl.fire st)
+    (hl : ∀ lv, ((∃ pins, rl.fire = .nested lv pins) ∨ rl.fire = .levels lv) → lv.length < 2 ^ 61) : RuleDen rl st :=
+  ⟨fun lv hlv => ⟨hf.1 lv hlv, hl lv hlv⟩, hf.2⟩
 
 theorem ruleDen_ext {rl : IRecRule} {st st' : EStore} (h : RuleDen rl st) (hx : Ext st st') : RuleDen rl st' := by
   refine ⟨fun lv hlv => ⟨fun u hu => ?_, (h.1 lv hlv).2⟩, fun lv pins hf p hp => denoteE_isSome_ext hx (h.2 lv pins hf p hp)⟩
