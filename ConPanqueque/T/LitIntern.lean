@@ -122,6 +122,10 @@ theorem ldepth_pos : ∀ u : ConLeche.Level, 1 ≤ ldepth u
   | .imax u _ => Nat.le_trans (ldepth_pos u) (Nat.le_max_left _ _)
   | .param _ => Nat.le_refl _
 
+theorem bind_ok_of {α β : Type} {A : AM α} {K : α → AM β} {s s1 s2 : AState} {a : α} {b : β}
+    (h1 : A s = .ok (a, s1)) (h2 : K a s1 = .ok (b, s2)) : (A >>= K) s = .ok (b, s2) := by
+  simp [bind, StateT.bind, h1, Except.bind, h2]
+
 /-- The level node functions and the name interner. -/
 structure LCodes (C : Ctx) : Prop where
   z : C.code.lookup fInternLZero = some ([], internLZeroBody, .one)
@@ -139,7 +143,7 @@ theorem genL_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : C
     ∀ (u : ConLeche.Level) (d : Nat) (rest : ProgHOL 64) (Γ : Env) (M : Mem) (s : AState) {β : Type}
       {k : LIdx → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}, LvlOK u →
       (∀ j, d ≤ j → j < d + ldepth u → gl j ∈ D) →
-      (∀ h s' Γ', AgreeL Γ Γ' d → Γ'.get (gl d) = some (Enc.idxW h) →
+      (∀ h s' Γ', AgreeL Γ Γ' d → Γ'.get (gl d) = some (Enc.idxW h) → internLevel u s = .ok (h, s') →
         SpecR (Inv C s' Γ' [] D) rest s' (k h) R) →
       SpecR (Inv C s Γ M D) (genL C d u rest) s (internLevel u >>= k) R := by
   intro u
@@ -150,45 +154,46 @@ theorem genL_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : C
     refine specR_congr (m' := internLNode .zero >>= k) (by simp [internLevel]) ?_
     exact callLN (gl d) fInternLZero [] [] internLZeroBody [] (by decide) rfl (hD d (Nat.le_refl _) (by simp [ldepth]))
       hc.z trivial .zero (internLZero_body_spec ra C hok s)
-      (fun h s' _ => hk h s' _ (agreeL_cons (Nat.le_refl _) _) (by simp [Env.get_cons]))
+      (fun h s' hr => hk h s' _ (agreeL_cons (Nat.le_refl _) _) (by simp [Env.get_cons]) (hr))
   | succ u ih =>
     intro d rest Γ M s β k R hu hD hk
     unfold genL
     refine specR_congr (m' := internLevel u >>= fun hu => internLNode (.succ hu) >>= k)
       (by simp [internLevel, bind_assoc]) ?_
-    refine ih d _ Γ M s hu (fun j h1 h2 => hD j h1 (by simpa [ldepth] using h2)) (fun h1 s1 Γ1 ag1 hg1 => ?_)
+    refine ih d _ Γ M s hu (fun j h1 h2 => hD j h1 (by simpa [ldepth] using h2)) (fun h1 s1 Γ1 ag1 hg1 hr1 => ?_)
     exact callLN (gl d) fInternLSucc [lEu] [vv (gl d)] internLSuccBody [Enc.idxW h1] (by decide) rfl
       (hD d (Nat.le_refl _) (by have := ldepth_pos u; simp [ldepth]; omega)) hc.s ⟨by simp [sev, vv, hg1], trivial⟩ (.succ h1)
       (internLSucc_body_spec ra C hok s1 h1)
-      (fun h s' _ => hk h s' _ (agreeL_trans ag1 (agreeL_cons (Nat.le_refl _) _)) (by simp [Env.get_cons]))
+      (fun h s' hr => hk h s' _ (agreeL_trans ag1 (agreeL_cons (Nat.le_refl _) _)) (by simp [Env.get_cons])
+        (bind_ok_of hr1 hr))
   | max u v ihu ihv =>
     intro d rest Γ M s β k R huv hD hk
     unfold genL
     refine specR_congr (m' := internLevel u >>= fun hu => internLevel v >>= fun hv => internLNode (.max hu hv) >>= k)
       (by simp [internLevel, bind_assoc]) ?_
-    refine ihu d _ Γ M s huv.1 (fun j h1 h2 => hD j h1 (by simp [ldepth]; omega)) (fun h1 s1 Γ1 ag1 hg1 => ?_)
+    refine ihu d _ Γ M s huv.1 (fun j h1 h2 => hD j h1 (by simp [ldepth]; omega)) (fun h1 s1 Γ1 ag1 hg1 hr1 => ?_)
     refine ihv (d + 1) _ Γ1 [] s1 huv.2 (fun j h1 h2 => hD j (by omega) (by simp [ldepth]; omega))
-      (fun h2 s2 Γ2 ag2 hg2 => ?_)
+      (fun h2 s2 Γ2 ag2 hg2 hr2 => ?_)
     have hg1' : Γ2.get (gl d) = some (Enc.idxW h1) := by rw [agreeL_keep ag2]; exact hg1
     exact callLN (gl d) fInternLMax [lEu, lEv] [vv (gl d), vv (gl (d + 1))] internLMaxBody [Enc.idxW h1, Enc.idxW h2]
       (by decide) rfl (hD d (Nat.le_refl _) (by have := ldepth_pos u; simp [ldepth]; omega)) hc.m
       ⟨by simp [sev, vv, hg1'], by simp [sev, vv, hg2], trivial⟩ (.max h1 h2) (internLMax_body_spec ra C hok s2 h1 h2)
-      (fun h s' _ => hk h s' _ (agreeL_trans ag1 (agreeL_trans (agreeL_succ ag2) (agreeL_cons (Nat.le_refl _) _)))
-        (by simp [Env.get_cons]))
+      (fun h s' hr => hk h s' _ (agreeL_trans ag1 (agreeL_trans (agreeL_succ ag2) (agreeL_cons (Nat.le_refl _) _)))
+        (by simp [Env.get_cons]) (bind_ok_of hr1 (bind_ok_of hr2 hr)))
   | imax u v ihu ihv =>
     intro d rest Γ M s β k R huv hD hk
     unfold genL
     refine specR_congr (m' := internLevel u >>= fun hu => internLevel v >>= fun hv => internLNode (.imax hu hv) >>= k)
       (by simp [internLevel, bind_assoc]) ?_
-    refine ihu d _ Γ M s huv.1 (fun j h1 h2 => hD j h1 (by simp [ldepth]; omega)) (fun h1 s1 Γ1 ag1 hg1 => ?_)
+    refine ihu d _ Γ M s huv.1 (fun j h1 h2 => hD j h1 (by simp [ldepth]; omega)) (fun h1 s1 Γ1 ag1 hg1 hr1 => ?_)
     refine ihv (d + 1) _ Γ1 [] s1 huv.2 (fun j h1 h2 => hD j (by omega) (by simp [ldepth]; omega))
-      (fun h2 s2 Γ2 ag2 hg2 => ?_)
+      (fun h2 s2 Γ2 ag2 hg2 hr2 => ?_)
     have hg1' : Γ2.get (gl d) = some (Enc.idxW h1) := by rw [agreeL_keep ag2]; exact hg1
     exact callLN (gl d) fInternLImax [lEu, lEv] [vv (gl d), vv (gl (d + 1))] internLImaxBody [Enc.idxW h1, Enc.idxW h2]
       (by decide) rfl (hD d (Nat.le_refl _) (by have := ldepth_pos u; simp [ldepth]; omega)) hc.i
       ⟨by simp [sev, vv, hg1'], by simp [sev, vv, hg2], trivial⟩ (.imax h1 h2) (internLImax_body_spec ra C hok s2 h1 h2)
-      (fun h s' _ => hk h s' _ (agreeL_trans ag1 (agreeL_trans (agreeL_succ ag2) (agreeL_cons (Nat.le_refl _) _)))
-        (by simp [Env.get_cons]))
+      (fun h s' hr => hk h s' _ (agreeL_trans ag1 (agreeL_trans (agreeL_succ ag2) (agreeL_cons (Nat.le_refl _) _)))
+        (by simp [Env.get_cons]) (bind_ok_of hr1 (bind_ok_of hr2 hr)))
   | param n =>
     intro d rest Γ M s β k R hn hD hk
     obtain ⟨cs, hcs, hcok⟩ := hn
@@ -198,13 +203,13 @@ theorem genL_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : C
       (by simp [internLevel, bind_assoc]) ?_
     refine specR_atEntry fun t0 ht0 => ?_
     refine name_spec ra C hok hf hc.n D hPn hKa n cs hcs hcok s ⟨ht0.sr.twf⟩ (denoteN_ext hA ht0.sr.floor) Γ M _
-      (fun h1 s1 Γ1 ag1 hg1 _ => ?_)
+      (fun h1 s1 Γ1 ag1 hg1 hrn => ?_)
     exact callLN (gl d) fInternLParam [lEn] [vv vPn] internLParamBody [Enc.idxW h1] (by decide) rfl
       (hD d (Nat.le_refl _) (by simp [ldepth])) hc.p ⟨by simp [sev, vv, hg1], trivial⟩ (.param h1)
       (internLParam_body_spec ra C hok s1 h1)
-      (fun h s' _ => hk h s' _ (fun y hy h3 h4 => by
+      (fun h s' hr => hk h s' _ (fun y hy h3 h4 => by
           rw [Env.get_cons, ite_eq_right (fun e => hy 'l' d (Nat.le_refl _) e)]; exact ag1 y h3 h4)
-        (by simp [Env.get_cons]))
+        (by simp [Env.get_cons]) (bind_ok_of hrn hr))
 
 end
 
@@ -243,7 +248,7 @@ theorem fillLs_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
       (_ : Γ.get (gv 'k' d) = some (cellA C o))
       (_ : ∀ hs' s' Γ' H' (e1 : (hs ++ hs').length = n),
         (∀ j (hj : j < n), H'[o + j]? = some (Enc.idxW ((hs ++ hs')[j]'(by omega)))) →
-        H1 <+: H' → H'.length = o + n → AgreeL Γ Γ' (d + 1) →
+        H1 <+: H' → H'.length = o + n → AgreeL Γ Γ' (d + 1) → internLevelList us s = .ok (hs', s') →
         SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k (hs ++ hs')) R),
       SpecR (Inv (ctxH C H) s Γ M D) (fillLs C d us i rest) s (internLevelList us >>= fun hs' => k (hs ++ hs')) R := by
   intro us
@@ -254,7 +259,7 @@ theorem fillLs_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
     simp only [internLevelList, pure_bind, List.append_nil]
     intro t ht
     simp only [List.length_nil, Nat.add_zero] at hn
-    have := hk [] s Γ H (by simp; omega) (fun j hj => by simpa using hcell j (by omega)) hp hH (agreeL_refl _ _)
+    have := hk [] s Γ H (by simp; omega) (fun j hj => by simpa using hcell j (by omega)) hp hH (agreeL_refl _ _) rfl
     rw [List.append_nil] at this
     exact this t (lit_dropMem ht)
   | cons u us ih =>
@@ -264,7 +269,7 @@ theorem fillLs_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
       (by simp [internLevelList, bind_assoc]) ?_
     rw [← genL_ctxH C H]
     refine genL_spec ra (ctxH C H) (ctxOK_H hok H) (by ctx_tr hf) hA (by ctx_tr hc) D hPn hKa u (d + 1) _ Γ M s
-      (hok' u (List.mem_cons_self ..)) (hD u (List.mem_cons_self ..)) (fun hu s1 Γ1 ag1 hg1 => ?_)
+      (hok' u (List.mem_cons_self ..)) (hD u (List.mem_cons_self ..)) (fun hu s1 Γ1 ag1 hg1 hr1 => ?_)
     have hk1 : Γ1.get (gv 'k' d) = some (cellA C o) := by rw [agreeL_keep ag1]; exact hk0
     simp only [List.length_cons] at hn
     have hlt : o + i < H.length := by omega
@@ -287,9 +292,9 @@ theorem fillLs_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok :
         · rw [if_neg (by omega)]
           have := hcell j (by omega)
           rw [this]; simp [List.getElem_append_left (show j < hs.length by omega)])
-      hk1 (fun hs' s' Γ' H' e1 e2 e3 e4 e5 => by
+      hk1 (fun hs' s' Γ' H' e1 e2 e3 e4 e5 e6 => by
         have := hk (hu :: hs') s' Γ' H' (by simpa using e1) (fun j hj => by simpa using e2 j hj) e3 e4
-          (agreeL_trans ag1 e5)
+          (agreeL_trans ag1 e5) (by simp only [internLevelList]; exact bind_ok_of hr1 (bind_ok_of e6 rfl))
         simpa using this)
     simp only [List.append_assoc, List.singleton_append] at this
     exact this
@@ -303,7 +308,7 @@ theorem genLs_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
     (hus : ∀ u ∈ us, LvlOK u) (hD : ∀ u ∈ us, ∀ j, d + 1 ≤ j → j < d + 1 + ldepth u → gl j ∈ D)
     (hgk : gv 'k' d ∈ D) (hgs : gv 's' d ∈ D) (hlen : us.length < 2 ^ 59)
     (hk : ∀ h s' Γ' H', C.H <+: H' → AgreeL Γ Γ' d → Γ'.get (gv 's' d) = some (Enc.idxW h) →
-      SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k h) R) :
+      internLevels us s = .ok (h, s') → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k h) R) :
     SpecR (Inv C s Γ M D) (genLs C d us rest) s (internLevels us >>= k) R := by
   unfold genLs
   refine specR_congr (m' := internLevelList us >>= fun hs' => (fun hs => internLsNode hs >>= k) ([] ++ hs'))
@@ -311,7 +316,7 @@ theorem genLs_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
   refine specR_allocI (gv 'k' d) _ us.length (by omega) hgk (fun v => rfl) (fun H1 ws hp1 hws hroom => ?_)
   refine fillLs_spec ra C hok hf hA hc D hPn hKa d H1.length us.length H1 rfl us 0 [] (H1 ++ ws) _ ((gv 'k' d, cellA C H1.length) :: Γ) M s (k := fun hs => internLsNode hs >>= k) (R := R) hus hD rfl
     (by simp) (List.prefix_append _ _) (by simp [hws]) (fun j hj => absurd hj (by omega)) (by rw [Env.get_cons, if_pos rfl])
-    (fun hs' s1 Γ1 H2 e1 e2 e3 e4 e5 => ?_)
+    (fun hs' s1 Γ1 H2 e1 e2 e3 e4 e5 e6 => ?_)
   simp only [List.nil_append] at e1 e2 ⊢
   have gk : Γ1.get (gv 'k' d) = some (cellA C H1.length) := by
     rw [agreeL_keep e5, Env.get_cons, if_pos rfl]
@@ -319,19 +324,21 @@ theorem genLs_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : 
     internLsBody [cellA C H1.length, BitVec.ofNat 64 hs'.length] (by decide) rfl hgs hcIs
     ⟨by simp [sev, vv, gk], by rw [e1]; rfl, trivial⟩
     (fun a w s' st => internLsNode hs' s1 = .ok (a, s') ∧ PostLs (ctxH (ctxH C H2) H1) a w s' st)
-    (fun a w s' H' => H' = H1 ∧ w = Enc.idxW a)
-    (fun a w s' st ⟨_, hw, hsr⟩ => ⟨H1, ⟨rfl, hw⟩, hsr⟩)
+    (fun a w s' H' => H' = H1 ∧ w = Enc.idxW a ∧ internLsNode hs' s1 = .ok (a, s'))
+    (fun a w s' st ⟨hrl, hw, hsr⟩ => ⟨H1, ⟨rfl, hw, hrl⟩, hsr⟩)
     (fun u hu _ hlk => specR_run (fun w' hw' => by
       subst hw'
       exact internLs_body_spec ra (ctxH C H2) (ctxOK_H hok H2) s1 hs' H1.length H1 e3 (Nat.le_refl _)
         (by show H1.length + hs'.length ≤ H2.length; omega) (by omega)
         (fun j hj => e2 j (by omega)) _ (pre_of_lookups hu [pKey, lEc] _ rfl hlk)))
-    (fun h w2 s2 H' ⟨e, hw⟩ => ?_)
+    (fun h w2 s2 H' ⟨e, hw, hrl⟩ => ?_)
   subst hw
-  exact hk h s2 _ H' (e ▸ hp1) (fun y hy h3 h4 => by
+  refine hk h s2 _ H' (e ▸ hp1) (fun y hy h3 h4 => by
       rw [Env.get_cons, ite_eq_right (fun e => hy 's' d (Nat.le_refl _) e)]
       rw [e5 y (fun c j hj => hy c j (by omega)) h3 h4, Env.get_cons, ite_eq_right (fun e => hy 'k' d (Nat.le_refl _) e)])
-    (by simp [Env.get_cons])
+    (by simp [Env.get_cons]) ?_
+  simp only [internLevels]
+  exact bind_ok_of e6 hrl
 
 end
 
@@ -444,11 +451,36 @@ theorem callEN {β : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D : List
     (hx : x ∈ D) (hC : C.code.lookup f = some (ps.map (fun p => (p, ShapeHOL.one)), B, .one))
     (hes : EvAll (fun e v => sev Γ e = some v) es vs) (m : AM EIdx)
     (hspec : SpecR (Pre (σ := σ) C s (ps.zip vs)) B s m (PostE C))
-    (hk : ∀ h s', SpecR (Inv C s' ((x, Enc.idxW h) :: Γ) [] D) rest s' (k h) R) :
+    (hk : ∀ h s', m s = .ok (h, s') → SpecR (Inv C s' ((x, Enc.idxW h) :: Γ) [] D) rest s' (k h) R) :
     SpecR (Inv C s Γ M D) (.seq (.call (some (some (.local, x), none)) f es) rest) s (m >>= k) R :=
-  specR_callNIM x f ps es B vs hnd hl hx hC hes (PostE C) (fun _ _ _ _ hp => hp.2)
-    (fun u hu _ hlk => fun t ht => by subst ht; exact hspec _ (pre_of_lookups hu ps vs hl hlk))
-    (fun h w s' st ⟨hw, _⟩ => by subst hw; exact hk h s')
+  specR_callNIM x f ps es B vs hnd hl hx hC hes
+    (fun a w s' st => m s = .ok (a, s') ∧ PostE C a w s' st) (fun _ _ _ _ hp => hp.2.2)
+    (fun u hu _ hlk => specR_run (fun w hw => by subst hw; exact hspec _ (pre_of_lookups hu ps vs hl hlk)))
+    (fun h w s' st ⟨hr, hw, _⟩ => by subst hw; exact hk h s' hr)
+
+theorem lam_body_spec' (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (s : AState)
+    (f a : EIdx) :
+    SpecR (Pre (σ := σ) C s [(lEf, Enc.idxW f), (lEa, Enc.idxW a)]) (bin2Body lamDataE 14) s (internLamE f a)
+      (PostE C) :=
+  bin2_body_spec C hok lamDataE 14 internLamE (fun st f a => st.internLam f a)
+    (fun t st f a hR kbd lkb lef lea ldir lfle hw =>
+      eInternLam_spec ra t C.L C.FLn C.FLl C.FLs C.FLe C.KB st f a hR hok.sepLam kbd (kb_ne_kb8 _) hok.b0Lam hok.b1Lam
+        lkb lef lea ldir lfle hw)
+    (fun s f a t hsr => internLamE_eq s f a (Nat.le_trans (tabAt_size_le hsr.e.p5) (hok.sepLam.cap 0 (by decide)))
+      (Nat.le_trans (tabAt_size_le hsr.e.s5) (hok.sepLam.cap 1 (by decide))))
+    (fun s f a h s' hw h1 h2 hr => internLamE_wf hw h1 h2 hr) s f a
+
+theorem forall_body_spec' (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (s : AState)
+    (f a : EIdx) :
+    SpecR (Pre (σ := σ) C s [(lEf, Enc.idxW f), (lEa, Enc.idxW a)]) (bin2Body forDataE 15) s (internForallEE f a)
+      (PostE C) :=
+  bin2_body_spec C hok forDataE 15 internForallEE (fun st f a => st.internForallE f a)
+    (fun t st f a hR kbd lkb lef lea ldir lfle hw =>
+      eInternForallE_spec ra t C.L C.FLn C.FLl C.FLs C.FLe C.KB st f a hR hok.sepFor kbd (kb_ne_kb8 _) hok.b0For
+        hok.b1For lkb lef lea ldir lfle hw)
+    (fun s f a t hsr => internForallEE_eq s f a (Nat.le_trans (tabAt_size_le hsr.e.p6) (hok.sepFor.cap 0 (by decide)))
+      (Nat.le_trans (tabAt_size_le hsr.e.s6) (hok.sepFor.cap 1 (by decide))))
+    (fun s f a h s' hw h1 h2 hr => internForallEE_wf hw h1 h2 hr) s f a
 
 end
 
@@ -464,102 +496,112 @@ theorem genE_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : C
     (D : List MlS) (hPn : vPn ∈ D) (hKa : vKa ∈ D) (N : Nat) (hD : ∀ c j, j < N → gv c j ∈ D) :
     ∀ (e : ConLeche.Expr) (d : Nat) (H0 : List (BitVec 64)) (rest : ProgHOL 64) (Γ : Env) (M : Mem) (s : AState)
       {β : Type} {k : EIdx → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}, ExprOK e → d + edepth e ≤ N →
-      (∀ h s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → Γ'.get (ge d) = some (Enc.idxW h) →
+      (∀ h s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → Γ'.get (ge d) = some (Enc.idxW h) → plainE e s = .ok (h, s') →
         SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k h) R) →
       SpecR (Inv (ctxH C H0) s Γ M D) (genE C d e rest) s (plainE e >>= k) R := by
   intro e
   induction e with
   | bvar i =>
     intro d H0 rest Γ M s β k R he hdN hk
-    unfold genE plainE
-    exact specR_internBVarI ra (ctxOK_H hok H0) hc.bvar (ge d) _ i he (hD _ _ (by simp [edepth] at hdN; omega)) rfl
-      (fun h s' => hk h s' _ H0 (List.prefix_refl _) (agreeL_cons (Nat.le_refl _) _) (by simp [Env.get_cons]))
+    unfold genE
+    exact callEN (C := ctxH C H0) (ge d) fInternBVar [lIw] [.const (BitVec.ofNat 64 i)] bvarBody [BitVec.ofNat 64 i]
+      (by decide) rfl (hD _ _ (by simp [edepth] at hdN; omega)) hc.bvar ⟨rfl, trivial⟩ _
+      (bvar_body_spec ra (ctxH C H0) (ctxOK_H hok H0) s i he)
+      (fun h s' hr => hk h s' _ H0 (List.prefix_refl _) (agreeL_cons (Nat.le_refl _) _) (by simp [Env.get_cons]) hr)
   | sort u =>
     intro d H0 rest Γ M s β k R he hdN hk
-    unfold genE plainE
+    unfold genE
     rw [← genL_ctxH C H0]
-    refine specR_congr (m' := internLevel u >>= fun hu => internE (.sort hu) >>= k) (by simp [bind_assoc]) ?_
+    refine specR_congr (m' := internLevel u >>= fun hu => internE (.sort hu) >>= k) (by simp [plainE, bind_assoc]) ?_
     refine genL_spec ra (ctxH C H0) (ctxOK_H hok H0) (by ctx_tr hf) hA (by ctx_tr hc.l) D hPn hKa u d _ Γ M s he
-      (fun j h1 h2 => hD _ _ (by simp [edepth] at hdN; omega)) (fun hu s1 Γ1 ag1 hg1 => ?_)
+      (fun j h1 h2 => hD _ _ (by simp [edepth] at hdN; omega)) (fun hu s1 Γ1 ag1 hg1 hr1 => ?_)
     exact callEN (C := ctxH C H0) (ge d) fInternSort [lEu] [vv (gl d)] sortBody [Enc.idxW hu] (by decide) rfl
       (hD _ _ (by have := ldepth_pos u; simp [edepth] at hdN; omega)) hc.sort ⟨by simp [sev, vv, hg1], trivial⟩ _
       (sort_body_spec ra (ctxH C H0) (ctxOK_H hok H0) s1 hu)
-      (fun h s' => hk h s' _ H0 (List.prefix_refl _) (agreeL_trans ag1 (agreeL_cons (Nat.le_refl _) _))
-        (by simp [Env.get_cons]))
+      (fun h s' hr => hk h s' _ H0 (List.prefix_refl _) (agreeL_trans ag1 (agreeL_cons (Nat.le_refl _) _))
+        (by simp [Env.get_cons]) (by simp only [plainE]; exact bind_ok_of hr1 hr))
   | const n us =>
     intro d H0 rest Γ M s β k R he hdN hk
     obtain ⟨⟨cs, hcs, hcok⟩, hus, hlen⟩ := he
-    unfold genE plainE
+    unfold genE
     rw [hcs, Option.getD_some]
     refine specR_congr (m' := internName n >>= fun hn => internLevels us >>= fun hus => internE (.const hn hus) >>= k)
-      (by simp [bind_assoc]) ?_
+      (by simp [plainE, bind_assoc]) ?_
     have hd3 : d + 3 ≤ N := by simp [edepth] at hdN; omega
     refine specR_atEntry fun t0 ht0 => ?_
     rw [show nameP C cs = nameP (ctxH C H0) cs from by funext r; simp only [nameP, stepsP_ctxH]]
     refine name_spec ra (ctxH C H0) (ctxOK_H hok H0) (by ctx_tr hf) hc.l.n D hPn hKa n cs hcs hcok s ⟨ht0.sr.twf⟩
-      (denoteN_ext hA ht0.sr.floor) Γ M _ (fun hn s1 Γ1 ag1 hg1 _ => ?_)
+      (denoteN_ext hA ht0.sr.floor) Γ M _ (fun hn s1 Γ1 ag1 hg1 hrn => ?_)
     refine specR_assignI (gv 'n' d) (vv vPn) (Enc.idxW hn) (hD _ _ (by omega)) (by simp [sev, vv, hg1]) ?_
     rw [← genLs_ctxH C H0]
     refine genLs_spec ra (ctxH C H0) (ctxOK_H hok H0) (by ctx_tr hf) hA (by ctx_tr hc.l) hc.ls D hPn hKa (d + 1) us _
       _ [] s1 hus (fun u hu j h1 h2 => hD _ _ (by
         have := ldepth_le_fold us 0 u hu; simp [edepth] at hdN; omega))
-      (hD _ _ (by omega)) (hD _ _ (by omega)) hlen (fun hus' s2 Γ2 H2 hp2 ag2 hg2 => ?_)
+      (hD _ _ (by omega)) (hD _ _ (by omega)) hlen (fun hus' s2 Γ2 H2 hp2 ag2 hg2 hrl => ?_)
     have gn : Γ2.get (gv 'n' d) = some (Enc.idxW hn) := by
       rw [agreeL_keep ag2]; simp [Env.get_cons]
     exact callEN (C := ctxH C H2) (ge d) fInternConst [lEn, lEus] [vv (gv 'n' d), vv (gv 's' (d + 1))] constBody
       [Enc.idxW hn, Enc.idxW hus'] (by decide) rfl (hD _ _ (by omega)) hc.const
       ⟨by simp [sev, vv, gn], by simp [sev, vv, hg2], trivial⟩ _
       (const_body_spec ra (ctxH C H2) (ctxOK_H hok H2) s2 hn hus')
-      (fun h s' => hk h s' _ H2 hp2 (fun y hy h3 h4 => by
+      (fun h s' hr => hk h s' _ H2 hp2 (fun y hy h3 h4 => by
           rw [Env.get_cons, ite_eq_right (fun e => hy 'e' d (Nat.le_refl _) e)]
           rw [ag2 y (fun c j hj => hy c j (by omega)) h3 h4, Env.get_cons,
             ite_eq_right (fun e => hy 'n' d (Nat.le_refl _) e)]
           exact ag1 y h3 h4)
-        (by simp [Env.get_cons]))
-  | app f a ihf iha =>
+        (by simp [Env.get_cons]) (by simp only [plainE]; exact bind_ok_of hrn (bind_ok_of hrl hr)))
+  | app f a ih1 ih2 =>
     intro d H0 rest Γ M s β k R he hdN hk
-    unfold genE plainE
-    refine specR_congr (m' := plainE f >>= fun hf => plainE a >>= fun ha => internAppE hf ha >>= k)
-      (by simp [bind_assoc]; rfl) ?_
-    refine ihf d H0 _ Γ M s he.1 (by simp [edepth] at hdN; omega) (fun h1 s1 Γ1 H1 hp1 ag1 hg1 => ?_)
-    refine iha (d + 1) H1 _ Γ1 [] s1 he.2 (by simp [edepth] at hdN; omega) (fun h2 s2 Γ2 H2 hp2 ag2 hg2 => ?_)
+    unfold genE
+    refine specR_congr (m' := plainE f >>= fun h1 => plainE a >>= fun h2 => internE (.app h1 h2) >>= k)
+      (by simp [plainE, bind_assoc]) ?_
+    refine ih1 d H0 _ Γ M s he.1 (by simp [edepth] at hdN; omega) (fun h1 s1 Γ1 H1 hp1 ag1 hg1 hr1 => ?_)
+    refine ih2 (d + 1) H1 _ Γ1 [] s1 he.2 (by simp [edepth] at hdN; omega) (fun h2 s2 Γ2 H2 hp2 ag2 hg2 hr2 => ?_)
     have g1 : Γ2.get (ge d) = some (Enc.idxW h1) := by rw [agreeL_keep ag2]; exact hg1
-    exact specR_internAppI ra (ctxOK_H hok H2) hc.app (ge d) _ _ h1 h2
-      (hD _ _ (by have := edepth_pos f; simp [edepth] at hdN; omega)) (by simp [sev, vv, g1]) (by simp [sev, vv, hg2])
-      (fun h s' => hk h s' _ H2 (hp1.trans hp2)
+    exact callEN (C := ctxH C H2) (ge d) fInternApp [lEf, lEa] [vv (ge d), vv (ge (d + 1))] internAppBody
+      [Enc.idxW h1, Enc.idxW h2] (by decide) rfl
+      (hD _ _ (by have := edepth_pos f; simp [edepth] at hdN; omega)) hc.app
+      ⟨by simp [sev, vv, g1], by simp [sev, vv, hg2], trivial⟩ _
+      (internApp_body_spec ra (ctxH C H2) (ctxOK_H hok H2) s2 h1 h2)
+      (fun h s' hr => hk h s' _ H2 (hp1.trans hp2)
         (agreeL_trans ag1 (agreeL_trans (agreeL_mono ag2 (Nat.le_succ _)) (agreeL_cons (Nat.le_refl _) _)))
-        (by simp [Env.get_cons]))
-  | lam t b iht ihb =>
+        (by simp [Env.get_cons]) (by simp only [plainE]; exact bind_ok_of hr1 (bind_ok_of hr2 hr)))
+  | lam t b ih1 ih2 =>
     intro d H0 rest Γ M s β k R he hdN hk
-    unfold genE plainE
-    refine specR_congr (m' := plainE t >>= fun ht => plainE b >>= fun hb => internLamE ht hb >>= k)
-      (by simp [bind_assoc]; rfl) ?_
-    refine iht d H0 _ Γ M s he.1 (by simp [edepth] at hdN; omega) (fun h1 s1 Γ1 H1 hp1 ag1 hg1 => ?_)
-    refine ihb (d + 1) H1 _ Γ1 [] s1 he.2 (by simp [edepth] at hdN; omega) (fun h2 s2 Γ2 H2 hp2 ag2 hg2 => ?_)
+    unfold genE
+    refine specR_congr (m' := plainE t >>= fun h1 => plainE b >>= fun h2 => internE (.lam h1 h2) >>= k)
+      (by simp [plainE, bind_assoc]) ?_
+    refine ih1 d H0 _ Γ M s he.1 (by simp [edepth] at hdN; omega) (fun h1 s1 Γ1 H1 hp1 ag1 hg1 hr1 => ?_)
+    refine ih2 (d + 1) H1 _ Γ1 [] s1 he.2 (by simp [edepth] at hdN; omega) (fun h2 s2 Γ2 H2 hp2 ag2 hg2 hr2 => ?_)
     have g1 : Γ2.get (ge d) = some (Enc.idxW h1) := by rw [agreeL_keep ag2]; exact hg1
-    exact specR_internLamI ra (ctxOK_H hok H2) hc.lam (ge d) _ _ h1 h2
-      (hD _ _ (by have := edepth_pos t; simp [edepth] at hdN; omega)) (by simp [sev, vv, g1]) (by simp [sev, vv, hg2])
-      (fun h s' => hk h s' _ H2 (hp1.trans hp2)
+    exact callEN (C := ctxH C H2) (ge d) fInternLam [lEf, lEa] [vv (ge d), vv (ge (d + 1))] (bin2Body lamDataE 14)
+      [Enc.idxW h1, Enc.idxW h2] (by decide) rfl
+      (hD _ _ (by have := edepth_pos t; simp [edepth] at hdN; omega)) hc.lam
+      ⟨by simp [sev, vv, g1], by simp [sev, vv, hg2], trivial⟩ _
+      (lam_body_spec' ra (ctxH C H2) (ctxOK_H hok H2) s2 h1 h2)
+      (fun h s' hr => hk h s' _ H2 (hp1.trans hp2)
         (agreeL_trans ag1 (agreeL_trans (agreeL_mono ag2 (Nat.le_succ _)) (agreeL_cons (Nat.le_refl _) _)))
-        (by simp [Env.get_cons]))
-  | forallE t b iht ihb =>
+        (by simp [Env.get_cons]) (by simp only [plainE]; exact bind_ok_of hr1 (bind_ok_of hr2 hr)))
+  | forallE t b ih1 ih2 =>
     intro d H0 rest Γ M s β k R he hdN hk
-    unfold genE plainE
-    refine specR_congr (m' := plainE t >>= fun ht => plainE b >>= fun hb => internForallEE ht hb >>= k)
-      (by simp [bind_assoc]; rfl) ?_
-    refine iht d H0 _ Γ M s he.1 (by simp [edepth] at hdN; omega) (fun h1 s1 Γ1 H1 hp1 ag1 hg1 => ?_)
-    refine ihb (d + 1) H1 _ Γ1 [] s1 he.2 (by simp [edepth] at hdN; omega) (fun h2 s2 Γ2 H2 hp2 ag2 hg2 => ?_)
+    unfold genE
+    refine specR_congr (m' := plainE t >>= fun h1 => plainE b >>= fun h2 => internE (.forallE h1 h2) >>= k)
+      (by simp [plainE, bind_assoc]) ?_
+    refine ih1 d H0 _ Γ M s he.1 (by simp [edepth] at hdN; omega) (fun h1 s1 Γ1 H1 hp1 ag1 hg1 hr1 => ?_)
+    refine ih2 (d + 1) H1 _ Γ1 [] s1 he.2 (by simp [edepth] at hdN; omega) (fun h2 s2 Γ2 H2 hp2 ag2 hg2 hr2 => ?_)
     have g1 : Γ2.get (ge d) = some (Enc.idxW h1) := by rw [agreeL_keep ag2]; exact hg1
-    exact specR_internForallEI ra (ctxOK_H hok H2) hc.all (ge d) _ _ h1 h2
-      (hD _ _ (by have := edepth_pos t; simp [edepth] at hdN; omega)) (by simp [sev, vv, g1]) (by simp [sev, vv, hg2])
-      (fun h s' => hk h s' _ H2 (hp1.trans hp2)
+    exact callEN (C := ctxH C H2) (ge d) fInternForallE [lEf, lEa] [vv (ge d), vv (ge (d + 1))] (bin2Body forDataE 15)
+      [Enc.idxW h1, Enc.idxW h2] (by decide) rfl
+      (hD _ _ (by have := edepth_pos t; simp [edepth] at hdN; omega)) hc.all
+      ⟨by simp [sev, vv, g1], by simp [sev, vv, hg2], trivial⟩ _
+      (forall_body_spec' ra (ctxH C H2) (ctxOK_H hok H2) s2 h1 h2)
+      (fun h s' hr => hk h s' _ H2 (hp1.trans hp2)
         (agreeL_trans ag1 (agreeL_trans (agreeL_mono ag2 (Nat.le_succ _)) (agreeL_cons (Nat.le_refl _) _)))
-        (by simp [Env.get_cons]))
+        (by simp [Env.get_cons]) (by simp only [plainE]; exact bind_ok_of hr1 (bind_ok_of hr2 hr)))
   | lit _ => intro _ _ _ _ _ _ _ _ _ he; exact he.elim
   | fvar _ _ _ => intro _ _ _ _ _ _ _ _ _ he; exact he.elim
   | letE _ _ _ _ _ _ => intro _ _ _ _ _ _ _ _ _ he; exact he.elim
   | proj _ _ _ _ => intro _ _ _ _ _ _ _ _ _ he; exact he.elim
-
 end
 
 /-! ## Constants -/
@@ -643,7 +685,8 @@ structure GenEnv (C : Ctx) (D : List MlS) (N : Nat) : Prop where
 theorem name_step (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : List MlS} {N : Nat}
     (G : GenEnv C D N) (n : ConLeche.Name) (hn : NameLit n) (d : Nat) (H0 : List (BitVec 64)) (rest : ProgHOL 64)
     (Γ : Env) (M : Mem) (s : AState) {β : Type} {k : NIdx → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
-    (hk : ∀ h s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k h) R) :
+    (hk : ∀ h s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → internName n s = .ok (h, s') →
+      SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k h) R) :
     SpecR (Inv (ctxH C H0) s Γ M D) (nameP C ((strComps n).getD []) rest) s (internName n >>= k) R := by
   obtain ⟨cs, hcs, hcok⟩ := hn
   rw [hcs, Option.getD_some]
@@ -651,27 +694,29 @@ theorem name_step (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : Lis
   rw [show nameP C cs = nameP (ctxH C H0) cs from by funext r; simp only [nameP, stepsP_ctxH]]
   exact name_spec ra (ctxH C H0) (ctxOK_H G.hok H0) (by ctx_tr G.hf) G.hc.l.n D G.hPn G.hKa n cs hcs hcok s
     ⟨ht0.sr.twf⟩ (denoteN_ext G.hA ht0.sr.floor) Γ M _
-    (fun h s1 Γ1 ag1 _ _ => hk h s1 Γ1 H0 (List.prefix_refl _) (fun y _ h3 h4 => ag1 y h3 h4))
+    (fun h s1 Γ1 ag1 _ hr => hk h s1 Γ1 H0 (List.prefix_refl _) (fun y _ h3 h4 => ag1 y h3 h4) hr)
 
 theorem genNames_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : List MlS} {N : Nat}
     (G : GenEnv C D N) (d : Nat) :
     ∀ (ns : List ConLeche.Name) (H0 : List (BitVec 64)) (rest : ProgHOL 64) (Γ : Env) (M : Mem) (s : AState)
       {β : Type} {k : List NIdx → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}, (∀ n ∈ ns, NameLit n) →
-      (∀ hs s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k hs) R) →
+      (∀ hs s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → ConRon.Arena.Frontend.internNameList ns s = .ok (hs, s') →
+        SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k hs) R) →
       SpecR (Inv (ctxH C H0) s Γ M D) (genNames C ns rest) s (ConRon.Arena.Frontend.internNameList ns >>= k) R := by
   intro ns
   induction ns with
   | nil =>
     intro H0 rest Γ M s β k R _ hk
     simp only [genNames, ConRon.Arena.Frontend.internNameList, pure_bind]
-    intro t ht; exact hk [] s Γ H0 (List.prefix_refl _) (agreeL_refl _ _) t (lit_dropMem ht)
+    intro t ht; exact hk [] s Γ H0 (List.prefix_refl _) (agreeL_refl _ _) rfl t (lit_dropMem ht)
   | cons n ns ih =>
     intro H0 rest Γ M s β k R hns hk
     simp only [genNames, ConRon.Arena.Frontend.internNameList, bind_assoc]
-    refine name_step ra G n (hns n (List.mem_cons_self ..)) d H0 _ Γ M s (fun h s1 Γ1 H1 hp1 ag1 => ?_)
-    refine ih H1 rest Γ1 [] s1 (fun m hm => hns m (List.mem_cons_of_mem _ hm)) (fun hs s2 Γ2 H2 hp2 ag2 => ?_)
+    refine name_step ra G n (hns n (List.mem_cons_self ..)) d H0 _ Γ M s (fun h s1 Γ1 H1 hp1 ag1 hr1 => ?_)
+    refine ih H1 rest Γ1 [] s1 (fun m hm => hns m (List.mem_cons_of_mem _ hm)) (fun hs s2 Γ2 H2 hp2 ag2 hr2 => ?_)
     simp only [pure_bind]
     exact hk _ s2 Γ2 H2 (hp1.trans hp2) (agreeL_trans ag1 ag2)
+      (by simp only [ConRon.Arena.Frontend.internNameList]; exact bind_ok_of hr1 (bind_ok_of hr2 rfl))
 
 end
 
@@ -685,155 +730,168 @@ theorem genLvls_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : 
     ∀ (us : List ConLeche.Level) (H0 : List (BitVec 64)) (rest : ProgHOL 64) (Γ : Env) (M : Mem) (s : AState)
       {β : Type} {k : List LIdx → AM β} {R : β → BitVec 64 → AState → PState σ → Prop},
       (∀ u ∈ us, LvlOK u ∧ d + ldepth u ≤ N) →
-      (∀ hs s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k hs) R) →
+      (∀ hs s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → internLevelList us s = .ok (hs, s') →
+        SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k hs) R) →
       SpecR (Inv (ctxH C H0) s Γ M D) (genLvls C d us rest) s (internLevelList us >>= k) R := by
   intro us
   induction us with
   | nil =>
     intro H0 rest Γ M s β k R _ hk
     simp only [genLvls, internLevelList, pure_bind]
-    intro t ht; exact hk [] s Γ H0 (List.prefix_refl _) (agreeL_refl _ _) t (lit_dropMem ht)
+    intro t ht; exact hk [] s Γ H0 (List.prefix_refl _) (agreeL_refl _ _) rfl t (lit_dropMem ht)
   | cons u us ih =>
     intro H0 rest Γ M s β k R hus hk
     simp only [genLvls, internLevelList, bind_assoc]
     obtain ⟨hu, hdu⟩ := hus u (List.mem_cons_self ..)
     rw [← genL_ctxH C H0]
     refine genL_spec ra (ctxH C H0) (ctxOK_H G.hok H0) (by ctx_tr G.hf) G.hA (by ctx_tr G.hc.l) D G.hPn G.hKa u d _ Γ M s hu
-      (fun j h1 h2 => G.hD _ _ (by omega)) (fun h1 s1 Γ1 ag1 _ => ?_)
-    refine ih H0 rest Γ1 [] s1 (fun v hv => hus v (List.mem_cons_of_mem _ hv)) (fun hs s2 Γ2 H2 hp2 ag2 => ?_)
+      (fun j h1 h2 => G.hD _ _ (by omega)) (fun h1 s1 Γ1 ag1 _ hr1 => ?_)
+    refine ih H0 rest Γ1 [] s1 (fun v hv => hus v (List.mem_cons_of_mem _ hv)) (fun hs s2 Γ2 H2 hp2 ag2 hr2 => ?_)
     simp only [pure_bind]
-    exact hk _ s2 Γ2 H2 hp2 (agreeL_trans ag1 ag2)
+    exact hk _ s2 Γ2 H2 hp2 (agreeL_trans ag1 ag2) (bind_ok_of hr1 (bind_ok_of hr2 rfl))
 
 theorem genCV_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : List MlS} {N : Nat}
     (G : GenEnv C D N) (d : Nat) (cv : ConLeche.ConstantVal) (H0 : List (BitVec 64)) (rest : ProgHOL 64)
     (Γ : Env) (M : Mem) (s : AState) {β : Type} {k : IConstantVal → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
     (hcv : CVLit d N cv)
-    (hk : ∀ r s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k r) R) :
+    (hk : ∀ r s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → plainCV cv s = .ok (r, s') →
+      SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k r) R) :
     SpecR (Inv (ctxH C H0) s Γ M D) (genCV C d cv rest) s (plainCV cv >>= k) R := by
   obtain ⟨hn, hl, he, hde⟩ := hcv
-  unfold genCV plainCV
-  simp only [bind_assoc]
-  refine name_step ra G _ hn d H0 _ Γ M s (fun h1 s1 Γ1 H1 hp1 ag1 => ?_)
-  refine genNames_spec ra G d _ H1 _ Γ1 [] s1 hl (fun hs s2 Γ2 H2 hp2 ag2 => ?_)
+  unfold genCV
+  simp only [plainCV, bind_assoc]
+  refine name_step ra G _ hn d H0 _ Γ M s (fun h1 s1 Γ1 H1 hp1 ag1 hr1 => ?_)
+  refine genNames_spec ra G d _ H1 _ Γ1 [] s1 hl (fun hs s2 Γ2 H2 hp2 ag2 hr2 => ?_)
   refine genE_spec ra C G.hok G.hf G.hA G.hc D G.hPn G.hKa N G.hD _ d H2 rest Γ2 [] s2 he hde
-    (fun h s3 Γ3 H3 hp3 ag3 _ => ?_)
+    (fun h s3 Γ3 H3 hp3 ag3 _ hr3 => ?_)
   simp only [pure_bind]
   exact hk _ s3 Γ3 H3 (hp1.trans (hp2.trans hp3)) (agreeL_trans ag1 (agreeL_trans ag2 ag3))
+    (by simp only [plainCV]; exact bind_ok_of hr1 (bind_ok_of hr2 (bind_ok_of hr3 rfl)))
 
 theorem genFire_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : List MlS} {N : Nat}
     (G : GenEnv C D N) (d : Nat) (f : ConLeche.RecRuleFire) (H0 : List (BitVec 64)) (rest : ProgHOL 64)
     (Γ : Env) (M : Mem) (s : AState) {β : Type} {k : IRecRuleFire → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
     (hf : FireLit d N f)
-    (hk : ∀ r s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k r) R) :
+    (hk : ∀ r s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → plainFire f s = .ok (r, s') →
+      SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k r) R) :
     SpecR (Inv (ctxH C H0) s Γ M D) (genFire C d f rest) s (plainFire f >>= k) R := by
   cases f with
   | plain =>
     simp only [genFire, plainFire, pure_bind]
-    intro t ht; exact hk _ s Γ H0 (List.prefix_refl _) (agreeL_refl _ _) t (lit_dropMem ht)
+    intro t ht; exact hk _ s Γ H0 (List.prefix_refl _) (agreeL_refl _ _) rfl t (lit_dropMem ht)
   | levels us =>
     simp only [genFire, plainFire, bind_assoc]
-    exact genLvls_spec ra G d us H0 rest Γ M s hf (fun hs s' Γ' H' hp ag => by
-      simp only [pure_bind]; exact hk _ s' Γ' H' hp ag)
+    exact genLvls_spec ra G d us H0 rest Γ M s hf (fun hs s' Γ' H' hp ag hr => by
+      simp only [pure_bind]; exact hk _ s' Γ' H' hp ag (bind_ok_of hr rfl))
   | nested _ _ => exact hf.elim
 
 theorem genRule_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : List MlS} {N : Nat}
     (G : GenEnv C D N) (d : Nat) (rl : ConLeche.RecRule) (H0 : List (BitVec 64)) (rest : ProgHOL 64)
     (Γ : Env) (M : Mem) (s : AState) {β : Type} {k : IRecRule → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
     (hr : RuleLit d N rl)
-    (hk : ∀ r s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k r) R) :
+    (hk : ∀ r s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → plainRule rl s = .ok (r, s') →
+      SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k r) R) :
     SpecR (Inv (ctxH C H0) s Γ M D) (genRule C d rl rest) s (plainRule rl >>= k) R := by
   obtain ⟨hn, hf, he, hde⟩ := hr
-  unfold genRule plainRule
-  simp only [bind_assoc]
-  refine name_step ra G _ hn d H0 _ Γ M s (fun h1 s1 Γ1 H1 hp1 ag1 => ?_)
-  refine genFire_spec ra G d _ H1 _ Γ1 [] s1 hf (fun f s2 Γ2 H2 hp2 ag2 => ?_)
+  unfold genRule
+  simp only [plainRule, bind_assoc]
+  refine name_step ra G _ hn d H0 _ Γ M s (fun h1 s1 Γ1 H1 hp1 ag1 hr1 => ?_)
+  refine genFire_spec ra G d _ H1 _ Γ1 [] s1 hf (fun f s2 Γ2 H2 hp2 ag2 hr2 => ?_)
   refine genE_spec ra C G.hok G.hf G.hA G.hc D G.hPn G.hKa N G.hD _ d H2 rest Γ2 [] s2 he hde
-    (fun h s3 Γ3 H3 hp3 ag3 _ => ?_)
+    (fun h s3 Γ3 H3 hp3 ag3 _ hr3 => ?_)
   simp only [pure_bind]
   exact hk _ s3 Γ3 H3 (hp1.trans (hp2.trans hp3)) (agreeL_trans ag1 (agreeL_trans ag2 ag3))
+    (by simp only [plainRule]; exact bind_ok_of hr1 (bind_ok_of hr2 (bind_ok_of hr3 rfl)))
 
 theorem genRules_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : List MlS} {N : Nat}
     (G : GenEnv C D N) (d : Nat) :
     ∀ (rs : List ConLeche.RecRule) (H0 : List (BitVec 64)) (rest : ProgHOL 64) (Γ : Env) (M : Mem) (s : AState)
       {β : Type} {k : List IRecRule → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}, (∀ r ∈ rs, RuleLit d N r) →
-      (∀ hs s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k hs) R) →
+      (∀ hs s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → plainRules rs s = .ok (hs, s') →
+        SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k hs) R) →
       SpecR (Inv (ctxH C H0) s Γ M D) (genRules C d rs rest) s (plainRules rs >>= k) R := by
   intro rs
   induction rs with
   | nil =>
     intro H0 rest Γ M s β k R _ hk
     simp only [genRules, plainRules, pure_bind]
-    intro t ht; exact hk [] s Γ H0 (List.prefix_refl _) (agreeL_refl _ _) t (lit_dropMem ht)
+    intro t ht; exact hk [] s Γ H0 (List.prefix_refl _) (agreeL_refl _ _) rfl t (lit_dropMem ht)
   | cons r rs ih =>
     intro H0 rest Γ M s β k R hrs hk
     simp only [genRules, plainRules, bind_assoc]
-    refine genRule_spec ra G d r H0 _ Γ M s (hrs r (List.mem_cons_self ..)) (fun h1 s1 Γ1 H1 hp1 ag1 => ?_)
-    refine ih H1 rest Γ1 [] s1 (fun m hm => hrs m (List.mem_cons_of_mem _ hm)) (fun hs s2 Γ2 H2 hp2 ag2 => ?_)
+    refine genRule_spec ra G d r H0 _ Γ M s (hrs r (List.mem_cons_self ..)) (fun h1 s1 Γ1 H1 hp1 ag1 hr1 => ?_)
+    refine ih H1 rest Γ1 [] s1 (fun m hm => hrs m (List.mem_cons_of_mem _ hm)) (fun hs s2 Γ2 H2 hp2 ag2 hr2 => ?_)
     simp only [pure_bind]
-    exact hk _ s2 Γ2 H2 (hp1.trans hp2) (agreeL_trans ag1 ag2)
+    exact hk _ s2 Γ2 H2 (hp1.trans hp2) (agreeL_trans ag1 ag2) (bind_ok_of hr1 (bind_ok_of hr2 rfl))
 
 theorem genCI_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : List MlS} {N : Nat}
     (G : GenEnv C D N) (d : Nat) (c : ConLeche.ConstantInfo) (H0 : List (BitVec 64)) (rest : ProgHOL 64)
     (Γ : Env) (M : Mem) (s : AState) {β : Type} {k : IConstantInfo → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
     (hc : CILit d N c)
-    (hk : ∀ r s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k r) R) :
+    (hk : ∀ r s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → plainCI c s = .ok (r, s') →
+      SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k r) R) :
     SpecR (Inv (ctxH C H0) s Γ M D) (genCI C d c rest) s (plainCI c >>= k) R := by
   cases c with
   | axiomInfo v =>
     simp only [genCI, plainCI, bind_assoc]
-    exact genCV_spec ra G d v H0 rest Γ M s hc (fun r s' Γ' H' hp ag => by simp only [pure_bind]; exact hk _ s' Γ' H' hp ag)
+    exact genCV_spec ra G d v H0 rest Γ M s hc (fun r s' Γ' H' hp ag hr => by
+      simp only [pure_bind]; exact hk _ s' Γ' H' hp ag (bind_ok_of hr rfl))
   | thmInfo v =>
     simp only [genCI, plainCI, bind_assoc]
-    exact genCV_spec ra G d v H0 rest Γ M s hc (fun r s' Γ' H' hp ag => by simp only [pure_bind]; exact hk _ s' Γ' H' hp ag)
+    exact genCV_spec ra G d v H0 rest Γ M s hc (fun r s' Γ' H' hp ag hr => by
+      simp only [pure_bind]; exact hk _ s' Γ' H' hp ag (bind_ok_of hr rfl))
   | defnInfo v e hint =>
     simp only [genCI, plainCI, bind_assoc]
-    refine genCV_spec ra G d v H0 _ Γ M s hc.1 (fun r1 s1 Γ1 H1 hp1 ag1 => ?_)
+    refine genCV_spec ra G d v H0 _ Γ M s hc.1 (fun r1 s1 Γ1 H1 hp1 ag1 hr1 => ?_)
     refine genE_spec ra C G.hok G.hf G.hA G.hc D G.hPn G.hKa N G.hD _ d H1 rest Γ1 [] s1 hc.2.1 hc.2.2
-      (fun h s2 Γ2 H2 hp2 ag2 _ => ?_)
+      (fun h s2 Γ2 H2 hp2 ag2 _ hr2 => ?_)
     simp only [pure_bind]
-    exact hk _ s2 Γ2 H2 (hp1.trans hp2) (agreeL_trans ag1 ag2)
+    exact hk _ s2 Γ2 H2 (hp1.trans hp2) (agreeL_trans ag1 ag2) (bind_ok_of hr1 (bind_ok_of hr2 rfl))
   | indInfo v caps =>
     simp only [genCI, plainCI, bind_assoc]
-    refine genCV_spec ra G d v H0 _ Γ M s hc.1 (fun r1 s1 Γ1 H1 hp1 ag1 => ?_)
+    refine genCV_spec ra G d v H0 _ Γ M s hc.1 (fun r1 s1 Γ1 H1 hp1 ag1 hr1 => ?_)
     unfold ConRon.Arena.Frontend.internCaps
     simp only [bind_assoc]
-    refine genNames_spec ra G d _ H1 _ Γ1 [] s1 hc.2.1 (fun hs s2 Γ2 H2 hp2 ag2 => ?_)
-    refine genNames_spec ra G d _ H2 rest Γ2 [] s2 hc.2.2 (fun hs' s3 Γ3 H3 hp3 ag3 => ?_)
+    refine genNames_spec ra G d _ H1 _ Γ1 [] s1 hc.2.1 (fun hs s2 Γ2 H2 hp2 ag2 hr2 => ?_)
+    refine genNames_spec ra G d _ H2 rest Γ2 [] s2 hc.2.2 (fun hs' s3 Γ3 H3 hp3 ag3 hr3 => ?_)
     simp only [pure_bind]
     exact hk _ s3 Γ3 H3 (hp1.trans (hp2.trans hp3)) (agreeL_trans ag1 (agreeL_trans ag2 ag3))
+      (bind_ok_of hr1 (bind_ok_of (A := ConRon.Arena.Frontend.internCaps caps)
+        (by unfold ConRon.Arena.Frontend.internCaps; exact bind_ok_of hr2 (bind_ok_of hr3 rfl)) rfl))
   | ctorInfo v nP nF T =>
     simp only [genCI, plainCI, bind_assoc]
-    refine genCV_spec ra G d v H0 _ Γ M s hc.1 (fun r1 s1 Γ1 H1 hp1 ag1 => ?_)
-    refine name_step ra G T hc.2 d H1 rest Γ1 [] s1 (fun h s2 Γ2 H2 hp2 ag2 => ?_)
+    refine genCV_spec ra G d v H0 _ Γ M s hc.1 (fun r1 s1 Γ1 H1 hp1 ag1 hr1 => ?_)
+    refine name_step ra G T hc.2 d H1 rest Γ1 [] s1 (fun h s2 Γ2 H2 hp2 ag2 hr2 => ?_)
     simp only [pure_bind]
-    exact hk _ s2 Γ2 H2 (hp1.trans hp2) (agreeL_trans ag1 ag2)
+    exact hk _ s2 Γ2 H2 (hp1.trans hp2) (agreeL_trans ag1 ag2) (bind_ok_of hr1 (bind_ok_of hr2 rfl))
   | recInfo v mI rP isK rs =>
     simp only [genCI, plainCI, bind_assoc]
-    refine genCV_spec ra G d v H0 _ Γ M s hc.1 (fun r1 s1 Γ1 H1 hp1 ag1 => ?_)
-    refine genRules_spec ra G d rs H1 rest Γ1 [] s1 hc.2 (fun hs s2 Γ2 H2 hp2 ag2 => ?_)
+    refine genCV_spec ra G d v H0 _ Γ M s hc.1 (fun r1 s1 Γ1 H1 hp1 ag1 hr1 => ?_)
+    refine genRules_spec ra G d rs H1 rest Γ1 [] s1 hc.2 (fun hs s2 Γ2 H2 hp2 ag2 hr2 => ?_)
     simp only [pure_bind]
-    exact hk _ s2 Γ2 H2 (hp1.trans hp2) (agreeL_trans ag1 ag2)
+    exact hk _ s2 Γ2 H2 (hp1.trans hp2) (agreeL_trans ag1 ag2) (bind_ok_of hr1 (bind_ok_of hr2 rfl))
 
 theorem genCIList_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : List MlS} {N : Nat}
     (G : GenEnv C D N) (d : Nat) :
     ∀ (cs : List ConLeche.ConstantInfo) (H0 : List (BitVec 64)) (rest : ProgHOL 64) (Γ : Env) (M : Mem) (s : AState)
       {β : Type} {k : List IConstantInfo → AM β} {R : β → BitVec 64 → AState → PState σ → Prop},
       (∀ c ∈ cs, CILit d N c) →
-      (∀ hs s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k hs) R) →
+      (∀ hs s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → plainCIList cs s = .ok (hs, s') →
+        SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k hs) R) →
       SpecR (Inv (ctxH C H0) s Γ M D) (genCIList C d cs rest) s (plainCIList cs >>= k) R := by
   intro cs
   induction cs with
   | nil =>
     intro H0 rest Γ M s β k R _ hk
     simp only [genCIList, plainCIList, pure_bind]
-    intro t ht; exact hk [] s Γ H0 (List.prefix_refl _) (agreeL_refl _ _) t (lit_dropMem ht)
+    intro t ht; exact hk [] s Γ H0 (List.prefix_refl _) (agreeL_refl _ _) rfl t (lit_dropMem ht)
   | cons c cs ih =>
     intro H0 rest Γ M s β k R hcs hk
     simp only [genCIList, plainCIList, bind_assoc]
-    refine genCI_spec ra G d c H0 _ Γ M s (hcs c (List.mem_cons_self ..)) (fun h1 s1 Γ1 H1 hp1 ag1 => ?_)
-    refine ih H1 rest Γ1 [] s1 (fun m hm => hcs m (List.mem_cons_of_mem _ hm)) (fun hs s2 Γ2 H2 hp2 ag2 => ?_)
+    refine genCI_spec ra G d c H0 _ Γ M s (hcs c (List.mem_cons_self ..)) (fun h1 s1 Γ1 H1 hp1 ag1 hr1 => ?_)
+    refine ih H1 rest Γ1 [] s1 (fun m hm => hcs m (List.mem_cons_of_mem _ hm)) (fun hs s2 Γ2 H2 hp2 ag2 hr2 => ?_)
     simp only [pure_bind]
-    exact hk _ s2 Γ2 H2 (hp1.trans hp2) (agreeL_trans ag1 ag2)
+    exact hk _ s2 Γ2 H2 (hp1.trans hp2) (agreeL_trans ag1 ag2) (bind_ok_of hr1 (bind_ok_of hr2 rfl))
 
 end
 
@@ -974,19 +1032,21 @@ theorem basisP_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : L
     (G : GenEnv C D 12) :
     ∀ (ks : List ConLeche.BasisKind) (H0 : List (BitVec 64)) (rest : ProgHOL 64) (Γ : Env) (M : Mem) (s : AState)
       {β : Type} {k : Unit → AM β} {R : β → BitVec 64 → AState → PState σ → Prop},
-      (∀ s' Γ' H', H0 <+: H' → AgreeL Γ Γ' 0 → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k ()) R) →
+      (∀ s' Γ' H', H0 <+: H' → AgreeL Γ Γ' 0 → basisTwin ks s = .ok ((), s') →
+        SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k ()) R) →
       SpecR (Inv (ctxH C H0) s Γ M D) (basisP C ks rest) s (basisTwin ks >>= k) R := by
   intro ks
   induction ks with
   | nil =>
     intro H0 rest Γ M s β k R hk
     simp only [basisP, basisTwin, pure_bind]
-    intro t ht; exact hk s Γ H0 (List.prefix_refl _) (agreeL_refl _ _) t (lit_dropMem ht)
+    intro t ht; exact hk s Γ H0 (List.prefix_refl _) (agreeL_refl _ _) rfl t (lit_dropMem ht)
   | cons b bs ih =>
     intro H0 rest Γ M s β k R hk
     simp only [basisP, basisTwin, bind_assoc]
-    refine genCIList_spec ra G 0 _ H0 _ Γ M s (basis_lits b) (fun hs s1 Γ1 H1 hp1 ag1 => ?_)
-    exact ih H1 rest Γ1 [] s1 (fun s2 Γ2 H2 hp2 ag2 => hk s2 Γ2 H2 (hp1.trans hp2) (agreeL_trans ag1 ag2))
+    refine genCIList_spec ra G 0 _ H0 _ Γ M s (basis_lits b) (fun hs s1 Γ1 H1 hp1 ag1 hr1 => ?_)
+    exact ih H1 rest Γ1 [] s1 (fun s2 Γ2 H2 hp2 ag2 hr2 => hk s2 Γ2 H2 (hp1.trans hp2) (agreeL_trans ag1 ag2)
+      (by simp only [basisTwin]; exact bind_ok_of hr1 hr2))
 
 end
 
