@@ -24,6 +24,7 @@ def qL := ofString "q_l"
 def qT := ofString "q_t"
 def qU := ofString "q_u"
 def qX := ofString "q_x"
+def qW := ofString "q_w"
 
 /-- The generated locals of the literal interner. -/
 def genLocals : List MlS :=
@@ -48,20 +49,20 @@ def genPinCV (C : Ctx) (cv : ConLeche.ConstantVal) (rest : ProgHOL 64) : ProgHOL
 
 /-- `Γ'` agrees with `Γ` off the generated locals, the name interner's two and the pin's. -/
 def AgreeQ (Γ Γ' : Env) : Prop :=
-  ∀ y, (∀ c j, y ≠ gv c j) → y ≠ vPn → y ≠ vKa → y ≠ qN → y ≠ qL → y ≠ qT → y ≠ qU → y ≠ qX →
+  ∀ y, (∀ c j, y ≠ gv c j) → y ≠ vPn → y ≠ vKa → y ≠ qN → y ≠ qL → y ≠ qT → y ≠ qU → y ≠ qX → y ≠ qW →
     Γ'.get y = Γ.get y
 
-theorem agreeQ_refl (Γ : Env) : AgreeQ Γ Γ := fun _ _ _ _ _ _ _ _ _ => rfl
+theorem agreeQ_refl (Γ : Env) : AgreeQ Γ Γ := fun _ _ _ _ _ _ _ _ _ _ => rfl
 
 theorem agreeQ_trans {Γ1 Γ2 Γ3 : Env} (h1 : AgreeQ Γ1 Γ2) (h2 : AgreeQ Γ2 Γ3) : AgreeQ Γ1 Γ3 :=
-  fun y a b c d e f g i => (h2 y a b c d e f g i).trans (h1 y a b c d e f g i)
+  fun y a b c d e f g i j => (h2 y a b c d e f g i j).trans (h1 y a b c d e f g i j)
 
 theorem agreeQ_of_L {Γ Γ' : Env} (h : AgreeL Γ Γ' 0) : AgreeQ Γ Γ' :=
-  fun y hy h1 h2 _ _ _ _ _ => h y (fun c j _ => hy c j) h1 h2
+  fun y hy h1 h2 _ _ _ _ _ _ => h y (fun c j _ => hy c j) h1 h2
 
-theorem agreeQ_cons {Γ : Env} {x : MlS} (hx : x = qN ∨ x = qL ∨ x = qT ∨ x = qU ∨ x = qX) (w : BitVec 64) :
-    AgreeQ Γ ((x, w) :: Γ) := fun y _ _ _ h1 h2 h3 h4 h5 => by
-  have hne : y ≠ x := by rcases hx with rfl | rfl | rfl | rfl | rfl <;> assumption
+theorem agreeQ_cons {Γ : Env} {x : MlS} (hx : x = qN ∨ x = qL ∨ x = qT ∨ x = qU ∨ x = qX ∨ x = qW) (w : BitVec 64) :
+    AgreeQ Γ ((x, w) :: Γ) := fun y _ _ _ h1 h2 h3 h4 h5 h6 => by
+  have hne : y ≠ x := by rcases hx with rfl | rfl | rfl | rfl | rfl | rfl <;> assumption
   rw [Env.get_cons, ite_eq_right_iff.mpr (fun e => absurd e hne)]
 
 section
@@ -81,9 +82,10 @@ theorem name_stepP (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : Li
   exact name_spec ra (ctxH C H0) (ctxOK_H G.hok H0) (by ctx_tr G.hf) G.hc.l.n D G.hPn G.hKa n cs hcs hcok s
     ⟨ht0.sr.twf⟩ (denoteN_ext G.hA ht0.sr.floor) Γ M _ hk
 
-theorem gv_ne_q (c : Char) (j : Nat) : gv c j ≠ qN ∧ gv c j ≠ qL ∧ gv c j ≠ qT ∧ gv c j ≠ qU ∧ gv c j ≠ qX :=
+theorem gv_ne_q (c : Char) (j : Nat) : gv c j ≠ qN ∧ gv c j ≠ qL ∧ gv c j ≠ qT ∧ gv c j ≠ qU ∧ gv c j ≠ qX ∧
+    gv c j ≠ qW :=
   ⟨gv_ne_of (by simp [qN, ofString]), gv_ne_of (by simp [qL, ofString]), gv_ne_of (by simp [qT, ofString]),
-    gv_ne_of (by simp [qU, ofString]), gv_ne_of (by simp [qX, ofString])⟩
+    gv_ne_of (by simp [qU, ofString]), gv_ne_of (by simp [qX, ofString]), gv_ne_of (by simp [qW, ofString])⟩
 
 /-- **`genLpsB`**: the names interned (`internNameList`), their handles a fresh block at `x`. -/
 theorem genLpsB_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : List MlS} {N : Nat}
@@ -141,7 +143,7 @@ theorem genLpsB_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : 
 
 /-- **`genPinCV`**: the pin's constant value interned (`plainCV`), its handles in `qN`, `qL`, `qT`. -/
 theorem genPinCV_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : List MlS}
-    (G : GenEnv C D 12) (hq : ∀ x ∈ [qN, qL, qT, qU, qX], x ∈ D)
+    (G : GenEnv C D 12) (hq : ∀ x ∈ [qN, qL, qT, qU, qX, qW], x ∈ D)
     (cv : ConLeche.ConstantVal) (hcv : CVLit 0 12 cv) (hl : cv.levelParams.length = 1 ∨ cv.levelParams.length = 2)
     (H0 : List (BitVec 64)) (rest : ProgHOL 64) (Γ : Env) (M : Mem) (s : AState)
     {β : Type} {k : IConstantVal → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
@@ -160,17 +162,17 @@ theorem genPinCV_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D :
     (fun h3 s3 Γ3 H3 hp3 ag3 hv3 hr3 => ?_)
   refine specR_assignI qT (vv (ge 0)) (Enc.idxW h3) (hq qT (by simp)) (by simp only [sev, sev_vv, hv3]) ?_
   simp only [pure_bind]
-  have hne : ∀ (x : MlS), (x = qN ∨ x = qL ∨ x = qT ∨ x = qU ∨ x = qX) → ∀ c j, x ≠ gv c j := by
+  have hne : ∀ (x : MlS), (x = qN ∨ x = qL ∨ x = qT ∨ x = qU ∨ x = qX ∨ x = qW) → ∀ c j, x ≠ gv c j := by
     intro x hx c j e; subst e
     have := gv_ne_q c j
-    rcases hx with h | h | h | h | h <;> simp_all
-  have k3 : ∀ x, (x = qN ∨ x = qL ∨ x = qT ∨ x = qU ∨ x = qX) → Γ3.get x = Γ2.get x := fun x hx =>
-    ag3 x (fun c j _ => hne x hx c j) (by rcases hx with rfl | rfl | rfl | rfl | rfl <;> decide)
-      (by rcases hx with rfl | rfl | rfl | rfl | rfl <;> decide)
+    rcases hx with h | h | h | h | h | h <;> simp_all
+  have k3 : ∀ x, (x = qN ∨ x = qL ∨ x = qT ∨ x = qU ∨ x = qX ∨ x = qW) → Γ3.get x = Γ2.get x := fun x hx =>
+    ag3 x (fun c j _ => hne x hx c j) (by rcases hx with rfl | rfl | rfl | rfl | rfl | rfl <;> decide)
+      (by rcases hx with rfl | rfl | rfl | rfl | rfl | rfl <;> decide)
   refine hk ⟨h1, hs, h3⟩ s3 _ H3 o (hp2.trans hp3) ?_ (bind_ok_of hr1 (bind_ok_of hr2 (bind_ok_of hr3 rfl)))
     ?_ ?_ (blkAt_mono hb2 hp3) (by simp [Env.get_cons])
   · refine agreeQ_trans ?_ (agreeQ_trans (agreeQ_of_L ag3) (agreeQ_cons (Or.inr (Or.inr (Or.inl rfl))) _))
-    refine fun y hy h1' h2' hN hL _ hU _ => ?_
+    refine fun y hy h1' h2' hN hL _ hU _ _ => ?_
     rw [ag2 y h1' h2' hU hL, Env.get_cons, ite_eq_right_iff.mpr (fun e => absurd e hN)]
     exact hf1 y h1' h2'
   · rw [Env.get_cons, ite_eq_right_iff.mpr (fun e => absurd e (by decide)), k3 qN (Or.inl rfl),

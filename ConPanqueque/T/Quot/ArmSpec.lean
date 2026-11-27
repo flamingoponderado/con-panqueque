@@ -27,12 +27,13 @@ structure QCodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
   ilpf : C.code.lookup fInstLPF = some (ilpParams.map (fun p => (p, ShapeHOL.one)), ilpfBody C, .one)
   ilp : CodesILP C (ilpBody C)
   iq : C.code.lookup fInstQ = some (iqParams.map (fun p => (p, ShapeHOL.one)), instQBody C, .one)
+  rg : ConPanqueque.T.WC.RgCodes C
 
 set_option maxRecDepth 8000 in
 theorem qcodes_ctxH {mode : ConLeche.CheckMode} {C : Ctx} (h : QCodes mode C) (H : List (BitVec 64)) :
     QCodes mode (ctxH C H) := by
-  obtain ⟨d, e, pl, pf, ilp1, ilpf, ilp, iq⟩ := h
-  exact ⟨by ctx_tr d, by ctx_tr e, pl, pf, ilp1, ilpf, by ctx_tr ilp, iq⟩
+  obtain ⟨d, e, pl, pf, ilp1, ilpf, ilp, iq, rg⟩ := h
+  exact ⟨by ctx_tr d, by ctx_tr e, pl, pf, ilp1, ilpf, by ctx_tr ilp, iq, by ctx_tr rg⟩
 
 /-- A record's constant value in the value heap at `q` (`Decl.RecCV`'s copy). -/
 def RecCVQ (C : Ctx) (q : Nat) (cv : IConstantVal) : Prop :=
@@ -54,8 +55,8 @@ theorem base_cons {C : Ctx} {q : Nat} {Γ : Env} (h : Base C q Γ) {x : MlS} (h1
 theorem base_agreeQ {C : Ctx} {q : Nat} {Γ Γ' : Env} (h : Base C q Γ) (ha : AgreeQ Γ Γ') : Base C q Γ' := by
   have hQ : ∀ c j, kdQ ≠ gv c j := fun c j e => gv_ne_of (m := kdQ) (by simp [kdQ, ofString]) e.symm
   have hK : ∀ c j, lKb ≠ gv c j := fun c j e => gv_ne_of (m := lKb) (by simp [lKb, ofString]) e.symm
-  exact ⟨by rw [ha kdQ hQ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)]; exact h.1,
-    by rw [ha lKb hK (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)]; exact h.2⟩
+  exact ⟨by rw [ha kdQ hQ (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)]; exact h.1,
+    by rw [ha lKb hK (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)]; exact h.2⟩
 
 section
 variable {σ : Type}
@@ -235,6 +236,10 @@ theorem quotBlk_slot4 {s s' : AState} {blk : List IConstantInfo} (h : plainCILis
 /-- The quotient slots the arm checks: the type former, the constructor, the soundness axiom. -/
 def QKJ (k : ConLeche.QuotKind) (j : Nat) : Prop := (k = .type ∧ j = 0) ∨ (k = .ctor ∧ j = 1) ∨ (k = .sound ∧ j = 4)
 
+/-- Every quotient slot. -/
+def QKJ5 (k : ConLeche.QuotKind) (j : Nat) : Prop :=
+  (k = .type ∧ j = 0) ∨ (k = .ctor ∧ j = 1) ∨ (k = .sound ∧ j = 4) ∨ (k = .lift ∧ j = 2) ∨ (k = .ind ∧ j = 3)
+
 theorem quotBlk_mk {k : ConLeche.QuotKind} {j : Nat} (hkj : QKJ k j)
     {s s' : AState} {blk : List IConstantInfo} (h : plainCIList quotBasis s = .ok (blk, s')) :
     ∃ mk : IConstantVal → IConstantInfo, (∀ v, (mk v).toConstantVal = v) ∧
@@ -275,7 +280,7 @@ theorem instQcall_spec (mode : ConLeche.CheckMode) (C : Ctx) (hok : CtxOK C) (hc
     (hcie : ∀ EH ox b, E1 <+: EH → Lay10 C EH ox b [tW, Enc.idxW ci.name, ecell C b,
       Enc.idxW ci.toConstantVal.type, w4, w5, w6, w7, w8, w9] ci → CIE C.EB EH ox ci)
     (hnew : C.fe.find? ci.name = none) (hden : NewDen ci s.store)
-    (hrec : ∀ cv mI rP isK rules, ci ≠ .recInfo cv mI rP isK rules)
+    (hrec : RulesDen ci s.store)
     (T : IFEnv → AM IFEnv) (hT : ∀ fe s', s'.pins = C.pins → T fe s' = .ok (fe, s')) :
     SpecR (σ := σ) (Inv (ctxE (ctxH C Hr) E1) s Γ [] (ctxLocals ++ kqLocals)) (callR kdX fInstQ es (tailP C)) s
       (flushCaches >>= fun _ => T (C.fe.push ci)) (PostStep C) := by
@@ -328,27 +333,230 @@ theorem instQcall_spec (mode : ConLeche.CheckMode) (C : Ctx) (hok : CtxOK C) (hc
     by unfold LitsPinned; rw [IFEnv.push_base]; exact hL⟩)
 
 set_option maxHeartbeats 4000000 in
+/-- **`quotAt` and the install at a slot that is not a recursor.** -/
+theorem restNR_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode)
+    (C : Ctx) (hok : CtxOK C) (hc : QCodes mode C)
+    (hpl : C.saved = none) (hg : TblGate C.fe) (hF : FlagsOK C.fe) (hL : LitsPinned C.fe C.pins)
+    (hf : ConPanqueque.Front.FrontOK C) (hA : denoteN C.St.ns default = some .anonymous)
+    (k : ConLeche.QuotKind) (j : Nat) (hkj : QKJ k j)
+    (cv : IConstantVal) (q : Nat) (hrc : RecCVQ C q cv) (ol : Nat) (hb : BlkAt C.H ol (cv.levelParams.map Enc.idxW))
+    (T : IFEnv → AM IFEnv) (hT : ∀ fe s', s'.pins = C.pins → T fe s' = .ok (fe, s'))
+    (H4 : List (BitVec 64)) (hp04 : C.H <+: H4) (s3 : AState) (Γ' : Env) (hB' : Base C q Γ')
+    (hRL : Γ'.get kqRL = some (cellA C ol)) :
+    SpecR (σ := σ) (Inv (ctxH C H4) s3 Γ' [] (ctxLocals ++ kqLocals))
+      (restNR C j) s3 (do let ci ← quotAt k cv; let fe₂ ← installBasisDecl C.fe ci; flushCaches; T fe₂)
+      (PostStep C) := by
+  have hj5 : j < 5 := by rcases hkj with ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ <;> decide
+  have hslot : k.slot = j := by rcases hkj with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;> rfl
+  obtain ⟨-, ks, -, -, -, -, hlen, hkl, hks, htyD⟩ := hrc
+  have hD : ∀ x ∈ kqLocals, x ∈ ctxLocals ++ kqLocals := fun x hx => List.mem_append_right _ hx
+  have G : GenEnv C (ctxLocals ++ kqLocals) 12 :=
+    ⟨hok, hf, hA, hc.e, hD _ (by simp [kqLocals]), hD _ (by simp [kqLocals]),
+      fun c hc' j hj => hD _ (List.mem_append_right _ (gv_mem_genLocals hc' hj))⟩
+  have hq : ∀ x ∈ [qN, qL, qT, qU, qX, qW], x ∈ ctxLocals ++ kqLocals := fun x hx => hD x (by
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hx
+    rcases hx with rfl | rfl | rfl | rfl | rfl | rfl <;> simp [kqLocals])
+  unfold restNR
+  unfold quotAt quotPin
+  simp only [bind_assoc]
+  refine specR_fact (fun t ht => sr_stateOK ht.sr) (fun hst3 => ?_)
+  refine specR_offCheckI ⟨hD _ (by simp [kqLocals]), hD _ (by simp [kqLocals]), hD _ (by simp [kqLocals]),
+    hD _ (by simp [kqLocals])⟩ (fun ho3 => ?_)
+  refine specR_basisQuot ho3 ?_
+  have hB6 : Base C q ((ocD, 0) :: (ocC, 0) :: (ocB, 0) :: (ocA, 0) :: Γ') :=
+    base_cons (base_cons (base_cons (base_cons hB' (by decide) (by decide) _) (by decide) (by decide) _)
+      (by decide) (by decide) _) (by decide) (by decide) _
+  refine quotSlot_spec ra G hq j hj5 H4 _ _ [] s3
+    (fun blk2 s4 Γ2 H5 hp5 ag2 hr2 hP2 hX2 => ?_)
+  have hB7 := base_agreeQ hB6 ag2
+  have hRL7 : Γ2.get kqRL = some (cellA C ol) := by
+    rw [ag2 kqRL (fun c j e => gv_ne_of (m := kqRL) (by simp [kqRL, ofString]) e.symm) (by decide) (by decide)
+      (by decide) (by decide) (by decide) (by decide) (by decide) (by decide)]
+    simp +decide only [Env.get_cons, ite_true, ite_false]; exact hRL
+  simp only [pure_bind, hslot]
+  obtain ⟨hPN2, ⟨op2, hPL2, hPb2⟩, hPT2⟩ := hP2
+  have hp45 : H4 <+: H5 := hp5
+  have hp05 : C.H <+: H5 := hp04.trans hp45
+  obtain ⟨hst4, xP2, hxP2⟩ := quotSlot_den hst3 ho3 hr2 j hj5
+  obtain ⟨-, hlpP4, htyP4⟩ := ConRon.Bridge.denoteCV_inv hxP2
+  obtain ⟨mk, hmk, hp2mk, hat, hkind⟩ := quotBlk_mk hkj hr2
+  set p2 := blk2.getD j default with hp2def
+  rw [hat]
+  unfold IConstantVal.atLps
+  simp only [bind_assoc, pure_bind]
+  refine specR_fact (fun t ht => ht.sr.floor) (fun hfl4 => ?_)
+  have hlpd4 : Frontend.denoteNList s4.store.ns cv.levelParams = some ks :=
+    denoteNList_of_get _ _ hkl (fun j hj => denoteN_ext (hks j hj) hfl4)
+  refine specR_callNIH (C := ctxH C H5) kqUs fParamLevels plParams [vv kqRL] (plBody C) [cellA C ol] (by decide) rfl
+    (hD _ (by simp [kqLocals])) hc.pl ⟨by simp only [sev, sev_vv, hRL7], trivial⟩
+    (fun a w s' st => paramLevels cv.levelParams s4 = .ok (a, s') ∧ PostLsH (ctxH C H5) a w s' st)
+    (fun a w s' H' => paramLevels cv.levelParams s4 = .ok (a, s') ∧ w = Enc.idxW a)
+    (fun a w s' st ⟨hr, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hr, hw⟩, hsr⟩)
+    (fun u hu _ hlk => specR_run (fun w hw => by
+      subst hw
+      exact pl_spec ra C hok hc.pl hc.pf hc.ilp1 hc.e.ls cv.levelParams ol (by omega) H5 s4 (blkAt_mono hb hp05) _
+        (pre_of_lookups hu plParams _ rfl hlk)))
+    (fun us2 wu s5 H6 hp6 ⟨hr6, hwu⟩ => ?_)
+  subst hwu
+  have hp56 : H5 <+: H6 := hp6
+  have hp06 : C.H <+: H6 := hp05.trans hp56
+  obtain ⟨hs56, hus2⟩ := ConRon.Bridge.paramLevels_run hst4.ok hlpd4 hr6
+  have hlpP5 := denoteNList_ext hs56.ext.lss.ls.ns _ _ hlpP4
+  have htyP5 := denote_ext htyP4 hs56.ext
+  have hg6 : ∀ x, (x = qN ∨ x = qL ∨ x = qT) → Env.get ((kqUs, Enc.idxW us2) :: Γ2) x = Γ2.get x := fun x hx => by
+    rw [Env.get_cons, ite_eq_right_iff.mpr (fun e => absurd e (by rcases hx with rfl | rfl | rfl <;> decide))]
+  refine specR_fact (fun t ht => (⟨ht.sr.cok.rn, ht.sr.cok.rl, ht.sr.cok.rls⟩ : ConRon.Bridge.ReadOK s5))
+    (fun hrd5 => ?_)
+  refine specR_callNIH (C := ctxH C H6) kqTy fInstLPF ilpParams
+    [.const (BitVec.ofNat 64 coreWalkFuel), vv qT, vv qL, vv kqUs] (ilpfBody C)
+    [BitVec.ofNat 64 coreWalkFuel, Enc.idxW p2.toConstantVal.type, cellA C op2, Enc.idxW us2] (by decide) rfl
+    (hD _ (by simp [kqLocals])) hc.ilpf
+    ⟨rfl, by simp only [sev, sev_vv, hg6 qT (by simp)]; exact hPT2,
+      by simp only [sev, sev_vv, hg6 qL (by simp)]; exact hPL2,
+      by simp only [sev, sev_vv, Env.get_cons, ite_true], trivial⟩
+    (fun a w s' st => instLPFast coreWalkFuel p2.toConstantVal.levelParams us2 p2.toConstantVal.type s5 =
+      .ok (a, s') ∧ PostILP (ctxH C H6) a w s' st)
+    (fun a w s' _ => instLPFast coreWalkFuel p2.toConstantVal.levelParams us2 p2.toConstantVal.type s5 =
+      .ok (a, s') ∧ w = Enc.idxW a)
+    (fun a w s' st ⟨hr, H'', hp, hw, hsr⟩ => ⟨H'', hp, ⟨hr, hw⟩, hsr⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu ilpParams _ rfl hlk)
+      (ilpf_spec ra C hok hc.ilp coreWalkFuel CV.coreWalkFuel_lt op2 p2.toConstantVal.levelParams _ us2 _ H6 s5
+        p2.toConstantVal.type hlpP5 hus2 (sr_stateOK hu) hu.cok.rn hu.cok.rl hu.cok.rls (by rw [htyP5]; rfl)
+        (blkAt_mono hPb2 hp56))))
+    (fun ty2 wt s6 H7 hp7 ⟨hr7, hwt⟩ => ?_)
+  subst hwt
+  obtain ⟨hs67, hty2⟩ := ConRon.Bridge.instLPFast_run hs56.ok hrd5 hlpP5 hus2 htyP5 hr7
+  have hp67 : H6 <+: H7 := hp7
+  have hp07 : C.H <+: H7 := hp06.trans hp67
+  have hok7 := ctxOK_H hok H7
+  have hN7 : Env.get ((kqTy, Enc.idxW ty2) :: (kqUs, Enc.idxW us2) :: Γ2) qN = some (Enc.idxW p2.toConstantVal.name) := by
+    simp +decide only [Env.get_cons, ite_false]; exact hPN2
+  refine specR_alloc3I (C := ctxH C H7) hok7 kqR (vv qN) (vv kqRL) (vv kqTy) (Enc.idxW p2.toConstantVal.name)
+    (cellA C ol) (Enc.idxW ty2) (hD _ (by simp [kqLocals]))
+    (fun v => by simp +decide only [sev, sev_vv, Env.get_cons, ite_false]; exact hPN2)
+    (fun v => by simp +decide only [sev, sev_vv, Env.get_cons, ite_false]; exact hRL7)
+    (fun v => by simp +decide only [sev, sev_vv, Env.get_cons, ite_false, ite_true])
+    (fun H8 ws hp8 hws => ?_)
+  obtain ⟨g0, g1, g2⟩ := img3_get H8 ws (Enc.idxW p2.toConstantVal.name) (cellA C ol) (Enc.idxW ty2) hws
+  have hp8' : H7 <+: _ := hp8.trans (img3_prefix H8 ws (Enc.idxW p2.toConstantVal.name) (cellA C ol) (Enc.idxW ty2) hws)
+  generalize hHr : (((H8 ++ ws).set H8.length (Enc.idxW p2.toConstantVal.name)).set (H8.length + 1) (cellA C ol)).set
+    (H8.length + 2) (Enc.idxW ty2) = Hr at g0 g1 g2 hp8' ⊢
+  have hokr := ctxOK_H hok Hr
+  have hp0r : C.H <+: Hr := hp07.trans hp8'
+  show SpecR (Inv (ctxH C Hr) _ _ _ _) (envFindP (ctxH C Hr) kqF (vv qN) _) _ _ _
+  refine specR_envFindI hokr hc.d.k.g hc.d.k.p kqF (vv qN) p2.toConstantVal.name (hD _ (by simp [kqLocals]))
+    (by simp +decide only [sev, sev_vv, Env.get_cons, ite_false]; exact hPN2)
+    (by simp +decide only [Env.get_cons, ite_false]; exact hB7.2) ?_
+  have hrel := find_rel hokr p2.toConstantVal.name
+  revert hrel
+  rcases hfn : (ctxH C Hr).fe.find? p2.toConstantVal.name with _ | ci0
+  swap
+  · intro ⟨o', hm, hci⟩
+    rw [hm]
+    refine specR_atEntry fun t ht => ?_
+    have hoE : o' < C.EN := Nat.lt_of_lt_of_le (cie_lt hci) ht.sr.env.1.len
+    exact specR_guardNZ kqF (optWG id (some (ecell (ctxH C Hr) o'))) (by simp only [Env.get_cons, ite_true])
+      (fun h => absurd h (show ecell (ctxH C Hr) o' + 1 ≠ 0 from ecell_succ_ne hokr hoE))
+  intro hrel
+  simp only at hrel
+  rw [hrel]
+  refine specR_guardNZ kqF (optWG id none) (by simp only [Env.get_cons, ite_true]) (fun _ => ?_)
+  have hname : ∀ v, (mk v).name = v.name := fun v => by
+    have := hmk v
+    cases hmk' : mk v <;> rw [hmk'] at this <;> simp [IConstantInfo.name, IConstantInfo.toConstantVal] at this ⊢ <;>
+      rw [this]
+  have hnew : C.fe.find? (mk ⟨p2.toConstantVal.name, cv.levelParams, ty2⟩).name = none := by
+    rw [hname]; exact hfn
+  simp only [installBasisDecl, hnew, Option.isNone_none, ↓reduceIte, pure_bind]
+  refine specR_fact (fun t ht => ht.sr.floor) (fun hfl6 => ?_)
+  have hden : NewDen (mk ⟨p2.toConstantVal.name, cv.levelParams, ty2⟩) s6.store := by
+    refine ⟨fun n hn' => ?_, ?_, ?_, fun cv' v' h' e => ?_, fun cv' caps e => ?_⟩
+    · rw [hmk] at hn'
+      obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem hn'
+      exact Option.isSome_iff_exists.mpr ⟨_, denoteN_ext (hks j hj) hfl6⟩
+    · rw [hmk]; show (denoteE s6.store ty2).isSome = true; rw [hty2]; rfl
+    · rw [hmk]; show cv.levelParams.length + 1 < 2 ^ 60; omega
+    · rcases hkind with ⟨-, -, rfl⟩ | ⟨-, -, t, rfl⟩ | ⟨-, -, rfl⟩ <;> cases e
+    · rcases hkind with ⟨-, -, rfl⟩ | ⟨-, -, t, rfl⟩ | ⟨-, -, rfl⟩ <;> cases e
+      show 0 + 0 < 2 ^ 63; decide
+  have hblk : BlkAt Hr ol (cv.levelParams.map Enc.idxW) := blkAt_mono hb hp0r
+  rcases hkind with ⟨-, rfl, rfl⟩ | ⟨-, rfl, t, rfl⟩ | ⟨-, rfl, rfl⟩
+  · -- the type former: an empty name block, then the record
+    show SpecR _ (envAllocP (ctxH C Hr) kqE (.const 8) _) _ _ _
+    refine specR_envAllocI kqE (.const 8) 1 (by decide) (hD _ (by simp [kqLocals])) (fun v => rfl)
+      (fun ws1 hws1 hroom1 => ?_)
+    have hj1 : C.EH.length < (C.EH ++ ws1).length := by simp; omega
+    refine specR_envStoreI (C := ctxE (ctxH C Hr) (C.EH ++ ws1)) (ctxOK_E hokr (List.prefix_append _ _)) (vv kqE)
+      (.const 0) C.EH.length hj1 0 (by simp only [sev, sev_vv, Env.get_cons, ite_true]; rfl) rfl ?_
+    have hz : ((C.EH ++ ws1).set C.EH.length 0)[C.EH.length]? = some 0 := List.getElem?_set_self hj1
+    show SpecR (Inv (ctxE (ctxH C Hr) ((C.EH ++ ws1).set C.EH.length 0)) _ _ _ _) _ _ _ _
+    refine instQcall_spec mode C hok hc hpl hg hF hL Hr _ hp0r (prefix_set_ge (List.prefix_append _ _) _ (le_refl _) _)
+      s6 _ (.indInfo ⟨p2.toConstantVal.name, cv.levelParams, ty2⟩ capsQ) H8.length ol g0 g1 g2 hblk
+      (by show cv.levelParams.length < 2 ^ 60; omega)
+      [.const 3, vv kqR, .const 0, vv kqE, .const 0, .const 0, vv kqE, .const 0] 3 0 (ecell C C.EH.length)
+      0 0 (ecell C C.EH.length) 0
+      ⟨rfl, by simp +decide only [sev, sev_vv, Env.get_cons, ite_true, ite_false]; rfl, rfl,
+        by simp only [sev, sev_vv, Env.get_cons, ite_true]; rfl, rfl, rfl,
+        by simp only [sev, sev_vv, Env.get_cons, ite_true]; rfl, rfl, trivial⟩
+      (fun EH ox b hpE hlay => ?_) hnew hden (fun _ _ _ _ _ e => by cases e) T hT
+    obtain ⟨h1, h2, h3, hw, hbl⟩ := hlay
+    have hz' : EH[C.EH.length]? = some 0 := get_prefix hz hpE
+    refine ⟨⟨h1, ⟨ecell C b, h2, b, rfl, hbl⟩, h3⟩, hw 0 (by simp), by simpa [boolW, capsQ] using hw 4 (by simp),
+      ⟨_, hw 5 (by simp), C.EH.length, rfl, by simpa [capsQ] using hz', fun i hi => by simp [capsQ] at hi⟩,
+      ⟨by simpa [capsQ] using hw 6 (by simp), by decide⟩, ⟨by simpa [capsQ] using hw 7 (by simp), by decide⟩,
+      ⟨_, hw 8 (by simp), C.EH.length, rfl, by simpa [capsQ] using hz', fun i hi => by simp [capsQ] at hi⟩,
+      by simpa [boolW, capsQ] using hw 9 (by simp)⟩
+  · -- the constructor
+    have hx2 : Γ2.get qX = some (Enc.idxW t) := hX2.1 _ 2 1 t hp2mk
+    show SpecR (Inv (ctxE (ctxH C Hr) C.EH) _ _ _ _) _ _ _ _
+    refine instQcall_spec mode C hok hc hpl hg hF hL Hr C.EH hp0r (List.prefix_refl _)
+      s6 _ (.ctorInfo ⟨p2.toConstantVal.name, cv.levelParams, ty2⟩ 2 1 t) H8.length ol g0 g1 g2 hblk
+      (by show cv.levelParams.length < 2 ^ 60; omega)
+      [.const 4, vv kqR, .const 2, .const 1, vv qX, .const 0, .const 0, .const 0] 4 2 1 (Enc.idxW t) 0 0 0
+      ⟨rfl, by simp +decide only [sev, sev_vv, Env.get_cons, ite_true, ite_false]; rfl, rfl, rfl,
+        by simp +decide only [sev, sev_vv, Env.get_cons, ite_true, ite_false]; exact hx2, rfl, rfl, rfl, trivial⟩
+      (fun EH ox b hpE hlay => ?_) hnew hden (fun _ _ _ _ _ e => by cases e) T hT
+    obtain ⟨h1, h2, h3, hw, hbl⟩ := hlay
+    exact ⟨⟨h1, ⟨ecell C b, h2, b, rfl, hbl⟩, h3⟩, hw 0 (by simp), ⟨hw 4 (by simp), by decide⟩,
+      ⟨hw 5 (by simp), by decide⟩, hw 6 (by simp)⟩
+  · -- the soundness axiom
+    show SpecR (Inv (ctxE (ctxH C Hr) C.EH) _ _ _ _) _ _ _ _
+    refine instQcall_spec mode C hok hc hpl hg hF hL Hr C.EH hp0r (List.prefix_refl _)
+      s6 _ (.axiomInfo ⟨p2.toConstantVal.name, cv.levelParams, ty2⟩) H8.length ol g0 g1 g2 hblk
+      (by show cv.levelParams.length < 2 ^ 60; omega)
+      [.const 0, vv kqR, .const 0, .const 0, .const 0, .const 0, .const 0, .const 0] 0 0 0 0 0 0 0
+      ⟨rfl, by simp +decide only [sev, sev_vv, Env.get_cons, ite_true, ite_false]; rfl, rfl, rfl, rfl, rfl, rfl,
+        rfl, trivial⟩
+      (fun EH ox b hpE hlay => ?_) hnew hden (fun _ _ _ _ _ e => by cases e) T hT
+    obtain ⟨h1, h2, h3, hw, hbl⟩ := hlay
+    exact ⟨⟨h1, ⟨ecell C b, h2, b, rfl, hbl⟩, h3⟩, hw 0 (by simp)⟩
+
+set_option maxHeartbeats 4000000 in
 /-- **The record at slot `j`, up to the pin match.** -/
 theorem arm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode)
     (pins : List INatOpPinSet) (C : Ctx) (hok : CtxOK C) (hc : QCodes mode C)
     (hs : C.side = false) (hpl : C.saved = none) (hg : TblGate C.fe) (hF : FlagsOK C.fe) (hL : LitsPinned C.fe C.pins)
     (hf : ConPanqueque.Front.FrontOK C) (hA : denoteN C.St.ns default = some .anonymous)
-    (k : ConLeche.QuotKind) (j : Nat) (hkj : QKJ k j)
+    (k : ConLeche.QuotKind) (j : Nat) (hkj : QKJ5 k j)
     (cv : IConstantVal) (q : Nat) (hrc : RecCVQ C q cv) (H0 : List (BitVec 64)) (hH0 : C.H <+: H0)
     (s : AState) (Γ : Env) (hB : Base C q Γ)
-    (T : IFEnv → AM IFEnv) (hT : ∀ fe s', s'.pins = C.pins → T fe s' = .ok (fe, s')) :
+    (T : IFEnv → AM IFEnv) (hT : ∀ fe s', s'.pins = C.pins → T fe s' = .ok (fe, s'))
+    (hrestS : ∀ (ol : Nat) (H4 : List (BitVec 64)) (s3 : AState) (Γ' : Env),
+      BlkAt C.H ol (cv.levelParams.map Enc.idxW) → C.H <+: H4 → Base C q Γ' → Γ'.get kqRL = some (cellA C ol) →
+      SpecR (σ := σ) (Inv (ctxH C H4) s3 Γ' [] (ctxLocals ++ kqLocals)) (restP C j) s3
+        (do let ci ← quotAt k cv; let fe₂ ← installBasisDecl C.fe ci; flushCaches; T fe₂) (PostStep C)) :
     SpecR (σ := σ) (Inv (ctxH C H0) s Γ [] (ctxLocals ++ kqLocals)) (armP C j) s
       (checkQuotRecord C.fe k cv >>= fun fe₂ => flushCaches >>= fun _ => T fe₂) (PostStep C) := by
-  have hj5 : j < 5 := by rcases hkj with ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ <;> decide
-  have hslot : k.slot = j := by rcases hkj with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;> rfl
+  have hj5 : j < 5 := by rcases hkj with ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ <;> decide
+  have hslot : k.slot = j := by rcases hkj with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;> rfl
   obtain ⟨ol, ks, hn, hl, ht, hb, hlen, hkl, hks, htyD⟩ := hrc
   have hD : ∀ x ∈ kqLocals, x ∈ ctxLocals ++ kqLocals := fun x hx => List.mem_append_right _ hx
   have G : GenEnv C (ctxLocals ++ kqLocals) 12 :=
     ⟨hok, hf, hA, hc.e, hD _ (by simp [kqLocals]), hD _ (by simp [kqLocals]),
       fun c hc' j hj => hD _ (List.mem_append_right _ (gv_mem_genLocals hc' hj))⟩
-  have hq : ∀ x ∈ [qN, qL, qT, qU, qX], x ∈ ctxLocals ++ kqLocals := fun x hx => hD x (by
+  have hq : ∀ x ∈ [qN, qL, qT, qU, qX, qW], x ∈ ctxLocals ++ kqLocals := fun x hx => hD x (by
     simp only [List.mem_cons, List.not_mem_nil, or_false] at hx
-    rcases hx with rfl | rfl | rfl | rfl | rfl <;> simp [kqLocals])
+    rcases hx with rfl | rfl | rfl | rfl | rfl | rfl <;> simp [kqLocals])
   unfold checkQuotRecord quotPinHit quotPin
   simp only [bind_assoc]
   unfold armP
@@ -359,9 +567,7 @@ theorem arm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
   have hB0 : Base C q ((ocD, 0) :: (ocC, 0) :: (ocB, 0) :: (ocA, 0) :: Γ) :=
     base_cons (base_cons (base_cons (base_cons hB (by decide) (by decide) _) (by decide) (by decide) _)
       (by decide) (by decide) _) (by decide) (by decide) _
-  refine quotSlot_spec ra G hq j hj5 (by
-      intro v mI rP isK rs he
-      rcases hkj with ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ <;> cases he) H0 _ _ [] s
+  refine quotSlot_spec ra G hq j hj5 H0 _ _ [] s
     (fun blk s1 Γ1 H1 hp1 ag1 hr1 hP1 hX1 => ?_)
   have hB1 := base_agreeQ hB0 ag1
   simp only [pure_bind, hslot]
@@ -472,195 +678,16 @@ theorem arm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
   refine specR_runBind (quotPredsOk_run' (ctxOK_H hok H4) ht5.sr.pins k) ?_
   have hok4 := ctxOK_H hok H4
   have hrest : ∀ Γ' : Env, Base C q Γ' → Γ'.get kqRL = some (cellA C ol) →
-      SpecR (σ := σ) (Inv (ctxH C H4) s3 Γ' [] (ctxLocals ++ kqLocals))
-        (offCheckP C (quotSlotP C j (callR kqUs fParamLevels [vv kqRL]
-          (callR kqTy fInstLPF [.const (BitVec.ofNat 64 coreWalkFuel), vv qT, vv qL, vv kqUs]
-          (alloc3 C kqR (vv qN) (vv kqRL) (vv kqTy)
-          (envFindP C kqF (vv qN) (.ite (.cmp .notEqual (vv kqF) (.const 0)) hang (instP C j))))))))
-        s3 (do let ci ← quotAt k cv; let fe₂ ← installBasisDecl C.fe ci; flushCaches; T fe₂) (PostStep C) := by
-    intro Γ' hB' hRL
-    unfold quotAt quotPin
-    simp only [bind_assoc]
-    refine specR_fact (fun t ht => sr_stateOK ht.sr) (fun hst3 => ?_)
-    refine specR_offCheckI ⟨hD _ (by simp [kqLocals]), hD _ (by simp [kqLocals]), hD _ (by simp [kqLocals]),
-      hD _ (by simp [kqLocals])⟩ (fun ho3 => ?_)
-    refine specR_basisQuot ho3 ?_
-    have hB6 : Base C q ((ocD, 0) :: (ocC, 0) :: (ocB, 0) :: (ocA, 0) :: Γ') :=
-      base_cons (base_cons (base_cons (base_cons hB' (by decide) (by decide) _) (by decide) (by decide) _)
-        (by decide) (by decide) _) (by decide) (by decide) _
-    refine quotSlot_spec ra G hq j hj5 (by
-        intro v mI rP isK rs he
-        rcases hkj with ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ <;> cases he) H4 _ _ [] s3
-      (fun blk2 s4 Γ2 H5 hp5 ag2 hr2 hP2 hX2 => ?_)
-    have hB7 := base_agreeQ hB6 ag2
-    have hRL7 : Γ2.get kqRL = some (cellA C ol) := by
-      rw [ag2 kqRL (fun c j e => gv_ne_of (m := kqRL) (by simp [kqRL, ofString]) e.symm) (by decide) (by decide)
-        (by decide) (by decide) (by decide) (by decide) (by decide)]
-      simp +decide only [Env.get_cons, ite_true, ite_false]; exact hRL
-    simp only [pure_bind, hslot]
-    obtain ⟨hPN2, ⟨op2, hPL2, hPb2⟩, hPT2⟩ := hP2
-    have hp45 : H4 <+: H5 := hp5
-    have hp05 : C.H <+: H5 := hp04.trans hp45
-    obtain ⟨hst4, xP2, hxP2⟩ := quotSlot_den hst3 ho3 hr2 j hj5
-    obtain ⟨-, hlpP4, htyP4⟩ := ConRon.Bridge.denoteCV_inv hxP2
-    obtain ⟨mk, hmk, hp2mk, hat, hkind⟩ := quotBlk_mk hkj hr2
-    set p2 := blk2.getD j default with hp2def
-    rw [hat]
-    unfold IConstantVal.atLps
-    simp only [bind_assoc, pure_bind]
-    refine specR_fact (fun t ht => ht.sr.floor) (fun hfl4 => ?_)
-    have hlpd4 : Frontend.denoteNList s4.store.ns cv.levelParams = some ks :=
-      denoteNList_of_get _ _ hkl (fun j hj => denoteN_ext (hks j hj) hfl4)
-    refine specR_callNIH (C := ctxH C H5) kqUs fParamLevels plParams [vv kqRL] (plBody C) [cellA C ol] (by decide) rfl
-      (hD _ (by simp [kqLocals])) hc.pl ⟨by simp only [sev, sev_vv, hRL7], trivial⟩
-      (fun a w s' st => paramLevels cv.levelParams s4 = .ok (a, s') ∧ PostLsH (ctxH C H5) a w s' st)
-      (fun a w s' H' => paramLevels cv.levelParams s4 = .ok (a, s') ∧ w = Enc.idxW a)
-      (fun a w s' st ⟨hr, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hr, hw⟩, hsr⟩)
-      (fun u hu _ hlk => specR_run (fun w hw => by
-        subst hw
-        exact pl_spec ra C hok hc.pl hc.pf hc.ilp1 hc.e.ls cv.levelParams ol (by omega) H5 s4 (blkAt_mono hb hp05) _
-          (pre_of_lookups hu plParams _ rfl hlk)))
-      (fun us2 wu s5 H6 hp6 ⟨hr6, hwu⟩ => ?_)
-    subst hwu
-    have hp56 : H5 <+: H6 := hp6
-    have hp06 : C.H <+: H6 := hp05.trans hp56
-    obtain ⟨hs56, hus2⟩ := ConRon.Bridge.paramLevels_run hst4.ok hlpd4 hr6
-    have hlpP5 := denoteNList_ext hs56.ext.lss.ls.ns _ _ hlpP4
-    have htyP5 := denote_ext htyP4 hs56.ext
-    have hg6 : ∀ x, (x = qN ∨ x = qL ∨ x = qT) → Env.get ((kqUs, Enc.idxW us2) :: Γ2) x = Γ2.get x := fun x hx => by
-      rw [Env.get_cons, ite_eq_right_iff.mpr (fun e => absurd e (by rcases hx with rfl | rfl | rfl <;> decide))]
-    refine specR_fact (fun t ht => (⟨ht.sr.cok.rn, ht.sr.cok.rl, ht.sr.cok.rls⟩ : ConRon.Bridge.ReadOK s5))
-      (fun hrd5 => ?_)
-    refine specR_callNIH (C := ctxH C H6) kqTy fInstLPF ilpParams
-      [.const (BitVec.ofNat 64 coreWalkFuel), vv qT, vv qL, vv kqUs] (ilpfBody C)
-      [BitVec.ofNat 64 coreWalkFuel, Enc.idxW p2.toConstantVal.type, cellA C op2, Enc.idxW us2] (by decide) rfl
-      (hD _ (by simp [kqLocals])) hc.ilpf
-      ⟨rfl, by simp only [sev, sev_vv, hg6 qT (by simp)]; exact hPT2,
-        by simp only [sev, sev_vv, hg6 qL (by simp)]; exact hPL2,
-        by simp only [sev, sev_vv, Env.get_cons, ite_true], trivial⟩
-      (fun a w s' st => instLPFast coreWalkFuel p2.toConstantVal.levelParams us2 p2.toConstantVal.type s5 =
-        .ok (a, s') ∧ PostILP (ctxH C H6) a w s' st)
-      (fun a w s' _ => instLPFast coreWalkFuel p2.toConstantVal.levelParams us2 p2.toConstantVal.type s5 =
-        .ok (a, s') ∧ w = Enc.idxW a)
-      (fun a w s' st ⟨hr, H'', hp, hw, hsr⟩ => ⟨H'', hp, ⟨hr, hw⟩, hsr⟩)
-      (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu ilpParams _ rfl hlk)
-        (ilpf_spec ra C hok hc.ilp coreWalkFuel CV.coreWalkFuel_lt op2 p2.toConstantVal.levelParams _ us2 _ H6 s5
-          p2.toConstantVal.type hlpP5 hus2 (sr_stateOK hu) hu.cok.rn hu.cok.rl hu.cok.rls (by rw [htyP5]; rfl)
-          (blkAt_mono hPb2 hp56))))
-      (fun ty2 wt s6 H7 hp7 ⟨hr7, hwt⟩ => ?_)
-    subst hwt
-    obtain ⟨hs67, hty2⟩ := ConRon.Bridge.instLPFast_run hs56.ok hrd5 hlpP5 hus2 htyP5 hr7
-    have hp67 : H6 <+: H7 := hp7
-    have hp07 : C.H <+: H7 := hp06.trans hp67
-    have hok7 := ctxOK_H hok H7
-    have hN7 : Env.get ((kqTy, Enc.idxW ty2) :: (kqUs, Enc.idxW us2) :: Γ2) qN = some (Enc.idxW p2.toConstantVal.name) := by
-      simp +decide only [Env.get_cons, ite_false]; exact hPN2
-    refine specR_alloc3I (C := ctxH C H7) hok7 kqR (vv qN) (vv kqRL) (vv kqTy) (Enc.idxW p2.toConstantVal.name)
-      (cellA C ol) (Enc.idxW ty2) (hD _ (by simp [kqLocals]))
-      (fun v => by simp +decide only [sev, sev_vv, Env.get_cons, ite_false]; exact hPN2)
-      (fun v => by simp +decide only [sev, sev_vv, Env.get_cons, ite_false]; exact hRL7)
-      (fun v => by simp +decide only [sev, sev_vv, Env.get_cons, ite_false, ite_true])
-      (fun H8 ws hp8 hws => ?_)
-    obtain ⟨g0, g1, g2⟩ := img3_get H8 ws (Enc.idxW p2.toConstantVal.name) (cellA C ol) (Enc.idxW ty2) hws
-    have hp8' : H7 <+: _ := hp8.trans (img3_prefix H8 ws (Enc.idxW p2.toConstantVal.name) (cellA C ol) (Enc.idxW ty2) hws)
-    generalize hHr : (((H8 ++ ws).set H8.length (Enc.idxW p2.toConstantVal.name)).set (H8.length + 1) (cellA C ol)).set
-      (H8.length + 2) (Enc.idxW ty2) = Hr at g0 g1 g2 hp8' ⊢
-    have hokr := ctxOK_H hok Hr
-    have hp0r : C.H <+: Hr := hp07.trans hp8'
-    show SpecR (Inv (ctxH C Hr) _ _ _ _) (envFindP (ctxH C Hr) kqF (vv qN) _) _ _ _
-    refine specR_envFindI hokr hc.d.k.g hc.d.k.p kqF (vv qN) p2.toConstantVal.name (hD _ (by simp [kqLocals]))
-      (by simp +decide only [sev, sev_vv, Env.get_cons, ite_false]; exact hPN2)
-      (by simp +decide only [Env.get_cons, ite_false]; exact hB7.2) ?_
-    have hrel := find_rel hokr p2.toConstantVal.name
-    revert hrel
-    rcases hfn : (ctxH C Hr).fe.find? p2.toConstantVal.name with _ | ci0
-    swap
-    · intro ⟨o', hm, hci⟩
-      rw [hm]
-      refine specR_atEntry fun t ht => ?_
-      have hoE : o' < C.EN := Nat.lt_of_lt_of_le (cie_lt hci) ht.sr.env.1.len
-      exact specR_guardNZ kqF (optWG id (some (ecell (ctxH C Hr) o'))) (by simp only [Env.get_cons, ite_true])
-        (fun h => absurd h (show ecell (ctxH C Hr) o' + 1 ≠ 0 from ecell_succ_ne hokr hoE))
-    intro hrel
-    simp only at hrel
-    rw [hrel]
-    refine specR_guardNZ kqF (optWG id none) (by simp only [Env.get_cons, ite_true]) (fun _ => ?_)
-    have hname : ∀ v, (mk v).name = v.name := fun v => by
-      have := hmk v
-      cases hmk' : mk v <;> rw [hmk'] at this <;> simp [IConstantInfo.name, IConstantInfo.toConstantVal] at this ⊢ <;>
-        rw [this]
-    have hnew : C.fe.find? (mk ⟨p2.toConstantVal.name, cv.levelParams, ty2⟩).name = none := by
-      rw [hname]; exact hfn
-    simp only [installBasisDecl, hnew, Option.isNone_none, ↓reduceIte, pure_bind]
-    refine specR_fact (fun t ht => ht.sr.floor) (fun hfl6 => ?_)
-    have hden : NewDen (mk ⟨p2.toConstantVal.name, cv.levelParams, ty2⟩) s6.store := by
-      refine ⟨fun n hn' => ?_, ?_, ?_, fun cv' v' h' e => ?_, fun cv' caps e => ?_⟩
-      · rw [hmk] at hn'
-        obtain ⟨j, hj, rfl⟩ := List.getElem_of_mem hn'
-        exact Option.isSome_iff_exists.mpr ⟨_, denoteN_ext (hks j hj) hfl6⟩
-      · rw [hmk]; show (denoteE s6.store ty2).isSome = true; rw [hty2]; rfl
-      · rw [hmk]; show cv.levelParams.length + 1 < 2 ^ 60; omega
-      · rcases hkind with ⟨-, -, rfl⟩ | ⟨-, -, t, rfl⟩ | ⟨-, -, rfl⟩ <;> cases e
-      · rcases hkind with ⟨-, -, rfl⟩ | ⟨-, -, t, rfl⟩ | ⟨-, -, rfl⟩ <;> cases e
-        show 0 + 0 < 2 ^ 63; decide
-    have hblk : BlkAt Hr ol (cv.levelParams.map Enc.idxW) := blkAt_mono hb hp0r
-    rcases hkind with ⟨-, rfl, rfl⟩ | ⟨-, rfl, t, rfl⟩ | ⟨-, rfl, rfl⟩
-    · -- the type former: an empty name block, then the record
-      show SpecR _ (envAllocP (ctxH C Hr) kqE (.const 8) _) _ _ _
-      refine specR_envAllocI kqE (.const 8) 1 (by decide) (hD _ (by simp [kqLocals])) (fun v => rfl)
-        (fun ws1 hws1 hroom1 => ?_)
-      have hj1 : C.EH.length < (C.EH ++ ws1).length := by simp; omega
-      refine specR_envStoreI (C := ctxE (ctxH C Hr) (C.EH ++ ws1)) (ctxOK_E hokr (List.prefix_append _ _)) (vv kqE)
-        (.const 0) C.EH.length hj1 0 (by simp only [sev, sev_vv, Env.get_cons, ite_true]; rfl) rfl ?_
-      have hz : ((C.EH ++ ws1).set C.EH.length 0)[C.EH.length]? = some 0 := List.getElem?_set_self hj1
-      show SpecR (Inv (ctxE (ctxH C Hr) ((C.EH ++ ws1).set C.EH.length 0)) _ _ _ _) _ _ _ _
-      refine instQcall_spec mode C hok hc hpl hg hF hL Hr _ hp0r (prefix_set_ge (List.prefix_append _ _) _ (le_refl _) _)
-        s6 _ (.indInfo ⟨p2.toConstantVal.name, cv.levelParams, ty2⟩ capsQ) H8.length ol g0 g1 g2 hblk
-        (by show cv.levelParams.length < 2 ^ 60; omega)
-        [.const 3, vv kqR, .const 0, vv kqE, .const 0, .const 0, vv kqE, .const 0] 3 0 (ecell C C.EH.length)
-        0 0 (ecell C C.EH.length) 0
-        ⟨rfl, by simp +decide only [sev, sev_vv, Env.get_cons, ite_true, ite_false]; rfl, rfl,
-          by simp only [sev, sev_vv, Env.get_cons, ite_true]; rfl, rfl, rfl,
-          by simp only [sev, sev_vv, Env.get_cons, ite_true]; rfl, rfl, trivial⟩
-        (fun EH ox b hpE hlay => ?_) hnew hden (fun _ _ _ _ _ e => by cases e) T hT
-      obtain ⟨h1, h2, h3, hw, hbl⟩ := hlay
-      have hz' : EH[C.EH.length]? = some 0 := get_prefix hz hpE
-      refine ⟨⟨h1, ⟨ecell C b, h2, b, rfl, hbl⟩, h3⟩, hw 0 (by simp), by simpa [boolW, capsQ] using hw 4 (by simp),
-        ⟨_, hw 5 (by simp), C.EH.length, rfl, by simpa [capsQ] using hz', fun i hi => by simp [capsQ] at hi⟩,
-        ⟨by simpa [capsQ] using hw 6 (by simp), by decide⟩, ⟨by simpa [capsQ] using hw 7 (by simp), by decide⟩,
-        ⟨_, hw 8 (by simp), C.EH.length, rfl, by simpa [capsQ] using hz', fun i hi => by simp [capsQ] at hi⟩,
-        by simpa [boolW, capsQ] using hw 9 (by simp)⟩
-    · -- the constructor
-      have hx2 : Γ2.get qX = some (Enc.idxW t) := hX2 _ 2 1 t hp2mk
-      show SpecR (Inv (ctxE (ctxH C Hr) C.EH) _ _ _ _) _ _ _ _
-      refine instQcall_spec mode C hok hc hpl hg hF hL Hr C.EH hp0r (List.prefix_refl _)
-        s6 _ (.ctorInfo ⟨p2.toConstantVal.name, cv.levelParams, ty2⟩ 2 1 t) H8.length ol g0 g1 g2 hblk
-        (by show cv.levelParams.length < 2 ^ 60; omega)
-        [.const 4, vv kqR, .const 2, .const 1, vv qX, .const 0, .const 0, .const 0] 4 2 1 (Enc.idxW t) 0 0 0
-        ⟨rfl, by simp +decide only [sev, sev_vv, Env.get_cons, ite_true, ite_false]; rfl, rfl, rfl,
-          by simp +decide only [sev, sev_vv, Env.get_cons, ite_true, ite_false]; exact hx2, rfl, rfl, rfl, trivial⟩
-        (fun EH ox b hpE hlay => ?_) hnew hden (fun _ _ _ _ _ e => by cases e) T hT
-      obtain ⟨h1, h2, h3, hw, hbl⟩ := hlay
-      exact ⟨⟨h1, ⟨ecell C b, h2, b, rfl, hbl⟩, h3⟩, hw 0 (by simp), ⟨hw 4 (by simp), by decide⟩,
-        ⟨hw 5 (by simp), by decide⟩, hw 6 (by simp)⟩
-    · -- the soundness axiom
-      show SpecR (Inv (ctxE (ctxH C Hr) C.EH) _ _ _ _) _ _ _ _
-      refine instQcall_spec mode C hok hc hpl hg hF hL Hr C.EH hp0r (List.prefix_refl _)
-        s6 _ (.axiomInfo ⟨p2.toConstantVal.name, cv.levelParams, ty2⟩) H8.length ol g0 g1 g2 hblk
-        (by show cv.levelParams.length < 2 ^ 60; omega)
-        [.const 0, vv kqR, .const 0, .const 0, .const 0, .const 0, .const 0, .const 0] 0 0 0 0 0 0 0
-        ⟨rfl, by simp +decide only [sev, sev_vv, Env.get_cons, ite_true, ite_false]; rfl, rfl, rfl, rfl, rfl, rfl,
-          rfl, trivial⟩
-        (fun EH ox b hpE hlay => ?_) hnew hden (fun _ _ _ _ _ e => by cases e) T hT
-      obtain ⟨h1, h2, h3, hw, hbl⟩ := hlay
-      exact ⟨⟨h1, ⟨ecell C b, h2, b, rfl, hbl⟩, h3⟩, hw 0 (by simp)⟩
+      SpecR (σ := σ) (Inv (ctxH C H4) s3 Γ' [] (ctxLocals ++ kqLocals)) (restP C j) s3
+        (do let ci ← quotAt k cv; let fe₂ ← installBasisDecl C.fe ci; flushCaches; T fe₂) (PostStep C) :=
+    fun Γ' hB' hRL => hrestS ol H4 s3 Γ' hb hp04 hB' hRL
   have hB5 : Base C q ((kqT2, Enc.idxW cv.type) :: (kdN, Enc.idxW cv.name) :: (kqTy, Enc.idxW ty) ::
       (kqUs, Enc.idxW us) :: (kdX, boolW (nameNodup (List.drop 0 cv.levelParams))) ::
       (kqPl, BitVec.ofNat 64 pcv.levelParams.length) :: (kqLn, BitVec.ofNat 64 cv.levelParams.length) ::
       (kqRL, cellA C ol) :: Γ1) := by
     refine base_cons (base_cons (base_cons (base_cons (base_cons (base_cons (base_cons (base_cons hB1 ?_ ?_ _) ?_ ?_ _)
       ?_ ?_ _) ?_ ?_ _) ?_ ?_ _) ?_ ?_ _) ?_ ?_ _) ?_ ?_ _ <;> decide
-  rcases hkj with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
+  rcases hkj with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
   · show SpecR _ (predGuard (ctxH C H4) PIN_EQ _) _ _ _
     refine specR_predGuardI hok4 hc.d.k.g hc.d.k.p PIN_EQ (by decide) (hD _ (by simp [kqLocals])) hB5.2
       (fun w w' hfind => ?_)
@@ -692,53 +719,33 @@ theorem arm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     refine hrest _ (base_cons (base_cons (base_cons (base_cons (base_cons (base_cons hB5 (by decide) (by decide) _)
       (by decide) (by decide) _) (by decide) (by decide) _) (by decide) (by decide) _) (by decide) (by decide) _)
       (by decide) (by decide) _) (by simp +decide only [Env.get_cons, ite_true, ite_false])
-
-set_option maxHeartbeats 4000000 in
-/-- **`checkDecl` at a quotient record**: the type former and the constructor; the recursors hang. -/
-theorem kq_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode)
-    (pins : List INatOpPinSet) (C : Ctx) (hok : CtxOK C) (hc : QCodes mode C)
-    (hs : C.side = false) (hpl : C.saved = none) (hg : TblGate C.fe) (hF : FlagsOK C.fe) (hL : LitsPinned C.fe C.pins)
-    (hf : ConPanqueque.Front.FrontOK C) (hA : denoteN C.St.ns default = some .anonymous)
-    (k : ConLeche.QuotKind) (cv : IConstantVal) (q : Nat) (hrc : RecCVQ C q cv) (s : AState) :
-    SpecR (σ := σ) (Pre C s (kdParams.zip [cellA C q, BitVec.ofNat 64 (qkN k), 0])) (kqBody C) s
-      (checkDecl mode pins C.fe (.quotDecl k cv)) (PostStep C) := by
-  refine specR_prologue (postStep_locals C) (kq_none C _) ?_
-  have hB0 : Base C q (ctxEnv C ++ kdParams.zip [cellA C q, BitVec.ofNat 64 (qkN k), 0]) :=
-    ⟨by simp +decide [Env.get, kdParams, ctxEnv], by simp +decide [Env.get, kdParams, ctxEnv]⟩
-  have hV : (ctxEnv C ++ kdParams.zip [cellA C q, BitVec.ofNat 64 (qkN k), 0]).get kdV =
-      some (BitVec.ofNat 64 (qkN k)) := by simp +decide [Env.get, kdParams, ctxEnv]
-  rw [checkDecl_quot]
-  have hT : ∀ (fe : IFEnv) (s' : AState), s'.pins = C.pins → (pure fe : AM IFEnv) s' = .ok (fe, s') :=
-    fun _ _ _ => rfl
-  cases k with
-  | type =>
-    refine specR_ifI _ 1 (by simp +decide [sev, sev_vv, Env.get, kdParams, ctxEnv, qkN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
-      (fun h => absurd h (by decide))
-    exact arm_spec ra mode pins C hok hc hs hpl hg hF hL hf hA .type 0 (Or.inl ⟨rfl, rfl⟩) cv q hrc C.H
-      (List.prefix_refl _) s _ hB0 pure hT
-  | ctor =>
-    refine specR_ifI _ 0 (by simp +decide [sev, sev_vv, Env.get, kdParams, ctxEnv, qkN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
-      (fun h => absurd rfl h) (fun _ => ?_)
-    refine specR_ifI _ 1 (by simp +decide [sev, sev_vv, Env.get, kdParams, ctxEnv, qkN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
-      (fun h => absurd h (by decide))
-    exact arm_spec ra mode pins C hok hc hs hpl hg hF hL hf hA .ctor 1 (Or.inr (Or.inl ⟨rfl, rfl⟩)) cv q hrc C.H
-      (List.prefix_refl _) s _ hB0 pure hT
-  | sound =>
-    refine specR_ifI _ 0 (by simp +decide [sev, sev_vv, Env.get, kdParams, ctxEnv, qkN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
-      (fun h => absurd rfl h) (fun _ => ?_)
-    refine specR_ifI _ 0 (by simp +decide [sev, sev_vv, Env.get, kdParams, ctxEnv, qkN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
-      (fun h => absurd rfl h) (fun _ => ?_)
-    refine specR_ifI _ 1 (by simp +decide [sev, sev_vv, Env.get, kdParams, ctxEnv, qkN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
-      (fun h => absurd h (by decide))
-    exact arm_spec ra mode pins C hok hc hs hpl hg hF hL hf hA .sound 4 (Or.inr (Or.inr ⟨rfl, rfl⟩)) cv q hrc C.H
-      (List.prefix_refl _) s _ hB0 pure hT
-  | lift | ind =>
-    refine specR_ifI _ 0 (by simp +decide [sev, sev_vv, Env.get, kdParams, ctxEnv, qkN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
-      (fun h => absurd rfl h) (fun _ => ?_)
-    refine specR_ifI _ 0 (by simp +decide [sev, sev_vv, Env.get, kdParams, ctxEnv, qkN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
-      (fun h => absurd rfl h) (fun _ => ?_)
-    exact specR_ifI _ 0 (by simp +decide [sev, sev_vv, Env.get, kdParams, ctxEnv, qkN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
-      (fun h => absurd rfl h) (fun _ => specR_hangI)
+  · show SpecR _ (predGuard (ctxH C H4) PIN_EQ (predGuard (ctxH C H4) PIN_QUOT (predGuard (ctxH C H4) PIN_QUOT_MK _)))
+      _ _ _
+    refine specR_predGuardI hok4 hc.d.k.g hc.d.k.p PIN_EQ (by decide) (hD _ (by simp [kqLocals])) hB5.2
+      (fun w w' h1 => ?_)
+    refine specR_predGuardI hok4 hc.d.k.g hc.d.k.p PIN_QUOT (by decide) (hD _ (by simp [kqLocals]))
+      (by simp +decide only [Env.get_cons, ite_false]; exact hB5.2) (fun w2 w2' h2 => ?_)
+    refine specR_predGuardI hok4 hc.d.k.g hc.d.k.p PIN_QUOT_MK (by decide) (hD _ (by simp [kqLocals]))
+      (by simp +decide only [Env.get_cons, ite_false]; exact hB5.2) (fun w3 w3' h3 => ?_)
+    have e : predB (ctxH C H4) .lift = true := by
+      show ((_ && _) && _) = true; simp only [Bool.and_eq_true]; exact ⟨⟨h1, h2⟩, h3⟩
+    rw [e, if_pos rfl]
+    simp only [bind_assoc]
+    refine hrest _ (base_cons (base_cons (base_cons (base_cons (base_cons (base_cons hB5 (by decide) (by decide) _)
+      (by decide) (by decide) _) (by decide) (by decide) _) (by decide) (by decide) _) (by decide) (by decide) _)
+      (by decide) (by decide) _) (by simp +decide only [Env.get_cons, ite_true, ite_false])
+  · show SpecR _ (predGuard (ctxH C H4) PIN_QUOT (predGuard (ctxH C H4) PIN_QUOT_MK _)) _ _ _
+    refine specR_predGuardI hok4 hc.d.k.g hc.d.k.p PIN_QUOT (by decide) (hD _ (by simp [kqLocals])) hB5.2
+      (fun w w' h2 => ?_)
+    refine specR_predGuardI hok4 hc.d.k.g hc.d.k.p PIN_QUOT_MK (by decide) (hD _ (by simp [kqLocals]))
+      (by simp +decide only [Env.get_cons, ite_false]; exact hB5.2) (fun w3 w3' h3 => ?_)
+    have e : predB (ctxH C H4) .ind = true := by
+      show (_ && _) = true; simp only [Bool.and_eq_true]; exact ⟨h2, h3⟩
+    rw [e, if_pos rfl]
+    simp only [bind_assoc]
+    refine hrest _ (base_cons (base_cons (base_cons (base_cons hB5 (by decide) (by decide) _)
+      (by decide) (by decide) _) (by decide) (by decide) _) (by decide) (by decide) _)
+      (by simp +decide only [Env.get_cons, ite_true, ite_false])
 
 end
 
@@ -791,8 +798,11 @@ theorem kqSound_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLech
     (fun h => absurd rfl h) (fun _ => ?_)
   refine specR_ifI _ 1 (by simp +decide [sev, sev_vv, Env.get, kdParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
     (fun _ => ?_) (fun h => absurd h (by decide))
-  exact arm_spec ra mode pins C hok hc hs hpl hg hF hL hf hA .sound 4 (Or.inr (Or.inr ⟨rfl, rfl⟩)) cv q hrc C.H
-    (List.prefix_refl _) s _ hB0 (soundTail cv) (fun fe s' hp => soundTail_run hok cv hq fe s' hp)
+  exact arm_spec ra mode pins C hok hc hs hpl hg hF hL hf hA .sound 4 (Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩))) cv q hrc
+    C.H (List.prefix_refl _) s _ hB0 (soundTail cv) (fun fe s' hp => soundTail_run hok cv hq fe s' hp)
+    (fun ol H4 s3 Γ' hb hp hB hRL =>
+      restNR_spec ra mode C hok hc hpl hg hF hL hf hA .sound 4 (Or.inr (Or.inr ⟨rfl, rfl⟩)) cv q hrc ol hb
+        (soundTail cv) (fun fe s' hp => soundTail_run hok cv hq fe s' hp) H4 hp s3 Γ' hB hRL)
 
 end
 

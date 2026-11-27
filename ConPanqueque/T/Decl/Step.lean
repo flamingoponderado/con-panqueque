@@ -1,7 +1,7 @@
 import ConPanqueque.T.Decl.StepRuns
 import ConPanqueque.T.Ind.IndArm2
 import ConPanqueque.T.Decl.Axiom
-import ConPanqueque.T.Quot.ArmSpec
+import ConPanqueque.T.Quot.KqSpec
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V
 open ConRon.Arena ConRon.Bridge

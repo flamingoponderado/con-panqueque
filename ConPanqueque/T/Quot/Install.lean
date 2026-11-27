@@ -68,6 +68,29 @@ theorem specR_envStoresI {α : Type} {C : Ctx} (hok : CtxOK C) {s : AState} {Γ 
 
 end
 
+/-- What `EnvDen` asks of a new recursor's rules. -/
+def RulesDen (ci : IConstantInfo) (st : EStore) : Prop :=
+  ∀ cv mI rP isK rules, ci = .recInfo cv mI rP isK rules → ∀ rl ∈ rules,
+    (∀ lv, ((∃ pins, rl.fire = .nested lv pins) ∨ rl.fire = .levels lv) →
+      (∀ u ∈ lv, (denoteL st.ls u).isSome = true) ∧ lv.length < 2 ^ 60) ∧
+    (∀ lv pins, rl.fire = .nested lv pins → ∀ p ∈ pins, (denoteE st p).isSome = true)
+
+theorem envDen_pushR {fe fe' : IFEnv} {p : Pins} {st : EStore} {ci : IConstantInfo}
+    (hf : ∀ n, fe'.find? n = if (ci.name == n) = true then some ci else fe.find? n)
+    (ht : ∀ n, fe'.findTable? n = fe.findTable? n) (h : EnvDen fe p st) (hnew : NewDen ci st)
+    (hrd : RulesDen ci st) : EnvDen fe' p st := by
+  obtain ⟨hc, htb, hp, hr⟩ := h
+  refine ⟨fun c ci' hci => ?_, fun T tbl h' => htb T tbl (by rw [← ht]; exact h'), hp,
+    fun c cv mI rP isK rules hci => ?_⟩
+  · rw [hf] at hci
+    split at hci
+    · cases hci; exact hnew
+    · exact hc c ci' hci
+  · rw [hf] at hci
+    split at hci
+    · cases hci; exact hrd cv mI rP isK rules rfl
+    · exact hr c cv mI rP isK rules hci
+
 def iqT := ofString "iq_t"
 def iqQ := ofString "iq_q"
 def iq4 := ofString "iq_4"
@@ -130,7 +153,7 @@ theorem instQ_spec (C : Ctx) (hok : CtxOK C)
     (hcie : ∀ EH ox b, C.EH <+: EH → Lay10 C EH ox b [tW, Enc.idxW ci.name, ecell C b,
       Enc.idxW ci.toConstantVal.type, w4, w5, w6, w7, w8, w9] ci → CIE C.EB EH ox ci)
     (hg : TblGate C.fe) (hnew : C.fe.find? ci.name = none) (hden : NewDen ci s.store)
-    (hrec : ∀ cv mI rP isK rules, ci ≠ .recInfo cv mI rP isK rules) :
+    (hrd : RulesDen ci s.store) :
     SpecR (σ := σ) (Pre C s (iqParams.zip [tW, cellA C q, w4, w5, w6, w7, w8, w9])) (instQBody C) s
       (pure (C.fe.push ci)) (PostInst C ci) := by
   refine specR_prologue (postInst_locals C ci) (iq_none C _) ?_
@@ -215,7 +238,7 @@ theorem instQ_spec (C : Ctx) (hok : CtxOK C)
     (fun u hu => hu.env.2.1) (fun i hi => hok.kbMemo .env i (by simp [encNI] at hi; omega))
     (fun j hj => hok.mdescMemo .env .env j hj)
     (fun u u' hsr hmem hfr hd hg' hc => sr_envIns (ctxOK_E hok hpE) hsr hfr hd hg' hc hmem rfl
-      (envDen_push (pushOld_find C.fe ci) (pushOld_findTable hg ci hnew) hsr.envd hden hrec))
+      (envDen_pushR (pushOld_find C.fe ci) (pushOld_findTable hg ci hnew) hsr.envd hden hrd))
     hcS hcI iqR (.const (C.mG .env)) (.const 1) (vv iqX) (by decide) ?_ ?_ ?_
     (by simp [encNI]) (fun u hM j hj => by
       have e : j = 0 := by simp [encNI] at hj; omega

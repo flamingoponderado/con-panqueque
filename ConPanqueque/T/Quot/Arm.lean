@@ -4,6 +4,7 @@ import ConPanqueque.T.Decl.StepDefn
 import ConPanqueque.T.Decl.OffCheck
 import ConPanqueque.T.InstLPFast
 import ConPanqueque.T.Ind.ParamLevels
+import ConPanqueque.T.Core.RecFire
 
 /-!
 # `checkDecl` at a quotient record (the type former and the constructor)
@@ -37,10 +38,17 @@ def kqT2 := ofString "kq_t2"
 def kqR := ofString "kq_r"
 def kqF := ofString "kq_f"
 def kqE := ofString "kq_e"
+def kqH := ofString "kq_h"
+def kqA := ofString "kq_a"
+def kqB := ofString "kq_b"
+def kqC := ofString "kq_c"
+def kqD := ofString "kq_d"
+def kqG := ofString "kq_g"
 def fKq := ofString "checkQuot"
 
 def kqLocals : List MlS := [kdN, kdX, kdL, kdLn, lJ0, kqRL, kqLn, kqPl, kqUs, kqTy, kqT2, kqR, kqF, kqE,
-  ocA, ocB, ocC, ocD, qN, qL, qT, qU, qX, ConPanqueque.Start.vPn, ConPanqueque.Start.vKa] ++ genLocals
+  kqH, kqA, kqB, kqC, kqD, kqG,
+  ocA, ocB, ocC, ocD, qN, qL, qT, qU, qX, qW, ConPanqueque.Start.vPn, ConPanqueque.Start.vKa] ++ genLocals
 
 /-- Pin `i`'s constant stored, else a hang. -/
 def predGuard (C : Ctx) (i : Nat) (rest : ProgHOL 64) : ProgHOL 64 :=
@@ -84,18 +92,52 @@ def instP (C : Ctx) : Nat → ProgHOL 64
   | 1 => callR kdX fInstQ [.const 4, vv kqR, .const 2, .const 1, vv qX, .const 0, .const 0, .const 0] (tailP C)
   | _ => callR kdX fInstQ [.const 0, vv kqR, .const 0, .const 0, .const 0, .const 0, .const 0, .const 0] (tailP C)
 
+/-- `quotAt` and the install at a slot that is not a recursor. -/
+def restNR (C : Ctx) (j : Nat) : ProgHOL 64 :=
+  offCheckP C (quotSlotP C j (atLpsP
+  (alloc3 C kqR (vv qN) (vv kqRL) (vv kqTy)
+  (envFindP C kqF (vv qN) (.ite (.cmp .notEqual (vv kqF) (.const 0)) hang (instP C j))))))
+
+/-- A quotient recursor's major index (also its count of parameters, motives and minors before it). -/
+def recMI : Nat → Nat
+  | 2 => 5
+  | _ => 4
+
+/-- `quotAt` and the install at a recursor slot: the pin at the record's names (the type, then the one rule's
+right-hand side and firing levels), the rule's blocks, the record. -/
+def restR (C : Ctx) (j : Nat) : ProgHOL 64 :=
+  offCheckP C (quotSlotP C j (atLpsP
+  (callR kqUs fParamLevels [vv kqRL]
+  (callR kqH fInstLPF [.const (BitVec.ofNat 64 coreWalkFuel), vv qW, vv qL, vv kqUs]
+  (envAllocP C kqB (.const 8) (.seq (.store (vv kqB) (vv qU))
+  (alloc1 C kqA (.const 0)
+  (callR kqA ConPanqueque.T.WC.fRg [.const 0, vv kqB, .const 1, vv qL, vv kqUs, vv kqA]
+  (.seq (.assign .local kqE (.load .one (.op .add [vv kqA, .const 8])))
+  (envAllocP C kqC (.const 16) (envStoresP kqC [.const 1, vv kqE] 0
+  (envAllocP C kqD (.const 48) (envStoresP kqD [vv qX, .const 1, .const 2, vv kqC, .const 0, vv kqH] 0
+  (envAllocP C kqG (.const 16) (envStoresP kqG [.const 1, vv kqD] 0
+  (alloc3 C kqR (vv qN) (vv kqRL) (vv kqTy)
+  (envFindP C kqF (vv qN) (.ite (.cmp .notEqual (vv kqF) (.const 0)) hang
+  (callR kdX fInstQ [.const 5, vv kqR, .const (BitVec.ofNat 64 (recMI j)), .const (BitVec.ofNat 64 (recMI j)),
+    .const 0, vv kqG, .const 0, .const 0] (tailP C))))))))))))))))))))
+
+/-- `quotAt` and the install at slot `j`. -/
+def restP (C : Ctx) (j : Nat) : ProgHOL 64 :=
+  match j with
+  | 2 | 3 => restR C j
+  | _ => restNR C j
+
 /-- The record at slot `j`. -/
 def armP (C : Ctx) (j : Nat) : ProgHOL 64 :=
-  offCheckP C (quotSlotP C j (hitP (predsP C j
-  (offCheckP C (quotSlotP C j (atLpsP
-  (alloc3 C kqR (vv qN) (vv kqRL) (vv kqTy)
-  (envFindP C kqF (vv qN) (.ite (.cmp .notEqual (vv kqF) (.const 0)) hang (instP C j))))))))))
+  offCheckP C (quotSlotP C j (hitP (predsP C j (restP C j))))
 
 /-- `checkDecl` at a quotient record (its constant value at `kdQ`, its kind's number in `kdV`). -/
 def kqBody (C : Ctx) : ProgHOL 64 := prologue kqLocals
   (.ite (.cmp .equal (vv kdV) (.const 1)) (armP C 0)
   (.ite (.cmp .equal (vv kdV) (.const 2)) (armP C 1)
-  (.ite (.cmp .equal (vv kdV) (.const 5)) (armP C 4) hang)))
+  (.ite (.cmp .equal (vv kdV) (.const 5)) (armP C 4)
+  (.ite (.cmp .equal (vv kdV) (.const 3)) (armP C 2)
+  (.ite (.cmp .equal (vv kdV) (.const 4)) (armP C 3) hang)))))
 
 /-- A quotient kind's number. -/
 def qkN : ConLeche.QuotKind → Nat
