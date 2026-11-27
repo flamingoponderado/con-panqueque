@@ -1,6 +1,7 @@
 import ConPanqueque.Front.ScanPhase
 import ConPanqueque.Front.ScanKB
 import ConPanqueque.Front.AxiomDisp
+import ConPanqueque.Front.QuotDisp
 
 /-! # The frontend's code table and the line dispatcher
 
@@ -52,6 +53,8 @@ structure FrontCodes (σ : Type) (C : Ctx) : Prop where
   fThm : ∀ k, k < 4 → C.code.lookup (fThmF k) = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanThmDeclSpec thmInits (vv (slotName k)), .one)
   fOpq : ∀ k, k < 5 → C.code.lookup (fOpqF k) = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanOpaqueDeclSpec opqInits (vv (slotName k)), .one)
   fAx : ∀ k, k < 4 → C.code.lookup (fAxF k) = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanAxiomDeclSpec axInits (vv (slotName k)), .one)
+  fQt : ∀ k, k < 4 → C.code.lookup (fQtF k) = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanQuotDeclSpec qtInits (vv (slotName k)), .one)
+  cQK : C.code.lookup fQKind = some ([(sB, .one), (sN, .one), (sI, .one)], qkFun, .one)
   fDef : ∀ k, k < 6 → C.code.lookup (fDefF k) = some ([(sB, .one), (sN, .one), (sI, .one)], recFun scanDefDeclSpec defInits (vv (slotName k)), .one)
   cLnPl : C.code.lookup fLnPl = some ([(sB, .one), (sN, .one), (sI, .one)], lineFun sPl, .one)
   cLnS0 : C.code.lookup fLnS0 = some ([(sB, .one), (sN, .one), (sI, .one)], lineFun (slotName 0), .one)
@@ -73,6 +76,7 @@ structure FrontCodes (σ : Type) (C : Ctx) : Prop where
   l15 : C.code.lookup (fLine 15) = some (linePs.map (fun p => (p, ShapeHOL.one)), prologue thL (thLineP C), .one)
   l16 : C.code.lookup (fLine 16) = some (linePs.map (fun p => (p, ShapeHOL.one)), prologue opL (opLineP C), .one)
   l21 : C.code.lookup (fLine 21) = some (linePs.map (fun p => (p, ShapeHOL.one)), prologue opL (axLineP C), .one)
+  l22 : C.code.lookup (fLine 22) = some (linePs.map (fun p => (p, ShapeHOL.one)), prologue qtL (qtLineP C), .one)
   l18 : C.code.lookup (fLine 18) = some (linePs.map (fun p => (p, ShapeHOL.one)), prologue pairL (lvPairLineP fInternLMax), .one)
   l19 : C.code.lookup (fLine 19) = some (linePs.map (fun p => (p, ShapeHOL.one)), prologue pairL (lvPairLineP fInternLImax), .one)
   cLnKB : C.code.lookup fLnKB = some ([(sB, .one), (sN, .one), (sI, .one)], lineFunKB, .one)
@@ -84,7 +88,7 @@ def callLine (t : Nat) (rest : ProgHOL 64) : ProgHOL 64 :=
 
 def guardIx (c : ProgHOL 64) : ProgHOL 64 := .ite (.cmp .lower (vv kIx) (vv fCap)) c hang
 
-def isDeclTag (t : Nat) : Bool := t == 14 || t == 15 || t == 16 || t == 21
+def isDeclTag (t : Nat) : Bool := t == 14 || t == 15 || t == 16 || t == 21 || t == 22
 
 def branchP (rest : ProgHOL 64) (t : Nat) : ProgHOL 64 :=
   if isDeclTag t then callLine t rest else guardIx (callLine t rest)
@@ -93,7 +97,7 @@ def chainP (rest : ProgHOL 64) : List Nat → ProgHOL 64
   | [] => hang
   | t :: ts => .ite (.cmp .equal (vv kTg) (.const (BitVec.ofNat 64 t))) (branchP rest t) (chainP rest ts)
 
-def dispTags : List Nat := [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 18, 19, 21]
+def dispTags : List Nat := [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 18, 19, 21, 22]
 
 /-- The dispatch after the scan phase. -/
 def dispatchP (rest : ProgHOL 64) : ProgHOL 64 :=
@@ -204,7 +208,7 @@ theorem dispatch_spec {β : Type} {k : StateD ⊕ RecordVerdict → AM β} {R : 
     obtain ⟨hpl, j0, ik, idx, j', hle, hwi⟩ := hpay hnb
     rw [he] at hpl
     simp only [dispTags, List.mem_cons, List.not_mem_nil, or_false] at ht
-    rcases ht with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+    rcases ht with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
     · show SpecR _ (guardIx (callLine 1 rest)) _ _ _
       refine specR_guardIx idx cap hfs.lay.capN (by have := hfs.lay.cap8; omega) (by rw [hIx, hwi]) h4 (fun hi => ?_)
       exact brBVar ra C hok fc.cBVar (fLine 1) fc.l1 s Γ M D hx st hfs ws (recPl rec) hpl j0 j' ik idx rec hle n hn hi h1 h2 h3 h4 (by rw [hIx, hwi]) hS0 h7 h8 h9 h10 hk'
@@ -255,6 +259,8 @@ theorem dispatch_spec {β : Type} {k : StateD ⊕ RecordVerdict → AM β} {R : 
       exact brImax ra C hok fc.hnc fc.cNth fc.cImax (fLine 19) fc.l19 s Γ M D hx st hfs ws (recPl rec) hpl j0 j' ik idx rec hle n hn hi h1 h2 h3 h4 (by rw [hIx, hwi]) hS0 h7 h8 h9 h10 hk'
     · show SpecR _ (callLine 21 rest) _ _ _
       exact brAx C hok fc.hnc fc.hsc fc.cNth fc.fAx (fLine 21) fc.l21 s Γ M D hx st hfs ws (recPl rec) hpl j0 j' ik idx rec hle n hn h1 h2 h3 h4 (by rw [hIx, hwi]) hS0 h7 h8 h9 h10 hk'
+    · show SpecR _ (callLine 22 rest) _ _ _
+      exact brQt C hok fc.hnc fc.hsc fc.cNth fc.cQK fc.fQt (fLine 22) fc.l22 s Γ M D hx st hfs ws (recPl rec) hpl j0 j' ik idx rec hle n hn h1 h2 h3 h4 (by rw [hIx, hwi]) hS0 h7 h8 h9 h10 hk'
 
 end
 
