@@ -7,20 +7,28 @@ input. The gaps below are documented future work.
 
 ## The theorem
 
-[`ConPanqueque.Start.main_pipeline_chunks`](ConPanqueque/Start/Main3.lean#L280) says:
-take the Pancake program `mainBody2`, the program that `scripts/Emit.lean` emits
+[`ConPanqueque.Start.main_pipeline_prelude`](ConPanqueque/Start/Main4.lean) says:
+take the Pancake program `mainBody3`, the program that `scripts/Emit.lean` emits
 and `cake --pancake` compiles. Start it from the initial state (`InitMem`,
 `InitGlobals`, little-endian). If it returns, then:
 
 - it recorded a `read` FFI event with input bytes `b`;
 - con-leche's frontend parses that input: `parseChunks [b] = .ok r`;
-- con-leche's pure checker accepts the input with its built-in prelude in front:
-  `∃ E, PureRun pins (preparePrelude pre r.decls).toList Env.empty E`.
+- con-leche's built-in prelude parses: `builtinPreludeE = .ok pre`;
+- con-leche's pure checker accepts the input prepared with it:
+  `∃ E, PureRun [] (preparePrelude pre r.decls).toList Env.empty E`
+  (`[]`: the `Nat`-operation pin list the program's fold uses).
 
-The C harness (`pancake/ffi_checker.c`) prints `accept` and exits 0 only when the
-program returns. Every reject path goes through `hang`, which prints `reject` and
-exits 1 (`Logic/Stop.lean`, `hang_stop`). So **"the port accepts" implies "con-leche's
-pure checker accepts"**.
+How the program gets there (`ConPanqueque/Prelude/`): after the stream's parse it stores the
+prelude's bytes (`builtinPreludeText`'s UTF-8, `Prelude/Text.lean` + `Prelude/Bytes.lean`)
+over the input buffer and parses them into the same registry from fresh tables
+(`parseP2`; `feedAll_withPre`: the twin's parse ignores the records in front). The override
+pass (`overP`) keeps the prelude in front and drops every stream record whose name is a
+prelude record's key — it must be that record word for word (`recEqP`) and the only stream
+record of that name, else hang; stream blocks hang for now. The hoist check (`hoistP`)
+hangs unless each pinned `Nat` operation's ground is declared before it, which makes
+`hoistTargets` empty (`Prelude/Hoist.lean`). The fold runs over the result, which is
+`(preparePrelude pre r.decls).toList` (`Prelude/Prep.lean`, `Prelude/Final.lean`).
 
 Axioms: `propext`, `Classical.choice`, `Quot.sound`. The proof uses no
 `native_decide`, no `bv_decide` and no `sorry`.
@@ -30,32 +38,19 @@ Axioms: `propext`, `Classical.choice`, `Quot.sound`. The proof uses no
 1. `RuntimeAssumptions` (`Hash.lean`): Lean's runtime `mixHash`, `String.hash` and
    big-`Nat` hash agree with their written-out definitions.
 2. `System.Platform.numBits = 64`.
-3. `PreludeOK pins pre envP` (documented in [docs/SOUNDNESS.md](docs/SOUNDNESS.md), A1): con-leche's pure checker accepts its own built-in
-   prelude from the empty environment. The resulting environment and the prelude's
-   keys use only names in the forbidden-name list `FN`, and the prelude has no
-   Nat-operation records. This holds when run (`#eval`: the prelude is accepted,
-   23 constants), but it is not proved in Lean:
-   - the kernel cannot evaluate `builtinPreludeE`, because it depends on `USize` /
-     `numBits`;
-   - a `decide +kernel` attempt on the parsed prelude ran out of resources and was
-     killed (exit 143);
-   - `native_decide` would close it, but that trusts the compiler, like the banned
-     `bv_decide`, so it is not used.
+
+(The former hypothesis `PreludeOK` is gone: the program checks the prelude's records itself.)
 
 ## Gaps (not proved; future work)
 
-- **Prelude.** Discharge `PreludeOK` by a kernel-checked proof, for example by
-  splitting it into per-declaration lemmas.
 - **con-leche's real verdict.** con-leche's executable exits 0 from its cached
-  checker (`Cached.checkDecls`). con-leche proves cached ⇒ pure. The theorem above
-  reaches the pure checker only. It does not prove pure ⇒ cached, which may be false
-  in general (for example, the cached checker gives up on some inputs above its
-  size limits). So "port accepts ⇒ con-leche's binary exits 0" is not proved.
+  checker (`Cached.checkDecls`) at `natOpPinSets`. The theorem reaches the pure checker at
+  the pin list `[]` only.
 - **Completeness.** The direction "con-leche accepts ⇒ port accepts" is not proved.
-  The chosen direction was soundness only.
-- **Coverage.** The port rejects every stream with inductive types, axioms or
-  quotients. It accepts only definitions, theorems and opaques over the built-in
-  prelude, so real Lean exports are rejected.
+- **Coverage.** The fold's dispatcher still rejects inductive lines, and the prelude is
+  mostly inductive blocks, so the program accepts nothing yet. The override pass compares
+  value records only; comparing a stream block with a prelude block (and detecting a
+  stream block that declares a prelude key) is future work — it hangs on stream blocks.
 
 ## Executable evidence (not proofs)
 

@@ -297,56 +297,7 @@ theorem main_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
       by rw [h3]; exact et⟩
   exact core_verdict2 ra hbits t' hm' hg' (by rw [h5]; exact hbe) h6
 
-/-- What the bridge assumes of con-leche's built-in prelude `pre`: its records are accepted from
-the empty environment (to `envP`, at pins `pins`), its environment and its records' keys use only
-forbidden names, and none of its records is a pinned `Nat` operation. -/
-structure PreludeOK (pins : List ConLeche.NatOpPinSet) (pre : ConLeche.Frontend.PreludeIx) (envP : ConLeche.Env) :
-    Prop where
-  run : ConLeche.PureRun pins pre.decls.toList ConLeche.Env.empty envP
-  names : ∀ m, envP.find? m ≠ none → m ∈ FN
-  keys : ∀ p ∈ pre.decls.toList, ConLeche.Frontend.preludeKey p ∈ FN
-  noOp : ∀ p ∈ pre.decls.toList, ConLeche.Frontend.isNatOpRecord p = none
-
-/-- **con-leche's fold accepts what the program accepts.**  If `main` returns, the read input parses,
-and con-leche's pure fold accepts the input prepared with the built-in prelude (`preparePrelude`),
-given con-leche's prelude is accepted and declares only forbidden names. -/
-theorem main_pipeline (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : System.Platform.numBits = 64)
-    (pins : List ConLeche.NatOpPinSet) (pre : ConLeche.Frontend.PreludeIx) (envP : ConLeche.Env)
-    (hP : PreludeOK pins pre envP)
-    (t : PState σ) (hm : InitMem t) (hg : InitGlobals t codeT) (hbe : t.be = false) (w : BitVec 64)
-    (hret : (evaluateHOLFiniteState t mainBody2).1 = some (.returned (.val (.word w)))) :
-    ∃ nb bs : List (BitVec 8), nb.length = 8 * Lw ∧
-      ⟨.extCall fRead, [], bs.zip nb⟩ ∈ (evaluateHOLFiniteState t mainBody2).2.ffi.ioEvents ∧
-      ∃ rc, ConLeche.Frontend.parseBytes (inputOf nb (leNat (nb.take 8))) = .ok rc ∧
-        ∃ E, ConLeche.PureRun pins (ConLeche.Frontend.preparePrelude pre rc.decls).toList ConLeche.Env.empty E := by
-  rcases main_verdict2 ra hbits t hm hg hbe with hs | ⟨-, nb, bs, hl, hev, rc, hrc, ⟨F', hacc⟩, hnm⟩
-  · exact absurd hret (stop_ne_returned hs _)
-  refine ⟨nb, bs, hl, hev, rc, hrc, ?_⟩
-  have hS := ConLeche.PureRun.of_foldlM (pins := []) (F := F') rc.decls.toList hacc
-  refine ConPanqueque.Pipeline.pipeline_of_stream pins [] pre rc.decls hP.run hP.noOp hS (fun d hd => ?_)
-  obtain ⟨n, hn, hnF⟩ := hnm d hd
-  refine ConPanqueque.Pipeline.recOK_of_recName hn (nameOK_of_notMem hnF) ?_ (fun p hp e => hnF (e ▸ hP.keys p hp))
-  cases h : envP.find? n with
-  | none => rfl
-  | some ci => exact absurd (hP.names n (by rw [h]; simp)) hnF
-
-/-- `main_pipeline` at con-leche's own parse of the file as one chunk (`parseChunks [b]`), the form
-of con-leche's accepting outcome (`checkMainG_ndjson_accept`). -/
-theorem main_pipeline_chunks (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : System.Platform.numBits = 64)
-    (pins : List ConLeche.NatOpPinSet) (pre : ConLeche.Frontend.PreludeIx) (envP : ConLeche.Env)
-    (hP : PreludeOK pins pre envP)
-    (t : PState σ) (hm : InitMem t) (hg : InitGlobals t codeT) (hbe : t.be = false) (w : BitVec 64)
-    (hret : (evaluateHOLFiniteState t mainBody2).1 = some (.returned (.val (.word w)))) :
-    ∃ nb bs : List (BitVec 8), ⟨.extCall fRead, [], bs.zip nb⟩ ∈ (evaluateHOLFiniteState t mainBody2).2.ffi.ioEvents ∧
-      ∃ r, ConLeche.Frontend.parseChunks [inputOf nb (leNat (nb.take 8))] = .ok r ∧
-        ∃ E, ConLeche.PureRun pins (ConLeche.Frontend.preparePrelude pre r.decls).toList ConLeche.Env.empty E := by
-  obtain ⟨nb', bs', hl', hev', rc, hrc, E, hE⟩ := main_pipeline ra hbits pins pre envP hP t hm hg hbe w hret
-  refine ⟨nb', bs', hev', rc, ?_, E, hE⟩
-  have hsz : (inputOf nb' (leNat (nb'.take 8))).size < USize.size := by
-    have h1 : (inputOf nb' (leNat (nb'.take 8))).size ≤ nb'.length := by
-      simp [inputOf, ByteArray.size]
-    rw [USize.size_eq_two_pow, hbits]; rw [hl'] at h1; simp [Lw] at h1; omega
-  rw [ConLeche.Frontend.parseChunks_eq_parseBytes [_] (by simpa [ConLeche.Frontend.concatBytes] using hsz)]
-  simpa [ConLeche.Frontend.concatBytes] using hrc
+-- `main_pipeline`/`main_pipeline_chunks` (an arbitrary prelude under `PreludeOK`) are superseded by
+-- `main_pipeline_prelude` (`ConPanqueque/Start/Main4.lean`), at con-leche's own built-in prelude.
 
 end ConPanqueque.Start

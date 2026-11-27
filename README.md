@@ -8,13 +8,17 @@ Pancake language and compiler. A sibling of
 translates con-leche to CakeML.
 
 **Status: soundness relative to con-leche's pure checker, under stated hypotheses.**
-The theorem [`main_pipeline_chunks`](ConPanqueque/Start/Main3.lean#L280) proves that if the
-compiled checker accepts an input, con-leche's frontend parses it and con-leche's
-pure checker accepts it with the built-in prelude in front. The proof assumes con-leche
-accepts its own prelude (`PreludeOK`, checked by `#eval` but not proved) and that Lean's
-runtime hashes match their definitions. The port does not prove that it gives the same
-verdict as con-leche: it does not reach con-leche's cached checker, it does not prove
-completeness, and it rejects inductives, axioms and quotients. See [docs/SOUNDNESS.md](docs/SOUNDNESS.md) for every assumption, [STATUS.md](STATUS.md)
+The theorem [`main_pipeline_prelude`](ConPanqueque/Start/Main4.lean) proves that if the
+compiled checker accepts an input, con-leche's frontend parses it, con-leche's own
+built-in prelude parses (`builtinPreludeE = .ok pre`), and con-leche's pure checker accepts
+the input prepared with that prelude (`preparePrelude pre r.decls`). The program parses the
+prelude's bytes itself (`ConPanqueque/Prelude/`), drops the input's identical copies of
+prelude records (and hangs on any other overlap), and checks that the `Nat`-operation
+hoist is the identity. The proof assumes that Lean's runtime hashes match their
+definitions. The port does not prove that it gives the same verdict as con-leche: it does
+not reach con-leche's cached checker, it does not prove completeness, and it still rejects
+inductive records (so it accepts nothing until the inductive arm is wired). See
+[docs/SOUNDNESS.md](docs/SOUNDNESS.md) for every assumption, [STATUS.md](STATUS.md)
 for the exact statement and gaps, and [PLAN.md](PLAN.md) for the design.
 
 ## Layout
