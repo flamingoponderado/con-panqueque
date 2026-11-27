@@ -222,5 +222,22 @@ The comparison is the twin's, renaming included (the prelude's `Eq` is `Eq.{u_1}
 runs `paramLevels` and `instLPFast` on the pin's type and rule right-hand sides; the links compare the stream
 constructor's level-parameter handles with the pin constructor's renamed through the recursors' (`goH`).
 
-Still open: the `And` route (`andPinOk`'s `canonEqList` against `andPin`); an `And`-named block still hangs in
-`ibnBody`. `Nat` passes the pin branch but hangs earlier on its recursive constructor (finding 1).
+`Nat` passes the pin branch but hangs earlier on its recursive constructor (finding 1).
+
+## 6. The `And` pin (`andPinOk`'s `canonEqList` branch)
+
+A block named exactly `[And, And.intro, And.rec]` (pins `11`, `48`, `49`) no longer hangs in `ibnBody`.
+`anmBody` (`AndPin`, `fAnm`) tests the names (`AndNames`); `ibkBody` is called with `hitW + [AndNames]`, so the
+freshness check is skipped at the `And` names (they are not reserved, `andNames_res` off `reserved_not_and`, which
+is all `basisNamesOk` needs: `basisNamesOk_res`). `apkBody` (`fApk`) refines `andPinOk (.indDecl block nP)`: off
+the `And` names it returns at once (the caller supplies the twin's `true`, `andPinOk_ind`/`andPinOk_hit`); at them
+`nP = 2` (else hang), the scratch tier off (else hang), `genPinBlk` interns `andPin` (`andPinDecls_plain`), then
+the three records are compared with the pin's word by word (`specR_rec0/1/2`: kind, name, level-parameter count
+and handles, type, a constructor's counts and family, a recursor's counts, `K` flag, and its one rule's
+constructor, field count, firing tag and right-hand side; a mismatch hangs), giving `CanonAgree`. The recursor's
+`canonNames 1` is `.num .anonymous 0` interned (`numTail`, `fInternNNum`).
+
+The twin side (`AndCanon`): `canonExprEq ps ps cs fuel e e` is `true` with the state kept when the fuel exceeds
+the depth of `e`'s denotation (`canonExprEq_refl`, `edep`); the pin's records are that shallow (`andPin_shallow`,
+by `decide`), so `canonEqList block pinned` is `true` at the state `canonNames 1` leaves (`canonEqList_and`).
+`ki_spec` continues from `andPinOk`'s state (`andPinOk_run` carries `SeqOK`).

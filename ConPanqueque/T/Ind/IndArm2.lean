@@ -6,13 +6,17 @@ import ConPanqueque.T.Ind.BlockReadsSpec
 import ConPanqueque.Bridge.SeqFold
 import ConPanqueque.T.Ind.NodeCount
 import ConPanqueque.T.Ind.BasisHit
+import ConPanqueque.T.Ind.AndPin
 
 /-!
 # The record of an inductive block (`checkDeclStep` at `.indDecl`)
 
-`kiBody`: the record `[4, nP, block]`; the block's names free (else hang), the full flush, `indParamsOk` (false
-hangs), `readBlock`, `blockReadsAt`, `checkBlock`, the reads' verdict (false hangs), the flush, the scratch tier
-off (else hang), and the block none of the pinned basis blocks (a reserved slice matching hangs).
+`kiBody`: the record `[4, nP, block]`; its kind word against the pinned basis blocks (`bhitBody`); whether its
+names are exactly the pinned `And` block's (`anmBody`); the block's names free unless either matched (else hang);
+at the `And` names the twin's `andPinOk` (`apkBody`: `nP = 2`, the pin interned, the records against it word by
+word, the recursor's numbered name interned; else hang); the full flush, `indParamsOk` (false hangs),
+`readBlock`, `blockReadsAt`, `checkBlock`, the reads' verdict (false hangs), the flush, the scratch tier off (else
+hang), and at a pinned basis block's names its pin's comparison (`bpnBody`).
 -/
 
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
@@ -36,10 +40,11 @@ def kiSh := ofString "ki_sh"
 def kiRd := ofString "ki_rd"
 def kiFe := ofString "ki_fe"
 def kiK := ofString "ki_k"
+def kiA := ofString "ki_a"
 def fKi := ofString "checkInductive"
 
 def kiParams : List MlS := [kiQ]
-def kiLocals : List MlS := [kiNp, kiOb, kiN, kiR, kiRl, kiX, kiOk, kiSh, kiRd, kiFe, kiK, ocA, ocB, ocC, ocD, lJ0]
+def kiLocals : List MlS := [kiNp, kiOb, kiN, kiR, kiRl, kiX, kiOk, kiSh, kiRd, kiFe, kiK, kiA, ocA, ocB, ocC, ocD, lJ0]
 
 /-- One pinned block's test: the block's length is the slice's and its names match it — hang. -/
 def kiHit (m a : Nat) (rest : ProgHOL 64) : ProgHOL 64 :=
@@ -55,7 +60,9 @@ def kiBody (C : Ctx) : ProgHOL 64 := prologue kiLocals
   (.seq (.assign .local kiR (.load .one (.const (ecell C (C.PO + pinCount + 4)))))
   (.seq (.assign .local kiRl (.load .one (vv kiR)))
   (.seq (.call (some (some (.local, kiK), none)) fBhit [vv kiOb, vv kiN, vv kiR])
-  (.seq (.call (some (some (.local, kiX), none)) fIbk [vv kiOb, vv kiN, vv kiR, vv kiRl, vv kiK])
+  (.seq (.call (some (some (.local, kiA), none)) fAnm [vv kiOb, vv kiN])
+  (.seq (.call (some (some (.local, kiX), none)) fIbk [vv kiOb, vv kiN, vv kiR, vv kiRl, .op .add [vv kiK, vv kiA]])
+  (.seq (.call (some (some (.local, kiX), none)) fApk [vv kiOb, vv kiNp, vv kiA])
   (flushCode C (flushRegions true)
   (.seq (.call (some (some (.local, kiOk), none)) fIpo [vv kiOb, .const 0, vv kiN, vv kiNp])
   (.ite (.cmp .equal (vv kiOk) (.const 0)) hang
@@ -66,11 +73,12 @@ def kiBody (C : Ctx) : ProgHOL 64 := prologue kiLocals
   (flushCode C (flushRegions false)
   (offCheckP C
   (.ite (.cmp .equal (vv kiK) (.const 0)) (.return (.const 0))
-    (.seq (.call (some (some (.local, kiX), none)) fBpn [vv kiOb, vv kiK]) (.return (.const 0))))))))))))))))))))
+    (.seq (.call (some (some (.local, kiX), none)) fBpn [vv kiOb, vv kiK]) (.return (.const 0))))))))))))))))))))))
 
 structure KICodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
   bh : BHCodes C
   bp : BPCodes C
+  ak : AKCodes C
   ipo : C.code.lookup fIpo = some (ipoParams.map (fun p => (p, ShapeHOL.one)), ipoBody, .one)
   pst : C.code.lookup fPiSortTele = some ([(pFu, .one), (pH, .one)], pstBody fPiSortTele, .one)
   rb : RBCodes C
@@ -286,28 +294,76 @@ theorem ki_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : Con
   have hkw4 : hitW block C.pins.reserved ≤ 4 := by
     unfold hitW; split_ifs <;> omega
   have hp0' : C.H <+: H0 := hp0
-  refine specR_callPure (C := ctxH C H0) kiX fIbk ibkParams [vv kiOb, vv kiN, vv kiR, vv kiRl, vv kiK] ibkBody
+  refine specR_callPure (C := ctxH C H0) kiA fAnm anmParams [vv kiOb, vv kiN] (anmBody C)
+    [cellA C ob, BitVec.ofNat 64 block.length] (decide (AndNames C block)) (by decide) rfl (by decide) hc.ak.anm
+    ⟨by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], trivial⟩
+    (PostB (ctxH C H0)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu anmParams _ rfl hlk)
+      (anm_spec (ctxH C H0) (ctxOK_H hok H0) block ob (indBlk_mono hblk hp0') (by omega) s))
+    (fun wa Ha hpa hwa => ?_)
+  subst hwa
+  have hpa' : C.H <+: Ha := hp0'.trans hpa
+  have haN : (if decide (AndNames C block) = true then 1 else 0) ≤ 1 := by split <;> omega
+  refine specR_callPure (C := ctxH C Ha) kiX fIbk ibkParams
+    [vv kiOb, vv kiN, vv kiR, vv kiRl, .op .add [vv kiK, vv kiA]] ibkBody
     [cellA C ob, BitVec.ofNat 64 block.length, ecell C oR, BitVec.ofNat 64 C.pins.reserved.length,
-      BitVec.ofNat 64 (hitW block C.pins.reserved)] () (by decide) rfl (by decide) hc.bh.ibk
+      BitVec.ofNat 64 (hitW block C.pins.reserved + if decide (AndNames C block) = true then 1 else 0)] ()
+    (by decide) rfl (by decide) hc.bh.ibk
     ⟨by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons],
       by simp +decide [sev, Env.get_cons] <;> rfl, by simp +decide [sev, Env.get_cons] <;> rfl,
-      by simp +decide [sev, Env.get_cons], trivial⟩
-    (PostKFH (ctxH C H0) s (hitW block C.pins.reserved = 0 → ∀ c ∈ block, NameFree (ctxH C H0) c.name))
-    (fun _ _ s' _ => s' = s ∧ (hitW block C.pins.reserved = 0 → ∀ c ∈ block, NameFree C c.name))
+      by simp +decide only [sev, sev_vv, Env.get_cons, ite_true, ite_false]; exact congrArg some (ofNat_add_boolW _ _),
+      trivial⟩
+    (PostKFH (ctxH C Ha) s (hitW block C.pins.reserved + (if decide (AndNames C block) = true then 1 else 0) = 0 →
+      ∀ c ∈ block, NameFree (ctxH C Ha) c.name))
+    (fun _ _ s' _ => s' = s ∧ (hitW block C.pins.reserved + (if decide (AndNames C block) = true then 1 else 0) = 0 →
+      ∀ c ∈ block, NameFree C c.name))
     (fun a w s' st ⟨hs', hP, H', hp', hsr⟩ => ⟨H', hp', ⟨hs', hP⟩, hsr⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ibkParams _ rfl hlk)
-      (ibk_spec (ctxH C H0) (ctxOK_H hok H0) (by ctx_tr hc.bh) block ob (indBlk_mono hblk hp0') oR hblkR'
+      (ibk_spec (ctxH C Ha) (ctxOK_H hok Ha) (by ctx_tr hc.bh) block ob (indBlk_mono hblk hpa') oR hblkR'
         (by change C.pins.reserved.length < 2 ^ 62; omega) _ (by omega) s))
     (fun w H1 hp1 ⟨_, hfreeK⟩ => ?_)
-  have hp1' : C.H <+: H1 := hp0'.trans hp1
-  have hok1 := ctxOK_H hok H1
+  have hp1' : C.H <+: H1 := hpa'.trans hp1
   unfold checkDeclStep
-  have hAnd : andPinOk (.indDecl block nP) s = .ok (true, s) := by
-    by_cases hk0 : hitW block C.pins.reserved = 0
-    · exact andPinOk_ind hok ht0.sr.pins block nP (hfreeK hk0)
-    · obtain ⟨k, -, hk⟩ := hitAt_of_hitW hrs16 hk0
-      exact andPinOk_hit hok ht0.sr.pins hseq.pins block nP (names_mem_res hk.2.1)
-  refine specR_runBind hAnd ?_
+  have hfree0 : ¬ AndNames C block → hitW block C.pins.reserved = 0 → ∀ c ∈ block, NameFree C c.name :=
+    fun hA' hk0 => hfreeK (by simp [hA', hk0])
+  have hresK : hitW block C.pins.reserved = 0 → ∀ c ∈ block, C.pins.reserved.contains c.name = false := by
+    intro hk0
+    by_cases hA' : AndNames C block
+    · exact andNames_res hok hseq.pins ht0.sr.pins hA'
+    · intro c hc'; exact (hfree0 hA' hk0 c hc').2.2
+  refine specR_callNIH (C := ctxH C H1) kiX fApk apkParams [vv kiOb, vv kiNp, vv kiA] (apkBody C)
+    [cellA C ob, BitVec.ofNat 64 nP, boolW (decide (AndNames C block))] (by decide) rfl (by decide) hc.ak.self
+    ⟨by simp +decide [sev, Env.get_cons] <;> rfl, by simp +decide [sev, Env.get_cons],
+      by simp +decide [sev, Env.get_cons], trivial⟩
+    (fun b w s' st => andPinOk (.indDecl block nP) s = .ok (b, s') ∧
+      PostPin (ctxH C H1) (fun b => b = true) b w s' st)
+    (fun b w s' H' => andPinOk (.indDecl block nP) s = .ok (b, s') ∧ b = true)
+    (fun b w s' st ⟨hr, h0, H', hp', hsr⟩ => ⟨H', hp', ⟨hr, h0⟩, hsr⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu apkParams _ rfl hlk)
+      (apk_spec ra C hok hc.ak hf hA0 hA block nP ob (decide (AndNames C block)) H1 s hp1' (indBlk_mono hblk hp1')
+        (fun c hc' => by obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem hc'; have := hlp i hi; omega) hnP
+        (fun h => of_decide_eq_true h)
+        (fun h => by
+          have hA' : ¬ AndNames C block := of_decide_eq_false h
+          by_cases hk0 : hitW block C.pins.reserved = 0
+          · exact andPinOk_ind hok ht0.sr.pins block nP (hfree0 hA' hk0)
+          · obtain ⟨k, -, hk⟩ := hitAt_of_hitW hrs16 hk0
+            exact andPinOk_hit hok ht0.sr.pins hseq.pins block nP (names_mem_res hk.2.1)))))
+    (fun b w sA H1A hp1A ⟨hand, hb⟩ => ?_)
+  subst hb
+  have hdD : Frontend.denoteDecl s.store (.indDecl block nP) = some (.indDecl bP nP) := by
+    simp [Frontend.denoteDecl, hbP]
+  obtain ⟨hstA, hxA, -, hpA'⟩ := andPinOk_run hseq.state hseq.pins hdD hand
+  have hseqA : ConPanqueque.Bridge.SeqOK env C.fe sA := ⟨hstA, hseq.pins.mono hxA hpA', hseq.ienv.mono hxA,
+    hseq.envWF, hseq.tblShape, hseq.persPins.mono hpA', hseq.coh, hseq.gate⟩
+  have hbPA : Frontend.denoteCIList sA.store block = some bP := denoteCIList_mono hxA _ _ hbP
+  clear hand
+  have hp1' : C.H <+: H1A := hp1'.trans hp1A
+  have hok1 := ctxOK_H hok H1A
+  revert hseqA hbPA hp1' hok1
+  generalize H1A = H1
+  generalize sA = s
+  intro hseq hbP hp1' hok1
   simp only [Bool.not_true, Bool.false_eq_true, ↓reduceIte, pure_bind, bind_assoc]
   refine specR_congr (m' := ((flushCaches >>= fun _ => (get : AM AState) >>= fun s' =>
       set { s' with memos := Memos.empty }) >>= fun _ => checkDecl .verified pins C.fe (IDeclaration.indDecl block nP)))
@@ -432,7 +488,7 @@ theorem ki_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : Con
   · refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Env.kill, ConPanqueque.T.ExP.Env.get_kill_of_not_mem,
         hk0, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
     have hnh : NoHit C6 block := noHit_of_hitW hrs16 hk0
-    refine specR_runBind (basisNamesOk_ind hok6' hbC ht10.sr hoff block nP (hfreeK hk0) hnh) ?_
+    refine specR_runBind (basisNamesOk_res hok6' hbC ht10.sr hoff block nP (hresK hk0) hnh) ?_
     simp only [↓reduceIte]
     exact specR_returnI _ 0 rfl (fun t ht => ⟨EH6, envM6, tblM6, H6, hpE6, hpH6, hok6',
       sr_of_eq ht.sr rfl rfl rfl rfl, hg6, hF6, hL6⟩)
