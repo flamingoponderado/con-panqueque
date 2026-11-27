@@ -303,6 +303,131 @@ theorem IFEnvOK.pushAll {s : AState} (hst : StateOK s) (L : List IConstantInfo) 
   have := consBlockRecsTemp_ok hst L LP fe env [] hL h hg hts
   rwa [consBlockRecsTemp_fst] at this
 
+/-! ## Coherence, the table gate and the tables' shape across the pushes -/
+
+theorem IFEnvCoh.pushTable {fe : IFEnv} (h : IFEnvCoh fe) (t : IProjTable) : IFEnvCoh (fe.pushTable t) :=
+  ⟨fun n => h.1 n, fun n => by
+    show (fe.tbls.insert t.structName t)[n]? = ((mkIFEnvTblsGo fe.env.tables).insert t.structName t)[n]?
+    simp only [Std.HashMap.getElem?_insert, h.2 n]⟩
+
+theorem IFEnvCoh.pushTables : ∀ (Q : List IProjTable) {fe : IFEnv}, IFEnvCoh fe → IFEnvCoh (IFEnv.pushTables Q fe)
+  | [], _, h => h
+  | t :: Q, _, h => IFEnvCoh.pushTables Q (IFEnvCoh.pushTable h t)
+
+theorem IFEnvCoh.pushAll : ∀ (L : List IConstantInfo) {fe : IFEnv}, IFEnvCoh fe → IFEnvCoh (IFEnv.pushAll L fe)
+  | [], _, h => h
+  | ci :: L, _, h => IFEnvCoh.pushAll L (h.push ci)
+
+theorem IFEnvCoh.feq {a b : IFEnv} (hf : GR.FEq a b) (h : IFEnvCoh b) : IFEnvCoh a :=
+  ⟨fun n => by rw [hf.2.1 n, h.1 n, hf.1], fun n => by rw [hf.2.2.2, h.2 n, hf.1]⟩
+
+theorem TblGate.pushAll : ∀ (L : List IConstantInfo) {fe : IFEnv}, TblGate fe → TblGate (IFEnv.pushAll L fe)
+  | [], _, h => h
+  | ci :: L, _, h => TblGate.pushAll L (h.push ci)
+
+theorem TblGate.pushTable {fe : IFEnv} (h : TblGate fe) (t : IProjTable) (ht : (fe.find? t.structName).isSome = true) :
+    TblGate (fe.pushTable t) := by
+  intro n t' hn
+  rw [pushTable_rawTable?] at hn
+  rw [pushTable_find?]
+  split at hn
+  · rename_i e; subst e; exact ht
+  · exact h n t' hn
+
+theorem TblGate.pushTables {fe : IFEnv} : ∀ (Q : List IProjTable), TblGate fe →
+    (∀ t ∈ Q, (fe.find? t.structName).isSome = true) → TblGate (IFEnv.pushTables Q fe)
+  | [], h, _ => h
+  | t :: Q, h, hs => TblGate.pushTables (fe := fe.pushTable t) Q (TblGate.pushTable h t (hs t (by simp)))
+      (fun t' ht' => by rw [pushTable_find?]; exact hs t' (by simp [ht']))
+
+theorem pushAll_find?_some : ∀ (L : List IConstantInfo) (fe : IFEnv) (n : NIdx), (fe.find? n).isSome = true →
+    ((IFEnv.pushAll L fe).find? n).isSome = true
+  | [], _, _, h => h
+  | ci :: L, fe, n, h => pushAll_find?_some L (fe.push ci) n (by
+      rw [IFEnv.find?_push]; split
+      · rfl
+      · exact h)
+
+theorem pushAll_tables : ∀ (L : List IConstantInfo) (fe : IFEnv), (IFEnv.pushAll L fe).env.tables = fe.env.tables
+  | [], _ => rfl
+  | ci :: L, fe => by
+    show (IFEnv.pushAll L (fe.push ci)).env.tables = _
+    rw [pushAll_tables L (fe.push ci), IFEnv.push_env]
+
+theorem pushTables_tables : ∀ (Q : List IProjTable) (fe : IFEnv),
+    (IFEnv.pushTables Q fe).env.tables = Q.reverse ++ fe.env.tables
+  | [], _ => rfl
+  | t :: Q, fe => by
+    rw [IFEnv.pushTables, pushTables_tables Q (fe.pushTable t)]
+    show Q.reverse ++ (t :: fe.env.tables) = _
+    simp
+
+theorem feq_setFlags (fe : IFEnv) (a b : Bool) : GR.FEq (fe.setFlags a b) fe := ⟨rfl, fun _ => rfl, rfl, rfl⟩
+
+theorem consSumCtors_push (nP : Nat) (T : NIdx) : ∀ (cs : List (IConstantVal × Nat)) (fe : IFEnv),
+    ∃ L, Arena.consSumCtors nP T cs fe = IFEnv.pushAll L fe
+  | [], fe => ⟨[], rfl⟩
+  | c :: cs, fe => by
+    obtain ⟨L, hL⟩ := consSumCtors_push nP T cs (fe.push (.ctorInfo c.1 nP c.2 T))
+    exact ⟨_ :: L, hL⟩
+
+theorem pushAll_append : ∀ (L L' : List IConstantInfo) (fe : IFEnv),
+    IFEnv.pushAll (L ++ L') fe = IFEnv.pushAll L' (IFEnv.pushAll L fe)
+  | [], _, _ => rfl
+  | ci :: L, L', fe => pushAll_append L L' (fe.push ci)
+
+theorem consBlockCtors_push (nP : Nat) : ∀ (gs : List (NIdx × List (IConstantVal × Nat))) (fe : IFEnv),
+    ∃ L, Arena.consBlockCtors nP gs fe = IFEnv.pushAll L fe
+  | [], fe => ⟨[], rfl⟩
+  | (T, cs) :: gs, fe => by
+    obtain ⟨L1, h1⟩ := consSumCtors_push nP T cs fe
+    obtain ⟨L2, h2⟩ := consBlockCtors_push nP gs (Arena.consSumCtors nP T cs fe)
+    exact ⟨L1 ++ L2, by simp only [Arena.consBlockCtors]; rw [h2, h1, pushAll_append]⟩
+
+theorem consBlockInds_push (p₁ : Arena.BlockShape) (isRec : Bool) : ∀ (cvs : List IConstantVal) (i : Nat)
+    (fe : IFEnv) (s s' : AState) (fe' : IFEnv), Arena.consBlockInds p₁ isRec cvs i fe s = .ok (fe', s') →
+    ∃ L, fe' = IFEnv.pushAll L fe
+  | [], _, fe, s, s', fe', h => by
+    simp only [Arena.consBlockInds] at h; obtain ⟨rfl, -⟩ := AM.pure_ok h; exact ⟨[], rfl⟩
+  | cv :: cvs, i, fe, s, s', fe', h => by
+    simp only [Arena.consBlockInds] at h
+    obtain ⟨caps, s1, -, h2⟩ := AM.bind_ok h
+    obtain ⟨L, hL⟩ := consBlockInds_push p₁ isRec cvs (i + 1) _ s1 s' fe' h2
+    exact ⟨_ :: L, hL⟩
+
+/-- The pass's formers' index: the entry index with constants pushed. -/
+theorem checkBlockPass_push {mode : CheckMode} {fe : IFEnv} {p : Arena.BlockShape} {isRec : Bool} {s s' : AState}
+    {q : Arena.BlockPass} (h : Arena.checkBlockPass mode fe p isRec s = .ok (q, s')) :
+    ∃ L, q.env1 = IFEnv.pushAll L fe := by
+  simp only [Arena.checkBlockPass] at h
+  obtain ⟨⟨fe₁, p₁⟩, s1, h1, h2⟩ := AM.bind_ok h
+  have hfe₁ : ∃ L, fe₁ = IFEnv.pushAll L fe := by
+    simp only [Arena.checkBlockInds] at h1
+    cases hm : p.members with
+    | nil => rw [hm] at h1; exact absurd h1 (fun h => AM.fail_ok h)
+    | cons ms0 rest =>
+      rw [hm] at h1
+      obtain ⟨_, _, -, k1⟩ := AM.bind_ok h1
+      obtain ⟨_, _, -, k2⟩ := AM.bind_ok k1
+      obtain ⟨_, _, -, k3⟩ := AM.bind_ok k2
+      obtain ⟨_, _, -, k4⟩ := AM.bind_ok k3
+      obtain ⟨fe₁', _, k5, k6⟩ := AM.bind_ok k4
+      obtain ⟨e, -⟩ := AM.pure_ok k6
+      simp only [Prod.mk.injEq] at e
+      first | rw [e.1] | rw [← e.1]
+      exact consBlockInds_push _ _ _ _ _ _ _ _ k5
+  obtain ⟨L, hL⟩ := hfe₁
+  -- the rest only reads `fe₁`
+  obtain ⟨_, _, -, h3⟩ := AM.bind_ok h2
+  obtain ⟨_, _, -, h4⟩ := AM.bind_ok h3
+  obtain ⟨_, _, -, h5⟩ := AM.bind_ok h4
+  obtain ⟨_, _, -, h6⟩ := AM.bind_ok h5
+  obtain ⟨_, _, -, h7⟩ := AM.bind_ok h6
+  obtain ⟨_, _, -, h8⟩ := AM.bind_ok h7
+  obtain ⟨_, _, -, h9⟩ := AM.bind_ok h8
+  obtain ⟨rfl, -⟩ := AM.pure_ok h9
+  exact ⟨L, hL⟩
+
 /-! ## The block's check, with the index it leaves -/
 
 theorem checkBlock_bridgeW (hk : CoreSpec Arena.checkFuel)
