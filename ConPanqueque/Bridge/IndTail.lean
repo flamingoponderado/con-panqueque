@@ -428,6 +428,41 @@ theorem checkBlockPass_push {mode : CheckMode} {fe : IFEnv} {p : Arena.BlockShap
   obtain ⟨rfl, -⟩ := AM.pure_ok h9
   exact ⟨L, hL⟩
 
+theorem denoteProjTableList_mem {st : EStore} : ∀ (Q : List IProjTable) (QP : List ProjTable),
+    Frontend.denoteProjTableList st Q = some QP → ∀ t ∈ Q, ∃ pt ∈ QP, Frontend.denoteProjTable st t = some pt
+  | [], _, _, t, ht => nomatch ht
+  | t0 :: Q, QP, h, t, ht => by
+    simp only [Frontend.denoteProjTableList] at h
+    split at h
+    · rename_i pt pts h1 h2
+      simp only [Option.some.injEq] at h; subst h
+      rcases List.mem_cons.mp ht with rfl | ht'
+      · exact ⟨pt, by simp, h1⟩
+      · obtain ⟨pt', hm, hd⟩ := denoteProjTableList_mem Q pts h2 t ht'
+        exact ⟨pt', by simp [hm], hd⟩
+    · cases h
+
+/-- A name the environment stores is stored, at its handle, in an index answering as it. -/
+theorem IFEnvOK.stored {env : Env} {fe : IFEnv} {s : AState} (h : IFEnvOK env fe s) (hst : StateOK s)
+    {nm : Name} (hnm : (env.find? nm).isSome = true) {n : NIdx} (hn : denoteN s.store.ns n = some nm) :
+    (fe.find? n).isSome = true := by
+  obtain ⟨c, hc⟩ := Option.isSome_iff_exists.mp hnm
+  obtain ⟨n', ci, hd', hf', -⟩ := h.cover nm c hc
+  rw [denoteN_injS hst.wf hn hd', hf']; rfl
+
+theorem blockFormers_name (p : ConLeche.BlockShape) (r : Bool) {ms : ConLeche.MemberShape} (hms : ms ∈ p.members) :
+    ∃ c ∈ ConLeche.blockFormers p r, c.name = ms.declared.name := by
+  obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem hms
+  have hi' : i < ((p.members.map (·.declared)).zipIdx).length := by simp [hi]
+  refine ⟨_, List.getElem_mem (l := ((p.members.map (·.declared)).zipIdx).map _) (by simpa using hi'), ?_⟩
+  simp [ConstantInfo.name]
+  rfl
+
+/-- What the index a block leaves keeps of the entry index's invariants. -/
+def BlockIdx (fe fe' : IFEnv) : Prop :=
+  (IFEnvCoh fe → IFEnvCoh fe') ∧
+    ((∀ t ∈ fe.env.tables, IProjTableOK t) → ∀ t ∈ fe'.env.tables, IProjTableOK t) ∧ TblGate fe'
+
 /-! ## The block's check, with the index it leaves -/
 
 theorem checkBlock_bridgeW (hk : CoreSpec Arena.checkFuel)
@@ -439,7 +474,7 @@ theorem checkBlock_bridgeW (hk : CoreSpec Arena.checkFuel)
     (hrun : Arena.checkBlock .verified fe block p₀ s = .ok (fe', s')) :
     IndOut s s' (∃ env', FOk (ConLeche.checkBlock (fueledOpsM .verified) env b p₀P) env' ∧
       ∃ Q, env' = env.pushDelta (ConLeche.blockConstants p₀P) Q ∧
-        IFEnvOK (env.pushDelta (ConLeche.blockConstants p₀P) Q) fe' s') := by
+        IFEnvOK (env.pushDelta (ConLeche.blockConstants p₀P) Q) fe' s' ∧ BlockIdx fe fe') := by
   simp only [Arena.checkBlock] at hrun
   -- the distinct names
   have hnC := nameNodup_spec hok.state.wf _ _ (dCtors_names (BlockShape.allCtors_spec hp))
@@ -515,7 +550,7 @@ theorem checkBlock_bridgeW (hk : CoreSpec Arena.checkFuel)
   have x41 := x4.trans p41.ext
   -- the checks after it
   obtain ⟨fe₂, s₅, h9, h10⟩ := AM.bind_ok h84
-  obtain ⟨i5, hFT, hrelT, -, -⟩ := checkBlockTail_ofW hk henv₁ c41.ok (hrel4.mono p41.ext)
+  obtain ⟨i5, hFT, hrelT, hfeqT, -⟩ := checkBlockTail_ofW hk henv₁ c41.ok (hrel4.mono p41.ext)
     (dPass_ext p41.ext hq) (denoteCIList_mono (x13.trans x41) _ _ hb) hT henv₂ hMs hpl hQd h9
   have x5 := i5.ext
   -- the block's install, read off the block
@@ -543,9 +578,34 @@ theorem checkBlock_bridgeW (hk : CoreSpec Arena.checkFuel)
     have hall := IFEnvOK.pushAll p6.ok recs _ hie₆ (hrelT.gate) hrelT.stored hrecsD
     have htab := IFEnvOK.pushTables p6.ok Q QP hall
       (denoteProjTableList_ext (x5.trans p6.ext) hQd) hQok
-    unfold Env.pushDelta ConLeche.blockConstants
-    rw [hfe']
-    simpa [IFEnv.pushDelta, List.reverse_append, List.append_assoc] using htab
+    have hgate₂ := hrelT.gate
+    obtain ⟨L1, hL1⟩ := checkBlockPass_push h7
+    obtain ⟨L2, hL2⟩ := consBlockCtors_push q.p.nP q.p.ctorGroups q.env1
+    refine ⟨?_, ?_, ?_, ?_⟩
+    · unfold Env.pushDelta ConLeche.blockConstants
+      rw [hfe']
+      simpa [IFEnv.pushDelta, List.reverse_append, List.append_assoc] using htab
+    · intro hcoh
+      rw [hfe']
+      refine IFEnvCoh.pushTables Q (IFEnvCoh.pushAll recs (IFEnvCoh.feq hfeqT ?_))
+      rw [hL2, hL1]
+      exact IFEnvCoh.pushAll L2 (IFEnvCoh.pushAll L1 hcoh)
+    · intro hsh t' ht'
+      rw [hfe', IFEnv.pushDelta, pushTables_tables, pushAll_tables, hfeqT.1, hL2, pushAll_tables, hL1,
+        pushAll_tables] at ht'
+      rcases List.mem_append.mp ht' with h' | h'
+      · exact hQok t' (List.mem_reverse.mp h')
+      · exact hsh t' h'
+    · rw [hfe', IFEnv.pushDelta]
+      refine TblGate.pushTables Q (TblGate.pushAll recs hgate₂) (fun t' ht' => ?_)
+      have hQd' := denoteProjTableList_ext (x5.trans p6.ext) hQd
+      obtain ⟨pt, hpt, hdt⟩ := denoteProjTableList_mem Q QP hQd' t' ht'
+      obtain ⟨ms, hms, hnm⟩ := ConLeche.blockTables_names p₀P p₀P.members QP hQP pt hpt
+      refine IFEnvOK.stored hall p6.ok ?_ (by rw [denoteProjTable_structName hdt, hnm])
+      show ((_ : List ConstantInfo).find? _).isSome = true
+      rw [List.find?_isSome]
+      obtain ⟨c, hc, hcn⟩ := blockFormers_name p₀P (ConLeche.blockIsRec p₀P) hms
+      exact ⟨c, by simp [hc], by simp [hcn]⟩
   unfold ConLeche.checkBlock
   rw [ite_eq_left hnd, ite_eq_left hbool, hQP]
   dsimp only
