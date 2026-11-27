@@ -63,8 +63,8 @@ Effort scale:
 | `rmFill` (`CheckBlock`, `rm_spec`) | `reduceMembers` | G (no member at a definition) | none for milestone 2 | – |
 | `bi_spec` (`BlockIsRec`) | `blockIsRec` | G | none | – |
 | `cps` (`CheckPass`, `cps_spec`) | `checkBlockPass` | 1 | Consumes `cbi` and `sumCtors` per member; hangs unless exactly one class sits at member 0. Generalize: k classes, one per member (`classSeeds` stays empty when unnested). | M |
-| `cbi` (`CheckInds`, `cbi_spec`) | `checkBlockInds` | 1 (`members.length = 1` tested) | Needs `checkBlockTeles` and `checkBlockAgree` (the sorts and parameter telescopes of members 1..k-1 against member 0's), and `consBlockInds` over all members (`fFormerRec` per member, with the `isRec` and caps records). | M |
-| `fSumCtors` (`SumCtor`) | `checkBlockCtors` | per member | One call per member, in a loop. | S |
+| `cbi` (`CheckInds`, `cbi_spec`) | `checkBlockInds` | G since §7 (was: `members.length = 1` tested) | done (§7: `ctl`, `cag`, `cbn`) | – |
+| `fSumCtors` (`SumCtor`) | `checkBlockCtors` | per member | The loop exists (§7: `sca`, `SumCtorsAll`), not yet called from `cps`. | S |
 | `bn` (`NestCtx`) | `blockNestCtx` | G | none | – |
 | `cbc` (`ClassPass`), `crd` (`ClassRead`), `cmj`/`tmo` (`TargetMajor`) | `checkBlockClasses`, `classRead`, `classMajors` | G, U (an outside inductive halts) | none for milestone 2 | – |
 | `cbp` (`CheckPos`) with `nrt`, `nul`, `num`, `nt`/`np` (`NestPos`), `RFHole`, `NestCtors` | `checkBlockPositivity` | G over members, U (empty frame stack; `nestCont` hangs) | none for milestone 2. Nested blocks need container frames (`nestCont`, `nestKeyOf`, `NestCtorNf` keys). | L (nested) |
@@ -241,3 +241,42 @@ The twin side (`AndCanon`): `canonExprEq ps ps cs fuel e e` is `true` with the s
 the depth of `e`'s denotation (`canonExprEq_refl`, `edep`); the pin's records are that shallow (`andPin_shallow`,
 by `decide`), so `canonEqList block pinned` is `true` at the state `canonNames 1` leaves (`canonEqList_and`).
 `ki_spec` continues from `andPinOk`'s state (`andPinOk_run` carries `SeqOK`).
+
+## 7. Mutual blocks, round 1: `checkBlockInds` at any number of members (progress log)
+
+Goal of the round: mutual blocks (k > 1, unnested). Done so far, in order:
+
+1. **`cbi` is general** (`CheckInds`, `cbi_spec` with its statement unchanged). The body no longer tests
+   `members.length = 1`; it hangs only at k = 0 (the twin fails there) and at `nP ≥ 2^56` (a guard). It runs:
+   member 0's telescope (`ct`), the other members' (`ctl`), the two agreements (`cag`), the block's `Prop`-ness,
+   the new shape, every member's cvT name into an environment block (`mna` + `envBlkP`), and every member's former
+   pushed (`cbn`, which also recomputes the literal flags after each push). New procedures, each refining the twin
+   over `p.members.drop i`:
+
+   | File | Procedure | Refines |
+   |---|---|---|
+   | `BlockTeles` | `ctlBody` (`fCtl`) | `checkBlockTeles mode fe nP (p.members.drop i)`; the sorts come back as a linked list of `[sort, next]` cells (`SLink`, at the heap base `C.HB`), each denoted (`PostCTL`); stated for any context (`∀ C`), since each step raises the store floor |
+   | `BlockAgree` | `cagBody` (`fCag`) | `checkBlockAgree mode fe nP cv0 s0 rs` for the tele loop's `rs`: both telescopes opened (`of`), equal lengths, member 0's domains through `ftf` into a block, the domains defeq through `sd` (`checkStructDomsAt`; `cbd_of_csd`: its successful runs are `checkBlockDomsAt`'s, so `specR_okMonoA` switches the twin), the sort `lvlEq?`-equal to member 0's (`some true`, anything else hangs) |
+   | `ConsInds` | `cbnBody` (`fCbn`) | `consBlockInds p isRec ((p.members.drop i).map (·.declared)) i fe`: per member a run-time freshness check (`envFindP`; a found name hangs, so no `Nodup` hypothesis is needed), `fMemberNZ`, `fFormerRec`, `idxIns`, `fFlags`; stated for any context (`∀ C`) since the environment grows |
+
+   `CBICodes` gained `ac`, `ctl`, `cag`, `mna`, `cbn`; the code table was regenerated (`fCtl`, `fCag`, `fCbn`,
+   `fMna` new; `check_code_names.py` reports the usual 6 BODIES warnings). The four new files are imported from
+   `ConPanqueque.lean`.
+   `cbi_spec` still takes `hmem` with `C.fe.find? ms.declared.name = none` per member; only `CVDen` and the
+   bounds are used now (the freshness is checked at run time).
+
+2. **`checkBlockCtors` loop** (`SumCtorsAll`, `scaBody`/`fSca`, `sca_spec`): `checkBlockCtors mode fe fe p
+   (p.members.drop i)` through `scs` per member (each against its own former and the block's level parameters).
+   Not wired yet (not in the code table): `cps` still calls `fSumCtors` for member 0 only.
+
+What still hangs at k > 1, in pipeline order (the next steps):
+* `cps` (`CheckPass`): replace the member-0 `fSumCtors` call by `fSca [om, 0, n, olw, nP, rs, ip, lg]`
+  (`sca_spec`), and relax `ncl = 1` (`PostCPS` has `q.cls.length = 1`, read by `cbk`). `cps_spec` takes
+  `p₀.members = [ms0]`, `p₀.recs = [rc]` and per-member facts for `ms0` only: restate with `∀ ms ∈ p₀.members`.
+* `cbk` (`CheckBlockK`): the `nm0 = 1` and `nrl = 1` tests; swap in the round-1 loops (`cnk`, `mok`, `cfa`, `bsa`,
+  `cca`, `ria`, see §4); the class reads (`nrc = 1`, `rc0 = 0`, slot 0 a motive) and `tgt = 0`.
+* `ctb`/`cts`/`ga`/`gb` (the generator over k classes: `ClassCtorRec`, `K53`, `GenPre`, `GenRule`, `FeR`,
+  `RecPins`, `LargeElim`, `ClassNfs`, `TargetMatch`, `StreamK`, `StreamChk`): every `g.cls = [m]`, `recs = [rc]`,
+  `p.k = 1` restriction (§1 table), and inductive hypotheses at classes other than `0` (`KindsOK`).
+* `bt` (`BlockTables`) over members (needs the table list built across members), `cbkInst` over tables.
+* the front end (`Front/IndLine*`): `tys = [t]`, `rcs = [r]`, `numMotives = 1` (§1 "Front end").

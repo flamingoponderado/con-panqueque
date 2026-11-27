@@ -604,3 +604,7 @@ import ConPanqueque.T.Ind.PiCount
 import ConPanqueque.T.Ind.EraseFVars
 import ConPanqueque.T.Ind.K53
 import ConPanqueque.T.Ind.ClassCtorRec
+import ConPanqueque.T.Ind.BlockTeles
+import ConPanqueque.T.Ind.BlockAgree
+import ConPanqueque.T.Ind.ConsInds
+import ConPanqueque.T.Ind.SumCtorsAll
