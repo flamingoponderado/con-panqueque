@@ -6,6 +6,7 @@ import ConRon.Bridge.Checker.Basis
 import ConRon.Bridge.Frontend.Rel
 import ConRon.Bridge.Inductives.Decl
 import ConLeche.Semantics.DeclWF
+import ConPanqueque.Bridge.IndTail
 
 /-! # The sequential fold, bridged to con-leche
 
@@ -42,6 +43,7 @@ def IsValueDecl : IDeclaration → Prop
 def IsChecked (ns : NStore) : IDeclaration → Prop
   | .axiomDecl cv => denoteN ns cv.name = some ConLeche.sorryAxName ∨ denoteN ns cv.name = some ConLeche.quotSoundName
   | .quotDecl _ _ => True
+  | .indDecl _ _ => True
   | d => IsValueDecl d
 
 theorem isChecked_of_value {ns : NStore} {pd : IDeclaration} (h : IsValueDecl pd) : IsChecked ns pd := by
@@ -72,6 +74,7 @@ theorem isChecked_of_front {s : AState} (hp : PinsOK s) {pd : IDeclaration} (h :
       exact Or.inl (denoteNL_getElem? _ _ hp.names PIN_SORRY_AX cv.name ConLeche.sorryAxName h' (by decide))
     · have h' : s.pins.names.toList[PIN_QUOT_SOUND]? = some cv.name := by simpa using h0
       exact Or.inr (denoteNL_getElem? _ _ hp.names PIN_QUOT_SOUND cv.name ConLeche.quotSoundName h' (by decide))
+  | indDecl _ _ => trivial
   | _ => exact h
 
 theorem isChecked_ext {a b : EStore} (hx : Ext a b) {pd : IDeclaration} (h : IsChecked a.ns pd) :
@@ -86,7 +89,11 @@ structure KindOut (pinsP : List NatOpPinSet) (env : Env) (d : Declaration) (fe f
     (s s' : AState) : Prop where
   out : DeclKindOut pinsP env d s s'
   step : StepOK (env.pushDelta (declConstants d) (declTables d)) fe' s'
-  tbls : fe'.env.tables = fe.env.tables
+  tbls : (∀ t ∈ fe.env.tables, IProjTableOK t) → ∀ t ∈ fe'.env.tables, IProjTableOK t
+
+theorem tbls_of_eq {fe fe' : IFEnv} (e : fe'.env.tables = fe.env.tables) :
+    (∀ t ∈ fe.env.tables, IProjTableOK t) → ∀ t ∈ fe'.env.tables, IProjTableOK t :=
+  fun h t ht => h t (e ▸ ht)
 
 theorem pushDelta_one (env : Env) (c : ConstantInfo) :
     env.pushDelta [c] [] = ⟨c :: env.consts, env.tables⟩ := rfl
@@ -114,7 +121,7 @@ theorem kind_thm
     checkThmVal_bridge hk hok1 hcA (checkConstantVal_typeWF hpure1) hv1 g2
   obtain ⟨rfl, rfl⟩ := AM.pure_ok r2
   have hok2 : FoldOK env fe _ := hok1.ofCore hstep2
-  exact ⟨hout, hok2.toStepOK.push hok2.check.state hci2 hsh2 hcw2, by simp⟩
+  exact ⟨hout, hok2.toStepOK.push hok2.check.state hci2 hsh2 hcw2, tbls_of_eq (by simp)⟩
 
 /-- The opaque arm, with the compiler-trust `reduce*` gate. -/
 theorem kind_opaque
@@ -155,10 +162,10 @@ theorem kind_opaque
     have hok4 : FoldOK env fe4 _ := (hok2.ofCore hstep4).sameView hsv4
     have hci4 := denoteCI_ext hci2 hstep4.ext
     exact ⟨hout, hok4.toStepOK.push hok4.check.state hci4 hsh2 hcw2,
-      by simp [hsv4.env]⟩
+      tbls_of_eq (by simp [hsv4.env])⟩
   · replace hgood := AM.pure_bind_ok hgood
     obtain ⟨rfl, rfl⟩ := AM.pure_ok hgood
-    exact ⟨hout, hok2.toStepOK.push hok2.check.state hci2 hsh2 hcw2, by simp⟩
+    exact ⟨hout, hok2.toStepOK.push hok2.check.state hci2 hsh2 hcw2, tbls_of_eq (by simp)⟩
 
 /-- The definition arm, with the structural-`Nat` and `Nat.div`/`Nat.mod` gates. -/
 theorem kind_defn
@@ -227,11 +234,11 @@ theorem kind_defn
     obtain ⟨hs, hsv, -⟩ :=
       checkStructuralNatPin_bridge hk hok2.check hok2.envWF hok2' rfl hnm2 g4
     obtain ⟨h1, h2⟩ := tail fe3 s4 hs hsv r4
-    exact ⟨hout, h1, h2⟩
+    exact ⟨hout, h1, tbls_of_eq h2⟩
   · replace k3 := AM.pure_bind_ok k3
     obtain ⟨h1, h2⟩ := tail fe s2 (CoreStep.refl hok2.check)
       ⟨fun _ => rfl, fun _ => rfl, rfl, rfl, rfl, id⟩ k3
-    exact ⟨hout, h1, h2⟩
+    exact ⟨hout, h1, tbls_of_eq h2⟩
 
 /-! ## The invariant between records -/
 
@@ -318,7 +325,7 @@ theorem kind_sorry
   · obtain ⟨rfl, rfl⟩ := AM.pure_ok hg10
     have hdc : ConLeche.declConstants (.axiomDecl c) = [] := by
       simp [ConLeche.declConstants, hs, (by decide : sorryAxName ≠ ConLeche.quotSoundName)]
-    refine ⟨hout, ?_, rfl⟩
+    refine ⟨hout, ?_, tbls_of_eq rfl⟩
     rw [hdc]
     exact hok3.toStepOK
   · exact absurd (hsn.mpr hs) hn10
@@ -397,7 +404,7 @@ theorem kind_quot
   have hout := checkDeclKind_bridge_quot (pinsP := pinsP) hok hcv hrun
   simp only [ConRon.Arena.checkDeclKind] at hrun
   obtain ⟨h1, h2⟩ := quot_core hok hcv hrun
-  exact ⟨hout, h1, h2⟩
+  exact ⟨hout, h1, tbls_of_eq h2⟩
 
 /-- The `Quot.sound` axiom record: the quotient record's check at the soundness slot. -/
 theorem kind_qsound
@@ -419,7 +426,22 @@ theorem kind_qsound
   obtain ⟨h1, h2⟩ := quot_core hok hcv r1
   have hdc : ConLeche.declConstants (.axiomDecl c) = [ConLeche.quotAt .sound c] := by
     simp [ConLeche.declConstants, hs]
-  exact ⟨hout, by rw [hdc]; exact h1, h2⟩
+  exact ⟨hout, by rw [hdc]; exact h1, tbls_of_eq h2⟩
+
+/-- An inductive block: its install related (`checkIndRoute_bridgeW`). -/
+theorem kind_ind
+    {pins : List INatOpPinSet} {pinsP : List NatOpPinSet} {env : Env}
+    {fe fe' : IFEnv} {s s' : AState} {block : List IConstantInfo} {b : List ConstantInfo} {nP : Nat}
+    (hk : CoreSpec ConRon.Arena.checkFuel)
+    (hok : FoldOK env fe s) (hb : Frontend.denoteCIList s.store block = some b)
+    (hrun : ConRon.Arena.checkDeclKind .verified pins fe (.indDecl block nP) s = .ok (fe', s')) :
+    KindOut pinsP env (.indDecl b nP) fe fe' s s' := by
+  have hout := checkDeclKind_bridge_ind (pinsP := pinsP) Inductives.indSpec_of_bridge hok hb hrun
+  simp only [ConRon.Arena.checkDeclKind] at hrun
+  have r := Inductives.checkIndRoute_bridgeW (pinsP := pinsP) hk hok hb hrun
+  obtain ⟨env', F, -, henv', hwf, hie, hbi⟩ := r.run
+  subst henv'
+  exact ⟨hout, ⟨hie, hwf, hbi.1 hok.coh, hbi.2.2⟩, hbi.2.1⟩
 
 /-- A value record's own checks, at the index it hands on. -/
 theorem kind_value
@@ -491,7 +513,15 @@ theorem kind_value
       simp only [Option.map_some, Option.some.injEq] at hd
       subst hd
       exact kind_quot hok hpins hcv hrun
-  | _ => exact absurd hval id
+  | indDecl block nP =>
+    simp only [Frontend.denoteDecl] at hd
+    cases hb : Frontend.denoteCIList s.store block with
+    | none => rw [hb] at hd; simp at hd
+    | some bl =>
+      rw [hb] at hd
+      simp only [Option.map_some, Option.some.injEq] at hd
+      subst hd
+      exact kind_ind hk hok hb hrun
 
 /-- **A value record's check** (`checkDecl`): con-ron's per-declaration output, and the
 invariant at the pushed environment. -/
@@ -523,7 +553,7 @@ theorem decl_value
   · obtain ⟨rfl, rfl⟩ := AM.pure_ok k
     have hstep := ko.step.mono hs3.ext
     refine ⟨hout, ⟨hout.state, hok.check.pins.mono hout.ext hout.pins, hstep.ienv, hstep.envWF,
-      by rw [ko.tbls]; exact hok.tblShape, hok.persPins.mono hout.pins, hstep.coh, hstep.gate⟩⟩
+      ko.tbls hok.tblShape, hok.persPins.mono hout.pins, hstep.coh, hstep.gate⟩⟩
   · exact absurd k (AM.Never.bind (fun _ => AM.Never.fail _) _ _ _)
 
 /-- **The twin's step** (`checkDeclStep`: the `And` pin, the flush, fresh memos, `checkDecl`) on

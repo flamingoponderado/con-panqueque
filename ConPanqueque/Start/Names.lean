@@ -111,7 +111,8 @@ theorem denoteDecls_mem {st : EStore} : ∀ {hs : List IDeclaration} {ds : List 
 
 /-- A value record's name, read off its denotation. -/
 theorem valName_denote {st : EStore} {dh : IDeclaration} {d : ConLeche.Declaration}
-    (hv : ConPanqueque.Bridge.IsChecked st.ns dh) (hp : PersDecl dh) (h : denoteDecl st dh = some d) :
+    (hv : ConPanqueque.Bridge.IsChecked st.ns dh) (hni : ∀ b nP, dh ≠ .indDecl b nP) (hp : PersDecl dh)
+    (h : denoteDecl st dh = some d) :
     ∃ nh n, recNameW dh = Enc.idxW nh ∧ PersN nh ∧ denoteN st.ns nh = some n ∧
       ConPanqueque.Pipeline.recName d = some n := by
   cases dh with
@@ -173,7 +174,7 @@ theorem valName_denote {st : EStore} {dh : IDeclaration} {d : ConLeche.Declarati
       rw [hc] at h
       simp only [Option.map_some, Option.some.injEq] at h; subst h
       exact ⟨cv.name, c.name, rfl, hp.name, (denoteCV_inv hc).1, rfl⟩
-  | _ => exact hv.elim
+  | indDecl b nP => exact absurd rfl (hni b nP)
 
 open ConPanqueque.Front ConPanqueque.T.Decl Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact
   ConPanqueque.Logic in
@@ -229,7 +230,8 @@ theorem front_verdict2 {σ : Type} {F rb capD jN cap bufJ : Nat} {b : ByteArray}
   obtain ⟨dh, hdm, hdd⟩ := denoteDecls_mem hden d hd
   obtain ⟨k, hk, rfl⟩ := List.getElem_of_mem hdm
   have hk' : k < st'.decls.size := by simpa using hk
-  obtain ⟨nh, n, hrw, hpn, hdn, hvn⟩ := valName_denote (ConPanqueque.Bridge.isChecked_of_front (hpo.mono hstep.ext hstep.pins) (hval _ hdm)) (hpersR _ (by show st'.decls[k] ∈ st'.decls; exact Array.getElem_mem hk')) hdd
+  obtain ⟨nh, n, hrw, hpn, hdn, hvn⟩ := valName_denote (ConPanqueque.Bridge.isChecked_of_front (hpo.mono hstep.ext hstep.pins) (hval _ hdm))
+    (fun b nP e => by have := hval _ hdm; rw [e] at this; exact this) (hpersR _ (by show st'.decls[k] ∈ st'.decls; exact Array.getElem_mem hk')) hdd
   refine ⟨n, hvn, ?_⟩
   have hpo' := hpo.mono hstep.ext hstep.pins
   have hwf : NStoreWF s'.store.ns := ConRon.Bridge.Frontend.nsWF_of_StateOK hstep.ok
