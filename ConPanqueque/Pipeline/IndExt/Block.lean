@@ -2,6 +2,8 @@ import ConPanqueque.Pipeline.IndExt.Pass
 import ConPanqueque.Pipeline.IndExt.GenRecOut
 import ConPanqueque.Pipeline.IndExt.Tail
 import ConLeche.Verify.Inductives.RecCheckRun
+import ConLeche.Verify.Cached.PushChain
+import ConLeche.Verify.Inductives.BlockWF
 
 /-! # The inductive block at an extension: the tail, the block, the declaration -/
 
@@ -303,5 +305,143 @@ theorem checkBlockTail_ext {A₁ A₂ : Env} (hxA : EnvExt A₁ A₂) (htA : Tab
   rw [streamRecsCheck_ext hxR F q.p.recs out (fun g hg => ⟨hresR (hOres g hg).1, (hOres g hg).2⟩) h4]
   simp only [bind, Except.bind] at h ⊢
   exact checkBlockTables_ext hxC Q h
+
+theorem map_mem_of_map_eq {α β : Type} {f : α → β} {l l' : List α} (h : l'.map f = l.map f) {x : α}
+    (hx : x ∈ l') : f x ∈ l.map f := by rw [← h]; exact List.mem_map_of_mem hx
+
+theorem ctor_mem_of_map_eq {l l' : List MemberShape} (h : l'.map (·.ctors) = l.map (·.ctors))
+    {ms : MemberShape} (hms : ms ∈ l') {c : ConstantVal × Nat} (hc : c ∈ ms.ctors) :
+    c ∈ (l.map (·.ctors)).flatten := by
+  rw [← h]; exact List.mem_flatten.mpr ⟨ms.ctors, List.mem_map_of_mem hms, hc⟩
+
+/-- **The block's check at an extension.** -/
+theorem checkBlock_ext {X₁ X₂ : Env} (hx : EnvExt X₁ X₂) (ht2 : TablesStored X₂) (hca : CtorsAgree X₁ X₂)
+    (F : Nat) (block : List ConstantInfo) (p₀ : BlockShape) (hd : ∀ m ∈ p₀.members, m.declared = m.cvT)
+    (hnd : ((blockConstants p₀).map (·.name)).Nodup)
+    (hfr2 : ∀ n ∈ (blockConstants p₀).map (·.name), NameOK n ∧ X₂.find? n = none) {E : Env}
+    (h : checkBlock (m := CheckM) (fueledOps .verified F) X₁ block p₀ = .ok E) :
+    checkBlock (m := CheckM) (fueledOps .verified F) X₂ block p₀ =
+      .ok (X₂.pushDelta (blockConstants p₀) ((blockTables p₀ p₀.members).getD [])) := by
+  have hE := ConLeche.Cached.checkBlock_pushes h
+  rw [ConLeche.Cached.blockConstants_names] at hnd hfr2
+  rw [List.nodup_append, List.nodup_append] at hnd
+  obtain ⟨⟨-, -, hFC⟩, -, hFCR⟩ := hnd
+  have hw1 : EnvWF X₁ := hx.facts.wf
+  unfold checkBlock at h ⊢
+  simp only [bind, Except.bind] at h ⊢
+  split at h
+  · rename_i hg1
+    rw [if_pos hg1]
+    split at h
+    · rename_i hg2
+      rw [if_pos hg2]
+      -- the members at their telescopes
+      obtain ⟨ms, h1, h⟩ := exceptBind_ok h
+      obtain ⟨hall, hdecl, hname, -, hctors⟩ := reduceMembers_inv hd h1
+      rw [reduceMembers_ext hx (fun m hm => by
+        rw [← hd m hm]
+        exact (hfr2 _ (List.mem_append_left _ (List.mem_append_left _ (List.mem_map_of_mem hm)))).2) h1]
+      simp only [bind, Except.bind] at h ⊢
+      -- the pass
+      obtain ⟨q, h2, h⟩ := exceptBind_ok h
+      have hFm : ∀ m ∈ ms, m.declared.name ∈ p₀.members.map (·.declared.name) := fun m hm => by
+        have := map_mem_of_map_eq hdecl hm
+        obtain ⟨m', hm', he⟩ := List.mem_map.mp this
+        exact List.mem_map.mpr ⟨m', hm', by rw [he]⟩
+      have hCm : ∀ m ∈ ms, ∀ c ∈ m.ctors, c.1.name ∈ p₀.allCtors.map (·.1.name) := fun m hm c hc =>
+        List.mem_map_of_mem (ctor_mem_of_map_eq hctors hm hc)
+      have hp := checkBlockPass_ext (p := { p₀ with members := ms }) hx ht2 hca F
+        (fun m hm => hfr2 _ (List.mem_append_left _ (List.mem_append_left _ (hFm m hm))))
+        (fun m hm => (hall m hm).name)
+        (fun m hm c hc => (hfr2 _ (List.mem_append_left _ (List.mem_append_right _ (hCm m hm c hc)))).2)
+        (fun A p₁ hI => (ConLeche.direct_block_inds_wf hw1 (fun m hm => (hall m hm).declaredWF) hI).1) h2
+      obtain ⟨h2', hqA, hxA, hcA, hqm, hpar, hpl, hMs, hT, hCr⟩ := hp
+      rw [h2']
+      simp only [bind, Except.bind] at h ⊢
+      cases hQ : blockTables p₀ p₀.members with
+      | none => simp [hQ] at h; kill h
+      | some Q =>
+        simp only [hQ, unwrapOr, pure_bind, Option.getD_some] at h ⊢
+        obtain ⟨u, h3, h⟩ := exceptBind_ok h
+        cases u
+        obtain ⟨sortsss, nfs, ctx, holes, pos, st, hInd, hCtors, hctx, hcls, -, -, hpq, -⟩ :=
+          ConLeche.checkBlockPass_inv h2
+        have hwA : EnvWF q.env₁ :=
+          (ConLeche.direct_block_inds_wf hw1 (fun m hm => (hall m hm).declaredWF) hInd).1
+        have hwC : EnvWF (consBlockCtors q.p.nP q.p.ctorGroups q.env₁) :=
+          ConLeche.direct_block_ctors_wf hwA hCtors
+        have hMf : ∀ M ∈ q.cls, MajorFacts q.env₁ q.p q.params M := by
+          rw [hpq]; exact checkBlockClasses_facts hcls
+        have hMo : ∀ M ∈ q.cls, ConLeche.ClassOutParams q.p.nP M := by
+          intro M hM
+          obtain ⟨C⟩ := ConLeche.checkBlockClasses_run hcls
+          obtain ⟨hlenK, hallK⟩ := ConLeche.classMajors_run C.hMs
+          obtain ⟨i, hi⟩ := List.getElem?_of_mem hM
+          obtain ⟨key, hkey⟩ : ∃ key, C.keys[i]? = some key := by
+            have := (List.getElem?_eq_some_iff.mp hi).1
+            exact ⟨_, List.getElem?_eq_getElem (by omega)⟩
+          obtain ⟨M', hM', ⟨R⟩⟩ := hallK i key hkey
+          obtain rfl := Option.some.inj (hi.symm.trans hM')
+          cases R.major with
+          | member => intro h; exact nomatch h
+          | outside I us nPc nIdx ctors sI hfn ht hnq hct hdsLen hdsSc => exact fun _ => ⟨hdsLen, hdsSc⟩
+        -- the names of the pushes
+        have hqms : q.p.members = ms := hqm
+        have hfrA : ∀ n, n ∉ p₀.members.map (·.declared.name) → X₂.find? n = none →
+            (consBlockInds q.p (blockIsRec p₀) (({ p₀ with members := ms } : BlockShape).members.map (·.declared)) 0 X₂).find? n = none := by
+          intro n hn hn2
+          rw [consBlockInds_consts']
+          have : n ∉ (formersR q.p (blockIsRec p₀) (ms.map (·.declared))).map (·.name) := by
+            intro hm
+            obtain ⟨c, hc, rfl⟩ := List.mem_map.mp hm
+            obtain ⟨cv, hcv, i, rfl⟩ := formersR_mem hc
+            obtain ⟨m, hm2, rfl⟩ := List.mem_map.mp hcv
+            exact hn (hFm m hm2)
+          have e := find?_prepend_of_not_mem this X₂.consts X₂.tables
+          simp only [formersR] at e
+          exact e.trans hn2
+        have ht := checkBlockTail_ext hxA (by
+            rw [consBlockInds_consts']
+            have := tablesStored_prepend (X := X₂) ((((ms.map (·.declared)).zipIdx 0).map fun x =>
+              ConstantInfo.indInfo x.1 (blockCapsAt q.p x.2 (blockIsRec p₀))).reverse) [] ht2
+              (fun _ h => nomatch h)
+            simpa using this) F block q rfl Q
+          (by rw [hqms]; exact hT) hMf hMo hpar (by
+            obtain ⟨_, _, _, s0, _, _, hp1, _⟩ := ConLeche.checkBlockInds_shape hInd
+            rw [hpl, hp1]; rfl)
+          (fun m hm c hc => by
+            rw [hqms] at hm
+            have hcm := hCm m hm c hc
+            refine ⟨(hfr2 _ (List.mem_append_left _ (List.mem_append_right _ hcm))).1, hfrA _ ?_
+              (hfr2 _ (List.mem_append_left _ (List.mem_append_right _ hcm))).2⟩
+            intro hm'
+            exact hFC _ hm' _ hcm rfl)
+          (fun rc hrc => by
+            have hrc' : rc ∈ p₀.recs := by
+              obtain ⟨_, _, _, s0, _, _, hp1, _⟩ := ConLeche.checkBlockInds_shape hInd
+              rw [hp1] at hrc; exact hrc
+            have hn := List.mem_map_of_mem (f := fun x : RecShape => x.cvR.name) hrc'
+            obtain ⟨hok, h2n⟩ := hfr2 _ (List.mem_append_right _ hn)
+            refine ⟨hok, ?_⟩
+            rw [consBlockCtors_eq]
+            have hnC : rc.cvR.name ∉ (ctorsR q.p.nP q.p.ctorGroups).map (·.name) := by
+              intro hm
+              obtain ⟨c, hc, he⟩ := List.mem_map.mp hm
+              obtain ⟨g, hg, c', hc', rfl⟩ := mem_ctorsR hc
+              simp only [BlockShape.ctorGroups, List.mem_map] at hg
+              obtain ⟨m, hm', rfl⟩ := hg
+              rw [hqms] at hm'
+              exact hFCR _ (List.mem_append_right _ (hCm m hm' c' hc')) _ hn he
+            have e := find?_prepend_of_not_mem hnC
+              (consBlockInds q.p (blockIsRec p₀) (({ p₀ with members := ms } : BlockShape).members.map (·.declared)) 0 X₂).consts
+              (consBlockInds q.p (blockIsRec p₀) (({ p₀ with members := ms } : BlockShape).members.map (·.declared)) 0 X₂).tables
+            simp only [ctorsR] at e
+            rw [e]
+            exact hfrA _ (fun hm => hFCR _ (List.mem_append_left _ hm) _ hn rfl) h2n)
+          hwC h3
+        dsimp only at ht
+        simp only [pure, Except.pure, ht]
+    · kill h
+  · kill h
 
 end ConPanqueque.Pipeline.IndExt
