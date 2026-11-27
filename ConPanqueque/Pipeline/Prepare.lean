@@ -97,15 +97,17 @@ theorem recName_natOp {d : Declaration} {n : Name} (h : recName d = some n) (hn 
   · simp [isNatOpRecord]
 
 theorem recNames_names {d : Declaration} {ns : List Name} (h : recNames d = some ns) : ∀ n ∈ d.names, n ∈ ns := by
-  rcases recNames_cases h with ⟨b, k, rfl, rfl⟩ | ⟨n, hn, rfl, -⟩
+  rcases recNames_cases h with ⟨b, k, rfl, rfl⟩ | ⟨n, hn, rfl, -⟩ | ⟨c, rfl, -, rfl⟩
   · exact fun n hn => List.mem_append_left _ hn
   · rw [recName_names hn]; exact fun m hm => hm
+  · exact fun m hm => hm
 
 theorem recNames_natOp {d : Declaration} {ns : List Name} (h : recNames d = some ns) (hok : ∀ n ∈ ns, NameOK n) :
     isNatOpRecord d = none := by
-  rcases recNames_cases h with ⟨b, k, rfl, rfl⟩ | ⟨n, hn, rfl, -⟩
+  rcases recNames_cases h with ⟨b, k, rfl, rfl⟩ | ⟨n, hn, rfl, -⟩ | ⟨c, rfl, -, rfl⟩
   · rfl
   · exact recName_natOp hn (hok n (List.mem_singleton_self _))
+  · rfl
 
 /-- **The prepared stream accepts**: con-leche's prelude accepted, and the stream accepted alone. -/
 theorem pipeline_of_stream (pins pins₀ : List NatOpPinSet) (pre : PreludeIx) (ds : Array Declaration)

@@ -1,5 +1,6 @@
 import ConPanqueque.Pipeline.Ext
 import ConPanqueque.Pipeline.IndExt.Decl
+import ConPanqueque.Pipeline.StdAx
 
 /-! # Stream records, inductive blocks included, at an extension of the environment
 
@@ -17,11 +18,23 @@ set_option autoImplicit true
 /-- A stream record's names: a block's raw names and installed constants', the others' `recName`. -/
 def recNames : Declaration → Option (List Name)
   | d@(.indDecl _ _) => some (d.names ++ (declConstants d).map (·.name))
+  | d@(.axiomDecl c) => if StdAxName c.name then some [c.name] else (recName d).map ([·])
   | d => (recName d).map ([·])
 
 theorem recNames_of_recName {d : Declaration} {n : Name} (h : recName d = some n) : recNames d = some [n] := by
   cases d with
   | indDecl b k => simp [recName, valName] at h
+  | axiomDecl c =>
+    simp only [recNames]
+    have hn : ¬ StdAxName c.name := by
+      simp only [recName] at h
+      split at h
+      · rename_i hs
+        simp only [Option.some.injEq] at h
+        intro hstd
+        rcases hs with hs | hs <;> rw [hs] at hstd <;> revert hstd <;> decide
+      · cases h
+    rw [if_neg hn, h]; rfl
   | _ => simp only [recNames]; rw [h]; rfl
 
 /-- The stream's records at names the guards do not read, the base does not declare, and (for a block)
@@ -75,16 +88,26 @@ theorem ctorsAgree_decl {e₁ e₂ : Env} (hca : CtorsAgree e₁ e₂) (d : Decl
 
 theorem recNames_cases {d : Declaration} {ns : List Name} (h : recNames d = some ns) :
     (∃ b k, d = .indDecl b k ∧ ns = d.names ++ (declConstants d).map (·.name)) ∨
-      (∃ n, recName d = some n ∧ ns = [n] ∧ ∀ b k, d ≠ .indDecl b k) := by
+      (∃ n, recName d = some n ∧ ns = [n] ∧ ∀ b k, d ≠ .indDecl b k) ∨
+      (∃ c, d = .axiomDecl c ∧ StdAxName c.name ∧ ns = [c.name]) := by
   cases d with
   | indDecl b k => simp only [recNames, Option.some.injEq] at h; exact Or.inl ⟨b, k, rfl, h.symm⟩
+  | axiomDecl c =>
+    simp only [recNames] at h
+    split at h
+    · rename_i hs; simp only [Option.some.injEq] at h; exact Or.inr (Or.inr ⟨c, rfl, hs, h.symm⟩)
+    · cases hr : recName (.axiomDecl c) with
+      | none => rw [hr] at h; cases h
+      | some n =>
+        rw [hr] at h; simp only [Option.map_some, Option.some.injEq] at h
+        exact Or.inr (Or.inl ⟨n, rfl, h.symm, fun _ _ he => nomatch he⟩)
   | _ =>
     simp only [recNames] at h
     cases hr : recName _ with
     | none => rw [hr] at h; cases h
     | some n =>
       rw [hr] at h; simp only [Option.map_some, Option.some.injEq] at h
-      exact Or.inr ⟨n, rfl, h.symm, fun _ _ he => nomatch he⟩
+      exact Or.inr (Or.inl ⟨n, rfl, h.symm, fun _ _ he => nomatch he⟩)
 
 /-- **An accepting run, inductive blocks included, carries over to an extension.** -/
 theorem pureRun_extI {pins pins' : List NatOpPinSet} (envP : Env) : ∀ {ds : List Declaration} {env₁ E₁ env₂ : Env},
@@ -105,7 +128,7 @@ theorem pureRun_extI {pins pins' : List NatOpPinSet} (envP : Env) : ∀ {ds : Li
       have hnm' : m ∉ L.reverse.map (·.name) := by rw [List.map_reverse, List.mem_reverse]; exact hnm
       rw [find?_prepend_of_not_mem hnm']
       exact hinv m h1 hmP
-    rcases recNames_cases hns with ⟨b, k, rfl, rfl⟩ | ⟨n, hd', rfl, hnd⟩
+    rcases recNames_cases hns with ⟨b, k, rfl, rfl⟩ | ⟨n, hd', rfl, hnd⟩ | ⟨c, rfl, hstd, rfl⟩
     · -- an inductive block
       obtain ⟨-, hfr1⟩ := ConLeche.Cached.checkDecl_fresh hs
       have hfr : ∀ c ∈ declConstants (.indDecl b k), NameOK c.name ∧ env₂.find? c.name = none := by
@@ -170,6 +193,31 @@ theorem pureRun_extI {pins pins' : List NatOpPinSet} (envP : Env) : ∀ {ds : Li
           (by rw [e1]; exact quotMkCtor_quot .sound c hq) hcaE
           (hinv' _ _ (ConLeche.Cached.checkDecl_pushes hs') (ConLeche.Cached.checkDecl_pushes h2'))
         exact ⟨E₃, .cons ⟨F, h2'⟩ hr⟩
+    · -- a standard axiom
+      obtain ⟨hn, hP, -⟩ := hall c.name (List.mem_singleton_self _)
+      have hq0 := stdAx_not_quotSound hstd
+      have hf1 : env₁.find? c.name = none := by
+        rw [checkDecl_ax_tail F pins env₁ c hq0] at hs
+        obtain ⟨E₁, h1, -⟩ := exceptBind_ok hs
+        obtain ⟨u, hc, -⟩ := exceptBind_ok h1
+        exact (checkConstantVal_res F env₁ c false false true hc).2
+      obtain ⟨E₂, h2, hx', hw', e1, e2⟩ := checkDecl_stdAx_ext hx hw2 F pins pins' c hstd (hinv _ hf1 hP) hs
+      have hcaE := ctorsAgree_cons hca (.axiomInfo c) (fun _ _ he => nomatch he)
+      rw [← e1, ← e2] at hcaE
+      obtain ⟨E₃, hr⟩ := pureRun_extI envP rest hx' hw' hok'
+        (by
+          rw [e1]
+          refine quotMkCtor_cons hq (fun he => absurd he ?_)
+          show ¬ c.name = quotMkName
+          rcases hstd with h | h | h | h | h <;> rw [h] <;> decide) hcaE
+        (by
+          intro m hm hmP
+          rw [e2]; rw [e1] at hm
+          rw [Env.find?_cons] at hm ⊢
+          split at hm
+          · cases hm
+          · rename_i hne; rw [ite_eq_right hne]; exact hinv m hm hmP)
+      exact ⟨E₃, .cons ⟨F, h2⟩ hr⟩
 
 /-- **The prelude, then the stream**, inductive blocks included. -/
 theorem prelude_then_streamI (pins pins₀ : List NatOpPinSet) (P S : List Declaration) {envP E₁ : Env}
