@@ -580,3 +580,4 @@ import ConPanqueque.T.Ind.IndArm2
 import ConPanqueque.T.LitIntern
 import ConPanqueque.Start.BasisPhase
 import ConPanqueque.Code.Basis
+import ConPanqueque.Scan.DeclFields3
