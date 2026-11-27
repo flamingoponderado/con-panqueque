@@ -144,17 +144,20 @@ def PostFold (_ : IFEnv) (_ : BitVec 64) (s' : AState) (st : PState σ) : Prop :
 
 /-- **The fold** over records `i …`. -/
 theorem fold_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.RuntimeAssumptions)
-    (rs : List (Nat × IDeclaration)) (ob : Nat) (hlenR : rs.length < 2 ^ 62) :
+    (rs : List (Nat × IDeclaration)) (ob : Nat) (hlenR : rs.length < 2 ^ 62) (hmode : mode = .verified) :
     ∀ k i (C : Ctx) (s : AState), CtxOK C → FoldCodes mode C → ConPanqueque.Front.FrontOK C →
       denoteN C.St.ns default = some .anonymous → C.side = false → C.saved = none →
       TblGate C.fe → FlagsOK C.fe → LitsPinned C.fe C.pins → BlkAt C.H ob (rs.map (fun r => cellA C r.1)) →
       (∀ j (hj : j < rs.length), i ≤ j → RecOK C rs[j].1 rs[j].2) → rs.length - i = k → i ≤ rs.length →
+      (∃ (env : ConLeche.Env) (pinsP : List ConLeche.NatOpPinSet), ConPanqueque.Bridge.SeqOK env C.fe s ∧
+        PinsDenote s.store pins pinsP ∧ ∀ j (hj : j < rs.length), i ≤ j →
+          (∃ d, Frontend.denoteDecl s.store rs[j].2 = some d) ∧ ConPanqueque.Bridge.IsChecked s.store.ns rs[j].2) →
       SpecR (σ := σ) (Pre C s (foParams.zip [cellA C ob, BitVec.ofNat 64 i, BitVec.ofNat 64 rs.length])) foldBody s
         (checkDeclsPureGo mode pins C.fe ((rs.drop i).map Prod.snd)) PostFold := by
   intro k
   induction k with
   | zero =>
-    intro i C s hok hc hfr hA hs hpl hg hF hL hb hrec hk hi
+    intro i C s hok hc hfr hA hs hpl hg hF hL hb hrec hk hi _
     have hil : i = rs.length := by omega
     subst hil
     refine specR_prologue (fun _ _ _ _ _ ⟨C', h⟩ => ⟨C', sr_of_eq h rfl rfl rfl rfl⟩) (fo_none C _) ?_
@@ -164,8 +167,10 @@ theorem fold_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : C
     simp only [List.drop_length, List.map_nil, checkDeclsPureGo]
     exact specR_returnI _ 0 rfl (fun t ht => ⟨C, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   | succ k ih =>
-    intro i C s hok hc hfr hA hs hpl hg hF hL hb hrec hk hi
+    intro i C s hok hc hfr hA hs hpl hg hF hL hb hrec hk hi hinv
+    obtain ⟨env, pinsP, hseq, hpins, hdj⟩ := hinv
     have hil : i < rs.length := by omega
+    obtain ⟨⟨di, hdi⟩, hvi⟩ := hdj i hil (le_refl _)
     refine specR_prologue (fun _ _ _ _ _ ⟨C', h⟩ => ⟨C', sr_of_eq h rfl rfl rfl rfl⟩) (fo_none C _) ?_
     have hlw := nd_lt_iff i rs.length (by omega) (by omega)
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get, foParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw.mpr hil])
@@ -176,19 +181,31 @@ theorem fold_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : C
       (by simp +decide [sev, Env.get, foParams, ctxEnv]; exact cellA_idx C ob i) ?_
     rw [List.drop_eq_getElem_cons hil, List.map_cons, checkDeclsPureGo]
     refine specR_callNC (C := C) (D := ctxLocals ++ foLocals) foR fStep [stQ] [vv foQ] (stepBody C) [cellA C rs[i].1]
-      (by decide) rfl (by decide) hc.step ?_ (PostStep C)
-      (fun a w s' C' => ∃ EH envM tblM H, C' = ctxNewT C a EH envM tblM H ∧ C.H <+: H ∧ CtxOK C' ∧ TblGate a ∧
+      (by decide) rfl (by decide) hc.step ?_
+      (fun a w s' st => checkDeclStep mode pins C.fe rs[i].2 s = .ok (a, s') ∧ PostStep C a w s' st)
+      (fun a w s' C' => checkDeclStep mode pins C.fe rs[i].2 s = .ok (a, s') ∧
+        ∃ EH envM tblM H, C' = ctxNewT C a EH envM tblM H ∧ C.H <+: H ∧ CtxOK C' ∧ TblGate a ∧
         FlagsOK a ∧ LitsPinned a C.pins)
-      (fun a w s' st ⟨EH, envM, tblM, H, hpE, hpH, hokN, hsr, hgt, hfl, hlp⟩ =>
-        ⟨ctxNewT C a EH envM tblM H, ⟨EH, envM, tblM, H, rfl, hpH, hokN, hgt, hfl, hlp⟩, hsr⟩)
-      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu [stQ] _ rfl hlk)
+      (fun a w s' st ⟨hstr, EH, envM, tblM, H, hpE, hpH, hokN, hsr, hgt, hfl, hlp⟩ =>
+        ⟨ctxNewT C a EH envM tblM H, ⟨hstr, EH, envM, tblM, H, rfl, hpH, hokN, hgt, hfl, hlp⟩, hsr⟩)
+      (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu [stQ] _ rfl hlk)
         (step_spec mode pins C hok hc.dc ra hs hpl hg hF hL hc.kd hc.kt hc.ko hc.ka (eqvS_of hok hc.lc) hc.ic hc.kq hc.qc
           hfr hA (eqvA_of hc.lc)
           (hLE_of hok hc.lc) rs[i].1 rs[i].2
-          (hrec i hil (le_refl _)) s))
-      (fun a w s1 C1 ⟨EH, envM, tblM, H1, eC, hpH, hokN, hgt, hfl, hlp⟩ => ?_)
+          (hrec i hil (le_refl _)) s hmode env hseq ⟨di, hdi⟩)))
+      (fun a w s1 C1 ⟨hstr, EH, envM, tblM, H1, eC, hpH, hokN, hgt, hfl, hlp⟩ => ?_)
     · exact ⟨by simp +decide [Env.get], trivial⟩
     subst eC
+    have hinv1 : ∃ (env : ConLeche.Env) (pinsP : List ConLeche.NatOpPinSet),
+        ConPanqueque.Bridge.SeqOK env (ctxNewT C a EH envM tblM H1).fe s1 ∧ PinsDenote s1.store pins pinsP ∧
+        ∀ j (hj : j < rs.length), i + 1 ≤ j →
+          (∃ d, Frontend.denoteDecl s1.store rs[j].2 = some d) ∧ ConPanqueque.Bridge.IsChecked s1.store.ns rs[j].2 := by
+      subst hmode
+      obtain ⟨hout, hseq1⟩ := ConPanqueque.Bridge.step_value ConRon.Bridge.CoreSpec.of_core
+        ConRon.Bridge.Inductives.indSpec_of_bridge hseq hpins hdi hvi hstr
+      refine ⟨_, pinsP, hseq1, PinsDenote.mono hout.ext _ _ hpins, fun j hj hij => ?_⟩
+      obtain ⟨⟨dj, hdj'⟩, hvj⟩ := hdj j hj (by omega)
+      exact ⟨⟨dj, Frontend.denoteDecl_ext hout.ext hdj'⟩, ConPanqueque.Bridge.isChecked_ext hout.ext hvj⟩
     refine specR_bindPure ?_
     refine specR_callNC (C := ctxNewT C a EH envM tblM H1) (D := ctxLocals ++ foLocals) foR fFold foParams
       [vv foP, .op .add [vv foI, .const 1], vv foN] foldBody
@@ -197,7 +214,7 @@ theorem fold_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : C
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu foParams _ rfl hlk)
         (ih (i + 1) (ctxNewT C a EH envM tblM H1) s1 hokN (foldCodes_new hc a EH envM tblM H1) (by ctx_tr hfr) hA hs hpl
           hgt hfl hlp
-          (blkAt_mono hb hpH) (fun j hj hij => recOK_new (hrec j hj (by omega)) hpH) (by omega) (by omega)))
+          (blkAt_mono hb hpH) (fun j hj hij => recOK_new (hrec j hj (by omega)) hpH) (by omega) (by omega) hinv1))
       (fun _ w s2 C2 _ => ?_)
     · exact ⟨by simp +decide [Env.get, foParams, ctxEnv], by simp +decide [sev, Env.get, foParams, ctxEnv]; exact word_add1_eq i,
         by simp +decide [Env.get, foParams, ctxEnv], trivial⟩

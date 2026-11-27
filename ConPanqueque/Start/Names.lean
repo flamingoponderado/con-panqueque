@@ -221,7 +221,7 @@ theorem front_verdict2 {σ : Type} {F rb capD jN cap bufJ : Nat} {b : ByteArray}
     · exact ⟨_, hb.names i (by rw [hb.size]; simpa [pinCount] using hi)⟩
     · exact ⟨_, hb.res i (by rw [(denoteNL_get hpo.reserved).1, reserved_length]; exact hi)⟩
     · exact ⟨_, hB⟩
-  rcases main_spec2 pins ra C hok hf fc hc hs hpl hfe hcF hEB hcells s hst hoff hpo hA Γ M D hD hDF hfl hcap1 hcapN hcap8
+  rcases main_spec2 pins ra C hok hf fc hc hs hpl hfe hcF hEB hcells s hst hoff hpo hpp pinsP hpins hA Γ M D hD hDF hfl hcap1 hcapN hcap8
       hcapD8 hFH hbuf hZb hZn hTN hTL hTE hC hBA hBN hRB hCD hZL t ht with
     hstop | ⟨w, hw, a, s'', -, st', s', hrun, hval, hm, hforb⟩
   · exact Or.inl hstop

@@ -18,14 +18,6 @@ variable {σ : Type}
 
 def mainP : ProgHOL 64 := parseP foldCallP
 
-theorem declsRel_value {C : Ctx} {F rb capD : Nat} {H : List (BitVec 64)} {ds : Array IDeclaration}
-    (h : DeclsRel C F rb capD H ds) : ∀ d ∈ ds.toList, ConPanqueque.Bridge.IsFrontDecl C.pins d := by
-  intro d hd
-  obtain ⟨k, hk, rfl⟩ := List.getElem_of_mem hd
-  obtain ⟨o, -, hr⟩ := h.2.2.2.2 k (by simpa using hk)
-  simp only [Array.getElem_toList] at hr ⊢
-  cases hx : ds[k] <;> rw [hx] at hr <;> first | trivial | exact hr.elim | exact hr.2.2.2.2 | exact hr.1
-
 set_option maxRecDepth 8000 in
 theorem foldCodes_ctxH {mode : ConLeche.CheckMode} {C : Ctx} (hc : FoldCodes mode C) (H : List (BitVec 64)) :
     FoldCodes mode (ctxH C H) := by ctx_tr hc
@@ -45,6 +37,7 @@ theorem main_spec (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.RuntimeAssu
     (hs : C.side = false) (hpl : C.saved = none) (hfe : C.fe = feStart C.pins)
     (hcF : C.code.lookup fFeed = some (feedPs.map (fun p => (p, ShapeHOL.one)), prologue feedL feedCore, .one))
     (s : AState) (hst : StateOK s) (hoff : s.store.scratchOn = false) (hpo : PinsOK s)
+    (hpp : PersPins s) (pinsP : List ConLeche.NatOpPinSet) (hpins : PinsDenote s.store pins pinsP)
     (hA : denoteN s.store.ns default = some .anonymous)
     (Γ : Env) (M : Mem) (D : List MlS) (hD : ∀ x ∈ [kZ, kR0, kN0, kR1], x ∈ D)
     (hfl : FrontLay F rb capD jN (jN + cap) (jN + 2 * cap) cap bufJ b) (hcap1 : 1 ≤ cap) (hcapN : cap ≤ ConPanqueque.Scan.natCap)
@@ -76,7 +69,8 @@ theorem main_spec (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.RuntimeAssu
   refine specR_mono (specR_run (foldCall_spec pins ra (ctxH C H') (ctxOK_ctxH hok) (foldCodes_ctxH hc H') (by ctx_tr hf)
     hs hpl hfe s' (ConRon.Bridge.denoteN_ext hA hstep.ext) Γ'' D (fun x hx => hD x (by
       simp only [List.mem_cons, List.not_mem_nil, or_false] at hx ⊢; rcases hx with rfl | rfl <;> simp)) st'
-    (frontSt_ctxH H' hfs) hd hlen (by rw [hag _ (by decide) (by decide)]; exact hRB))) (fun t ht => ht)
+    (frontSt_ctxH H' hfs) hd hlen (by rw [hag _ (by decide) (by decide)]; exact hRB)
+    (hpo.mono hstep.ext hstep.pins) (hpp.mono hstep.pins) pinsP (PinsDenote.mono hstep.ext _ _ hpins))) (fun t ht => ht)
     (fun a w s'' t ⟨hm, _⟩ => ⟨st', s', hrun, hval, hm⟩)
 
 /-- **The verdict**: when the program returns, con-leche's parse of the input succeeds and its
@@ -107,7 +101,7 @@ theorem front_verdict (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPin
   have hsz : b.size < USize.size := by
     have := hbuf.small
     simp only [USize.size_eq_two_pow, hbuf.plat.bits]; omega
-  rcases main_spec pins ra C hok hf fc hc hs hpl hfe hcF s hst hoff hpo hA Γ M D hD hfl hcap1 hcapN hcap8 hcapD8 hFH
+  rcases main_spec pins ra C hok hf fc hc hs hpl hfe hcF s hst hoff hpo hpp pinsP hpins hA Γ M D hD hfl hcap1 hcapN hcap8 hcapD8 hFH
       hbuf hZb hZn hTN hTL hTE hC hBA hBN hRB hCD hZL t ht with hstop | ⟨w, hw, a, s'', -, st', s', hrun, hval, hm⟩
   · exact Or.inl hstop
   refine Or.inr ⟨⟨w, hw⟩, ?_⟩

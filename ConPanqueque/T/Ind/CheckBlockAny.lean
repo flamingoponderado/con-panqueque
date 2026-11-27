@@ -52,14 +52,15 @@ theorem cbk_spec_any (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.Runtime
       SpecR (σ := σ) (Pre (ctxH C' H) s [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s (lvlEq? u v)
         (fun o w s' st => LLeq.PostOB (ctxH C' H) o w s' st))
     (block : List IConstantInfo) (p₀ : BlockShape) (osh : Nat) (hsh : ShapeRep C C.H osh p₀)
-    (hfacts : ∀ ms0 rc, p₀.members = [ms0] → p₀.recs = [rc] → CBKFacts mode C block p₀ ms0 rc) (s : AState) :
+    (hfacts : ∀ ms0 rc, p₀.members = [ms0] → p₀.recs = [rc] → CBKFacts mode C block p₀ ms0 rc) (s : AState)
+    (hck : ∃ env, CheckOK false env C.fe s ∧ ConLeche.EnvWF env ∧ ConRon.Bridge.Inductives.EnvRel env C.fe s.store) :
     SpecR (σ := σ) (Pre C s (cbkParams.zip [cellA C osh])) (cbkBody C) s (checkBlock mode C.fe block p₀) (PostBlk C) := by
   by_cases h1 : ∃ ms0 rc, p₀.members = [ms0] ∧ p₀.recs = [rc]
   · obtain ⟨ms0, rc, hms, hrecs⟩ := h1
     obtain ⟨sp, nP, lp, ni, cl, nf, mI, rP, rl, rlp, ⟨ks, hkl, hks⟩, ⟨kr, hkr, hkrs⟩, dd, cs, rd, run⟩ :=
       hfacts ms0 rc hms hrecs
     exact cbk_spec mode ra C hok hs hpl hc hf hg hF hL heqS block p₀ ms0 hms rc hrecs sp osh hsh nP lp ni cl nf
-      mI rP rl rlp ks hkl hks kr hkr hkrs dd cs rd run s
+      mI rP rl rlp ks hkl hks kr hkr hkrs dd cs rd run s hck
   refine specR_prologue (postBlk_locals C) (cbk_none C _) ?_
   obtain ⟨⟨om, hom, hM⟩, ⟨orl, horl, hR⟩, -, -, -, -, -⟩ := hsh
   refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN => ?_)

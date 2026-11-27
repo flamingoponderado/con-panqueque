@@ -588,3 +588,6 @@ import ConPanqueque.Scan.IndFields
 import ConPanqueque.Scan.QuotKind
 import ConPanqueque.Front.QuotRec
 import ConPanqueque.Front.IndLine
+import ConPanqueque.Front.IndRun
+import ConPanqueque.T.Ind.ReadBlockRecs
+import ConPanqueque.T.Ind.NestCtxRun

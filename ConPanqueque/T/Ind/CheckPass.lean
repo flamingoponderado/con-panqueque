@@ -152,7 +152,8 @@ theorem cps_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     (hks : ∀ j (hj : j < ms0.cvT.levelParams.length), denoteN C.St.ns ms0.cvT.levelParams[j] = some (ks[j]'(by omega)))
     (hdd : CVDen ms0.declared C.St) (hfresh : C.fe.find? ms0.declared.name = none)
     (hcs : ∀ c ∈ ms0.ctors, CVDen c.1 C.St ∧ SumCtorOK C p₀.nP c)
-    (hrun : ∀ (s0 : LIdx) (ip : Bool) (s s1 : AState) (ctx : NestCtx) (holes : List EIdx), Ext C.St s.store →
+    (hrun : ∀ (s0 : LIdx) (ip : Bool) (s s1 : AState) (ctx : NestCtx) (holes : List EIdx), StateOK s → Ext C.St s.store →
+      (denoteL s.store.ls s0).isSome = true →
       blockNestCtx { p₀ with resSort := s0, isProp := ip } s = .ok ((ctx, holes), s1) →
       (∃ vs, denoteLs s1.store.lss ctx.lvls = some vs) ∧ ctx.params.length < 2 ^ 56 ∧ holes.length < 2 ^ 56)
     (s : AState) :
@@ -290,6 +291,8 @@ theorem cps_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   have hp15 : H1 <+: H5 := hp14.trans hp5'
   refine specR_atEntry fun t5 ht5 => ?_
   have hx5 : Ext C.St s5.store := hxF.trans ht5.sr.floor
+  have hs0d : (denoteL s5.store.ls s0).isSome = true := by
+    rw [ConRon.Bridge.denoteL_ext (show denoteL sF.store.ls s0 = some l0 by rw [hstF]; exact hl0) ht5.sr.floor]; rfl
   refine specR_callNIH (C := ctxH C2 H5) cpsCp fCbp cbpParams [vv cpsOm, vv cpsNp, vv cpsRs] (cbpBody C)
     [cellA C om, BitVec.ofNat 64 p₁.nP, Enc.idxW p₁.resSort] (by decide) rfl (by decide) (by ctx_tr hc.cbp.self)
     ⟨by simp +decide [sev, Env.get_cons] <;> rfl, by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], trivial⟩
@@ -312,7 +315,7 @@ theorem cps_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
           have hjj : p₁.lps[j] = ms0.cvT.levelParams[j] := by simp [hlp1]
           rw [hjj]; exact hxF.lss.ls.ns _ _ e)
         l0 (by show denoteL sF.store.ls s0 = _; rw [hstF]; exact hl0) s5
-        (fun s1' ctx' holes' h => hrun s0 ip s5 s1' ctx' holes' hx5 h) H5 hp15))
+        (fun s1' ctx' holes' h => hrun s0 ip s5 s1' ctx' holes' ⟨ht5.sr.twf⟩ hx5 hs0d h) H5 hp15))
     (fun cpr w s6 H6 hp6 ⟨ocp, oo, on, ew, hcp6, hout6, hon6, hnf6⟩ => ?_)
   subst ew
   obtain ⟨outs, pos⟩ := cpr

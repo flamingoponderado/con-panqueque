@@ -45,6 +45,14 @@ theorem specR_callRet {α : Type} {C : Ctx} {s : AState} {Γ : Env} {M : Mem} {D
 
 def kN0 := ofString "kn0"
 
+theorem declsRel_value {C : Ctx} {F rb capD : Nat} {H : List (BitVec 64)} {ds : Array IDeclaration}
+    (h : DeclsRel C F rb capD H ds) : ∀ d ∈ ds.toList, ConPanqueque.Bridge.IsFrontDecl C.pins d := by
+  intro d hd
+  obtain ⟨k, hk, rfl⟩ := List.getElem_of_mem hd
+  obtain ⟨o, -, hr⟩ := h.2.2.2.2 k (by simpa using hk)
+  simp only [Array.getElem_toList] at hr ⊢
+  cases hx : ds[k] <;> rw [hx] at hr <;> first | trivial | exact hr.elim | exact hr.2.2.2.2 | exact hr.1
+
 /-- After the parse: the record count, then the fold over the registry block. -/
 def foldCallP : ProgHOL 64 :=
   .seq (.assign .local kN0 (.load .one (vv kRB)))
@@ -66,7 +74,9 @@ theorem foldCall_spec (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.Runtime
     (hfe : C.fe = feStart C.pins) (s : AState) (hA : denoteN s.store.ns default = some .anonymous) (Γ : Env) (D : List MlS) (hD : ∀ x ∈ [kN0, kR1], x ∈ D)
     (st : StateD) (hfs : FrontSt C F rb capD jN jL jE cap bufJ b C.H st)
     (hd : ∀ k (hk : k < st.decls.size), (denoteDecl s.store st.decls[k]).isSome)
-    (hlen : st.decls.size < 2 ^ 62) (hRB : Γ.get kRB = some (cellA C rb)) :
+    (hlen : st.decls.size < 2 ^ 62) (hRB : Γ.get kRB = some (cellA C rb))
+    (hpo : ConRon.Bridge.PinsOK s) (hpp : ConRon.Bridge.PersPins s) (pinsP : List ConLeche.NatOpPinSet)
+    (hpins : ConRon.Bridge.PinsDenote s.store pins pinsP) :
     SpecR (Inv (σ := σ) C s Γ [] D) foldCallP s (checkDeclsPure .verified pins st.decls.toList)
       (fun (_ : IFEnv) (_ : BitVec 64) (_ : AState) (_ : PState σ) => True) := by
   refine specR_invRaise (R' := fun (_ : IFEnv) (_ : BitVec 64) (_ : AState) (_ : PState σ) => True) ?_
@@ -77,6 +87,11 @@ theorem foldCall_spec (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.Runtime
     intro j hj; have := hrec j hj; rwa [show ctxH (ctxSt C s.store) C.H = C' from by cases C; rfl] at this
   have hlenR : rs.length = st.decls.size := by
     have := congrArg List.length hrs; simpa using this
+  have hdd0 : ∀ d ∈ rs.map Prod.snd, (∃ x, denoteDecl s.store d = some x) ∧ ConPanqueque.Bridge.IsFrontDecl C.pins d := by
+    intro d hdm
+    rw [hrs] at hdm
+    obtain ⟨k, hk, rfl⟩ := List.getElem_of_mem hdm
+    refine ⟨Option.isSome_iff_exists.mp (by simpa using hd k (by simpa using hk)), declsRel_value hfs.dr _ hdm⟩
   rw [← hrs]
   obtain ⟨h1, -, h3, h4, -⟩ := hfs.dr
   have hrbH : rb < C'.H.length := by show rb < C.H.length; omega
@@ -92,7 +107,11 @@ theorem foldCall_spec (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.Runtime
     exact ⟨by rw [hRB]; rfl, rfl, trivial, trivial⟩
   · subst ht
     exact checkDeclsPure_spec .verified pins ra rs rb (by omega) C' s (ctxOK_St hok _) (foldCodes_St hc s.store)
-      (by ctx_tr hfr) hA hs hpl hfe hu.pins hb hrec' t ⟨hu, env_zip_get foParams _ rfl hlk⟩
+      (by ctx_tr hfr) hA hs hpl hfe hu.pins hb hrec' rfl ⟨hu.twf⟩ hpo hpp pinsP hpins
+      (fun j hj => by
+        obtain ⟨hx, hf⟩ := hdd0 _ (List.mem_map_of_mem (f := Prod.snd) (List.getElem_mem hj))
+        refine ⟨hx, ConPanqueque.Bridge.isChecked_of_front hpo ?_⟩
+        rw [hu.pins]; exact hf) t ⟨hu, env_zip_get foParams _ rfl hlk⟩
 
 end
 

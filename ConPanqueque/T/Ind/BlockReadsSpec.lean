@@ -96,6 +96,7 @@ set_option maxHeartbeats 8000000 in
 /-- **`blockReadsAt`**. -/
 theorem br_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hf : Front.FrontOK C)
     (hc : BRCodes C) (hAn : denoteN C.St.ns anonH = some .anonymous)
+    (hpa : ∀ sa : AState, sa.pins = C.pins → Ext C.St sa.store → PinsOK sa)
     (p : BlockShape) (os : Nat) (hsh : ShapeRep C C.H os p)
     (hni : ∀ ms ∈ p.members, ms.nIdx < 2 ^ 63) (hcap : ∀ ms ∈ p.members, p.nP + ms.nIdx < 2 ^ 63)
     (hlD : ∀ ms ∈ p.members, ms.declared.levelParams.length < 2 ^ 60)
@@ -104,8 +105,8 @@ theorem br_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     (hnc : (p.members.map (·.ctors.length)).sum < 2 ^ 58)
     (hCV : (∀ ms ∈ p.members, CVDen ms.declared C.St ∧ (CVDen ms.cvT C.St) ∧ ∀ c ∈ ms.ctors, CVDen c.1 C.St) ∧
       ∀ rc ∈ p.recs, CVDen rc.cvR C.St)
-    (hRD : ∀ sa sb fs, p.recs.mapM (recFire p) sa = .ok (fs, sb) → ∀ ci ∈ recsOf p.recs fs,
-      ∀ cv mI rP isK rules, ci = .recInfo cv mI rP isK rules → ∀ rl ∈ rules, RuleDen rl sb.store)
+    (hRD : ∀ sa sb fs, StateOK sa → PinsOK sa → Ext C.St sa.store → p.recs.mapM (recFire p) sa = .ok (fs, sb) →
+      ∀ ci ∈ recsOf p.recs fs, ∀ cv mI rP isK rules, ci = .recInfo cv mI rP isK rules → ∀ rl ∈ rules, RuleDen rl sb.store)
     (s : AState) :
     SpecR (σ := σ) (Pre C s (brParams.zip [cellA C os])) (brBody C) s (blockReadsAt C.fe p) (PostBR C) := by
   refine specR_prologue (postBR_locals _) (br_none _ _) ?_
@@ -207,6 +208,10 @@ theorem br_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
   subst hw4
   have hfs1l : fs1.length = p.recs.length := by have := mapM_len _ _ _ _ _ hr3; simpa using this
   have hp4' : H3 <+: H4 := hp4
+  refine specR_atEntry fun t3 ht3 => ?_
+  have hst3 : StateOK s3 := ⟨ht3.sr.twf⟩
+  have hx3 : Ext C.St s3.store := ht3.sr.floor
+  have hpo3 : PinsOK s3 := hpa s3 ht3.sr.pins hx3
   refine specR_congr (m' := ((p.recs.drop 0).mapM (recFire p)) >>= fun fs => _) (by rw [List.drop_zero]) ?_
   refine specR_callNIH (C := ctxH C H4) brF2 fFfFill ffParams [vv brOr, .const 0, vv brNr, vv brK] (ffBody C)
     [cellA C orr, BitVec.ofNat 64 0, BitVec.ofNat 64 p.recs.length, BitVec.ofNat 64 p.members.length] (by decide) rfl
@@ -570,7 +575,7 @@ theorem br_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     refine ⟨by rw [hl2]; exact get_prefix hHc130 hp14, fun i hi => ?_⟩
     obtain ⟨o, ho1, ho2⟩ := hrs2 i hi (Nat.zero_le _)
     exact ⟨o, ho1, ho2, fun cv mI rP isK rules h rl hrl =>
-      hRD s3 s4 fs2 hr4' _ (List.getElem_mem hi) cv mI rP isK rules h rl hrl⟩
+      hRD s3 s4 fs2 hst3 hpo3 hx3 hr4' _ (List.getElem_mem hi) cv mI rP isK rules h rl hrl⟩
   have hAn2 : denoteN C2.St.ns anonH = some .anonymous := hfl.lss.ls.ns _ _ hAn
   have hf2 : Front.FrontOK C2 := by cases hf; constructor <;> assumption
   have hok2 : CtxOK C2 := ctxOK_St (ctxOK_E hok hpe5A) _

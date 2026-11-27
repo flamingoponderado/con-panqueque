@@ -39,6 +39,11 @@ theorem flagsOK_start (p : Pins) : FlagsOK (feStart p) := FlagsOK.ofParts _ _ _ 
 theorem litsPinned_start (p : Pins) : LitsPinned (feStart p) p := by
   simp [LitsPinned, feStart, IFEnv.ofParts]
 
+/-- The bridge's driver index is the start index. -/
+theorem driverFE_feStart (p : Pins) : driverFE p = feStart p := by
+  simp only [driverFE, feStart, strPins, List.map_cons, List.map_nil, getElem!_def, Array.getD_eq_getD_getElem?]
+  rfl
+
 variable {σ : Type}
 
 /-- **The driver over a record block**: started in a context whose index is the start index,
@@ -48,7 +53,11 @@ theorem checkDeclsPure_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSe
     (hlenR : rs.length < 2 ^ 62) (C : Ctx) (s : AState) (hok : CtxOK C) (hc : FoldCodes mode C)
     (hfr : ConPanqueque.Front.FrontOK C) (hA : denoteN C.St.ns default = some .anonymous) (hs : C.side = false) (hpl : C.saved = none) (hfe : C.fe = feStart C.pins)
     (hp : s.pins = C.pins) (hb : BlkAt C.H ob (rs.map (fun r => cellA C r.1)))
-    (hrec : ∀ j (hj : j < rs.length), RecOK C rs[j].1 rs[j].2) :
+    (hrec : ∀ j (hj : j < rs.length), RecOK C rs[j].1 rs[j].2) (hmode : mode = .verified)
+    (hst : StateOK s) (hpo : PinsOK s) (hpp : PersPins s) (pinsP : List ConLeche.NatOpPinSet)
+    (hpins : PinsDenote s.store pins pinsP)
+    (hdd : ∀ j (hj : j < rs.length), (∃ d, Frontend.denoteDecl s.store rs[j].2 = some d) ∧
+      ConPanqueque.Bridge.IsChecked s.store.ns rs[j].2) :
     SpecR (σ := σ) (Pre C s (foParams.zip [cellA C ob, BitVec.ofNat 64 0, BitVec.ofNat 64 rs.length]))
       foldBody s (checkDeclsPure mode pins (rs.map Prod.snd)) PostFold := by
   have e : checkDeclsPure mode pins (rs.map Prod.snd) s =
@@ -56,8 +65,11 @@ theorem checkDeclsPure_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSe
     simp only [checkDeclsPure, bind, StateT.bind, mkIFEnvLits_run hok hp, Except.bind, hfe,
       List.drop_zero]
   refine specR_congr e ?_
-  exact fold_spec mode pins ra rs ob hlenR rs.length 0 C s hok hc hfr hA hs hpl
+  have hseq : ConPanqueque.Bridge.SeqOK ConLeche.Env.empty C.fe s := by
+    have h := ConPanqueque.Bridge.seqOK_start hst hpo hpp
+    rwa [hp, driverFE_feStart, ← hfe] at h
+  exact fold_spec mode pins ra rs ob hlenR hmode rs.length 0 C s hok hc hfr hA hs hpl
     (hfe ▸ tblGate_start _) (hfe ▸ flagsOK_start _) (by rw [hfe]; exact litsPinned_start _) hb
-    (fun j hj _ => hrec j hj) (by simp) (by simp)
+    (fun j hj _ => hrec j hj) (by simp) (by simp) ⟨_, pinsP, hseq, hpins, fun j hj _ => hdd j hj⟩
 
 end ConPanqueque.T.Decl

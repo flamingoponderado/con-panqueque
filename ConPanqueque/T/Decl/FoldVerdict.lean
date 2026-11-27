@@ -37,7 +37,15 @@ theorem fold_verdict (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPinS
       ((∃ w, (evaluateHOLFiniteState t foldBody).1 = some (.returned (.val (.word w)))) ∧
         ∃ F, ConLeche.checkDeclsPure .verified (ConLeche.fueledOps .verified F) pinsP dsP
           = .ok (ConLeche.streamEnv dsP)) := by
-  rcases checkDeclsPure_spec (σ := σ) .verified pins ra rs ob hlenR C s hok hc hfr hA hs hpl hfe hp hb hrec t ht
+  have hdd : ∀ j (hj : j < rs.length), (∃ d, Frontend.denoteDecl s.store rs[j].2 = some d) ∧
+      ConPanqueque.Bridge.IsChecked s.store.ns rs[j].2 := by
+    intro j hj
+    obtain ⟨-, hg⟩ := ConRon.Bridge.denoteDecls_getElem hden
+    obtain ⟨hj', hd⟩ := hg j (by simpa using hj)
+    refine ⟨⟨_, by simpa using hd⟩, ConPanqueque.Bridge.isChecked_of_value (hval _ ?_)⟩
+    exact List.mem_map_of_mem (f := Prod.snd) (List.getElem_mem hj)
+  rcases checkDeclsPure_spec (σ := σ) .verified pins ra rs ob hlenR C s hok hc hfr hA hs hpl hfe hp hb hrec rfl
+      hst hpo hpp pinsP hpins hdd t ht
     with hstop | ⟨w, hw, a, s', hm, -⟩
   · exact Or.inl hstop
   · exact Or.inr ⟨⟨w, hw⟩, ConPanqueque.Bridge.seq_bridge' hst hpo hpp hpins hden (fun pd h => ConPanqueque.Bridge.isChecked_of_value (hval pd h)) hm⟩

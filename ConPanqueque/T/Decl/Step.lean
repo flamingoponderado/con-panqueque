@@ -32,7 +32,7 @@ structure IndSem (C : Ctx) (block : List IConstantInfo) (nP : Nat) : Prop where
   fr : ConPanqueque.Front.FrontOK C
   an : denoteN C.St.ns anonH = some .anonymous
   bi : BasisInv C
-  run : ∀ mode, Ind.IndRun mode C block nP
+  run : Ind.IndRun C block nP
 
 /-- A record's declaration in the value heap at `o`. -/
 def RecOK (C : Ctx) (o : Nat) : IDeclaration → Prop
@@ -126,7 +126,8 @@ theorem step_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ct
       (denoteL s1.store.ls v).isSome = true →
       SpecR (σ := σ) (Pre (ctxH C H) s1 [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s1 (lvlEq? u v)
         (LLeq.PostOB (ctxH C H)))
-    (o : Nat) (d : IDeclaration) (hrec : RecOK C o d) (s : AState) :
+    (o : Nat) (d : IDeclaration) (hrec : RecOK C o d) (s : AState) (hmode : mode = .verified) (env : ConLeche.Env)
+    (hseq : ConPanqueque.Bridge.SeqOK env C.fe s) (hden : ∃ d', Frontend.denoteDecl s.store d = some d') :
     SpecR (σ := σ) (Pre C s [(stQ, cellA C o)]) (stepBody C) s (checkDeclStep mode pins C.fe d) (PostStep C) := by
   refine specR_prologue (postStep_locals C) (st_none C [cellA C o]) ?_
   cases d
@@ -417,6 +418,13 @@ theorem step_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ct
       (fun t ht => ⟨EH, envM, tblM, H, hpE, hpH, hokN, sr_of_eq ht.sr rfl rfl rfl rfl, hgt, hfl, hlp⟩)
   case indDecl block nP =>
     obtain ⟨h1, hie, ob, hq1, hq2, hblk, hlen, hnP, hlp⟩ := hrec
+    obtain ⟨d', hd'⟩ := hden
+    have hbP : ∃ bP, Frontend.denoteCIList s.store block = some bP := by
+      simp only [Frontend.denoteDecl] at hd'
+      cases hb : Frontend.denoteCIList s.store block with
+      | none => rw [hb] at hd'; simp at hd'
+      | some bl => exact ⟨bl, rfl⟩
+    obtain ⟨bP, hbP⟩ := hbP
     refine UD.specR_heapLoadI' (C := C) stT _ o _ h1 (by decide) (by simp +decide [Env.get, ctxEnv]) ?_
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
@@ -431,7 +439,7 @@ theorem step_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ct
         ⟨ctxNewT C a EH envM tblM H, ⟨EH, envM, tblM, H, rfl, hpE, hpH, hokN, hgt, hfl, hlp⟩, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu Ind.kiParams _ rfl hlk)
         (Ind.ki_spec mode pins ra C hok hs hpl hic.kc hie.fr hg hF hL heqA hLE hie.an hie.bi block nP o ob hq1 hq2
-          hblk hlen hnP hlp (hie.run mode) s))
+          hblk hlen hnP hlp hie.run s hmode env hseq bP hbP))
       (fun a w s5 C5 ⟨EH, envM, tblM, H, eC, hpE, hpH, hokN, hgt, hfl, hlp⟩ => ?_)
     · exact ⟨by simp +decide [sev, Env.get, ctxEnv], trivial⟩
     subst eC

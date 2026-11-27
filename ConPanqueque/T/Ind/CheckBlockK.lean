@@ -215,21 +215,44 @@ structure CBKCodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
   tw : C.code.lookup fTw = some (twParams.map (fun p => (p, ShapeHOL.one)), twBody C, .one)
   self : C.code.lookup fCbk = some (cbkParams.map (fun p => (p, ShapeHOL.one)), cbkBody C, .one)
 
-/-- **The twin-run facts** `checkBlock` relies on (discharged from the twin's own lemmas). -/
+/-- The twin's steps of `checkBlock` before the pass: the members at their telescopes, the flush, official's
+`is_rec`. -/
+def cbkPre (mode : ConLeche.CheckMode) (fe : IFEnv) (p₀ : BlockShape) : AM (List MemberShape × Bool) := do
+  let ms ← reduceMembers mode fe p₀.nP p₀.members
+  flushCaches
+  let isRec ← blockIsRec p₀
+  pure (ms, isRec)
+
+/-- The pass's facts `checkBlock` relies on. -/
+def PassFacts (q : BlockPass) (ms0 : MemberShape) : Prop :=
+  (∀ m ∈ q.cls, m.member = some 0 → m.ctors = ms0.ctors) ∧ (∀ e ∈ q.tbl, e.ds.length < 2 ^ 58) ∧
+    (∀ sl ∈ q.rd.slots, ∀ c C' ihs, sl = .minor c C' ihs → c < 2 ^ 63 ∧ ihs.length < 2 ^ 63) ∧
+    (∀ c ∈ q.rd.recCls, c < 2 ^ 63)
+
+/-- **The twin-run facts** `checkBlock` relies on, each at the twin's states the port's run reaches: the walk's
+context at a well-formed store, the pass after `cbkPre` from a checking state (con-ron's `CheckOK` at a
+well-formed environment related to the index), the tables at a well-formed store. -/
 structure CBKRun (mode : ConLeche.CheckMode) (C : Ctx) (p₀ : BlockShape) (ms0 : MemberShape) (rc : RecShape) : Prop where
-  bn : ∀ (s0 : LIdx) (ip : Bool) (s s1 : AState) (ctx : NestCtx) (holes : List EIdx), Ext C.St s.store →
+  bn : ∀ (s0 : LIdx) (ip : Bool) (s s1 : AState) (ctx : NestCtx) (holes : List EIdx), StateOK s → Ext C.St s.store →
+    (denoteL s.store.ls s0).isSome = true →
     blockNestCtx { p₀ with resSort := s0, isProp := ip } s = .ok ((ctx, holes), s1) →
     (∃ vs, denoteLs s1.store.lss ctx.lvls = some vs) ∧ ctx.params.length < 2 ^ 56 ∧ holes.length < 2 ^ 56
-  pass : ∀ (isRec : Bool) (s : AState) (q : BlockPass) (s' : AState), Ext C.St s.store →
-    checkBlockPass mode C.fe p₀ isRec s = .ok (q, s') →
-    (∀ m ∈ q.cls, m.member = some 0 → m.ctors = ms0.ctors) ∧ (∀ e ∈ q.tbl, e.ds.length < 2 ^ 58) ∧
-    (∀ sl ∈ q.rd.slots, ∀ c C' ihs, sl = .minor c C' ihs → c < 2 ^ 63 ∧ ihs.length < 2 ^ 63) ∧
-    (∀ c ∈ q.rd.recCls, c < 2 ^ 63) ∧
+  pass : ∀ (env : ConLeche.Env) (s0 : AState) (ms : List MemberShape) (isRec : Bool) (s : AState) (q : BlockPass)
+    (s' : AState), CheckOK false env C.fe s0 → ConLeche.EnvWF env →
+    ConRon.Bridge.Inductives.EnvRel env C.fe s0.store → Ext C.St s0.store →
+    cbkPre mode C.fe p₀ s0 = .ok ((ms, isRec), s) →
+    checkBlockPass mode C.fe { p₀ with members := ms } isRec s = .ok (q, s') → PassFacts q ms0
+  /-- The generated recursor types denote (at any state: still to be conditioned, see `IndRunGap`). -/
+  crt : ∀ (env : ConLeche.Env) (s0 : AState) (ms : List MemberShape) (isRec : Bool) (s : AState) (q : BlockPass)
+    (s' : AState), CheckOK false env C.fe s0 → ConLeche.EnvWF env →
+    ConRon.Bridge.Inductives.EnvRel env C.fe s0.store → Ext C.St s0.store →
+    cbkPre mode C.fe p₀ s0 = .ok ((ms, isRec), s) →
+    checkBlockPass mode C.fe { p₀ with members := ms } isRec s = .ok (q, s') →
     (∀ m ∈ q.cls, ∀ (xs : List ClassCtor) (el : LIdx) (pre : List EIdx) s s' cv,
       classRecTyOk mode (consSumCtors p₀.nP ms0.cvT.name ms0.ctors q.env1)
         ⟨p₀.nP, q.params, [{ m with nfs := q.tbl }], [ms0.cvT.type], q.rd.slots, [xs], el, pre⟩
         p₀.k rc rc.cvR 0 s = .ok (cv, s') → (denoteE s'.store cv.type).isSome = true)
-  tables : ∀ (s : AState) (Q : List IProjTable) (s' : AState), Ext C.St s.store →
+  tables : ∀ (s : AState) (Q : List IProjTable) (s' : AState), StateOK s → Ext C.St s.store →
     blockTables p₀ p₀.members s = .ok (some Q, s') → ∀ t ∈ Q, NewTblDen t s'.store ∧
       (∃ ks : List ConLeche.Name, ∃ hkl : ks.length = t.levelParams.length,
         ∀ j (hj : j < t.levelParams.length), denoteN s'.store.ns t.levelParams[j] = some (ks[j]'(by rw [hkl]; exact hj))) ∧
@@ -262,9 +285,14 @@ theorem cbk_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     (kr : List ConLeche.Name) (hkr : kr.length = rc.cvR.levelParams.length)
     (hkrs : ∀ j (hj : j < rc.cvR.levelParams.length), denoteN C.St.ns rc.cvR.levelParams[j] = some (kr[j]'(by omega)))
     (hdd : CVDen ms0.declared C.St) (hcs : ∀ c ∈ ms0.ctors, CVDen c.1 C.St ∧ SumCtorOK C p₀.nP c)
-    (hrd : CVDen rc.cvR C.St) (hrun : CBKRun mode C p₀ ms0 rc) (s : AState) :
+    (hrd : CVDen rc.cvR C.St) (hrun : CBKRun mode C p₀ ms0 rc) (s : AState)
+    (hck : ∃ env, CheckOK false env C.fe s ∧ ConLeche.EnvWF env ∧
+      ConRon.Bridge.Inductives.EnvRel env C.fe s.store) :
     SpecR (σ := σ) (Pre C s (cbkParams.zip [cellA C osh])) (cbkBody C) s (checkBlock mode C.fe block p₀) (PostBlk C) := by
   refine specR_prologue (postBlk_locals C) (cbk_none C _) ?_
+  refine specR_atEntry fun t00 ht00 => ?_
+  have hx00 : Ext C.St s.store := ht00.sr.floor
+  obtain ⟨env, hck0, henv0, hrel0⟩ := hck
   simp only [checkBlock]
   obtain ⟨⟨om, hom, hM⟩, ⟨orl, horl, hR⟩, hnP0, hel0, hrs0, hlg0, hip0⟩ := hsh
   have hM0 := hM
@@ -367,11 +395,12 @@ theorem cbk_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   refine specR_callNIH (C := ctxH C H1) cbkX fRmFill rmParams [vv cbkOm, .const 0, .const 1] (rmBody C)
     [cellA C om, BitVec.ofNat 64 0, BitVec.ofNat 64 1] (by decide) rfl (by decide) (by ctx_tr hc.rm)
     ⟨by simp +decide [sev, Env.get_cons], by simp [sev], by simp [sev], trivial⟩
-    (fun r _ s' st => r = [ms0] ∧ ∃ H', H1 <+: H' ∧ SR (ctxH C H') s' st)
-    (fun r _ _ _ => r = [ms0]) (fun r w s' st ⟨hr, H', hp', hsr⟩ => ⟨H', hp', hr, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu rmParams _ rfl hlk)
-      hrm)
-    (fun r w s2 H2 hp2 er => ?_)
+    (fun r _ s' st => reduceMembers mode C.fe p₀.nP [ms0] s1 = .ok (r, s') ∧ r = [ms0] ∧ ∃ H', H1 <+: H' ∧ SR (ctxH C H') s' st)
+    (fun r _ s' _ => reduceMembers mode C.fe p₀.nP [ms0] s1 = .ok (r, s') ∧ r = [ms0])
+    (fun r w s' st ⟨hrr, hr, H', hp', hsr⟩ => ⟨H', hp', ⟨hrr, hr⟩, hsr⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu rmParams _ rfl hlk)
+      hrm))
+    (fun r w s2 H2 hp2 ⟨hrmr, er⟩ => ?_)
   subst er
   have hp2' : H1 <+: H2 := hp2
   have hok2 := ctxOK_H hok H2
@@ -382,11 +411,17 @@ theorem cbk_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   refine specR_callNIH (C := ctxH C H2) cbkIr fBlockIsRec biParams [vv cbkOm, .const 1] (biBody C)
     [cellA C om, BitVec.ofNat 64 1] (by decide) rfl (by decide) (by ctx_tr hc.biS)
     ⟨by simp +decide [sev, Env.get_cons, Env.kill], by simp [sev], trivial⟩
-    (PostB (ctxH C H2)) (fun r w _ _ => w = boolW r) (fun r w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu biParams _ rfl hlk)
-      hbi)
-    (fun isRec w s4 H4 hp4 hw => ?_)
+    (fun r w s' st => blockIsRec p₀ s3 = .ok (r, s') ∧ PostB (ctxH C H2) r w s' st)
+    (fun r w s' _ => blockIsRec p₀ s3 = .ok (r, s') ∧ w = boolW r)
+    (fun r w s' st ⟨hbr, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hbr, hw⟩, hsr⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu biParams _ rfl hlk)
+      hbi))
+    (fun isRec w s4 H4 hp4 ⟨hbir, hw⟩ => ?_)
   subst hw
+  have hpre : cbkPre mode C.fe p₀ s1 = .ok ((p₀.members, isRec), s4) := by
+    unfold cbkPre
+    rw [hms, am_bind_run hrmr, am_bind_run (show flushCaches s2 = .ok ((), s3) by rw [← hsF]; rfl), am_bind_run hbir]
+    rfl
   have hp4' : H2 <+: H4 := hp4
   rw [show ({ p₀ with members := [ms0] } : BlockShape) = p₀ by rw [← hms]]
   have hp14 : C.H <+: H4 := hp1'.trans (hp2'.trans hp4')
@@ -417,7 +452,9 @@ theorem cbk_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
       ⟨s0, ip, hqp, l0, hl0⟩, ⟨ob, opp, hob, hopp, hppb⟩, ⟨ocb, ord, oms, hocb, hord, hcrd, homs, htm, hcl1⟩,
       ⟨ocp, oo, on, outs, hocp, hoo, houts, hkinds, hon, htbl⟩⟩ => ?_)
   subst eC ew
-  obtain ⟨hmc, hel, hcb, hrcB, hcvd⟩ := hrun.pass isRec s4 q s5 hx4 hqrun
+  have hqrun' : checkBlockPass mode C.fe { p₀ with members := p₀.members } isRec s4 = .ok (q, s5) := hqrun
+  obtain ⟨hmc, hel, hcb, hrcB⟩ := hrun.pass env s1 p₀.members isRec s4 q s5 hck0 henv0 hrel0 hx00 hpre hqrun'
+  have hcvd := hrun.crt env s1 p₀.members isRec s4 q s5 hck0 henv0 hrel0 hx00 hpre hqrun'
   have hp5' : H4 <+: H5 := hp5
   have hpC5 : C.H <+: H5 := hp14.trans hp5'
   set C5 := ctxNew (ctxH C H4) q.env1 EH5 envM5 H5 with hC5
@@ -463,7 +500,7 @@ theorem cbk_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   set C6 := ctxSt (ctxH C5' H6) s6.store with hC6
   have hok6 : CtxOK C6 := ctxOK_St (ctxOK_H hok5' H6) _
   have hx6 : Ext C.St s6.store := hx5.trans hx56
-  have htab := hrun.tables s5 Q s6 hx5 (by rw [hms]; exact hbrun)
+  have htab := hrun.tables s5 Q s6 ⟨ht5.sr.twf⟩ hx5 (by rw [hms]; exact hbrun)
   have hqpm : q.p.members = [ms0] := by rw [hqp]; exact hms
   have hqpr : q.p.recs = [rc] := by rw [hqp]; exact hrecs
   have hsh6 := shapeRep_mono hp6' hsh1

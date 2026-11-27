@@ -3,6 +3,7 @@ import ConPanqueque.T.Ind.IndArm
 import ConPanqueque.T.Ind.CheckBlockAny
 import ConPanqueque.T.Ind.ReadBlock
 import ConPanqueque.T.Ind.BlockReadsSpec
+import ConPanqueque.Bridge.SeqFold
 
 /-!
 # The record of an inductive block (`checkDeclStep` at `.indDecl`)
@@ -81,15 +82,24 @@ def BRFacts (p : BlockShape) (st : EStore) : Prop :=
   (∀ rc ∈ p.recs, rc.cvR.levelParams.length < 2 ^ 60) ∧ ((p.members.map (·.ctors.length)).sum < 2 ^ 58) ∧
   ((∀ ms ∈ p.members, CVDen ms.declared st ∧ (CVDen ms.cvT st) ∧ ∀ c ∈ ms.ctors, CVDen c.1 st) ∧
     ∀ rc ∈ p.recs, CVDen rc.cvR st) ∧
-  (∀ sa sb fs, p.recs.mapM (recFire p) sa = .ok (fs, sb) → ∀ ci ∈ recsOf p.recs fs,
-      ∀ cv mI rP isK rules, ci = .recInfo cv mI rP isK rules → ∀ rl ∈ rules, RuleDen rl sb.store)
+  (∀ sa sb fs, StateOK sa → PinsOK sa → Ext st sa.store → p.recs.mapM (recFire p) sa = .ok (fs, sb) →
+    ∀ ci ∈ recsOf p.recs fs, ∀ cv mI rP isK rules, ci = .recInfo cv mI rP isK rules → ∀ rl ∈ rules, RuleDen rl sb.store)
 
 /-- **The twin-run facts the inductive record relies on**: of the block `readBlock` answers, at the store it
-answers in. -/
-def IndRun (mode : ConLeche.CheckMode) (C : Ctx) (block : List IConstantInfo) (nP : Nat) : Prop :=
-  ∀ (s : AState) (p : BlockShape) (s' : AState), Ext C.St s.store → readBlock nP block s = .ok (.ok p, s') →
+answers in — when it is run at a checking state (con-ron's `FoldOK`, the bridge's invariant with the caches
+flushed) at which the block denotes. -/
+def IndRun (C : Ctx) (block : List IConstantInfo) (nP : Nat) : Prop :=
+  ∀ (env : ConLeche.Env) (fe : IFEnv) (b : List ConLeche.ConstantInfo) (s : AState) (p : BlockShape) (s' : AState),
+    FoldOK env fe s → Ext C.St s.store → Frontend.denoteCIList s.store block = some b →
+    readBlock nP block s = .ok (.ok p, s') →
     BRFacts p s'.store ∧ ∀ C' : Ctx, C'.St = s'.store → C'.code = C.code →
-      ∀ ms0 rc, p.members = [ms0] → p.recs = [rc] → CBKFacts mode C' block p ms0 rc
+      ∀ ms0 rc, p.members = [ms0] → p.recs = [rc] → CBKFacts .verified C' block p ms0 rc
+
+/-- The bridge's invariant between records, at a flushed state: con-ron's `FoldOK`. -/
+theorem seqOK_flushed {env : ConLeche.Env} {fe : IFEnv} {s : AState} (h : ConPanqueque.Bridge.SeqOK env fe s)
+    (mem : Bool) : FoldOK env fe (Decl.flushedS mem s) :=
+  ConPanqueque.Bridge.SeqOK.fold ⟨⟨h.state.wf⟩, h.pins.mono (Ext.refl _) rfl, h.ienv.mono (Ext.refl _), h.envWF,
+    h.tblShape, h.persPins.mono rfl, h.coh, h.gate⟩ rfl
 
 theorem ki_fail_bind {α β : Type} (e : CheckError) (k : α → AM β) : (fail e : AM α) >>= k = fail e := by
   funext s; simp [fail, throwThe, MonadExceptOf.throw, StateT.lift, bind, StateT.bind, Except.bind]
@@ -201,9 +211,12 @@ theorem ki_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : Con
     (hq2 : C.H[o + 2]? = some (cellA C ob)) (hblk : IndBlk C C.H ob block)
     (hlen : block.length < 2 ^ 59) (hnP : nP < 2 ^ 59)
     (hlp : ∀ i (hi : i < block.length), block[i].toConstantVal.levelParams.length < 2 ^ 59)
-    (hrun : IndRun mode C block nP) (s : AState) :
+    (hrun : IndRun C block nP) (s : AState) (hmode : mode = .verified) (env : ConLeche.Env)
+    (hseq : ConPanqueque.Bridge.SeqOK env C.fe s) (bP : List ConLeche.ConstantInfo)
+    (hbP : Frontend.denoteCIList s.store block = some bP) :
     SpecR (σ := σ) (Pre C s (kiParams.zip [cellA C o])) (kiBody C) s
       (checkDeclStep mode pins C.fe (.indDecl block nP)) (PostBlk C) := by
+  subst hmode
   refine specR_prologue (postBlk_locals C) (ki_none C _) ?_
   refine UD.specR_heapLoadI' (C := C) kiNp _ (o + 1) _ hq1 (by decide)
     (by simp +decide [sev, Env.get, kiParams, ctxEnv]; exact cellA_add8 C o) ?_
@@ -246,21 +259,28 @@ theorem ki_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : Con
   refine specR_runBind (andPinOk_ind hok ht0.sr.pins block nP hfree) ?_
   simp only [Bool.not_true, Bool.false_eq_true, ↓reduceIte, pure_bind, bind_assoc]
   refine specR_congr (m' := ((flushCaches >>= fun _ => (get : AM AState) >>= fun s' =>
-      set { s' with memos := Memos.empty }) >>= fun _ => checkDecl mode pins C.fe (IDeclaration.indDecl block nP)))
+      set { s' with memos := Memos.empty }) >>= fun _ => checkDecl .verified pins C.fe (IDeclaration.indDecl block nP)))
     (by simp only [bind_assoc]) ?_
   refine specR_flushTopI (C := ctxH C H1) (D := ctxLocals ++ kiLocals) hok1 hpl true _ (stepFlush_run s) (by decide) ?_
-  generalize hsF : flushedS true s = s1
+  have hF1 : FoldOK env C.fe (flushedS true s) := seqOK_flushed hseq true
+  have hbP1 : Frontend.denoteCIList (flushedS true s).store block = some bP := hbP
+  generalize hsF : flushedS true s = s1 at hF1 hbP1
   simp only [checkDecl, checkDeclKind, bind_assoc]
   refine specR_callNIH (C := ctxH C H1) kiOk fIpo ipoParams [vv kiOb, .const 0, vv kiN, vv kiNp] ipoBody
     [cellA C ob, BitVec.ofNat 64 0, BitVec.ofNat 64 block.length, BitVec.ofNat 64 nP] (by decide) rfl (by decide) hc.ipo
     ⟨by simp +decide [sev, Env.get_cons, Env.kill, ConPanqueque.T.ExP.Env.get_kill_of_not_mem] <;> rfl, by simp [sev],
       by simp +decide [sev, Env.get_cons, Env.kill, ConPanqueque.T.ExP.Env.get_kill_of_not_mem],
       by simp +decide [sev, Env.get_cons, Env.kill, ConPanqueque.T.ExP.Env.get_kill_of_not_mem], trivial⟩
-    (PostB (ctxH C H1)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ipoParams _ rfl hlk)
-      (ipo_spec C hc.ipo hc.pst block ob nP (by omega) hlen _ 0 H1 s1 hp1' (indBlk_mono hblk hp1') rfl (Nat.zero_le _)))
-    (fun okb w s2 H2 hp2 hw => ?_)
+    (fun b w s' st => indParamsOk nP block s1 = .ok (b, s') ∧ PostB (ctxH C H1) b w s' st)
+    (fun b w s' _ => indParamsOk nP block s1 = .ok (b, s') ∧ w = boolW b)
+    (fun b w s' st ⟨hr, H', hp', hw, hsr⟩ => ⟨H', hp', ⟨hr, hw⟩, hsr⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu ipoParams _ rfl hlk)
+      (ipo_spec C hc.ipo hc.pst block ob nP (by omega) hlen _ 0 H1 s1 hp1' (indBlk_mono hblk hp1') rfl (Nat.zero_le _))))
+    (fun okb w s2 H2 hp2 ⟨hipr, hw⟩ => ?_)
   subst hw
+  obtain ⟨hps2, -⟩ := ConRon.Bridge.Inductives.indParamsOk_spec nP block bP s1 s2 okb hF1.check.state hbP1 hipr
+  have hF2 : FoldOK env C.fe s2 := hF1.ofCore (hps2.toCore hF1.check)
+  have hbP2 : Frontend.denoteCIList s2.store block = some bP := denoteCIList_mono hps2.ext _ _ hbP1
   have hp2' : C.H <+: H2 := hp1'.trans hp2
   cases okb
   · exact specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, boolW])
@@ -285,9 +305,13 @@ theorem ki_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : Con
   subst hw hrp
   simp only
   have hp3' : C.H <+: H3 := hp2'.trans hp3
-  obtain ⟨hbrf, hcbkf⟩ := hrun s2 p s3 hx2 (unwrapE_ok hrb)
+  obtain ⟨hbrf, hcbkf⟩ := hrun env C.fe bP s2 p s3 hF2 hx2 hbP2 (unwrapE_ok hrb)
+  obtain ⟨hps3, hrb3⟩ := ConRon.Bridge.Inductives.readBlock_run nP block bP s2 s3 (.ok p) hF2.check hbP2 (unwrapE_ok hrb)
+  obtain ⟨pP, -, hdsh3⟩ := hrb3
+  have hF3 : FoldOK env C.fe s3 := hF2.ofCore (hps3.toCore hF2.check)
   refine specR_atEntry fun t3 ht3 => ?_
   have hx3 : Ext C.St s3.store := ht3.sr.floor
+  have hpin3 : s3.pins = C.pins := ht3.sr.pins
   refine specR_invRaise (R' := PostBlk (ctxSt C s3.store)) ?_ (fun a w s' t hx h => postBlk_lower (C := C) hx a w s' t h)
   let C3 : Ctx := { C with H := H3, St := s3.store }
   have hok3 : CtxOK C3 := ctxOK_St (ctxOK_H hok H3) _
@@ -299,16 +323,21 @@ theorem ki_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : Con
   simp only [bind_assoc]
   refine specR_callNC (C := C3) kiRd fBlockReadsAt brParams [vv kiSh] (brBody C3) [cellA C osh]
     (by decide) rfl (by decide) hcBRS ⟨by simp +decide [sev, Env.get_cons] <;> rfl, trivial⟩
-    (PostBR C3)
-    (fun r w s' C' => w = boolW r.1 ∧ ConRon.Bridge.Inductives.GR.FEq r.2 C.fe ∧ r.2.natLit = C.fe.natLit ∧
+    (fun r w s' st => blockReadsAt C.fe p s3 = .ok (r, s') ∧ PostBR C3 r w s' st)
+    (fun r w s' C' => blockReadsAt C.fe p s3 = .ok (r, s') ∧ w = boolW r.1 ∧ ConRon.Bridge.Inductives.GR.FEq r.2 C.fe ∧
+      r.2.natLit = C.fe.natLit ∧
       r.2.strLit = C.fe.strLit ∧ ∃ H' EH', C' = ctxE (ctxH C3 H') EH' ∧ H3 <+: H' ∧ C.EH <+: EH')
-    (fun r w s' st ⟨h1, h2, h3, h4, H', EH', h5, h6, h7⟩ => ⟨_, ⟨h1, h2, h3, h4, H', EH', rfl, h5, h6⟩, h7⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu brParams _ rfl hlk)
-      (br_spec ra C3 hok3 (by obtain ⟨⟩ := hf; constructor <;> assumption) hcBR hA3 p osh hsh b1 b2 b3 b4 b5 b6 b7 b8 s3))
-    (fun d w s4 C4 ⟨ew, hfeq, hn4, hs4, H4, EH4, eC, hp4, hpE4⟩ => ?_)
+    (fun r w s' st ⟨h0, h1, h2, h3, h4, H', EH', h5, h6, h7⟩ => ⟨_, ⟨h0, h1, h2, h3, h4, H', EH', rfl, h5, h6⟩, h7⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu brParams _ rfl hlk)
+      (br_spec ra C3 hok3 (by obtain ⟨⟩ := hf; constructor <;> assumption) hcBR hA3
+        (fun sa hpa hxa => hF3.check.pins.mono hxa (by rw [hpa, hpin3]))
+        p osh hsh b1 b2 b3 b4 b5 b6 b7 b8 s3)))
+    (fun d w s4 C4 ⟨hbrr, ew, hfeq, hn4, hs4, H4, EH4, eC, hp4, hpE4⟩ => ?_)
   subst eC ew
+  obtain ⟨c4, hrel4, -, -, -⟩ := ConRon.Bridge.Inductives.blockReadsAt_bridge hF3.check
+    (ConRon.Bridge.Inductives.EnvRel.ofCheck hF3.check hF3.gate hF3.envWF) hdsh3 hbrr
   obtain ⟨reads, fe₀⟩ := d
-  simp only at hfeq hn4 hs4 ⊢
+  simp only at hfeq hn4 hs4 c4 hrel4 ⊢
   have hp4' : H3 <+: H4 := hp4
   have hfT : ∀ n, fe₀.findTable? n = C.fe.findTable? n := fun n => by
     unfold IFEnv.findTable?; rw [hfeq.find?, hfeq.rawTable?]
@@ -317,7 +346,7 @@ theorem ki_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : Con
     (Decl.envDen_congr hfeq.find? hfT ht4.sr.envd) ?_
   let C5 : Ctx := { C with H := H4, St := s3.store, EH := EH4, fe := fe₀ }
   have hok5 : CtxOK C5 := ctxOK_fe (ctxOK_E (ctxOK_H hok3 H4) hpE4) (fun n => hfeq.find? n) hfT
-  have hcK : CBKCodes mode C5 := by ctx_tr hc.cbk
+  have hcK : CBKCodes .verified C5 := by ctx_tr hc.cbk
   have hg5 : TblGate fe₀ := hfeq.gate hg
   have hF5 : FlagsOK fe₀ := FlagsOK.of_same hF (by rw [hfeq.2.2.1]) hfeq.find? hn4 hs4
   have hL5 : LitsPinned fe₀ C.pins := by unfold LitsPinned; rw [hfeq.2.2.1]; exact hL
@@ -328,9 +357,9 @@ theorem ki_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : Con
       CtxOK (ctxNT C5 fe' EH envM tblM H) ∧ TblGate fe' ∧ FlagsOK fe' ∧ LitsPinned fe' C.pins)
     (fun a w s' st ⟨EH, envM, tblM, H, h1, h2, h3, h4, h5⟩ => ⟨_, ⟨EH, envM, tblM, H, rfl, h1, h2, h3, h5⟩, h4⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cbkParams _ rfl hlk)
-      (cbk_spec_any mode ra C5 hok5 hs hpl hcK (by obtain ⟨⟩ := hf; constructor <;> assumption) hg5 hF5 hL5
+      (cbk_spec_any .verified ra C5 hok5 hs hpl hcK (by obtain ⟨⟩ := hf; constructor <;> assumption) hg5 hF5 hL5
         (fun C' hcode => heqS C' hcode) block p osh (shapeRep_mono hp4' hsh)
-        (fun ms0 rc hm hr => hcbkf C5 rfl rfl ms0 rc hm hr) s4))
+        (fun ms0 rc hm hr => hcbkf C5 rfl rfl ms0 rc hm hr) s4 ⟨env, c4, hF3.envWF, hrel4⟩))
     (fun fe' w s5 C6 ⟨EH6, envM6, tblM6, H6, eC, hpE6, hp6, hok6, hg6, hF6, hL6⟩ => ?_)
   subst eC
   cases reads
