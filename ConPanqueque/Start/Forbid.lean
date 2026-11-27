@@ -85,6 +85,7 @@ def recNameW : IDeclaration → BitVec 64
   | .defnDecl cv _ _ => Enc.idxW cv.name
   | .thmDecl cv _ => Enc.idxW cv.name
   | .opaqueDecl cv _ => Enc.idxW cv.name
+  | .axiomDecl cv => Enc.idxW cv.name
   | _ => 0
 
 theorem recEnc_name {C : Ctx} {F : Nat} {H : List (BitVec 64)} {o : Nat} {d : IDeclaration} (h : RecEnc C F H o d) :
@@ -93,6 +94,7 @@ theorem recEnc_name {C : Ctx} {F : Nat} {H : List (BitVec 64)} {o : Nat} {d : ID
   | defnDecl cv v hint => obtain ⟨-, -, ⟨ol, -, h1, -⟩, -⟩ := h; exact h1
   | thmDecl cv v => obtain ⟨-, -, ⟨ol, -, h1, -⟩, -⟩ := h; exact h1
   | opaqueDecl cv v => obtain ⟨-, -, ⟨ol, -, h1, -⟩, -⟩ := h; exact h1
+  | axiomDecl cv => obtain ⟨-, -, ⟨ol, -, h1, -⟩, -⟩ := h; exact h1
   | _ => exact h.elim
 
 def forbidBody (cells : List Nat) : ProgHOL 64 :=

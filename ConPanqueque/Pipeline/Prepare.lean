@@ -61,16 +61,27 @@ theorem preparePrelude_eq (pre : PreludeIx) (ds : Array Declaration)
 /-- A stream record the bridge accepts: a value record at a name the guards do not read, which the
 prelude's environment does not declare and no prelude record is keyed by. -/
 def RecOK (pre : PreludeIx) (envP : Env) (d : Declaration) : Prop :=
-  ∃ n, valName d = some n ∧ NameOK n ∧ envP.find? n = none ∧ ∀ p ∈ pre.decls.toList, preludeKey p ≠ n
+  ∃ n, recName d = some n ∧ NameOK n ∧ envP.find? n = none ∧ ∀ p ∈ pre.decls.toList, preludeKey p ≠ n
 
 theorem valName_names {d : Declaration} {n : Name} (h : valName d = some n) : d.names = [n] := by
   cases d <;> simp_all [valName, Declaration.names]
+
+theorem recName_names {d : Declaration} {n : Name} (h : recName d = some n) : d.names = [n] := by
+  rcases recName_cases h with h | ⟨c, rfl, -, rfl⟩
+  · exact valName_names h
+  · simp [Declaration.names]
 
 theorem valName_natOp {d : Declaration} {n : Name} (h : valName d = some n) (hn : NameOK n) :
     isNatOpRecord d = none := by
   obtain ⟨hop, -⟩ := hn
   simp only [natOpName, Bool.or_eq_false_iff] at hop
   cases d <;> simp_all [valName, isNatOpRecord]
+
+theorem recName_natOp {d : Declaration} {n : Name} (h : recName d = some n) (hn : NameOK n) :
+    isNatOpRecord d = none := by
+  rcases recName_cases h with h | ⟨c, rfl, -, rfl⟩
+  · exact valName_natOp h hn
+  · simp [isNatOpRecord]
 
 /-- **The prepared stream accepts**: con-leche's prelude accepted, and the stream accepted alone. -/
 theorem pipeline_of_stream (pins pins₀ : List NatOpPinSet) (pre : PreludeIx) (ds : Array Declaration)
@@ -80,12 +91,12 @@ theorem pipeline_of_stream (pins pins₀ : List NatOpPinSet) (pre : PreludeIx) (
     ∃ E, PureRun pins (preparePrelude pre ds).toList Env.empty E := by
   rw [preparePrelude_eq pre ds (fun p hp d hd => by
       obtain ⟨n, hn, -, -, hk⟩ := hok d hd
-      simp only [declares, valName_names hn, List.contains_cons, List.contains_nil, Bool.or_false, beq_iff_eq]
+      simp only [declares, recName_names hn, List.contains_cons, List.contains_nil, Bool.or_false, beq_iff_eq]
       exact decide_eq_false (hk p hp))
     (fun d hd => by
       rcases List.mem_append.mp hd with h | h
       · exact hpOp d h
-      · obtain ⟨n, hn, hno, -⟩ := hok d h; exact valName_natOp hn hno)]
+      · obtain ⟨n, hn, hno, -⟩ := hok d h; exact recName_natOp hn hno)]
   exact prelude_then_stream pins pins₀ _ _ hP hS (fun d hd => by
     obtain ⟨n, hn, hno, hf, -⟩ := hok d hd; exact ⟨n, hn, hno, hf⟩)
 

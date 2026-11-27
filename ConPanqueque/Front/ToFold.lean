@@ -62,6 +62,12 @@ theorem recOK_of_enc {C : Ctx} {F : Nat} {H : List (BitVec 64)} {o : Nat} {d : I
     split at hd
     · rename_i c x hc hx; exact ⟨h1, recCV_of_enc h2 (by rw [hc]; rfl), h3⟩
     · simp at hd
+  | axiomDecl cv =>
+    obtain ⟨-, h1, h2, h3, -⟩ := h
+    simp only [denoteDecl] at hd
+    cases hc : denoteCV C.St cv with
+    | none => rw [hc] at hd; simp at hd
+    | some c => exact ⟨h1, recCV_of_enc h2 (by rw [hc]; rfl), h3⟩
   | _ => exact h.elim
 
 /-- **The registry as the fold's block.** -/

@@ -39,6 +39,6 @@ theorem fold_verdict (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPinS
   rcases checkDeclsPure_spec (σ := σ) .verified pins ra rs ob hlenR C s hok hc hs hpl hfe hp hb hrec t ht
     with hstop | ⟨w, hw, a, s', hm, -⟩
   · exact Or.inl hstop
-  · exact Or.inr ⟨⟨w, hw⟩, ConPanqueque.Bridge.seq_bridge' hst hpo hpp hpins hden hval hm⟩
+  · exact Or.inr ⟨⟨w, hw⟩, ConPanqueque.Bridge.seq_bridge' hst hpo hpp hpins hden (fun pd h => ConPanqueque.Bridge.isChecked_of_value (hval pd h)) hm⟩
 
 end ConPanqueque.T.Decl

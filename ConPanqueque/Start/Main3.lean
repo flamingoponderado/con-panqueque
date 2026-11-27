@@ -59,7 +59,7 @@ def Verdict2 (nb : List (BitVec 8)) : Prop :=
   ∃ rc, ConLeche.Frontend.parseBytes (inputOf nb (leNat (nb.take 8))) = .ok rc ∧
     (∃ F', ConLeche.checkDeclsPure .verified (ConLeche.fueledOps .verified F') [] rc.decls.toList
       = .ok (ConLeche.streamEnv rc.decls.toList)) ∧
-    ∀ d ∈ rc.decls.toList, ∃ n, ConPanqueque.Pipeline.valName d = some n ∧ n ∉ FN
+    ∀ d ∈ rc.decls.toList, ∃ n, ConPanqueque.Pipeline.recName d = some n ∧ n ∉ FN
 
 set_option maxHeartbeats 4000000 in
 /-- The body after the declarations. -/

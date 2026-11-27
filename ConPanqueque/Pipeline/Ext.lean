@@ -402,10 +402,61 @@ theorem checkDecl_val_fresh (F : Nat) (pins : List NatOpPinSet) (env : Env) (d :
     | ok u => exact (checkConstantVal_res F env cv false true false hc).2
   | _ => simp [valName] at hd
 
-/-- The stream's records: value records at names the environment's guards do not read and the base
-environment does not declare. -/
+theorem stdAxiomOk_sorry (env : Env) (c : ConstantVal) (hs : c.name = sorryAxName) : stdAxiomOk env c = false := by
+  unfold stdAxiomOk
+  rw [if_neg (by rw [hs]; decide), if_neg (by rw [hs]; decide)]
+
+theorem checkDecl_sorry_ext (hx : EnvExt env₁ env₂) (F : Nat) (pins pins' : List NatOpPinSet) (c : ConstantVal)
+    (hs : c.name = sorryAxName) (hf2 : env₂.find? c.name = none) {E : Env}
+    (h : checkDecl .verified (fueledOps .verified F) pins env₁ (.axiomDecl c) = .ok E) :
+    E = env₁ ∧ checkDecl .verified (fueledOps .verified F) pins' env₂ (.axiomDecl c) = .ok env₂ := by
+  unfold checkDecl checkDeclKind at h ⊢
+  have hq : ¬ (c.name = quotSoundName) := by rw [hs]; decide
+  have h3 : ¬ (c.name = trustCompilerName) := by rw [hs]; decide
+  have h4 : ¬ (c.name = ofReduceNatName ∨ c.name = ofReduceBoolName) := by rw [hs]; decide
+  have h5 : ¬ (c.name = propextName ∨ c.name = choiceName) := by rw [hs]; decide
+  simp only [ite_eq_right hq, bind, Except.bind] at h ⊢
+  cases hc : checkConstantVal (fueledOps .verified F) env₁ c false false true with
+  | error e => rw [hc] at h; cases h
+  | ok u =>
+    rw [hc] at h
+    rw [checkConstantVal_ext hx F c false false true hf2 hc]
+    simp only [stdAxiomOk_sorry _ c hs, Bool.false_eq_true, ite_false, ite_eq_right h3, ite_eq_right h4,
+      ite_eq_right h5, ite_eq_left hs] at h ⊢
+    simp only [pure, Except.pure] at h ⊢
+    split at h
+    · rename_i hb; simp only [hb, ite_true, Except.ok.injEq] at h ⊢; exact ⟨h.symm, trivial⟩
+    · simp [throw, throwThe, MonadExceptOf.throw] at h
+theorem checkDecl_sorry_fresh (F : Nat) (pins : List NatOpPinSet) (env : Env) (c : ConstantVal)
+    (hs : c.name = sorryAxName) {E : Env}
+    (h : checkDecl .verified (fueledOps .verified F) pins env (.axiomDecl c) = .ok E) : env.find? c.name = none := by
+  unfold checkDecl checkDeclKind at h
+  have hq : ¬ (c.name = quotSoundName) := by rw [hs]; decide
+  simp only [ite_eq_right hq, bind, Except.bind] at h
+  cases hc : checkConstantVal (fueledOps .verified F) env c false false true with
+  | error e => rw [hc] at h; cases h
+  | ok u => exact (checkConstantVal_res F env c false false true hc).2
+
+/-- A stream record's name: a value record's, or `sorryAx` for the `sorryAx` axiom record (which
+installs nothing). -/
+def recName : Declaration → Option Name
+  | .axiomDecl c => if c.name = sorryAxName then some c.name else none
+  | d => valName d
+
+theorem recName_cases {d : Declaration} {n : Name} (h : recName d = some n) :
+    valName d = some n ∨ ∃ c, d = .axiomDecl c ∧ c.name = sorryAxName ∧ n = c.name := by
+  cases d with
+  | axiomDecl c =>
+    simp only [recName] at h
+    split at h
+    · rename_i hs; simp only [Option.some.injEq] at h; exact Or.inr ⟨c, rfl, hs, h.symm⟩
+    · cases h
+  | _ => exact Or.inl h
+
+/-- The stream's records: value records, or the `sorryAx` axiom record, at names the environment's guards
+do not read and the base environment does not declare. -/
 def StreamOK (envP : Env) (ds : List Declaration) : Prop :=
-  ∀ d ∈ ds, ∃ n, valName d = some n ∧ NameOK n ∧ envP.find? n = none
+  ∀ d ∈ ds, ∃ n, recName d = some n ∧ NameOK n ∧ envP.find? n = none
 
 /-- **An accepting run over value records carries over to an extension.** -/
 theorem pureRun_ext {pins pins' : List NatOpPinSet} (envP : Env) : ∀ {ds : List Declaration} {env₁ E₁ env₂ : Env},
@@ -414,18 +465,23 @@ theorem pureRun_ext {pins pins' : List NatOpPinSet} (envP : Env) : ∀ {ds : Lis
     ∃ E₂, PureRun pins' ds env₂ E₂
   | _, _, _, _, .nil _, _, _, _, _ => ⟨_, .nil _⟩
   | d :: ds, env₁, _, env₂, .cons ⟨F, hs⟩ rest, hx, hw2, hok, hinv => by
-    obtain ⟨n, hd, hn, hP⟩ := hok d (List.mem_cons_self ..)
-    have hf1 := checkDecl_val_fresh F pins env₁ d n hd hs
-    obtain ⟨E₂, h2, hx', hw', c, hc, -, e1, e2⟩ :=
-      checkDecl_ext hx hw2 F pins pins' d n hd (hinv n hf1 hP) hn hs
-    obtain ⟨E₃, hr⟩ := pureRun_ext envP rest hx' hw' (fun d' hd' => hok d' (List.mem_cons_of_mem _ hd')) (by
-      intro m hm1 hmP
-      subst e1 e2
-      rw [Env.find?_cons] at hm1 ⊢
-      split at hm1
-      · cases hm1
-      · rename_i hne; rw [ite_eq_right hne]; exact hinv m hm1 hmP)
-    exact ⟨E₃, .cons ⟨F, h2⟩ hr⟩
+    obtain ⟨n, hd', hn, hP⟩ := hok d (List.mem_cons_self ..)
+    rcases recName_cases hd' with hd | ⟨c, rfl, hsn, rfl⟩
+    · have hf1 := checkDecl_val_fresh F pins env₁ d n hd hs
+      obtain ⟨E₂, h2, hx', hw', c, hc, -, e1, e2⟩ :=
+        checkDecl_ext hx hw2 F pins pins' d n hd (hinv n hf1 hP) hn hs
+      obtain ⟨E₃, hr⟩ := pureRun_ext envP rest hx' hw' (fun d' hd' => hok d' (List.mem_cons_of_mem _ hd')) (by
+        intro m hm1 hmP
+        subst e1 e2
+        rw [Env.find?_cons] at hm1 ⊢
+        split at hm1
+        · cases hm1
+        · rename_i hne; rw [ite_eq_right hne]; exact hinv m hm1 hmP)
+      exact ⟨E₃, .cons ⟨F, h2⟩ hr⟩
+    · have hf1 := checkDecl_sorry_fresh F pins env₁ c hsn hs
+      obtain ⟨rfl, h2⟩ := checkDecl_sorry_ext hx F pins pins' c hsn (hinv _ hf1 hP) hs
+      obtain ⟨E₃, hr⟩ := pureRun_ext envP rest hx hw2 (fun d' hd'' => hok d' (List.mem_cons_of_mem _ hd'')) hinv
+      exact ⟨E₃, .cons ⟨F, h2⟩ hr⟩
 
 /-- **The prelude, then the stream.**  An accepting run of the prelude from the empty environment
 and an accepting run of the stream from the empty environment (at any pins) give an accepting run

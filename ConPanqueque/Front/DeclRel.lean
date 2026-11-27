@@ -33,6 +33,8 @@ def RecEnc (C : Ctx) (F : Nat) (H : List (BitVec 64)) (o : Nat) : IDeclaration �
       H[o + 5]? = some (BitVec.ofNat 64 (T.hintN hint)) ∧ T.hintN hint < 2 ^ 63
   | .thmDecl cv v => F ≤ o ∧ H[o]? = some 2 ∧ CVEnc C F H (o + 1) cv ∧ H[o + 4]? = some (Enc.idxW v)
   | .opaqueDecl cv v => F ≤ o ∧ H[o]? = some 3 ∧ CVEnc C F H (o + 1) cv ∧ H[o + 4]? = some (Enc.idxW v)
+  | .axiomDecl cv => F ≤ o ∧ H[o]? = some 5 ∧ CVEnc C F H (o + 1) cv ∧ (∃ w, H[o + 4]? = some w) ∧
+      C.pins.names[PIN_SORRY_AX]? = some cv.name
   | _ => False
 
 /-- The registry of declarations. -/
@@ -83,6 +85,10 @@ theorem recEnc_set {C : Ctx} {F : Nat} {H : List (BitVec 64)} {o : Nat} {d : IDe
     obtain ⟨ho, h1, h2, h3⟩ := h
     exact ⟨ho, by rw [getElem?_set_ge w (by omega)]; exact h1, cvEnc_set h2 j hj (by omega) w,
       by rw [getElem?_set_ge w (by omega)]; exact h3⟩
+  | axiomDecl cv =>
+    obtain ⟨ho, h1, h2, ⟨w4, h3⟩, h4⟩ := h
+    exact ⟨ho, by rw [getElem?_set_ge w (by omega)]; exact h1, cvEnc_set h2 j hj (by omega) w,
+      ⟨w4, by rw [getElem?_set_ge w (by omega)]; exact h3⟩, h4⟩
   | _ => exact h.elim
 
 theorem recEnc_prefix {C : Ctx} {F : Nat} {H H' : List (BitVec 64)} {o : Nat} {d : IDeclaration}
@@ -97,6 +103,9 @@ theorem recEnc_prefix {C : Ctx} {F : Nat} {H H' : List (BitVec 64)} {o : Nat} {d
   | opaqueDecl cv v =>
     obtain ⟨ho, h1, h2, h3⟩ := h
     exact ⟨ho, getElem?_prefix hp h1, cvEnc_prefix h2 hp, getElem?_prefix hp h3⟩
+  | axiomDecl cv =>
+    obtain ⟨ho, h1, h2, ⟨w4, h3⟩, h4⟩ := h
+    exact ⟨ho, getElem?_prefix hp h1, cvEnc_prefix h2 hp, ⟨w4, getElem?_prefix hp h3⟩, h4⟩
   | _ => exact h.elim
 
 /-- A write below the frontier and outside the registry keeps the registry. -/

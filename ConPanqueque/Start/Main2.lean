@@ -28,7 +28,7 @@ variable {F rb capD jN cap bufJ : Nat} {b : ByteArray}
 def MainPost2 (s : AState) (b : ByteArray) (pins : List INatOpPinSet) (EH : List (BitVec 64)) :
     IFEnv → BitVec 64 → AState → PState σ → Prop :=
   fun a _ s'' _ => ∃ st' s', feedAll (stInit s) b 0 0 s = .ok (st', s') ∧
-    (∀ d ∈ st'.decls.toList, ConPanqueque.Bridge.IsValueDecl d) ∧
+    (∀ d ∈ st'.decls.toList, ConPanqueque.Bridge.IsFrontDecl s'.pins d) ∧
     checkDeclsPure .verified pins st'.decls.toList s' = .ok (a, s'') ∧
     ∀ k (hk : k < st'.decls.size), ∀ j ∈ cellsF, EH[j]? ≠ some (recNameW st'.decls[k])
 
@@ -54,11 +54,14 @@ theorem main_spec2 (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.RuntimeAss
     have := hbuf.small
     simp only [USize.size_eq_two_pow, hbuf.plat.bits]; omega
   unfold mainP2
+  refine specR_atEntry fun t0 ht0 => ?_
+  have hp0 : s.pins = C.pins := ht0.sr.pins
   refine parseP_spec ra C hok hf fc hcF s Γ M D (fun x hx => hD x (by
       simp only [List.mem_cons, List.not_mem_nil, or_false] at hx ⊢; rcases hx with rfl | rfl <;> simp)) F rb capD jN cap bufJ b hfl hcap1 hcapN
     hcap8 hcapD8 hFH hbuf hZb hZn hTN hTL hTE hC hBA hBN hRB hCD hZL (fun st' s' H' Γ'' hrun hag hfs => ?_)
-  obtain ⟨-, -, rc, -, hden⟩ := parse_twin hst hoff hpo hsz hrun
-  have hval := declsRel_value hfs.dr
+  obtain ⟨hstep, -, rc, -, hden⟩ := parse_twin hst hoff hpo hsz hrun
+  have hval : ∀ d ∈ st'.decls.toList, ConPanqueque.Bridge.IsFrontDecl s'.pins d := by
+    rw [hstep.pins, hp0]; exact declsRel_value hfs.dr
   have hd : ∀ k (hk : k < st'.decls.size), (denoteDecl s'.store st'.decls[k]).isSome :=
     fun k hk => denoteDecls_isSome hden _ (by simp)
   have hlen : st'.decls.size < 2 ^ 62 := by have := hfs.dr.2.1; omega

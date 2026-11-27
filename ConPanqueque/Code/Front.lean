@@ -15,8 +15,8 @@ open Flapjack Flapjack.Pancake.PanLang
 set_option hygiene false in
 /-- `code_auto`, also unfolding plain definitions. -/
 macro "code_auto'" : tactic => `(tactic| repeat' (first
-  | (rw [hC, codeMap_lookup]; rfl)
-  | (rename_i ht; rw [ht, hC, codeMap_lookup]; rfl)
+  | (rw [hC, codeMap_lookup]; kernel_rfl)
+  | (rename_i ht; rw [ht, hC, codeMap_lookup]; kernel_rfl)
   | (intro (o : ConPanqueque.T.Big.BitOp); cases o)
   | (intro (b : Bool); cases b)
   | (intro (k : Nat) hk; rcases k with _ | _ | _ | _ | _ | _ | k <;> (try omega))
@@ -30,7 +30,7 @@ theorem front_ok (σ : Type) (C : ConPanqueque.T.Ctx) (hC : C.code = codeMap (co
     ConPanqueque.Front.FrontCodes σ C := by
   have hscan : ∀ t : ConPanqueque.T.PState σ, t.code = C.code → ConPanqueque.Scan.ScanCodes t := by code_auto'
   have hrec : ∀ t : ConPanqueque.T.PState σ, t.code = C.code → ConPanqueque.Scan.RecTable t := by code_auto'
-  refine ⟨?_, ?_, ?_, fun t ht => ConPanqueque.Scan.lineCodes_of t (hscan t ht) (hrec t ht), ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  refine ⟨?_, ?_, ?_, fun t ht => ConPanqueque.Scan.lineCodes_of t (hscan t ht) (hrec t ht), ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
   all_goals code_auto'
 
 set_option maxRecDepth 100000 in

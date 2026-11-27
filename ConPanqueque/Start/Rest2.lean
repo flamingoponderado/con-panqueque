@@ -68,7 +68,7 @@ theorem rest_verdict2 (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPin
         ∃ rc, ConLeche.Frontend.parseBytes (inputOf nb (leNat (nb.take 8))) = .ok rc ∧
           (∃ F', ConLeche.checkDeclsPure .verified (ConLeche.fueledOps .verified F') pinsP rc.decls.toList
             = .ok (ConLeche.streamEnv rc.decls.toList)) ∧
-          ∀ d ∈ rc.decls.toList, ∃ n, ConPanqueque.Pipeline.valName d = some n ∧ n ∉ FN) := by
+          ∀ d ∈ rc.decls.toList, ∃ n, ConPanqueque.Pipeline.recName d = some n ∧ n ∉ FN) := by
   let Cp := ctxH C Hb
   have eC : C = ctxH Cp (writeH Hb (cellA C j0) j0 0 nb) := by
     simp only [Cp]; rw [ctxH_ctxH, ← hH, ctxH_self]

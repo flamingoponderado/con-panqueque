@@ -19,12 +19,12 @@ variable {σ : Type}
 def mainP : ProgHOL 64 := parseP foldCallP
 
 theorem declsRel_value {C : Ctx} {F rb capD : Nat} {H : List (BitVec 64)} {ds : Array IDeclaration}
-    (h : DeclsRel C F rb capD H ds) : ∀ d ∈ ds.toList, ConPanqueque.Bridge.IsValueDecl d := by
+    (h : DeclsRel C F rb capD H ds) : ∀ d ∈ ds.toList, ConPanqueque.Bridge.IsFrontDecl C.pins d := by
   intro d hd
   obtain ⟨k, hk, rfl⟩ := List.getElem_of_mem hd
   obtain ⟨o, -, hr⟩ := h.2.2.2.2 k (by simpa using hk)
   simp only [Array.getElem_toList] at hr ⊢
-  cases hx : ds[k] <;> rw [hx] at hr <;> first | trivial | exact hr.elim
+  cases hx : ds[k] <;> rw [hx] at hr <;> first | trivial | exact hr.elim | exact hr.2.2.2.2
 
 theorem foldCodes_ctxH {mode : ConLeche.CheckMode} {C : Ctx} (hc : FoldCodes mode C) (H : List (BitVec 64)) :
     FoldCodes mode (ctxH C H) := by ctx_tr hc
@@ -36,7 +36,7 @@ variable {F rb capD jN cap bufJ : Nat} {b : ByteArray}
 def MainPost (s : AState) (b : ByteArray) (pins : List INatOpPinSet) :
     IFEnv → BitVec 64 → AState → PState σ → Prop :=
   fun a _ s'' _ => ∃ st' s', feedAll (stInit s) b 0 0 s = .ok (st', s') ∧
-    (∀ d ∈ st'.decls.toList, ConPanqueque.Bridge.IsValueDecl d) ∧
+    (∀ d ∈ st'.decls.toList, ConPanqueque.Bridge.IsFrontDecl s'.pins d) ∧
     checkDeclsPure .verified pins st'.decls.toList s' = .ok (a, s'')
 
 theorem main_spec (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx)
@@ -60,11 +60,14 @@ theorem main_spec (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.RuntimeAssu
     have := hbuf.small
     simp only [USize.size_eq_two_pow, hbuf.plat.bits]; omega
   unfold mainP
+  refine specR_atEntry fun t0 ht0 => ?_
+  have hp0 : s.pins = C.pins := ht0.sr.pins
   refine parseP_spec ra C hok hf fc hcF s Γ M D (fun x hx => hD x (by
       simp only [List.mem_cons, List.not_mem_nil, or_false] at hx ⊢; rcases hx with rfl | rfl <;> simp)) F rb capD jN cap bufJ b hfl hcap1 hcapN
     hcap8 hcapD8 hFH hbuf hZb hZn hTN hTL hTE hC hBA hBN hRB hCD hZL (fun st' s' H' Γ'' hrun hag hfs => ?_)
-  obtain ⟨-, -, rc, -, hden⟩ := parse_twin hst hoff hpo hsz hrun
-  have hval := declsRel_value hfs.dr
+  obtain ⟨hstep, -, rc, -, hden⟩ := parse_twin hst hoff hpo hsz hrun
+  have hval : ∀ d ∈ st'.decls.toList, ConPanqueque.Bridge.IsFrontDecl s'.pins d := by
+    rw [hstep.pins, hp0]; exact declsRel_value hfs.dr
   have hd : ∀ k (hk : k < st'.decls.size), (denoteDecl s'.store st'.decls[k]).isSome :=
     fun k hk => denoteDecls_isSome hden _ (by simp)
   have hlen : st'.decls.size < 2 ^ 62 := by have := hfs.dr.2.1; omega
@@ -109,7 +112,8 @@ theorem front_verdict (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPin
   obtain ⟨hstep, -, rc, hrc, hden⟩ := parse_twin hst hoff hpo hsz hrun
   refine ⟨rc, hrc, ?_⟩
   exact ConPanqueque.Bridge.seq_bridge' hstep.ok (hpo.mono hstep.ext hstep.pins) (hpp.mono hstep.pins)
-    (PinsDenote.mono hstep.ext _ _ hpins) hden hval hm
+    (PinsDenote.mono hstep.ext _ _ hpins) hden
+    (fun pd h => ConPanqueque.Bridge.isChecked_of_front (hpo.mono hstep.ext hstep.pins) (hval pd h)) hm
 
 end
 

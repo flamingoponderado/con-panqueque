@@ -111,9 +111,9 @@ theorem denoteDecls_mem {st : EStore} : ∀ {hs : List IDeclaration} {ds : List 
 
 /-- A value record's name, read off its denotation. -/
 theorem valName_denote {st : EStore} {dh : IDeclaration} {d : ConLeche.Declaration}
-    (hv : ConPanqueque.Bridge.IsValueDecl dh) (hp : PersDecl dh) (h : denoteDecl st dh = some d) :
+    (hv : ConPanqueque.Bridge.IsChecked st.ns dh) (hp : PersDecl dh) (h : denoteDecl st dh = some d) :
     ∃ nh n, recNameW dh = Enc.idxW nh ∧ PersN nh ∧ denoteN st.ns nh = some n ∧
-      ConPanqueque.Pipeline.valName d = some n := by
+      ConPanqueque.Pipeline.recName d = some n := by
   cases dh with
   | defnDecl cv e hint =>
     simp only [denoteDecl] at h
@@ -151,6 +151,18 @@ theorem valName_denote {st : EStore} {dh : IDeclaration} {d : ConLeche.Declarati
         exact ⟨cv.name, n, rfl, hp.1.name, hn, rfl⟩
       · cases hc
     · cases h
+  | axiomDecl cv =>
+    simp only [denoteDecl] at h
+    cases hc : denoteCV st cv with
+    | none => rw [hc] at h; simp at h
+    | some c =>
+      rw [hc] at h
+      simp only [Option.map_some, Option.some.injEq] at h; subst h
+      have hn := (denoteCV_inv hc).1
+      have hs : denoteN st.ns cv.name = some ConLeche.sorryAxName := hv
+      rw [hn] at hs
+      have hcs : c.name = ConLeche.sorryAxName := Option.some.inj hs
+      exact ⟨cv.name, c.name, rfl, hp.name, hn, by simp [ConPanqueque.Pipeline.recName, hcs]⟩
   | _ => exact hv.elim
 
 open ConPanqueque.Front ConPanqueque.T.Decl Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact
@@ -184,7 +196,7 @@ theorem front_verdict2 {σ : Type} {F rb capD jN cap bufJ : Nat} {b : ByteArray}
         ∃ rc, ConLeche.Frontend.parseBytes b = .ok rc ∧
           (∃ F', ConLeche.checkDeclsPure .verified (ConLeche.fueledOps .verified F') pinsP rc.decls.toList
             = .ok (ConLeche.streamEnv rc.decls.toList)) ∧
-          ∀ d ∈ rc.decls.toList, ∃ n, ConPanqueque.Pipeline.valName d = some n ∧ n ∉ FN) := by
+          ∀ d ∈ rc.decls.toList, ∃ n, ConPanqueque.Pipeline.recName d = some n ∧ n ∉ FN) := by
   have hsz : b.size < USize.size := by
     have := hbuf.small
     simp only [USize.size_eq_two_pow, hbuf.plat.bits]; omega
@@ -202,11 +214,12 @@ theorem front_verdict2 {σ : Type} {F rb capD jN cap bufJ : Nat} {b : ByteArray}
   refine Or.inr ⟨⟨w, hw⟩, ?_⟩
   obtain ⟨hstep, hpersR, rc, hrc, hden⟩ := parse_twin hst hoff hpo hsz hrun
   refine ⟨rc, hrc, ConPanqueque.Bridge.seq_bridge' hstep.ok (hpo.mono hstep.ext hstep.pins) (hpp.mono hstep.pins)
-    (PinsDenote.mono hstep.ext _ _ hpins) hden hval hm, fun d hd => ?_⟩
+    (PinsDenote.mono hstep.ext _ _ hpins) hden
+    (fun pd h => ConPanqueque.Bridge.isChecked_of_front (hpo.mono hstep.ext hstep.pins) (hval pd h)) hm, fun d hd => ?_⟩
   obtain ⟨dh, hdm, hdd⟩ := denoteDecls_mem hden d hd
   obtain ⟨k, hk, rfl⟩ := List.getElem_of_mem hdm
   have hk' : k < st'.decls.size := by simpa using hk
-  obtain ⟨nh, n, hrw, hpn, hdn, hvn⟩ := valName_denote (hval _ hdm) (hpersR _ (by show st'.decls[k] ∈ st'.decls; exact Array.getElem_mem hk')) hdd
+  obtain ⟨nh, n, hrw, hpn, hdn, hvn⟩ := valName_denote (ConPanqueque.Bridge.isChecked_of_front (hpo.mono hstep.ext hstep.pins) (hval _ hdm)) (hpersR _ (by show st'.decls[k] ∈ st'.decls; exact Array.getElem_mem hk')) hdd
   refine ⟨n, hvn, ?_⟩
   have hpo' := hpo.mono hstep.ext hstep.pins
   have hwf : NStoreWF s'.store.ns := ConRon.Bridge.Frontend.nsWF_of_StateOK hstep.ok
