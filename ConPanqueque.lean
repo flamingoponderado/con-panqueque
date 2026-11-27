@@ -581,3 +581,4 @@ import ConPanqueque.T.LitIntern
 import ConPanqueque.Start.BasisPhase
 import ConPanqueque.Code.Basis
 import ConPanqueque.Scan.DeclFields3
+import ConPanqueque.Scan.QuotKind
