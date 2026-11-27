@@ -567,8 +567,8 @@ theorem fmi_none (C : Ctx) (vals : List (BitVec 64)) :
 def PostFMI (C : Ctx) (Hb : List (BitVec 64)) (ow j cap : Nat) (ys : List (Nat × Nat)) (w : BitVec 64) (s' : AState)
     (st : PState σ) : Prop :=
   ∃ H', Hb <+: H' ∧ ow + 2 * cap ≤ H'.length ∧ SR (ctxH C H') s' st ∧ w = BitVec.ofNat 64 (j + ys.length) ∧
-    j + ys.length ≤ cap ∧ ∀ k (hk : k < ys.length), H'[ow + 2 * (j + k)]? = some (BitVec.ofNat 64 ys[k].1) ∧
-      H'[ow + 2 * (j + k) + 1]? = some (BitVec.ofNat 64 ys[k].2)
+    j + ys.length ≤ cap ∧ (∀ k (hk : k < ys.length), H'[ow + 2 * (j + k)]? = some (BitVec.ofNat 64 ys[k].1) ∧
+      H'[ow + 2 * (j + k) + 1]? = some (BitVec.ofNat 64 ys[k].2)) ∧ ∀ q ∈ ys, q.1 < 2 ^ 63 ∧ q.2 < 2 ^ 63
 
 theorem postFMI_locals (C : Ctx) (Hb : List (BitVec 64)) (ow j cap : Nat) : ∀ a w s' (st : PState σ)
     (L : HolFiniteMapExact MlS (ValueHOL 64)), PostFMI C Hb ow j cap a w s' st → PostFMI C Hb ow j cap a w s' { st with locals := L } :=
@@ -613,7 +613,8 @@ theorem ihq_spec (C : Ctx) (hok : CtxOK C)
       (fun h => absurd rfl h) (fun _ => ?_)
     rw [List.drop_length, List.filterMapM_nil]
     exact specR_returnI _ (BitVec.ofNat 64 j) (by simp +decide [sev, Env.get, fmiParams, ctxEnv])
-      (fun t ht => ⟨H, hbH, hroom, sr_of_eq ht.sr rfl rfl rfl rfl, by simp, by simp; omega, fun k hk => absurd hk (by simp)⟩)
+      (fun t ht => ⟨H, hbH, hroom, sr_of_eq ht.sr rfl rfl rfl rfl, by simp, by simp; omega, fun k hk => absurd hk (by simp),
+        fun q hq => by simp at hq⟩)
   | succ f ih =>
     intro i j Hb H s hf hi hb0 hbH hbl hroom hjc
     have hin : i < xs.length := by omega
@@ -663,15 +664,16 @@ theorem ihq_spec (C : Ctx) (hok : CtxOK C)
           by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv],
           by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv], trivial⟩
         (PostFMI C Hb ow j cap) (fun ys w _ H' => Hb <+: H' ∧ ow + 2 * cap ≤ H'.length ∧ w = BitVec.ofNat 64 (j + ys.length) ∧
-          j + ys.length ≤ cap ∧ ∀ k (hk : k < ys.length), H'[ow + 2 * (j + k)]? = some (BitVec.ofNat 64 ys[k].1) ∧
-            H'[ow + 2 * (j + k) + 1]? = some (BitVec.ofNat 64 ys[k].2))
+          j + ys.length ≤ cap ∧ (∀ k (hk : k < ys.length), H'[ow + 2 * (j + k)]? = some (BitVec.ofNat 64 ys[k].1) ∧
+            H'[ow + 2 * (j + k) + 1]? = some (BitVec.ofNat 64 ys[k].2)) ∧ ∀ q ∈ ys, q.1 < 2 ^ 63 ∧ q.2 < 2 ^ 63)
         (fun ys w s' st ⟨H', hp', hl', hs', h1⟩ => ⟨H', ⟨hp', hl', h1⟩, hs'⟩)
         (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu fmiParams _ rfl hlk)
           (ih (i + 1) j Hb H1 s1 (by omega) (by omega) hb0 (hbH.trans hp1') hbl
             (le_trans hroom (List.IsPrefix.length_le hp1')) (by omega)))
-        (fun ys w s2 H2 ⟨hp2, hl2, hw, hjc', hcells⟩ => ?_)
+        (fun ys w s2 H2 ⟨hp2, hl2, hw, hjc', hcells, hyb⟩ => ?_)
       subst hw
-      exact specR_returnI _ _ (by simp [Env.get]) (fun t ht => ⟨H2, hp2, hl2, sr_of_eq ht.sr rfl rfl rfl rfl, rfl, hjc', hcells⟩)
+      exact specR_returnI _ _ (by simp [Env.get]) (fun t ht => ⟨H2, hp2, hl2, sr_of_eq ht.sr rfl rfl rfl rfl, rfl, hjc', hcells,
+        hyb⟩)
     obtain ⟨hf63, ht63, ow', rfl, hcf, hct⟩ := hs1 f0 t0 rfl
     refine specR_fact (fun t ht' => inv_heapLen ht') (fun hHN1 => ?_)
     have hol' : ow' < H1.length := (List.getElem?_eq_some_iff.mp hcf).1
@@ -721,13 +723,13 @@ theorem ihq_spec (C : Ctx) (hok : CtxOK C)
         by simp +decide [sev, Env.get_cons, Env.get, fmiParams, ctxEnv], trivial⟩
       (PostFMI C Hb' ow (j + 1) cap) (fun ys w _ H' => Hb' <+: H' ∧ ow + 2 * cap ≤ H'.length ∧
         w = BitVec.ofNat 64 (j + 1 + ys.length) ∧ j + 1 + ys.length ≤ cap ∧
-        ∀ k (hk : k < ys.length), H'[ow + 2 * (j + 1 + k)]? = some (BitVec.ofNat 64 ys[k].1) ∧
-          H'[ow + 2 * (j + 1 + k) + 1]? = some (BitVec.ofNat 64 ys[k].2))
+        (∀ k (hk : k < ys.length), H'[ow + 2 * (j + 1 + k)]? = some (BitVec.ofNat 64 ys[k].1) ∧
+          H'[ow + 2 * (j + 1 + k) + 1]? = some (BitVec.ofNat 64 ys[k].2)) ∧ ∀ q ∈ ys, q.1 < 2 ^ 63 ∧ q.2 < 2 ^ 63)
       (fun ys w s' st ⟨H', hp', hl', hs', h1⟩ => ⟨H', ⟨hp', hl', h1⟩, hs'⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu fmiParams _ rfl hlk)
         (ih (i + 1) (j + 1) Hb' H2 s1 (by omega) (by omega) (hb0.trans hbb') hb'2 (by simp [Hb', hl2]; omega)
           (by rw [hl2]; omega) (by omega)))
-      (fun ys w s2 H3 ⟨hp3, hl3, hw, hjc', hcells⟩ => ?_)
+      (fun ys w s2 H3 ⟨hp3, hl3, hw, hjc', hcells, hyb⟩ => ?_)
     subst hw
     exact specR_returnI _ (BitVec.ofNat 64 (j + 1 + ys.length)) (by simp [Env.get]) (fun t ht => ⟨H3, hbb'.trans hp3, hl3,
       sr_of_eq ht.sr rfl rfl rfl rfl,
@@ -737,7 +739,10 @@ theorem ihq_spec (C : Ctx) (hok : CtxOK C)
         | succ k =>
           simp only [List.getElem_cons_succ]
           have := hcells k (by simpa using hk)
-          rw [show j + (k + 1) = j + 1 + k by omega]; exact this⟩)
+          rw [show j + (k + 1) = j + 1 + k by omega]; exact this, fun q hq => by
+        rcases List.mem_cons.mp hq with rfl | hq
+        · exact ⟨hf63, ht63⟩
+        · exact hyb q hq⟩)
 
 end
 
@@ -745,8 +750,9 @@ end
 
 /-- A list of pairs at `o`: the count, then `f, t` per pair. -/
 def PairsRep (H : List (BitVec 64)) (o : Nat) (ps : List (Nat × Nat)) : Prop :=
-  H[o]? = some (BitVec.ofNat 64 ps.length) ∧ ∀ k (hk : k < ps.length),
-    H[o + 1 + 2 * k]? = some (BitVec.ofNat 64 ps[k].1) ∧ H[o + 1 + 2 * k + 1]? = some (BitVec.ofNat 64 ps[k].2)
+  H[o]? = some (BitVec.ofNat 64 ps.length) ∧ (∀ k (hk : k < ps.length),
+    H[o + 1 + 2 * k]? = some (BitVec.ofNat 64 ps[k].1) ∧ H[o + 1 + 2 * k + 1]? = some (BitVec.ofNat 64 ps[k].2)) ∧
+    ∀ q ∈ ps, q.1 < 2 ^ 63 ∧ q.2 < 2 ^ 63
 
 /-- A prefix slot at `o`: `[0, ind, lvls, ds block]` or `[1, class, ctor, ihs pairs]`. -/
 def SlotRep (C : Ctx) (H : List (BitVec 64)) (o : Nat) : ClassSlot → Prop
@@ -1059,15 +1065,15 @@ theorem crm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       trivial⟩
     (PostFMI C H6 (H6.length + 1) 0 fvs.length) (fun ys w _ H' => H6 <+: H' ∧ H6.length + 1 + 2 * fvs.length ≤ H'.length ∧
       w = BitVec.ofNat 64 (0 + ys.length) ∧ 0 + ys.length ≤ fvs.length ∧
-      ∀ k (hk : k < ys.length), H'[H6.length + 1 + 2 * (0 + k)]? = some (BitVec.ofNat 64 ys[k].1) ∧
-        H'[H6.length + 1 + 2 * (0 + k) + 1]? = some (BitVec.ofNat 64 ys[k].2))
+      (∀ k (hk : k < ys.length), H'[H6.length + 1 + 2 * (0 + k)]? = some (BitVec.ofNat 64 ys[k].1) ∧
+        H'[H6.length + 1 + 2 * (0 + k) + 1]? = some (BitVec.ofNat 64 ys[k].2)) ∧ ∀ q ∈ ys, q.1 < 2 ^ 63 ∧ q.2 < 2 ^ 63)
     (fun ys w s' st ⟨H', hp', hl', hs', h1⟩ => ⟨H', ⟨hp', hl', h1⟩, hs'⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu fmiParams _ rfl hlk) (by
       have := ihq_spec (σ := σ) C hok hc.ihs hc.io nP motPos pm d fvs oq (H6.length + 1) fvs.length H6
         (blkAt_mono hfvs5 hp6') hMp6 hmp hnP (by omega) (by omega) fvs.length 0 0 H6 (H6 ++ ws) s5 (by simp) (by omega)
         (List.prefix_refl _) (List.prefix_append _ _) (by omega) (by omega) (by omega)
       exact this))
-    (fun ys w s6 H7 ⟨hp7, hl7, hw, hyl, hcells⟩ => ?_)
+    (fun ys w s6 H7 ⟨hp7, hl7, hw, hyl, hcells, hyb⟩ => ?_)
   subst hw
   refine specR_heapStoreI (ctxOK_H hok H7) (vv crmIb) (vv crmR) H6.length (by show _ < H7.length; omega)
     (BitVec.ofNat 64 ys.length) (by simp [sev, Env.get_cons]; rfl) (by simp +decide [sev, Env.get_cons]) ?_
@@ -1075,7 +1081,7 @@ theorem crm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
   have h68 : H6 <+: H8 := prefix_set hp7 (Nat.le_refl _) _
   have hl8 : H8.length = H7.length := by simp [H8]
   have hpr : PairsRep H8 H6.length ys := by
-    refine ⟨List.getElem?_set_self (by omega), fun k hk => ?_⟩
+    refine ⟨List.getElem?_set_self (by omega), fun k hk => ?_, hyb⟩
     obtain ⟨h1, h2⟩ := hcells k hk
     simp only [Nat.zero_add] at h1 h2
     exact ⟨by rw [List.getElem?_set_ne (by omega)]; exact h1, by rw [List.getElem?_set_ne (by omega)]; exact h2⟩
@@ -1090,9 +1096,9 @@ theorem crm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
   refine specR_returnI (vv crmW) (cellA C H9.length) (by simp [sev, Env.get_cons]; rfl) (fun t ht => ?_)
   refine ⟨_, (((hp1'.trans hp2').trans hp5').trans hp6').trans (h68.trans (hp89.trans h9)), sr_of_eq ht.sr rfl rfl rfl rfl,
     .minor c cn ys, H9.length, rfl, rfl, g0, g1, g2, H6.length, g3, ?_⟩
-  obtain ⟨hp0, hpk⟩ := hpr
+  obtain ⟨hp0, hpk, hpb⟩ := hpr
   exact ⟨get_prefix hp0 (hp89.trans h9), fun k hk => ⟨get_prefix (hpk k hk).1 (hp89.trans h9),
-    get_prefix (hpk k hk).2 (hp89.trans h9)⟩⟩
+    get_prefix (hpk k hk).2 (hp89.trans h9)⟩, hpb⟩
 
 end
 
@@ -1720,9 +1726,9 @@ theorem slotRep_mono {C : Ctx} {H H' : List (BitVec 64)} (hp : H <+: H') {o : Na
     obtain ⟨a, b, c, od, d, e⟩ := h
     exact ⟨get_prefix a hp, get_prefix b hp, get_prefix c hp, od, get_prefix d hp, blkAt_mono e hp⟩
   | minor c cn ihs =>
-    obtain ⟨a, b, d, oi, e, f0, f1⟩ := h
+    obtain ⟨a, b, d, oi, e, f0, f1, f2⟩ := h
     exact ⟨get_prefix a hp, get_prefix b hp, get_prefix d hp, oi, get_prefix e hp, get_prefix f0 hp,
-      fun k hk => ⟨get_prefix (f1 k hk).1 hp, get_prefix (f1 k hk).2 hp⟩⟩
+      fun k hk => ⟨get_prefix (f1 k hk).1 hp, get_prefix (f1 k hk).2 hp⟩, f2⟩
 
 /-- A block of slot pointers. -/
 def SlotBlk (C : Ctx) (H : List (BitVec 64)) (o : Nat) (sls : List ClassSlot) : Prop :=

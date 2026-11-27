@@ -229,7 +229,7 @@ theorem pairsRep_len {H : List (BitVec 64)} {o : Nat} {ps : List (Nat × Nat)} (
   have h0 := (List.getElem?_eq_some_iff.mp h.1).1
   rcases Nat.eq_zero_or_pos ps.length with he | hp
   · omega
-  · have := (List.getElem?_eq_some_iff.mp (h.2 (ps.length - 1) (by omega)).1).1; omega
+  · have := (List.getElem?_eq_some_iff.mp (h.2.1 (ps.length - 1) (by omega)).1).1; omega
 
 /-- **The twin-run facts** `checkBlock` relies on, each at the twin's states the port's run reaches: the walk's
 context at a well-formed store, the pass after `cbkPre` from a checking state (con-ron's `CheckOK` at a

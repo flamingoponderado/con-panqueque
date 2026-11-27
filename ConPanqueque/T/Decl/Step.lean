@@ -438,7 +438,7 @@ theorem step_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ct
       (fun a w s' st ⟨EH, envM, tblM, H, hpE, hpH, hokN, hsr, hgt, hfl, hlp⟩ =>
         ⟨ctxNewT C a EH envM tblM H, ⟨EH, envM, tblM, H, rfl, hpE, hpH, hokN, hgt, hfl, hlp⟩, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu Ind.kiParams _ rfl hlk)
-        (Ind.ki_spec mode pins ra C hok hs hpl hic.kc hie.fr hg hF hL heqA hLE hie.an hie.bi block nP o ob hq1 hq2
+        (Ind.ki_spec mode pins ra C hok hs hpl hic.kc hie.fr hg hF hL heqA hLE hie.an hA hie.bi block nP o ob hq1 hq2
           hblk hlen hnP hlp hie.run s hmode env hseq bP hbP))
       (fun a w s5 C5 ⟨EH, envM, tblM, H, eC, hpE, hpH, hokN, hgt, hfl, hlp⟩ => ?_)
     · exact ⟨by simp +decide [sev, Env.get, ctxEnv], trivial⟩

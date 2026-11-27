@@ -83,7 +83,7 @@ def gbBody : ProgHOL 64 := prologue gbLocals
   (.seq (.call (some (some (.local, gbCv), none)) fCro
       [vv gbOrr, vv gbN0, vv gbPr, vv gbPl, vv gbPd, vv gbNd, vv gbFty, vv gbNi, vv gbInd, vv gbLv, vv gbNp])
   (.seq (.call (some (some (.local, gbRs), none)) fCfr
-      [vv gbCv, vv gbOrr, vv gbOc, vv gbNc, vv gbPl, vv gbNp, vv gbOpp, vv gbOsl, vv gbPr, vv gbN0])
+      [vv gbCv, vv gbOrr, vv gbOc, vv gbNc, vv gbPl, vv gbNp, vv gbOpp, vv gbOsl, vv gbPr, vv gbN0, vv gbNpc])
     (.return (vv gbRs)))))
   hang)))
 
@@ -218,15 +218,16 @@ theorem gb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
   refine specR_congr (m' := genRules mode C.fe p { g0 with pre := pre } [0] [cvG] >>= fun r => pure r)
     (by simp only [bind_pure]) ?_
   refine specR_callNC (C := ctxSt (ctxH C H2) s2.store) (D := ctxLocals ++ gbLocals) gbRs fCfr cfrParams
-    [vv gbCv, vv gbOrr, vv gbOc, vv gbNc, vv gbPl, vv gbNp, vv gbOpp, vv gbOsl, vv gbPr, vv gbN0] (cfrBody C)
+    [vv gbCv, vv gbOrr, vv gbOc, vv gbNc, vv gbPl, vv gbNp, vv gbOpp, vv gbOsl, vv gbPr, vv gbN0, vv gbNpc] (cfrBody C)
     [cellA C oq, cellA C orr, cellA C oc, BitVec.ofNat 64 ccs.length, BitVec.ofNat 64 pre.length, BitVec.ofNat 64 g0.nP,
-      cellA C opp, cellA C osl, cellA C opr, BitVec.ofNat 64 (g0.nP + g0.slots.length)] (by decide) rfl (by decide)
+      cellA C opp, cellA C osl, cellA C opr, BitVec.ofNat 64 (g0.nP + g0.slots.length), BitVec.ofNat 64 m.nPc] (by decide) rfl (by decide)
     hc.cfr.self
     ⟨by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv],
       by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv],
       by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv],
       by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv],
-      by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], trivial⟩
+      by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons],
+      by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv], trivial⟩
     (PostGR m (ctxSt (ctxH C H2) s2.store))
     (fun r w s' C' => ∃ EH envM H o, C' = ctxNew (ctxSt (ctxH C H2) s2.store) r.1 EH envM H ∧
       (ctxSt (ctxH C H2) s2.store).EH <+: EH ∧ (ctxSt (ctxH C H2) s2.store).H <+: H ∧
@@ -238,7 +239,7 @@ theorem gb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
     (fun r w s' st ⟨EH, envM, H, o, h1, h2, h3, h4, h5⟩ => ⟨_, ⟨EH, envM, H, o, rfl, h1, h2, h3, h5⟩, h4⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cfrParams _ rfl hlk)
       (cfr_spec mode ra (ctxSt (ctxH C H2) s2.store) hokS hs hpl (by ctx_tr hc.cfr) hg hF hL p rc
-        (by rw [hrecs]; rfl) orr (recRep_mono hpC2 hrr) { g0 with pre := pre } m hcls cvG oq hcvq
+        (by rw [hrecs]; rfl) orr (recRep_mono hpC2 hrr) { g0 with pre := pre } m hcls hnpc cvG oq hcvq
         (by rw [hlps]; exact hrl) ks (by rw [hlps]; exact hkl)
         (fun j hj => by
           have hj' : j < rc.cvR.levelParams.length := by rw [← hlps]; exact hj

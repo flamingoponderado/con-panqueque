@@ -11,8 +11,8 @@ restriction costs completeness, never soundness: an unsupported block makes the 
 
 ## 0. Findings that come before mutual blocks
 
-1. **Recursive constructors hang, even in one-member blocks.** The generator supports only
-   *ordinary* fields:
+1. **Recursive constructors hung, even in one-member blocks** (closed in the second round, see §5).
+   Before, the generator supported only *ordinary* fields:
    * `ClassCtor.cfo_spec`: `classFieldsOf p [] …` hangs at a field that mentions a member.
    * `ClassCtor.cms_spec`: a minor slot with inductive hypotheses hangs.
    * `GenRule.cgr_spec`: "a constructor with ordinary fields".
@@ -167,3 +167,60 @@ Statements generalized in existing files (each old statement is kept as a coroll
   `checkBlockIdxSorts … p [ms0]`. `bis_spec` keeps its statement.
 * `CtorNames.PostCNF` has a new argument `n` and a new conjunct `n ≤ H'.length`. `cnf_spec` posts it at
   `H.length`, and `cnn_spec` is unchanged.
+
+## 5. Second round: recursive fields in the one-member generator
+
+Finding 1 is closed for one-member blocks: a field naming the member (its inductive hypothesis at class `0`,
+with any telescope, so reflexive fields too) now runs through the generator. An inductive hypothesis at another
+class hangs (none exists in a one-member block).
+
+| File | Procedure | Refines |
+|---|---|---|
+| `PiCount` | `pbn` (`fPbn`) | `piBinders k h`, its binder count |
+| `EraseFVars` | `rfe` (`fRfe`), `eft` (`fEft`) | `replaceFVarsGo .erase`, `eraseFVarTys` (the walk of `ReplaceFVars` with the erasing map) |
+| `K53` | `elm`, `tkb` | `(xs.drop i).mapM eraseFVarTys`, `(xs.take n).drop i` |
+| `K53` | `k53` (`fK53`) | `targetK53` (every `false` hangs) |
+| `K53` | `cnd` (`fCnd`), `cfg` (`fCfg`) | `classNodesAgree` over a class's table entries of one constructor, `classFieldsAgree` over the kinds block |
+| `ClassCtorRec` | `ihk`, `cmi`, `cfs` (`fCfs`) | the inductive hypotheses at a field, the minor slot's (`firstIhs`), `classFieldsOf p ihs` |
+| `ClassCtorRec` | `cco`, `ccl` | `classCtorOf`/`classCtorsOf` at the one class, node agreement included (moved from `ClassCtor`) |
+| `GenPre` | `mih` (`fMih`), `mty` | `ClassGen.minorTy.ihsGo` (`recsFrom`), `ClassGen.minorTy` with its inductive hypotheses |
+| `GenRule` | `pvg` (now builds the block), `cgo` (`fCgo`), `cgr` | the prefix variables, `classGenRule.callsGo`, `classGenRule` with its recursive calls |
+
+Representation changes:
+* `CCRep`: word `o + 5` is the kinds block (`cfKindW`: `0` ordinary, `tele + 1` recursive), with `KindsOK`
+  (every recursive field at class `0`, telescope below `2^32`) and `kinds.length = nF`.
+* `ClassRead.PairsRep` carries the pairs' bounds (`< 2^63`, from the port's `ihOf`), so `ihk` compares words.
+* `cms` no longer hangs on inductive hypotheses (`PostCMS` dropped that conjunct); `classMinorSlot_one` answers
+  `firstIhs`.
+
+New spec arguments threaded to the callers: `cgr`/`crl` take the class (`g.cls = [m]`, `m.nPc`), the
+recursor's name (`classRecOf recCls cvGs 0 = some rn`) and the recursor's levels; `FeR.cfr` takes `m.nPc`
+(`genRules` at `[0] [cvG]` gives `rn = cvG.name`); `ccl`/`cco` take the class-match data `k53` hands to `tcc`
+(`p.members = [ms0]`, the level-parameter and opener blocks, `m.nPc < 2^62`). Lengths the port cannot read off
+an `AM` result (opened telescopes, argument lists, the rule's argument list) are checked at run time against
+`2^56` and hang past it.
+
+
+## 5. The basis-pin branch (finding 2, the pinned basis blocks)
+
+`ki` (`IndArm2`) no longer hangs on a block under a pinned basis block's names (`Eq`, `Nat`, `Empty`, `False`).
+The record's names are matched against the reserved slices first (`bhitBody`, `BasisHit`: the kind word of the
+first match, `hitW`); only a block with no match runs the freshness check (`ibkBody` wraps `ibnBody`). At a hit,
+`andPinOk` passes (`andPinOk_hit`: the reserved names are none of the pinned `And` names, off `PinsOK`), and after
+the block's own checks `basisNamesOk` is the twin's `pinListOk` against the pin's interning
+(`basisNamesOk_hit`), which `bpnBody` (`BasisPin`, `bpn_spec`) refines:
+
+| File | Procedure | Refines |
+|---|---|---|
+| `PinRec` | `genPinBlk` (inline generator) | `plainCIList cs`, every pinned constant a record (`PinRec`, `PinBlk`) |
+| `PinCopy` | `pcpBody` (`fPcp`), `prlBody` (`fPrl`), `pcsBody` (`fPcs`) | `pinCopyOk`, `rulesAtLps` against the record's rules, `pinCopiesOk` |
+| `PinLinks` | `fndBody`, `sgoBody`, `lgoBody`, `rllBody`, `bllBody` | `constNamed?`, `Level.subst.go` over handles (`goH`, `pinLink_val`), `rulesLinkOk`, `blockLinksOkGo` |
+| `BasisPin` | `bpnBody` (`fBpn`) | `pinListOk block (BasisKind.decls k)` (scratch tier off, else hang) |
+| `BasisHit` | `bhitBody` (`fBhit`), `ibkBody` (`fIbk`) | `hitW`; the freshness check at no hit |
+
+The comparison is the twin's, renaming included (the prelude's `Eq` is `Eq.{u_1}`, the pin's `Eq.{u}`): `atLps`
+runs `paramLevels` and `instLPFast` on the pin's type and rule right-hand sides; the links compare the stream
+constructor's level-parameter handles with the pin constructor's renamed through the recursors' (`goH`).
+
+Still open: the `And` route (`andPinOk`'s `canonEqList` against `andPin`); an `And`-named block still hangs in
+`ibnBody`. `Nat` passes the pin branch but hangs earlier on its recursive constructor (finding 1).

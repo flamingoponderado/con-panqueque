@@ -5,6 +5,7 @@ import ConPanqueque.T.Ind.ReadBlock
 import ConPanqueque.T.Ind.BlockReadsSpec
 import ConPanqueque.Bridge.SeqFold
 import ConPanqueque.T.Ind.NodeCount
+import ConPanqueque.T.Ind.BasisHit
 
 /-!
 # The record of an inductive block (`checkDeclStep` at `.indDecl`)
@@ -34,10 +35,11 @@ def kiOk := ofString "ki_ok"
 def kiSh := ofString "ki_sh"
 def kiRd := ofString "ki_rd"
 def kiFe := ofString "ki_fe"
+def kiK := ofString "ki_k"
 def fKi := ofString "checkInductive"
 
 def kiParams : List MlS := [kiQ]
-def kiLocals : List MlS := [kiNp, kiOb, kiN, kiR, kiRl, kiX, kiOk, kiSh, kiRd, kiFe, ocA, ocB, ocC, ocD, lJ0]
+def kiLocals : List MlS := [kiNp, kiOb, kiN, kiR, kiRl, kiX, kiOk, kiSh, kiRd, kiFe, kiK, ocA, ocB, ocC, ocD, lJ0]
 
 /-- One pinned block's test: the block's length is the slice's and its names match it — hang. -/
 def kiHit (m a : Nat) (rest : ProgHOL 64) : ProgHOL 64 :=
@@ -52,7 +54,8 @@ def kiBody (C : Ctx) : ProgHOL 64 := prologue kiLocals
   (.seq (.assign .local kiN (.load .one (vv kiOb)))
   (.seq (.assign .local kiR (.load .one (.const (ecell C (C.PO + pinCount + 4)))))
   (.seq (.assign .local kiRl (.load .one (vv kiR)))
-  (.seq (.call (some (some (.local, kiX), none)) fIbn [vv kiOb, .const 0, vv kiN, vv kiR, vv kiRl])
+  (.seq (.call (some (some (.local, kiK), none)) fBhit [vv kiOb, vv kiN, vv kiR])
+  (.seq (.call (some (some (.local, kiX), none)) fIbk [vv kiOb, vv kiN, vv kiR, vv kiRl, vv kiK])
   (flushCode C (flushRegions true)
   (.seq (.call (some (some (.local, kiOk), none)) fIpo [vv kiOb, .const 0, vv kiN, vv kiNp])
   (.ite (.cmp .equal (vv kiOk) (.const 0)) hang
@@ -62,10 +65,12 @@ def kiBody (C : Ctx) : ProgHOL 64 := prologue kiLocals
   (.ite (.cmp .equal (vv kiRd) (.const 0)) hang
   (flushCode C (flushRegions false)
   (offCheckP C
-  (kiHit 3 0 (kiHit 4 3 (kiHit 2 7 (kiHit 2 9 (.return (.const 0)))))))))))))))))))))
+  (.ite (.cmp .equal (vv kiK) (.const 0)) (.return (.const 0))
+    (.seq (.call (some (some (.local, kiX), none)) fBpn [vv kiOb, vv kiK]) (.return (.const 0))))))))))))))))))))
 
 structure KICodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
-  ibn : IBNCodes C
+  bh : BHCodes C
+  bp : BPCodes C
   ipo : C.code.lookup fIpo = some (ipoParams.map (fun p => (p, ShapeHOL.one)), ipoBody, .one)
   pst : C.code.lookup fPiSortTele = some ([(pFu, .one), (pH, .one)], pstBody fPiSortTele, .one)
   rb : RBCodes C
@@ -190,11 +195,23 @@ theorem specR_kiHitI {α : Type} {Cx : Ctx} (hok : CtxOK Cx) (hc : BSQCodes Cx) 
     rw [bsqVal_of_eq blk rs a hle he] at hv; cases hv
   · exact specR_ifI _ 1 (by simp [sev, Env.get_cons, boolW]) (fun _ => specR_hangI) (fun h => absurd h (by decide))
 
+/-- A bind at a state where its first step agrees with another's. -/
+theorem specR_bindEqAt {β γ : Type} {P : PState σ → Prop} {c : ProgHOL 64} {s : AState} {m m' : AM β}
+    {k : β → AM γ} {R : γ → BitVec 64 → AState → PState σ → Prop} (h : m s = m' s)
+    (hs : SpecR P c s (m' >>= k) R) : SpecR P c s (m >>= k) R := by
+  intro t ht
+  rcases hs t ht with h1 | ⟨w, hw, a, s', hm, hr⟩
+  · exact Or.inl h1
+  · refine Or.inr ⟨w, hw, a, s', ?_, hr⟩
+    have e : (m >>= k) s = (m' >>= k) s := by simp only [bind, StateT.bind, h]
+    rw [e]; exact hm
+
 theorem ki_none (C : Ctx) (vals : List (BitVec 64)) :
     ∀ x, x ∈ kiLocals → (ctxEnv C ++ kiParams.zip vals).get x = none :=
   Knot.params_none C kiLocals kiParams vals (by decide) (by decide)
 
 set_option maxHeartbeats 64000000 in
+set_option maxRecDepth 20000 in
 /-- **The record of an inductive block.** -/
 theorem ki_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.RuntimeAssumptions)
     (C : Ctx) (hok : CtxOK C) (hs : C.side = false) (hpl : C.saved = none) (hc : KICodes mode C)
@@ -207,7 +224,8 @@ theorem ki_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : Con
       (denoteL s1.store.ls v).isSome = true →
       SpecR (σ := σ) (Pre (ctxH C H) s1 [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s1 (lvlEq? u v)
         (LLeq.PostOB (ctxH C H)))
-    (hA : denoteN C.St.ns anonH = some .anonymous) (hb : BasisInv C)
+    (hA : denoteN C.St.ns anonH = some .anonymous) (hA0 : denoteN C.St.ns default = some .anonymous)
+    (hb : BasisInv C)
     (block : List IConstantInfo) (nP : Nat) (o ob : Nat) (hq1 : C.H[o + 1]? = some (BitVec.ofNat 64 nP))
     (hq2 : C.H[o + 2]? = some (cellA C ob)) (hblk : IndBlk C C.H ob block)
     (hlen : block.length < 2 ^ 59) (hnP : nP < 2 ^ 59)
@@ -243,21 +261,53 @@ theorem ki_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : Con
       have hlt : oR + 1 + (C.pins.reserved.length - 1) < C.EH.length := (List.getElem?_eq_some_iff.mp h1).1
       omega
   rw [hwoR]
-  refine specR_callPure (C := C) kiX fIbn ibnParams [vv kiOb, .const 0, vv kiN, vv kiR, vv kiRl] ibnBody
-    [cellA C ob, BitVec.ofNat 64 0, BitVec.ofNat 64 block.length, ecell C oR, BitVec.ofNat 64 C.pins.reserved.length]
-    () (by decide) rfl (by decide) hc.ibn.self
-    ⟨by simp +decide [sev, Env.get_cons], by simp [sev], by simp +decide [sev, Env.get_cons],
-      by simp +decide [sev, Env.get_cons] <;> rfl, by simp +decide [sev, Env.get_cons] <;> rfl, trivial⟩
-    (PostKFH C s (∀ c ∈ block.drop 0, NameFree C c.name))
-    (fun _ _ s' H' => s' = s ∧ ∀ c ∈ block, NameFree C c.name)
-    (fun a w s' st ⟨hs', hP, H', hp', hsr⟩ => ⟨H', hp', ⟨hs', fun c hc' => hP c (by simpa using hc')⟩, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ibnParams _ rfl hlk)
-      (ibn_spec C hok hc.ibn block ob hblk oR hblkR' (by omega) _ 0 C.H s rfl (Nat.zero_le _) (List.prefix_refl _)))
-    (fun w H1 hp1 ⟨_, hfree⟩ => ?_)
-  have hp1' : C.H <+: H1 := hp1
+  obtain ⟨st0, hwf0, hx0, hres0, hrun0⟩ := hb
+  have hrs16 : C.pins.reserved.length = 16 := by
+    have hl : ∀ (xs : List NIdx) (ns : List ConLeche.Name), denoteNL st0 xs ns → xs.length = ns.length := by
+      intro xs; induction xs with
+      | nil => intro ns h; cases ns with
+        | nil => rfl
+        | cons => exact h.elim
+      | cons x xs ih =>
+        intro ns h
+        cases ns with
+        | nil => simp [denoteNL] at h
+        | cons n ns => simp only [List.length_cons]; exact congrArg (· + 1) (ih ns h.2)
+    rw [hl _ _ hres0]; rfl
+  refine specR_callPure (C := C) kiK fBhit bhitParams [vv kiOb, vv kiN, vv kiR] bhitBody
+    [cellA C ob, BitVec.ofNat 64 block.length, ecell C oR] (hitW block C.pins.reserved) (by decide) rfl (by decide)
+    hc.bh.bhit ⟨by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons],
+      by simp +decide [sev, Env.get_cons] <;> rfl, trivial⟩
+    (PostNv C) (fun b w _ _ => w = BitVec.ofNat 64 b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu bhitParams _ rfl hlk)
+      (bhit_spec C hok hc.bh block ob hblk C.pins.reserved oR hblkR' hrs16 (by omega) s))
+    (fun wk H0 hp0 hwk => ?_)
+  subst hwk
+  have hkw4 : hitW block C.pins.reserved ≤ 4 := by
+    unfold hitW; split_ifs <;> omega
+  have hp0' : C.H <+: H0 := hp0
+  refine specR_callPure (C := ctxH C H0) kiX fIbk ibkParams [vv kiOb, vv kiN, vv kiR, vv kiRl, vv kiK] ibkBody
+    [cellA C ob, BitVec.ofNat 64 block.length, ecell C oR, BitVec.ofNat 64 C.pins.reserved.length,
+      BitVec.ofNat 64 (hitW block C.pins.reserved)] () (by decide) rfl (by decide) hc.bh.ibk
+    ⟨by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons],
+      by simp +decide [sev, Env.get_cons] <;> rfl, by simp +decide [sev, Env.get_cons] <;> rfl,
+      by simp +decide [sev, Env.get_cons], trivial⟩
+    (PostKFH (ctxH C H0) s (hitW block C.pins.reserved = 0 → ∀ c ∈ block, NameFree (ctxH C H0) c.name))
+    (fun _ _ s' _ => s' = s ∧ (hitW block C.pins.reserved = 0 → ∀ c ∈ block, NameFree C c.name))
+    (fun a w s' st ⟨hs', hP, H', hp', hsr⟩ => ⟨H', hp', ⟨hs', hP⟩, hsr⟩)
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ibkParams _ rfl hlk)
+      (ibk_spec (ctxH C H0) (ctxOK_H hok H0) (by ctx_tr hc.bh) block ob (indBlk_mono hblk hp0') oR hblkR'
+        (by change C.pins.reserved.length < 2 ^ 62; omega) _ (by omega) s))
+    (fun w H1 hp1 ⟨_, hfreeK⟩ => ?_)
+  have hp1' : C.H <+: H1 := hp0'.trans hp1
   have hok1 := ctxOK_H hok H1
   unfold checkDeclStep
-  refine specR_runBind (andPinOk_ind hok ht0.sr.pins block nP hfree) ?_
+  have hAnd : andPinOk (.indDecl block nP) s = .ok (true, s) := by
+    by_cases hk0 : hitW block C.pins.reserved = 0
+    · exact andPinOk_ind hok ht0.sr.pins block nP (hfreeK hk0)
+    · obtain ⟨k, -, hk⟩ := hitAt_of_hitW hrs16 hk0
+      exact andPinOk_hit hok ht0.sr.pins hseq.pins block nP (names_mem_res hk.2.1)
+  refine specR_runBind hAnd ?_
   simp only [Bool.not_true, Bool.false_eq_true, ↓reduceIte, pure_bind, bind_assoc]
   refine specR_congr (m' := ((flushCaches >>= fun _ => (get : AM AState) >>= fun s' =>
       set { s' with memos := Memos.empty }) >>= fun _ => checkDecl .verified pins C.fe (IDeclaration.indDecl block nP)))
@@ -372,67 +422,44 @@ theorem ki_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : Con
   refine specR_flushTopI hok6 hpl false flushCaches rfl (by decide) ?_
   generalize hsF6 : flushedS false s5 = s6
   refine specR_offCheckI (by decide) (fun hoff => ?_)
-  obtain ⟨st0, hwf0, hx0, hres0, hrun0⟩ := hb
-  have hrs16 : C.pins.reserved.length = 16 := by
-    have hl : ∀ (xs : List NIdx) (ns : List ConLeche.Name), denoteNL st0 xs ns → xs.length = ns.length := by
-      intro xs; induction xs with
-      | nil => intro ns h; cases ns with
-        | nil => rfl
-        | cons => exact h.elim
-      | cons x xs ih =>
-        intro ns h
-        cases ns with
-        | nil => simp [denoteNL] at h
-        | cons n ns => simp only [List.length_cons]; exact congrArg (· + 1) (ih ns h.2)
-    rw [hl _ _ hres0]; rfl
   have hpH6 : C.H <+: H6 := hp1'.trans (hp2.trans (hp3.trans (hp4'.trans hp6)))
   have hpE6 : C.EH <+: EH6 := hpE4.trans hpE6
   let C6 := ctxNT C5 fe' EH6 envM6 tblM6 H6
   have hok6' : CtxOK C6 := hok6
-  have hblk6 : IndBlk C6 C6.H ob block := indBlk_mono hblk hpH6
-  have hR6 : EBlk C6.EH oR (C.pins.reserved.map Enc.idxW) := eblk_mono hblkR' hpE6
-  have hcB : BSQCodes C6 := by ctx_tr hc.bsq
-  have hbl : block.length < 2 ^ 61 := by omega
-  refine specR_kiHitI hok6' hcB block ob hblk6 C.pins.reserved oR hR6 (by omega) 3 0 (by omega) hbl
-    (by simp +decide [Env.get_cons, Env.kill, ConPanqueque.T.ExP.Env.get_kill_of_not_mem])
-    (by simp +decide [Env.get_cons, Env.kill, ConPanqueque.T.ExP.Env.get_kill_of_not_mem] <;> rfl)
-    (by simp +decide [Env.get_cons, Env.kill, ConPanqueque.T.ExP.Env.get_kill_of_not_mem] <;> rfl) (by decide)
-    (fun Γ1 H7 hp7 hΓ1 hne1 => ?_)
-  refine specR_kiHitI (ctxOK_H hok6' H7) (by ctx_tr hcB) block ob (indBlk_mono hblk6 hp7) C.pins.reserved oR hR6
-    (by omega) 4 3 (by omega) hbl
-    (by rw [hΓ1 _ (by decide)]; simp +decide [Env.get_cons, Env.kill, ConPanqueque.T.ExP.Env.get_kill_of_not_mem])
-    (by rw [hΓ1 _ (by decide)]; simp +decide [Env.get_cons, Env.kill, ConPanqueque.T.ExP.Env.get_kill_of_not_mem] <;> rfl)
-    (by rw [hΓ1 _ (by decide)]; simp +decide [Env.get_cons, Env.kill, ConPanqueque.T.ExP.Env.get_kill_of_not_mem] <;> rfl)
-    (by decide) (fun Γ2 H8 hp8 hΓ2 hne2 => ?_)
-  have hp78 : H6 <+: H8 := hp7.trans hp8
-  refine specR_kiHitI (ctxOK_H hok6' H8) (by ctx_tr hcB) block ob (indBlk_mono hblk6 hp78) C.pins.reserved oR hR6
-    (by omega) 2 7 (by omega) hbl
-    (by rw [hΓ2 _ (by decide), hΓ1 _ (by decide)]; simp +decide [Env.get_cons, Env.kill, ConPanqueque.T.ExP.Env.get_kill_of_not_mem])
-    (by rw [hΓ2 _ (by decide), hΓ1 _ (by decide)]; simp +decide [Env.get_cons, Env.kill, ConPanqueque.T.ExP.Env.get_kill_of_not_mem] <;> rfl)
-    (by rw [hΓ2 _ (by decide), hΓ1 _ (by decide)]; simp +decide [Env.get_cons, Env.kill, ConPanqueque.T.ExP.Env.get_kill_of_not_mem] <;> rfl)
-    (by decide) (fun Γ3 H9 hp9 hΓ3 hne3 => ?_)
-  have hp79 : H6 <+: H9 := hp78.trans hp9
-  refine specR_kiHitI (ctxOK_H hok6' H9) (by ctx_tr hcB) block ob (indBlk_mono hblk6 hp79) C.pins.reserved oR hR6
-    (by omega) 2 9 (by omega) hbl
-    (by rw [hΓ3 _ (by decide), hΓ2 _ (by decide), hΓ1 _ (by decide)]; simp +decide [Env.get_cons, Env.kill, ConPanqueque.T.ExP.Env.get_kill_of_not_mem])
-    (by rw [hΓ3 _ (by decide), hΓ2 _ (by decide), hΓ1 _ (by decide)]; simp +decide [Env.get_cons, Env.kill, ConPanqueque.T.ExP.Env.get_kill_of_not_mem] <;> rfl)
-    (by rw [hΓ3 _ (by decide), hΓ2 _ (by decide), hΓ1 _ (by decide)]; simp +decide [Env.get_cons, Env.kill, ConPanqueque.T.ExP.Env.get_kill_of_not_mem] <;> rfl)
-    (by decide) (fun Γ4 H10 hp10 hΓ4 hne4 => ?_)
-  have hp6t : H6 <+: H10 := hp79.trans hp10
-  have hnh : NoHit (ctxH C6 H10) block := by
-    intro k hk
-    simp only [List.mem_cons, List.mem_nil_iff, or_false] at hk
-    rcases hk with rfl | rfl | rfl | rfl
-    · exact hne1
-    · exact hne2
-    · exact hne3
-    · exact hne4
-  have hbC : BasisInv (ctxH C6 H10) := ⟨st0, hwf0, hx0.trans hx3, hres0, hrun0⟩
+  have hbC : BasisInv C6 := ⟨st0, hwf0, hx0.trans hx3, hres0, hrun0⟩
   refine specR_atEntry fun t10 ht10 => ?_
-  refine specR_runBind (basisNamesOk_ind (ctxOK_H hok6' H10) hbC ht10.sr hoff block nP hfree hnh) ?_
-  simp only [↓reduceIte]
-  exact specR_returnI _ 0 rfl (fun t ht => ⟨EH6, envM6, tblM6, H10, hpE6, hpH6.trans hp6t, ctxOK_H hok6' H10,
-    sr_of_eq ht.sr rfl rfl rfl rfl, hg6, hF6, hL6⟩)
+  by_cases hk0 : hitW block C.pins.reserved = 0
+  · refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Env.kill, ConPanqueque.T.ExP.Env.get_kill_of_not_mem,
+        hk0, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+    have hnh : NoHit C6 block := noHit_of_hitW hrs16 hk0
+    refine specR_runBind (basisNamesOk_ind hok6' hbC ht10.sr hoff block nP (hfreeK hk0) hnh) ?_
+    simp only [↓reduceIte]
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨EH6, envM6, tblM6, H6, hpE6, hpH6, hok6',
+      sr_of_eq ht.sr rfl rfl rfl rfl, hg6, hF6, hL6⟩)
+  · refine specR_ifI _ 0 (by
+      simp +decide [sev, Env.get_cons, Env.kill, ConPanqueque.T.ExP.Env.get_kill_of_not_mem,
+        Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
+      exact fun h => hk0 ((ofNat_eq_small61 (by omega) (by decide)).mp h)) (fun h => absurd rfl h) (fun _ => ?_)
+    obtain ⟨k, hkw', hk⟩ := hitAt_of_hitW hrs16 hk0
+    obtain ⟨r, hdec, hbn⟩ := basisNamesOk_hit hbC ht10.sr hoff block nP k hk
+    refine specR_bindEqAt hbn ?_
+    have hcB : BPCodes C6 := by ctx_tr hc.bp
+    have hbP3 : Frontend.denoteCIList s3.store block = some bP := denoteCIList_mono hps3.ext _ _ hbP2
+    have hbP6 : Frontend.denoteCIList s6.store block = some bP := denoteCIList_mono ht10.sr.floor _ _ hbP3
+    refine specR_callNIH (C := C6) kiX fBpn bpnParams [vv kiOb, vv kiK] (bpnBody C6)
+      [cellA C ob, BitVec.ofNat 64 (basisWord k)] (by decide) rfl (by decide) hcB.self
+      ⟨by simp +decide [sev, Env.get_cons, Env.kill, ConPanqueque.T.ExP.Env.get_kill_of_not_mem] <;> rfl,
+        by simp +decide [sev, Env.get_cons, Env.kill, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, hkw'], trivial⟩
+      (PostPin C6 (fun b => b = true)) (fun b _ _ _ => b = true) (fun a w s' st ⟨h0, H', hp', hsr⟩ => ⟨H', hp', h0, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu bpnParams _ rfl hlk)
+        (bpn_spec ra C6 hok6' hcB (by obtain ⟨⟩ := hf; constructor <;> assumption) (hx3.lss.ls.ns _ _ hA0)
+          k hk.1 block ob H6 s6 r (List.prefix_refl _) (indBlk_mono hblk hpH6) hdec hk.2.2.1
+          (fun c hc' => by obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem hc'; exact hlp i hi) bP hbP6))
+      (fun b w s7 H7 hp7 hb7 => ?_)
+    subst hb7
+    simp only [↓reduceIte]
+    exact specR_returnI _ 0 rfl (fun t ht => ⟨EH6, envM6, tblM6, H7, hpE6, hpH6.trans hp7, ctxOK_H hok6' H7,
+      sr_of_eq ht.sr rfl rfl rfl rfl, hg6, hF6, hL6⟩)
 
 end
 

@@ -1,4 +1,5 @@
 import ConPanqueque.T.Ind.GenRecCheck
+import ConPanqueque.T.Ind.ClassCtorRec
 import ConPanqueque.T.Ind.LargeElim
 
 /-!
@@ -386,7 +387,8 @@ def gaBody : ProgHOL 64 := prologue gaLocals
   (.seq (.call (some (some (.local, gaX), none)) fTmn [vv gaOt, .const 0, vv gaNt, vv gaOq, vv gaNq, vv gaLv, vv gaOlp, vv gaTy0, vv gaPp, vv gaNpp, vv gaPa, vv gaNd, vv gaNm])
   (.seq (.assign .local gaNp (.load .one (.op .add [vv gaSh, .const 16])))
   (.seq (.assign .local gaNk (.op .add [vv gaNp, .const 1]))
-  (.seq (.call (some (some (.local, gaCs), none)) fCcl [vv gaOq, .const 0, vv gaNq, vv gaOt, vv gaNt, vv gaOsl, vv gaNsl, vv gaNk, vv gaOm, vv gaPa, vv gaNd])
+  (.seq (.call (some (some (.local, gaCs), none)) fCcl [vv gaOq, .const 0, vv gaNq, vv gaOt, vv gaNt, vv gaOsl, vv gaNsl, vv gaNk, vv gaOm, vv gaPa, vv gaNd,
+      vv gaInd, vv gaNpc, vv gaLv, vv gaOlp, vv gaTy0, vv gaPp, vv gaNpp, vv gaNm])
   (.seq (.assign .local gaNcs (.load .one (vv gaCs)))
   (.seq (.call (some (some (.local, gaMc), none)) fCmc [vv gaOsl, .const 0, vv gaNsl])
   (.ite (.cmp .equal (vv gaMc) (vv gaNcs))
@@ -405,7 +407,7 @@ structure GACodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
   lea : C.code.lookup fLea = some (leaParams.map (fun p => (p, ShapeHOL.one)), leaBody, .one)
   lgd : C.code.lookup fLgd = some (lgdParams.map (fun p => (p, ShapeHOL.one)), lgdBody, .one)
   tmn : TMNCodes mode C
-  ccl : CCLCodes C
+  ccl : CCLCodes mode C
   cmc : C.code.lookup fCmc = some (cmcParams.map (fun p => (p, ShapeHOL.one)), cmcBody, .one)
   lp : C.code.lookup fInternLParam = some ([(lEn, .one)], internLParamBody, .one)
   lz : C.code.lookup fInternLZero = some ([], internLZeroBody, .one)
@@ -550,25 +552,32 @@ theorem ga_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
   simp only [classesCtors, bind_assoc, pure_bind]
   have hcb2 := hcb
   refine specR_callNIH (C := ctxH C H4) gaCs fCcl cclParams
-    [vv gaOq, .const 0, vv gaNq, vv gaOt, vv gaNt, vv gaOsl, vv gaNsl, vv gaNk, vv gaOm, vv gaPa, vv gaNd] (cclBody C)
+    [vv gaOq, .const 0, vv gaNq, vv gaOt, vv gaNt, vv gaOsl, vv gaNsl, vv gaNk, vv gaOm, vv gaPa, vv gaNd,
+      vv gaInd, vv gaNpc, vv gaLv, vv gaOlp, vv gaTy0, vv gaPp, vv gaNpp, vv gaNm] (cclBody C)
     [cellA C oq, BitVec.ofNat 64 0, BitVec.ofNat 64 m.ctors.length, cellA C ot, BitVec.ofNat 64 tbl.length,
       cellA C osl, BitVec.ofNat 64 rd.slots.length, BitVec.ofNat 64 (p.nP + p.k), cellA C om, cellA C pa,
-      BitVec.ofNat 64 m.ds.length] (by decide) rfl (by decide) hc.ccl.self
+      BitVec.ofNat 64 m.ds.length, Enc.idxW m.ind, BitVec.ofNat 64 m.nPc, Enc.idxW m.lvls, cellA C olp,
+      Enc.idxW ms0.cvT.type, cellA C pp, BitVec.ofNat 64 m.pfvs.length, Enc.idxW ms0.cvT.name] (by decide) rfl (by decide) hc.ccl.self
     ⟨by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], rfl,
       by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv],
       by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv],
       by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons],
       by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv],
-      by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], trivial⟩
+      by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv],
+      by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv],
+      by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv],
+      by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv],
+      by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv],
+      trivial⟩
     (fun a w s' st => classCtorsOf mode C.fe p [ms0.cvT.type] rd [{ m with nfs := tbl }] 0 (m.ctors.drop 0) s4 = .ok (a, s') ∧
       PostCCs (ctxH C H4) a w s' st)
     (fun xs w s' H' => classCtorsOf mode C.fe p [ms0.cvT.type] rd [{ m with nfs := tbl }] 0 (m.ctors.drop 0) s4 = .ok (xs, s') ∧
       ∃ o, w = cellA C o ∧ PRep C H' o (fun H o cc => CCRep C H o cc) xs)
     (fun a w s' st ⟨hrun, H', o, hp', hw, hr, hsr⟩ => ⟨H', hp', ⟨hrun, o, hw, hr⟩, hsr⟩)
     (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu cclParams _ rfl hlk)
-      (ccl_spec mode ra C hok hc.ccl p [ms0.cvT.type] rd { m with nfs := tbl } hmm p.members om rfl hM
-        (by rw [hms]; simp) m.ctors oq hcr hcsl hnfc ot osl pa htl htb (by omega) hcb hsb (by show m.ds.length < _; omega) hA hnk
-        m.ctors.length 0 H4 s4 (by omega) (by omega) hpC4)))
+      (ccl_spec mode ra C hok hs hc.ccl p ms0 hms rd { m with nfs := tbl } hmm om hM
+        m.ctors oq hcr hcsl hnfc ot osl pa htl htb (by omega) hcb hsb (by show m.ds.length < _; omega) hA hnk olp pp
+        (by omega) hppl hlp hpf hnpc m.ctors.length 0 H4 s4 (by omega) (by omega) hpC4)))
     (fun xs w s5 H5 hp5 ⟨hrun5, ocs, hw, hcs⟩ => ?_)
   subst hw
   have hp5' : H4 <+: H5 := hp5

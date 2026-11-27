@@ -594,3 +594,13 @@ import ConPanqueque.T.Ind.NestCtxRun
 import ConPanqueque.T.Ind.ReadBlockSplit
 import ConPanqueque.T.Ind.PassCls
 import ConPanqueque.T.Ind.CrtDischarge
+import ConPanqueque.T.Ind.IdxSortsAll
+import ConPanqueque.T.Ind.ConsCtorsAll
+import ConPanqueque.T.Ind.CtorsFreshAll
+import ConPanqueque.T.Ind.CtorNamesAll
+import ConPanqueque.T.Ind.RecInstallAll
+import ConPanqueque.T.Ind.MembersOk
+import ConPanqueque.T.Ind.PiCount
+import ConPanqueque.T.Ind.EraseFVars
+import ConPanqueque.T.Ind.K53
+import ConPanqueque.T.Ind.ClassCtorRec
