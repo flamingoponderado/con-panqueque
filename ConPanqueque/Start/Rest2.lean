@@ -45,6 +45,7 @@ theorem rest_verdict2 (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPin
     (hcF : C.code.lookup fFeed = some (feedPs.map (fun p => (p, ShapeHOL.one)), prologue feedL feedCore, .one))
     (s : AState) (hst : StateOK s) (hoff : s.store.scratchOn = false) (hpo : PinsOK s)
     (hpp : ConRon.Bridge.PersPins s) (hpins : ConRon.Bridge.PinsDenote s.store pins pinsP)
+    (hA : denoteN s.store.ns default = some .anonymous)
     (hb : PinBlock C.EH s.pins) (bh : NIdx) (hB : C.EH[138]? = some (Enc.idxW bh))
     (hbd : denoteN s.store.ns bh = some boolRecName) (hbp : ConRon.Bridge.PersN bh)
     (Γ : Env) (M : Mem) (D : List MlS) (hD : ∀ x ∈ [kZ, kR0, kN0, kR1, kBN, kBA, fCap, kZn, fTL, fTE], x ∈ D)
@@ -200,7 +201,7 @@ theorem rest_verdict2 (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPin
       simp only [Γ8, Γ7, Γ6, Γ5, T.Env.get_cons, ite_eq_right h1, ite_eq_right h2, ite_eq_right h3, ite_eq_right h4]; exact g3 y h5 h6
   rcases front_verdict2 (F := j0 + Lw) (rb := rb) (capD := capD) (jN := jN) (cap := cap) (bufJ := j0 + 1) (b := b)
       pins pinsP ra C1 (ctxOK_ctxH hokp) (frontOK_ctxH (frontOK_H hf Hb)) (frontCodes_ctxH (frontCodes_ctxH fc)) (foldCodes_ctxH (foldCodes_ctxH hc Hb) H') hs hpl hfe hcF
-      hEB s hst hoff hpo hpp hpins hb bh hB hbd hbp Γ8 [] D (fun x hx => hD x (by
+      hEB s hst hoff hpo hpp hpins hA hb bh hB hbd hbp Γ8 [] D (fun x hx => hD x (by
         simp only [List.mem_cons, List.not_mem_nil, or_false] at hx
         rcases hx with rfl | rfl | rfl | rfl <;> simp)) hDF
       ⟨by omega, by omega, by omega, hbuf0, by rw [hbsz]; omega⟩ hcap1' (by omega) (by omega) hcapD8

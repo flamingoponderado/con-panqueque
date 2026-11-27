@@ -185,7 +185,7 @@ theorem front_verdict2 {σ : Type} {F rb capD jN cap bufJ : Nat} {b : ByteArray}
     (hcF : C.code.lookup fFeed = some (feedPs.map (fun p => (p, ShapeHOL.one)), prologue feedL feedCore, .one))
     (hEB : ∀ j, ecell C j = ecb j)
     (s : AState) (hst : StateOK s) (hoff : s.store.scratchOn = false) (hpo : PinsOK s) (hpp : PersPins s)
-    (hpins : PinsDenote s.store pins pinsP)
+    (hpins : PinsDenote s.store pins pinsP) (hA : denoteN s.store.ns default = some .anonymous)
     (hb : PinBlock C.EH s.pins) (bh : NIdx) (hB : C.EH[138]? = some (Enc.idxW bh))
     (hbd : denoteN s.store.ns bh = some boolRecName) (hbp : PersN bh)
     (Γ : Env) (M : Mem) (D : List MlS) (hD : ∀ x ∈ [kZ, kR0, kN0, kR1], x ∈ D) (hDF : ∀ x ∈ forbidVars, x ∈ D)
@@ -215,7 +215,7 @@ theorem front_verdict2 {σ : Type} {F rb capD jN cap bufJ : Nat} {b : ByteArray}
     · exact ⟨_, hb.names i (by rw [hb.size]; simpa [pinCount] using hi)⟩
     · exact ⟨_, hb.res i (by rw [(denoteNL_get hpo.reserved).1, reserved_length]; exact hi)⟩
     · exact ⟨_, hB⟩
-  rcases main_spec2 pins ra C hok hf fc hc hs hpl hfe hcF hEB hcells s hst hoff hpo Γ M D hD hDF hfl hcap1 hcapN hcap8
+  rcases main_spec2 pins ra C hok hf fc hc hs hpl hfe hcF hEB hcells s hst hoff hpo hA Γ M D hD hDF hfl hcap1 hcapN hcap8
       hcapD8 hFH hbuf hZb hZn hTN hTL hTE hC hBA hBN hRB hCD hZL t ht with
     hstop | ⟨w, hw, a, s'', -, st', s', hrun, hval, hm, hforb⟩
   · exact Or.inl hstop

@@ -95,7 +95,10 @@ structure FoldCodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
   ko : C.code.lookup fKo = some (kdParams.map (fun p => (p, ShapeHOL.one)), koBody C, .one)
   ka : C.code.lookup fKa = some (kdParams.map (fun p => (p, ShapeHOL.one)), kaBody C, .one)
   ic : IndCodes mode C
+  kq : C.code.lookup Quot.fKq = some (kdParams.map (fun p => (p, ShapeHOL.one)), Quot.kqBody C, .one)
+  qc : Quot.QCodes mode C
 
+set_option maxRecDepth 8000 in
 theorem foldCodes_new {mode : ConLeche.CheckMode} {C : Ctx} (hc : FoldCodes mode C) (fe : IFEnv)
     (EH : List (BitVec 64)) (envM tblM : Std.HashMap NIdx (BitVec 64)) (H : List (BitVec 64)) :
     FoldCodes mode (ctxNewT C fe EH envM tblM H) := by ctx_tr hc
@@ -125,7 +128,9 @@ theorem recOK_new {C : Ctx} {o : Nat} {d : IDeclaration} (h : RecOK C o d) {fe :
   | indDecl b n =>
     obtain ⟨h1, hi, ob, h2, h3, h4, h5⟩ := h
     exact ⟨get_prefix h1 hp, by ctx_tr hi, ob, get_prefix h2 hp, get_prefix h3 hp, Ind.indBlk_mono h4 hp, h5⟩
-  | quotDecl k cv => obtain ⟨t, h1, h2⟩ := h; exact ⟨t, get_prefix h1 hp, h2⟩
+  | quotDecl k cv =>
+    obtain ⟨h1, h2, h3⟩ := h
+    exact ⟨get_prefix h1 hp, recCV_new h2 hp, get_prefix h3 hp⟩
 
 section
 variable {σ : Type}
@@ -140,7 +145,8 @@ def PostFold (_ : IFEnv) (_ : BitVec 64) (s' : AState) (st : PState σ) : Prop :
 /-- **The fold** over records `i …`. -/
 theorem fold_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.RuntimeAssumptions)
     (rs : List (Nat × IDeclaration)) (ob : Nat) (hlenR : rs.length < 2 ^ 62) :
-    ∀ k i (C : Ctx) (s : AState), CtxOK C → FoldCodes mode C → C.side = false → C.saved = none →
+    ∀ k i (C : Ctx) (s : AState), CtxOK C → FoldCodes mode C → ConPanqueque.Front.FrontOK C →
+      denoteN C.St.ns default = some .anonymous → C.side = false → C.saved = none →
       TblGate C.fe → FlagsOK C.fe → LitsPinned C.fe C.pins → BlkAt C.H ob (rs.map (fun r => cellA C r.1)) →
       (∀ j (hj : j < rs.length), i ≤ j → RecOK C rs[j].1 rs[j].2) → rs.length - i = k → i ≤ rs.length →
       SpecR (σ := σ) (Pre C s (foParams.zip [cellA C ob, BitVec.ofNat 64 i, BitVec.ofNat 64 rs.length])) foldBody s
@@ -148,7 +154,7 @@ theorem fold_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : C
   intro k
   induction k with
   | zero =>
-    intro i C s hok hc hs hpl hg hF hL hb hrec hk hi
+    intro i C s hok hc hfr hA hs hpl hg hF hL hb hrec hk hi
     have hil : i = rs.length := by omega
     subst hil
     refine specR_prologue (fun _ _ _ _ _ ⟨C', h⟩ => ⟨C', sr_of_eq h rfl rfl rfl rfl⟩) (fo_none C _) ?_
@@ -158,7 +164,7 @@ theorem fold_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : C
     simp only [List.drop_length, List.map_nil, checkDeclsPureGo]
     exact specR_returnI _ 0 rfl (fun t ht => ⟨C, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
   | succ k ih =>
-    intro i C s hok hc hs hpl hg hF hL hb hrec hk hi
+    intro i C s hok hc hfr hA hs hpl hg hF hL hb hrec hk hi
     have hil : i < rs.length := by omega
     refine specR_prologue (fun _ _ _ _ _ ⟨C', h⟩ => ⟨C', sr_of_eq h rfl rfl rfl rfl⟩) (fo_none C _) ?_
     have hlw := nd_lt_iff i rs.length (by omega) (by omega)
@@ -176,7 +182,8 @@ theorem fold_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : C
       (fun a w s' st ⟨EH, envM, tblM, H, hpE, hpH, hokN, hsr, hgt, hfl, hlp⟩ =>
         ⟨ctxNewT C a EH envM tblM H, ⟨EH, envM, tblM, H, rfl, hpH, hokN, hgt, hfl, hlp⟩, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu [stQ] _ rfl hlk)
-        (step_spec mode pins C hok hc.dc ra hs hpl hg hF hL hc.kd hc.kt hc.ko hc.ka (eqvS_of hok hc.lc) hc.ic (eqvA_of hc.lc)
+        (step_spec mode pins C hok hc.dc ra hs hpl hg hF hL hc.kd hc.kt hc.ko hc.ka (eqvS_of hok hc.lc) hc.ic hc.kq hc.qc
+          hfr hA (eqvA_of hc.lc)
           (hLE_of hok hc.lc) rs[i].1 rs[i].2
           (hrec i hil (le_refl _)) s))
       (fun a w s1 C1 ⟨EH, envM, tblM, H1, eC, hpH, hokN, hgt, hfl, hlp⟩ => ?_)
@@ -188,7 +195,8 @@ theorem fold_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (ra : C
       [cellA C ob, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 rs.length] (by decide) rfl (by decide) hc.fold ?_ PostFold
       (fun _ _ _ _ => True) (fun a w s' st ⟨C', h⟩ => ⟨C', trivial, h⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu foParams _ rfl hlk)
-        (ih (i + 1) (ctxNewT C a EH envM tblM H1) s1 hokN (foldCodes_new hc a EH envM tblM H1) hs hpl hgt hfl hlp
+        (ih (i + 1) (ctxNewT C a EH envM tblM H1) s1 hokN (foldCodes_new hc a EH envM tblM H1) (by ctx_tr hfr) hA hs hpl
+          hgt hfl hlp
           (blkAt_mono hb hpH) (fun j hj hij => recOK_new (hrec j hj (by omega)) hpH) (by omega) (by omega)))
       (fun _ w s2 C2 _ => ?_)
     · exact ⟨by simp +decide [Env.get, foParams, ctxEnv], by simp +decide [sev, Env.get, foParams, ctxEnv]; exact word_add1_eq i,

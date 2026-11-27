@@ -179,7 +179,7 @@ theorem core_verdict (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : System
       SpecR (σ := σ) (Inv (C1 codeT H' EH' sP.pins) sP Γ' [] mainLocals) (frontAssigns restP) sP
         ((fun _ => (pure () : AM Unit)) ()) (fun _ _ _ _ => Verdict nb) := by
     intro sP EH' Γ' hrun hb hz _ hag
-    obtain ⟨hokP, -, hpo, hpp, hoff, -, -⟩ := internReservedPins_run (boot_ok P0).1 (boot_ok P0).2.1 hrun
+    obtain ⟨hokP, hextP, hpo, hpp, hoff, -, -⟩ := internReservedPins_run (boot_ok P0).1 (boot_ok P0).2.1 hrun
     let C := C1 codeT H' EH' sP.pins
     have hC : C.code = codeMap (codeEntries C) := code_C1 _ _ _
     unfold frontAssigns
@@ -197,7 +197,7 @@ theorem core_verdict (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : System
     have gRA : Γ'.get kRA = some (cA j0F) := by rw [hag _ (by decide)]; decide
     have gRL : Γ'.get kRL = some (BitVec.ofNat 64 (8 * Lw)) := by rw [hag _ (by decide)]; decide
     rcases rest_verdict [] [] ra C (ctxOK_C1 _ _ _ _ hb) (frontOK_C1 _ _ _ _) (front_ok σ C hC) (fold_ok C hC) rfl rfl rfl
-        (feed_ok C hC) sP hokP hoff hpo hpp trivial _ [] mainLocals (fun x hx => by
+        (feed_ok C hC) sP hokP hoff hpo hpp trivial (denoteN_ext (boot_ok P0).2.2.1 hextP) _ [] mainLocals (fun x hx => by
           simp only [List.mem_cons, List.not_mem_nil, or_false] at hx
           rcases hx with rfl | rfl | rfl | rfl | rfl | rfl <;> decide)
         rbF capD 0 capF j0F Lw (by simp [rbF]) (by simp [j0F]; omega) Himg (by rw [Himg_length]; simp [NH])

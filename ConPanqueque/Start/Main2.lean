@@ -38,6 +38,7 @@ theorem main_spec2 (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.RuntimeAss
     (hcF : C.code.lookup fFeed = some (feedPs.map (fun p => (p, ShapeHOL.one)), prologue feedL feedCore, .one))
     (hEB : ∀ j, ecell C j = ecb j) (hcells : ∀ j ∈ cellsF, ∃ w, C.EH[j]? = some w)
     (s : AState) (hst : StateOK s) (hoff : s.store.scratchOn = false) (hpo : PinsOK s)
+    (hA : denoteN s.store.ns default = some .anonymous)
     (Γ : Env) (M : Mem) (D : List MlS) (hD : ∀ x ∈ [kZ, kR0, kN0, kR1], x ∈ D) (hDF : ∀ x ∈ forbidVars, x ∈ D)
     (hfl : FrontLay F rb capD jN (jN + cap) (jN + 2 * cap) cap bufJ b) (hcap1 : 1 ≤ cap) (hcapN : cap ≤ ConPanqueque.Scan.natCap)
     (hcap8 : 8 * cap < 2 ^ 64) (hcapD8 : 8 * (rb + 1 + capD) < 2 ^ 64) (hFH : F ≤ C.H.length)
@@ -67,8 +68,8 @@ theorem main_spec2 (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.RuntimeAss
   have hlen : st'.decls.size < 2 ^ 62 := by have := hfs.dr.2.1; omega
   have hRB'' : Γ''.get kRB = some (cellA (ctxH C H') rb) := by rw [hag _ (by decide) (by decide)]; exact hRB
   refine forbid_spec (C := ctxH C H') hEB hDF hfs.dr hcapD8 hRB'' cellsF hcells (fun Γ' hag' hforb => ?_)
-  refine specR_mono (specR_run (foldCall_spec pins ra (ctxH C H') (ctxOK_ctxH hok) (foldCodes_ctxH hc H') hs hpl hfe
-    s' Γ' D (fun x hx => hD x (by
+  refine specR_mono (specR_run (foldCall_spec pins ra (ctxH C H') (ctxOK_ctxH hok) (foldCodes_ctxH hc H') (by ctx_tr hf)
+    hs hpl hfe s' (ConRon.Bridge.denoteN_ext hA hstep.ext) Γ' D (fun x hx => hD x (by
       simp only [List.mem_cons, List.not_mem_nil, or_false] at hx ⊢; rcases hx with rfl | rfl <;> simp)) st'
     (frontSt_ctxH H' hfs) hd hlen (by rw [hag' _ (by decide)]; exact hRB''))) (fun t ht => ht)
     (fun a w s'' t ⟨hm, _⟩ => ⟨st', s', hrun, hval, hm, hforb⟩)

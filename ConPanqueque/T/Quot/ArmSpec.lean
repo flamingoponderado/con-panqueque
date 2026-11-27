@@ -28,6 +28,12 @@ structure QCodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
   ilp : CodesILP C (ilpBody C)
   iq : C.code.lookup fInstQ = some (iqParams.map (fun p => (p, ShapeHOL.one)), instQBody C, .one)
 
+set_option maxRecDepth 8000 in
+theorem qcodes_ctxH {mode : ConLeche.CheckMode} {C : Ctx} (h : QCodes mode C) (H : List (BitVec 64)) :
+    QCodes mode (ctxH C H) := by
+  obtain ⟨d, e, pl, pf, ilp1, ilpf, ilp, iq⟩ := h
+  exact ⟨by ctx_tr d, by ctx_tr e, pl, pf, ilp1, ilpf, by ctx_tr ilp, iq⟩
+
 /-- A record's constant value in the value heap at `q` (`Decl.RecCV`'s copy). -/
 def RecCVQ (C : Ctx) (q : Nat) (cv : IConstantVal) : Prop :=
   ∃ (ol : Nat) (ks : List ConLeche.Name), C.H[q]? = some (Enc.idxW cv.name) ∧ C.H[q + 1]? = some (cellA C ol) ∧
@@ -621,6 +627,39 @@ theorem arm_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.Ch
     simp only [bind_assoc]
     refine hrest _ (base_cons (base_cons hB5 (by decide) (by decide) _) (by decide) (by decide) _)
       (by simp +decide only [Env.get_cons, ite_true, ite_false])
+
+set_option maxHeartbeats 4000000 in
+/-- **`checkDecl` at a quotient record**: the type former and the constructor; the recursors hang. -/
+theorem kq_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (mode : ConLeche.CheckMode)
+    (pins : List INatOpPinSet) (C : Ctx) (hok : CtxOK C) (hc : QCodes mode C)
+    (hs : C.side = false) (hpl : C.saved = none) (hg : TblGate C.fe) (hF : FlagsOK C.fe) (hL : LitsPinned C.fe C.pins)
+    (hf : ConPanqueque.Front.FrontOK C) (hA : denoteN C.St.ns default = some .anonymous)
+    (k : ConLeche.QuotKind) (cv : IConstantVal) (q : Nat) (hrc : RecCVQ C q cv) (s : AState) :
+    SpecR (σ := σ) (Pre C s (kdParams.zip [cellA C q, BitVec.ofNat 64 (qkN k), 0])) (kqBody C) s
+      (checkDecl mode pins C.fe (.quotDecl k cv)) (PostStep C) := by
+  refine specR_prologue (postStep_locals C) (kq_none C _) ?_
+  have hB0 : Base C q (ctxEnv C ++ kdParams.zip [cellA C q, BitVec.ofNat 64 (qkN k), 0]) :=
+    ⟨by simp +decide [Env.get, kdParams, ctxEnv], by simp +decide [Env.get, kdParams, ctxEnv]⟩
+  have hV : (ctxEnv C ++ kdParams.zip [cellA C q, BitVec.ofNat 64 (qkN k), 0]).get kdV =
+      some (BitVec.ofNat 64 (qkN k)) := by simp +decide [Env.get, kdParams, ctxEnv]
+  cases k with
+  | type =>
+    refine specR_ifI _ 1 (by simp +decide [sev, sev_vv, Env.get, kdParams, ctxEnv, qkN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    exact arm_spec ra mode pins C hok hc hs hpl hg hF hL hf hA .type 0 (Or.inl ⟨rfl, rfl⟩) cv q hrc C.H
+      (List.prefix_refl _) s _ hB0
+  | ctor =>
+    refine specR_ifI _ 0 (by simp +decide [sev, sev_vv, Env.get, kdParams, ctxEnv, qkN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_ifI _ 1 (by simp +decide [sev, sev_vv, Env.get, kdParams, ctxEnv, qkN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    exact arm_spec ra mode pins C hok hc hs hpl hg hF hL hf hA .ctor 1 (Or.inr ⟨rfl, rfl⟩) cv q hrc C.H
+      (List.prefix_refl _) s _ hB0
+  | lift | ind | sound =>
+    refine specR_ifI _ 0 (by simp +decide [sev, sev_vv, Env.get, kdParams, ctxEnv, qkN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    exact specR_ifI _ 0 (by simp +decide [sev, sev_vv, Env.get, kdParams, ctxEnv, qkN, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+      (fun h => absurd rfl h) (fun _ => specR_hangI)
 
 end
 

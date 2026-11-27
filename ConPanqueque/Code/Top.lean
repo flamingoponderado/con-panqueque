@@ -17,7 +17,7 @@ theorem top_verdict_table {σ : Type} (pins : List INatOpPinSet) (pinsP : List C
     (hok : CtxOK C) (hf : FrontOK C)
     (hs : C.side = false) (hpl : C.saved = none) (hfe : C.fe = feStart C.pins)
     (s : AState) (hst : StateOK s) (hoff : s.store.scratchOn = false) (hpo : PinsOK s)
-    (hpp : PersPins s) (hpins : PinsDenote s.store pins pinsP)
+    (hpp : PersPins s) (hpins : PinsDenote s.store pins pinsP) (hA : denoteN s.store.ns default = some .anonymous)
     (Γ : Env) (M : Mem) (D : List MlS) (hD : ∀ x ∈ [kZ, kR0, kN0, kR1, kBN, kBA], x ∈ D)
     (rb capD jN cap j0 Lw : Nat)
     (hlay : jN + 3 * cap ≤ rb) (hbuf0 : rb + 1 + capD ≤ j0 + 1) (hcells : j0 + Lw ≤ C.H.length)
@@ -42,7 +42,7 @@ theorem top_verdict_table {σ : Type} (pins : List INatOpPinSet) (pinsP : List C
             ∃ F', ConLeche.checkDeclsPure .verified (ConLeche.fueledOps .verified F') pinsP rc.decls.toList
               = .ok (ConLeche.streamEnv rc.decls.toList)) :=
   top_verdict pins pinsP ra C hok hf (front_ok σ C hC) (fold_ok C hC) hs hpl hfe (feed_ok C hC) s hst hoff hpo hpp
-    hpins Γ M D hD rb capD jN cap j0 Lw hlay hbuf0 hcells hL16 h59 hal hov hbits hcap1 hcapN hcap8 hcapD8 hZb hZn hTN
+    hpins hA Γ M D hD rb capD jN cap j0 Lw hlay hbuf0 hcells hL16 h59 hal hov hbits hcap1 hcapN hcap8 hcapD8 hZb hZn hTN
     hTL hTE hCp hRB hCD hZL hRA hRL hRM t ht hbe
 
 end ConPanqueque.Code

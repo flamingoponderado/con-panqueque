@@ -21,7 +21,8 @@ variable {σ : Type}
 theorem fold_verdict (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPinSet)
     (ra : ConPanqueque.Hash.RuntimeAssumptions) (rs : List (Nat × IDeclaration)) (ob : Nat)
     (hlenR : rs.length < 2 ^ 62) (C : Ctx) (s : AState) (hok : CtxOK C)
-    (hc : FoldCodes .verified C) (hs : C.side = false) (hpl : C.saved = none)
+    (hc : FoldCodes .verified C) (hfr : ConPanqueque.Front.FrontOK C)
+    (hA : denoteN C.St.ns default = some .anonymous) (hs : C.side = false) (hpl : C.saved = none)
     (hfe : C.fe = feStart C.pins) (hp : s.pins = C.pins)
     (hb : BlkAt C.H ob (rs.map (fun r => cellA C r.1)))
     (hrec : ∀ j (hj : j < rs.length), RecOK C rs[j].1 rs[j].2)
@@ -36,7 +37,7 @@ theorem fold_verdict (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPinS
       ((∃ w, (evaluateHOLFiniteState t foldBody).1 = some (.returned (.val (.word w)))) ∧
         ∃ F, ConLeche.checkDeclsPure .verified (ConLeche.fueledOps .verified F) pinsP dsP
           = .ok (ConLeche.streamEnv dsP)) := by
-  rcases checkDeclsPure_spec (σ := σ) .verified pins ra rs ob hlenR C s hok hc hs hpl hfe hp hb hrec t ht
+  rcases checkDeclsPure_spec (σ := σ) .verified pins ra rs ob hlenR C s hok hc hfr hA hs hpl hfe hp hb hrec t ht
     with hstop | ⟨w, hw, a, s', hm, -⟩
   · exact Or.inl hstop
   · exact Or.inr ⟨⟨w, hw⟩, ConPanqueque.Bridge.seq_bridge' hst hpo hpp hpins hden (fun pd h => ConPanqueque.Bridge.isChecked_of_value (hval pd h)) hm⟩

@@ -138,6 +138,7 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
   have hev : (⟨.extCall fRead, [], bs.zip nb⟩ : _) ∈ t3.ffi.ioEvents := by rw [hio]; simp
   -- after the pins: the `Bool.rec` cell, the frontend's locals, the rest
   have hk2 : ∀ (bh : NIdx) (s1 : AState) (Γ1 : Env), StateOK s1 → s1.store.scratchOn = false →
+      denoteN s1.store.ns default = some .anonymous →
       denoteN s1.store.ns bh = some boolRecName → PersN bh → Γ1.get vBr = some (Enc.idxW bh) →
       (∀ y, y ∉ [vPn, vKa, vBr] → Γ1.get y = Γ2.get y) →
       ∀ sP (EH' : List (BitVec 64)) (Γ' : Env), internReservedPins s1 = .ok ((), sP) →
@@ -147,7 +148,7 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
         (envAllocP Cprog vPb (.const (BitVec.ofNat 64 8)) (.seq (.store (vv vPb) (vv vBr)) (offCheckP Cprog (ConPanqueque.T.Lit.basisP Cprog ConPanqueque.T.Lit.basisKinds (frontAssigns (restP2 capF))))))
         sP (ConPanqueque.T.Lit.basisTwin ConPanqueque.T.Lit.basisKinds >>= fun _ => (pure () : AM Unit))
         (fun _ _ _ _ => Verdict2 nb) := by
-    intro bh s1 Γ1 hok1 hoff1 hbd1 hbp hbr hag1 sP EH' Γ' hrun hb hz hlen hag
+    intro bh s1 Γ1 hok1 hoff1 hA1 hbd1 hbp hbr hag1 sP EH' Γ' hrun hb hz hlen hag
     obtain ⟨hokP, hextP, hpo, hpp, hoff, -, -⟩ := internReservedPins_run hok1 hoff1 hrun
     have hr16 : sP.pins.reserved.length ≤ 16 := by
       rw [(denoteNL_get hpo.reserved).1, reserved_length]
@@ -225,7 +226,8 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
         rw [Himg_length]; simp [NH]; rw [hl] at hb; omega)).symm
     rcases rest_verdict2 [] [] ra (ctxH C H'') (ctxOK_H (ctxOK_C1 _ _ _ _ hb3) H'') (by ctx_tr (frontOK_C1 codeT H' EH3 sP.pins))
         (frontCodes_ctxH (front_ok σ C hC)) (foldCodes_ctxH (fold_ok C hC) H'') rfl rfl rfl
-        (fun _ => rfl) (feed_ok C hC) s' hokP' hoff'.1 hpo' hpp' trivial hb3' bh hB3 hbd' hbp _ [] mainLocals2 (fun x hx => by
+        (fun _ => rfl) (feed_ok C hC) s' hokP' hoff'.1 hpo' hpp' trivial
+        (ConRon.Bridge.denoteN_ext (ConRon.Bridge.denoteN_ext hA1 hextP) hist.ext) hb3' bh hB3 hbd' hbp _ [] mainLocals2 (fun x hx => by
           simp only [List.mem_cons, List.not_mem_nil, or_false] at hx
           rcases hx with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> decide) (fun x hx => by
           simp only [forbidVars, List.mem_cons, List.not_mem_nil, or_false] at hx
@@ -264,7 +266,8 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
         simp only [List.mem_cons, List.not_mem_nil, or_false] at hx
         rcases hx with rfl | rfl | rfl | rfl <;> decide) H' s1 _ []
       (fun _ => ConPanqueque.T.Lit.basisTwin ConPanqueque.T.Lit.basisKinds >>= fun _ => pure ())
-      (fun sP EH' Γ' hrun hb hz hlen hag => hk2 bh s1 _ st1.ok hoff1 hden1 hbp (by simp [T.Env.get_cons])
+      (fun sP EH' Γ' hrun hb hz hlen hag => hk2 bh s1 _ st1.ok hoff1
+        (ConRon.Bridge.denoteN_ext (boot_ok P0).2.2.1 st1.ext) hden1 hbp (by simp [T.Env.get_cons])
         (fun y hy => by
           simp only [List.mem_cons, List.not_mem_nil, or_false, not_or] at hy
           simp only [T.Env.get_cons, ite_eq_right hy.2.2]; exact hag1 y hy.1 hy.2.1) sP EH' Γ' hrun hb hz hlen hag)

@@ -50,6 +50,7 @@ def foldCallP : ProgHOL 64 :=
   .seq (.assign .local kN0 (.load .one (vv kRB)))
     (.seq (.call (some (some (.local, kR1), none)) fFold [vv kRB, .const 0, vv kN0]) (.return (vv kR1)))
 
+set_option maxRecDepth 8000 in
 theorem foldCodes_St {mode : ConLeche.CheckMode} {C : Ctx} (hc : FoldCodes mode C) (St : EStore) :
     FoldCodes mode (ctxSt C St) := by ctx_tr hc
 
@@ -61,8 +62,8 @@ section
 variable {F rb capD jN jL jE cap bufJ : Nat} {b : ByteArray}
 
 theorem foldCall_spec (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx)
-    (hok : CtxOK C) (hc : FoldCodes .verified C) (hs : C.side = false) (hpl : C.saved = none)
-    (hfe : C.fe = feStart C.pins) (s : AState) (Γ : Env) (D : List MlS) (hD : ∀ x ∈ [kN0, kR1], x ∈ D)
+    (hok : CtxOK C) (hc : FoldCodes .verified C) (hfr : FrontOK C) (hs : C.side = false) (hpl : C.saved = none)
+    (hfe : C.fe = feStart C.pins) (s : AState) (hA : denoteN s.store.ns default = some .anonymous) (Γ : Env) (D : List MlS) (hD : ∀ x ∈ [kN0, kR1], x ∈ D)
     (st : StateD) (hfs : FrontSt C F rb capD jN jL jE cap bufJ b C.H st)
     (hd : ∀ k (hk : k < st.decls.size), (denoteDecl s.store st.decls[k]).isSome)
     (hlen : st.decls.size < 2 ^ 62) (hRB : Γ.get kRB = some (cellA C rb)) :
@@ -91,7 +92,7 @@ theorem foldCall_spec (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.Runtime
     exact ⟨by rw [hRB]; rfl, rfl, trivial, trivial⟩
   · subst ht
     exact checkDeclsPure_spec .verified pins ra rs rb (by omega) C' s (ctxOK_St hok _) (foldCodes_St hc s.store)
-      hs hpl hfe hu.pins hb hrec' t ⟨hu, env_zip_get foParams _ rfl hlk⟩
+      (by ctx_tr hfr) hA hs hpl hfe hu.pins hb hrec' t ⟨hu, env_zip_get foParams _ rfl hlk⟩
 
 end
 

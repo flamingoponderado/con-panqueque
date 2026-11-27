@@ -26,6 +26,7 @@ theorem declsRel_value {C : Ctx} {F rb capD : Nat} {H : List (BitVec 64)} {ds : 
   simp only [Array.getElem_toList] at hr ⊢
   cases hx : ds[k] <;> rw [hx] at hr <;> first | trivial | exact hr.elim | exact hr.2.2.2.2
 
+set_option maxRecDepth 8000 in
 theorem foldCodes_ctxH {mode : ConLeche.CheckMode} {C : Ctx} (hc : FoldCodes mode C) (H : List (BitVec 64)) :
     FoldCodes mode (ctxH C H) := by ctx_tr hc
 
@@ -44,6 +45,7 @@ theorem main_spec (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.RuntimeAssu
     (hs : C.side = false) (hpl : C.saved = none) (hfe : C.fe = feStart C.pins)
     (hcF : C.code.lookup fFeed = some (feedPs.map (fun p => (p, ShapeHOL.one)), prologue feedL feedCore, .one))
     (s : AState) (hst : StateOK s) (hoff : s.store.scratchOn = false) (hpo : PinsOK s)
+    (hA : denoteN s.store.ns default = some .anonymous)
     (Γ : Env) (M : Mem) (D : List MlS) (hD : ∀ x ∈ [kZ, kR0, kN0, kR1], x ∈ D)
     (hfl : FrontLay F rb capD jN (jN + cap) (jN + 2 * cap) cap bufJ b) (hcap1 : 1 ≤ cap) (hcapN : cap ≤ ConPanqueque.Scan.natCap)
     (hcap8 : 8 * cap < 2 ^ 64) (hcapD8 : 8 * (rb + 1 + capD) < 2 ^ 64) (hFH : F ≤ C.H.length)
@@ -71,8 +73,8 @@ theorem main_spec (pins : List INatOpPinSet) (ra : ConPanqueque.Hash.RuntimeAssu
   have hd : ∀ k (hk : k < st'.decls.size), (denoteDecl s'.store st'.decls[k]).isSome :=
     fun k hk => denoteDecls_isSome hden _ (by simp)
   have hlen : st'.decls.size < 2 ^ 62 := by have := hfs.dr.2.1; omega
-  refine specR_mono (specR_run (foldCall_spec pins ra (ctxH C H') (ctxOK_ctxH hok) (foldCodes_ctxH hc H') hs hpl hfe
-    s' Γ'' D (fun x hx => hD x (by
+  refine specR_mono (specR_run (foldCall_spec pins ra (ctxH C H') (ctxOK_ctxH hok) (foldCodes_ctxH hc H') (by ctx_tr hf)
+    hs hpl hfe s' (ConRon.Bridge.denoteN_ext hA hstep.ext) Γ'' D (fun x hx => hD x (by
       simp only [List.mem_cons, List.not_mem_nil, or_false] at hx ⊢; rcases hx with rfl | rfl <;> simp)) st'
     (frontSt_ctxH H' hfs) hd hlen (by rw [hag _ (by decide) (by decide)]; exact hRB))) (fun t ht => ht)
     (fun a w s'' t ⟨hm, _⟩ => ⟨st', s', hrun, hval, hm⟩)
@@ -85,7 +87,7 @@ theorem front_verdict (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPin
     (hs : C.side = false) (hpl : C.saved = none) (hfe : C.fe = feStart C.pins)
     (hcF : C.code.lookup fFeed = some (feedPs.map (fun p => (p, ShapeHOL.one)), prologue feedL feedCore, .one))
     (s : AState) (hst : StateOK s) (hoff : s.store.scratchOn = false) (hpo : PinsOK s) (hpp : PersPins s)
-    (hpins : PinsDenote s.store pins pinsP)
+    (hpins : PinsDenote s.store pins pinsP) (hA : denoteN s.store.ns default = some .anonymous)
     (Γ : Env) (M : Mem) (D : List MlS) (hD : ∀ x ∈ [kZ, kR0, kN0, kR1], x ∈ D)
     (hfl : FrontLay F rb capD jN (jN + cap) (jN + 2 * cap) cap bufJ b) (hcap1 : 1 ≤ cap) (hcapN : cap ≤ ConPanqueque.Scan.natCap)
     (hcap8 : 8 * cap < 2 ^ 64) (hcapD8 : 8 * (rb + 1 + capD) < 2 ^ 64) (hFH : F ≤ C.H.length)
@@ -105,7 +107,7 @@ theorem front_verdict (pins : List INatOpPinSet) (pinsP : List ConLeche.NatOpPin
   have hsz : b.size < USize.size := by
     have := hbuf.small
     simp only [USize.size_eq_two_pow, hbuf.plat.bits]; omega
-  rcases main_spec pins ra C hok hf fc hc hs hpl hfe hcF s hst hoff hpo Γ M D hD hfl hcap1 hcapN hcap8 hcapD8 hFH
+  rcases main_spec pins ra C hok hf fc hc hs hpl hfe hcF s hst hoff hpo hA Γ M D hD hfl hcap1 hcapN hcap8 hcapD8 hFH
       hbuf hZb hZn hTN hTL hTE hC hBA hBN hRB hCD hZL t ht with hstop | ⟨w, hw, a, s'', -, st', s', hrun, hval, hm⟩
   · exact Or.inl hstop
   refine Or.inr ⟨⟨w, hw⟩, ?_⟩

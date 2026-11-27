@@ -46,7 +46,7 @@ the fold body refines `checkDeclsPure` on the block's records. -/
 theorem checkDeclsPure_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet)
     (ra : ConPanqueque.Hash.RuntimeAssumptions) (rs : List (Nat × IDeclaration)) (ob : Nat)
     (hlenR : rs.length < 2 ^ 62) (C : Ctx) (s : AState) (hok : CtxOK C) (hc : FoldCodes mode C)
-    (hs : C.side = false) (hpl : C.saved = none) (hfe : C.fe = feStart C.pins)
+    (hfr : ConPanqueque.Front.FrontOK C) (hA : denoteN C.St.ns default = some .anonymous) (hs : C.side = false) (hpl : C.saved = none) (hfe : C.fe = feStart C.pins)
     (hp : s.pins = C.pins) (hb : BlkAt C.H ob (rs.map (fun r => cellA C r.1)))
     (hrec : ∀ j (hj : j < rs.length), RecOK C rs[j].1 rs[j].2) :
     SpecR (σ := σ) (Pre C s (foParams.zip [cellA C ob, BitVec.ofNat 64 0, BitVec.ofNat 64 rs.length]))
@@ -56,7 +56,7 @@ theorem checkDeclsPure_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSe
     simp only [checkDeclsPure, bind, StateT.bind, mkIFEnvLits_run hok hp, Except.bind, hfe,
       List.drop_zero]
   refine specR_congr e ?_
-  exact fold_spec mode pins ra rs ob hlenR rs.length 0 C s hok hc hs hpl
+  exact fold_spec mode pins ra rs ob hlenR rs.length 0 C s hok hc hfr hA hs hpl
     (hfe ▸ tblGate_start _) (hfe ▸ flagsOK_start _) (by rw [hfe]; exact litsPinned_start _) hb
     (fun j hj _ => hrec j hj) (by simp) (by simp)
 
