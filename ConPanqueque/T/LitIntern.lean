@@ -562,4 +562,279 @@ theorem genE_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : C
 
 end
 
+/-! ## Constants -/
+
+def NameLit (n : ConLeche.Name) : Prop := ∃ cs, strComps n = some cs ∧ compsOK cs
+
+def genNames (C : Ctx) : List ConLeche.Name → ProgHOL 64 → ProgHOL 64
+  | [], rest => rest
+  | n :: ns, rest => nameP C ((strComps n).getD []) (genNames C ns rest)
+
+def genLvls (C : Ctx) (d : Nat) : List ConLeche.Level → ProgHOL 64 → ProgHOL 64
+  | [], rest => rest
+  | u :: us, rest => genL C d u (genLvls C d us rest)
+
+def genCV (C : Ctx) (d : Nat) (cv : ConLeche.ConstantVal) (rest : ProgHOL 64) : ProgHOL 64 :=
+  nameP C ((strComps cv.name).getD []) (genNames C cv.levelParams (genE C d cv.type rest))
+
+def genFire (C : Ctx) (d : Nat) : ConLeche.RecRuleFire → ProgHOL 64 → ProgHOL 64
+  | .plain, rest => rest
+  | .levels us, rest => genLvls C d us rest
+  | .nested _ _, _ => hang
+
+def genRule (C : Ctx) (d : Nat) (rl : ConLeche.RecRule) (rest : ProgHOL 64) : ProgHOL 64 :=
+  nameP C ((strComps rl.ctor).getD []) (genFire C d rl.fire (genE C d rl.rhs rest))
+
+def genRules (C : Ctx) (d : Nat) : List ConLeche.RecRule → ProgHOL 64 → ProgHOL 64
+  | [], rest => rest
+  | r :: rs, rest => genRule C d r (genRules C d rs rest)
+
+def genCI (C : Ctx) (d : Nat) : ConLeche.ConstantInfo → ProgHOL 64 → ProgHOL 64
+  | .axiomInfo v, rest => genCV C d v rest
+  | .thmInfo v, rest => genCV C d v rest
+  | .defnInfo v e _, rest => genCV C d v (genE C d e rest)
+  | .indInfo v c, rest => genCV C d v (genNames C c.all (genNames C c.ctors rest))
+  | .ctorInfo v _ _ T, rest => genCV C d v (nameP C ((strComps T).getD []) rest)
+  | .recInfo v _ _ _ rs, rest => genCV C d v (genRules C d rs rest)
+
+def genCIList (C : Ctx) (d : Nat) : List ConLeche.ConstantInfo → ProgHOL 64 → ProgHOL 64
+  | [], rest => rest
+  | c :: cs, rest => genCI C d c (genCIList C d cs rest)
+
+def CVLit (d N : Nat) (cv : ConLeche.ConstantVal) : Prop :=
+  NameLit cv.name ∧ (∀ n ∈ cv.levelParams, NameLit n) ∧ ExprOK cv.type ∧ d + edepth cv.type ≤ N
+
+def FireLit (d N : Nat) : ConLeche.RecRuleFire → Prop
+  | .plain => True
+  | .levels us => ∀ u ∈ us, LvlOK u ∧ d + ldepth u ≤ N
+  | .nested _ _ => False
+
+def RuleLit (d N : Nat) (rl : ConLeche.RecRule) : Prop :=
+  NameLit rl.ctor ∧ FireLit d N rl.fire ∧ ExprOK rl.rhs ∧ d + edepth rl.rhs ≤ N
+
+def CILit (d N : Nat) : ConLeche.ConstantInfo → Prop
+  | .axiomInfo v => CVLit d N v
+  | .thmInfo v => CVLit d N v
+  | .defnInfo v e _ => CVLit d N v ∧ ExprOK e ∧ d + edepth e ≤ N
+  | .indInfo v c => CVLit d N v ∧ (∀ n ∈ c.all, NameLit n) ∧ ∀ n ∈ c.ctors, NameLit n
+  | .ctorInfo v _ _ T => CVLit d N v ∧ NameLit T
+  | .recInfo v _ _ _ rs => CVLit d N v ∧ ∀ r ∈ rs, RuleLit d N r
+
+theorem genNames_ctxH (C : Ctx) (H : List (BitVec 64)) : ∀ (ns : List ConLeche.Name) (r : ProgHOL 64),
+    genNames (ctxH C H) ns r = genNames C ns r
+  | [], _ => rfl
+  | n :: ns, r => by simp only [genNames, nameP, stepsP_ctxH, genNames_ctxH C H ns r]
+
+section
+variable {σ : Type}
+
+open ConPanqueque.Logic.PlainIntern
+
+/-- The shared hypotheses of the constant-level specs. -/
+structure GenEnv (C : Ctx) (D : List MlS) (N : Nat) : Prop where
+  hok : CtxOK C
+  hf : ConPanqueque.Front.FrontOK C
+  hA : denoteN C.St.ns default = some .anonymous
+  hc : ECodes C
+  hPn : vPn ∈ D
+  hKa : vKa ∈ D
+  hD : ∀ c j, j < N → gv c j ∈ D
+
+theorem name_step (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : List MlS} {N : Nat}
+    (G : GenEnv C D N) (n : ConLeche.Name) (hn : NameLit n) (d : Nat) (H0 : List (BitVec 64)) (rest : ProgHOL 64)
+    (Γ : Env) (M : Mem) (s : AState) {β : Type} {k : NIdx → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    (hk : ∀ h s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k h) R) :
+    SpecR (Inv (ctxH C H0) s Γ M D) (nameP C ((strComps n).getD []) rest) s (internName n >>= k) R := by
+  obtain ⟨cs, hcs, hcok⟩ := hn
+  rw [hcs, Option.getD_some]
+  refine specR_atEntry fun t0 ht0 => ?_
+  rw [show nameP C cs = nameP (ctxH C H0) cs from by funext r; simp only [nameP, stepsP_ctxH]]
+  exact name_spec ra (ctxH C H0) (ctxOK_H G.hok H0) (by ctx_tr G.hf) G.hc.l.n D G.hPn G.hKa n cs hcs hcok s
+    ⟨ht0.sr.twf⟩ (denoteN_ext G.hA ht0.sr.floor) Γ M _
+    (fun h s1 Γ1 ag1 _ _ => hk h s1 Γ1 H0 (List.prefix_refl _) (fun y _ h3 h4 => ag1 y h3 h4))
+
+theorem genNames_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : List MlS} {N : Nat}
+    (G : GenEnv C D N) (d : Nat) :
+    ∀ (ns : List ConLeche.Name) (H0 : List (BitVec 64)) (rest : ProgHOL 64) (Γ : Env) (M : Mem) (s : AState)
+      {β : Type} {k : List NIdx → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}, (∀ n ∈ ns, NameLit n) →
+      (∀ hs s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k hs) R) →
+      SpecR (Inv (ctxH C H0) s Γ M D) (genNames C ns rest) s (ConRon.Arena.Frontend.internNameList ns >>= k) R := by
+  intro ns
+  induction ns with
+  | nil =>
+    intro H0 rest Γ M s β k R _ hk
+    simp only [genNames, ConRon.Arena.Frontend.internNameList, pure_bind]
+    intro t ht; exact hk [] s Γ H0 (List.prefix_refl _) (agreeL_refl _ _) t (lit_dropMem ht)
+  | cons n ns ih =>
+    intro H0 rest Γ M s β k R hns hk
+    simp only [genNames, ConRon.Arena.Frontend.internNameList, bind_assoc]
+    refine name_step ra G n (hns n (List.mem_cons_self ..)) d H0 _ Γ M s (fun h s1 Γ1 H1 hp1 ag1 => ?_)
+    refine ih H1 rest Γ1 [] s1 (fun m hm => hns m (List.mem_cons_of_mem _ hm)) (fun hs s2 Γ2 H2 hp2 ag2 => ?_)
+    simp only [pure_bind]
+    exact hk _ s2 Γ2 H2 (hp1.trans hp2) (agreeL_trans ag1 ag2)
+
+end
+
+section
+variable {σ : Type}
+
+open ConPanqueque.Logic.PlainIntern
+
+theorem genLvls_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : List MlS} {N : Nat}
+    (G : GenEnv C D N) (d : Nat) :
+    ∀ (us : List ConLeche.Level) (H0 : List (BitVec 64)) (rest : ProgHOL 64) (Γ : Env) (M : Mem) (s : AState)
+      {β : Type} {k : List LIdx → AM β} {R : β → BitVec 64 → AState → PState σ → Prop},
+      (∀ u ∈ us, LvlOK u ∧ d + ldepth u ≤ N) →
+      (∀ hs s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k hs) R) →
+      SpecR (Inv (ctxH C H0) s Γ M D) (genLvls C d us rest) s (internLevelList us >>= k) R := by
+  intro us
+  induction us with
+  | nil =>
+    intro H0 rest Γ M s β k R _ hk
+    simp only [genLvls, internLevelList, pure_bind]
+    intro t ht; exact hk [] s Γ H0 (List.prefix_refl _) (agreeL_refl _ _) t (lit_dropMem ht)
+  | cons u us ih =>
+    intro H0 rest Γ M s β k R hus hk
+    simp only [genLvls, internLevelList, bind_assoc]
+    obtain ⟨hu, hdu⟩ := hus u (List.mem_cons_self ..)
+    rw [← genL_ctxH C H0]
+    refine genL_spec ra (ctxH C H0) (ctxOK_H G.hok H0) (by ctx_tr G.hf) G.hA (by ctx_tr G.hc.l) D G.hPn G.hKa u d _ Γ M s hu
+      (fun j h1 h2 => G.hD _ _ (by omega)) (fun h1 s1 Γ1 ag1 _ => ?_)
+    refine ih H0 rest Γ1 [] s1 (fun v hv => hus v (List.mem_cons_of_mem _ hv)) (fun hs s2 Γ2 H2 hp2 ag2 => ?_)
+    simp only [pure_bind]
+    exact hk _ s2 Γ2 H2 hp2 (agreeL_trans ag1 ag2)
+
+theorem genCV_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : List MlS} {N : Nat}
+    (G : GenEnv C D N) (d : Nat) (cv : ConLeche.ConstantVal) (H0 : List (BitVec 64)) (rest : ProgHOL 64)
+    (Γ : Env) (M : Mem) (s : AState) {β : Type} {k : IConstantVal → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    (hcv : CVLit d N cv)
+    (hk : ∀ r s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k r) R) :
+    SpecR (Inv (ctxH C H0) s Γ M D) (genCV C d cv rest) s (plainCV cv >>= k) R := by
+  obtain ⟨hn, hl, he, hde⟩ := hcv
+  unfold genCV plainCV
+  simp only [bind_assoc]
+  refine name_step ra G _ hn d H0 _ Γ M s (fun h1 s1 Γ1 H1 hp1 ag1 => ?_)
+  refine genNames_spec ra G d _ H1 _ Γ1 [] s1 hl (fun hs s2 Γ2 H2 hp2 ag2 => ?_)
+  refine genE_spec ra C G.hok G.hf G.hA G.hc D G.hPn G.hKa N G.hD _ d H2 rest Γ2 [] s2 he hde
+    (fun h s3 Γ3 H3 hp3 ag3 _ => ?_)
+  simp only [pure_bind]
+  exact hk _ s3 Γ3 H3 (hp1.trans (hp2.trans hp3)) (agreeL_trans ag1 (agreeL_trans ag2 ag3))
+
+theorem genFire_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : List MlS} {N : Nat}
+    (G : GenEnv C D N) (d : Nat) (f : ConLeche.RecRuleFire) (H0 : List (BitVec 64)) (rest : ProgHOL 64)
+    (Γ : Env) (M : Mem) (s : AState) {β : Type} {k : IRecRuleFire → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    (hf : FireLit d N f)
+    (hk : ∀ r s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k r) R) :
+    SpecR (Inv (ctxH C H0) s Γ M D) (genFire C d f rest) s (plainFire f >>= k) R := by
+  cases f with
+  | plain =>
+    simp only [genFire, plainFire, pure_bind]
+    intro t ht; exact hk _ s Γ H0 (List.prefix_refl _) (agreeL_refl _ _) t (lit_dropMem ht)
+  | levels us =>
+    simp only [genFire, plainFire, bind_assoc]
+    exact genLvls_spec ra G d us H0 rest Γ M s hf (fun hs s' Γ' H' hp ag => by
+      simp only [pure_bind]; exact hk _ s' Γ' H' hp ag)
+  | nested _ _ => exact hf.elim
+
+theorem genRule_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : List MlS} {N : Nat}
+    (G : GenEnv C D N) (d : Nat) (rl : ConLeche.RecRule) (H0 : List (BitVec 64)) (rest : ProgHOL 64)
+    (Γ : Env) (M : Mem) (s : AState) {β : Type} {k : IRecRule → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    (hr : RuleLit d N rl)
+    (hk : ∀ r s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k r) R) :
+    SpecR (Inv (ctxH C H0) s Γ M D) (genRule C d rl rest) s (plainRule rl >>= k) R := by
+  obtain ⟨hn, hf, he, hde⟩ := hr
+  unfold genRule plainRule
+  simp only [bind_assoc]
+  refine name_step ra G _ hn d H0 _ Γ M s (fun h1 s1 Γ1 H1 hp1 ag1 => ?_)
+  refine genFire_spec ra G d _ H1 _ Γ1 [] s1 hf (fun f s2 Γ2 H2 hp2 ag2 => ?_)
+  refine genE_spec ra C G.hok G.hf G.hA G.hc D G.hPn G.hKa N G.hD _ d H2 rest Γ2 [] s2 he hde
+    (fun h s3 Γ3 H3 hp3 ag3 _ => ?_)
+  simp only [pure_bind]
+  exact hk _ s3 Γ3 H3 (hp1.trans (hp2.trans hp3)) (agreeL_trans ag1 (agreeL_trans ag2 ag3))
+
+theorem genRules_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : List MlS} {N : Nat}
+    (G : GenEnv C D N) (d : Nat) :
+    ∀ (rs : List ConLeche.RecRule) (H0 : List (BitVec 64)) (rest : ProgHOL 64) (Γ : Env) (M : Mem) (s : AState)
+      {β : Type} {k : List IRecRule → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}, (∀ r ∈ rs, RuleLit d N r) →
+      (∀ hs s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k hs) R) →
+      SpecR (Inv (ctxH C H0) s Γ M D) (genRules C d rs rest) s (plainRules rs >>= k) R := by
+  intro rs
+  induction rs with
+  | nil =>
+    intro H0 rest Γ M s β k R _ hk
+    simp only [genRules, plainRules, pure_bind]
+    intro t ht; exact hk [] s Γ H0 (List.prefix_refl _) (agreeL_refl _ _) t (lit_dropMem ht)
+  | cons r rs ih =>
+    intro H0 rest Γ M s β k R hrs hk
+    simp only [genRules, plainRules, bind_assoc]
+    refine genRule_spec ra G d r H0 _ Γ M s (hrs r (List.mem_cons_self ..)) (fun h1 s1 Γ1 H1 hp1 ag1 => ?_)
+    refine ih H1 rest Γ1 [] s1 (fun m hm => hrs m (List.mem_cons_of_mem _ hm)) (fun hs s2 Γ2 H2 hp2 ag2 => ?_)
+    simp only [pure_bind]
+    exact hk _ s2 Γ2 H2 (hp1.trans hp2) (agreeL_trans ag1 ag2)
+
+theorem genCI_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : List MlS} {N : Nat}
+    (G : GenEnv C D N) (d : Nat) (c : ConLeche.ConstantInfo) (H0 : List (BitVec 64)) (rest : ProgHOL 64)
+    (Γ : Env) (M : Mem) (s : AState) {β : Type} {k : IConstantInfo → AM β} {R : β → BitVec 64 → AState → PState σ → Prop}
+    (hc : CILit d N c)
+    (hk : ∀ r s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k r) R) :
+    SpecR (Inv (ctxH C H0) s Γ M D) (genCI C d c rest) s (plainCI c >>= k) R := by
+  cases c with
+  | axiomInfo v =>
+    simp only [genCI, plainCI, bind_assoc]
+    exact genCV_spec ra G d v H0 rest Γ M s hc (fun r s' Γ' H' hp ag => by simp only [pure_bind]; exact hk _ s' Γ' H' hp ag)
+  | thmInfo v =>
+    simp only [genCI, plainCI, bind_assoc]
+    exact genCV_spec ra G d v H0 rest Γ M s hc (fun r s' Γ' H' hp ag => by simp only [pure_bind]; exact hk _ s' Γ' H' hp ag)
+  | defnInfo v e hint =>
+    simp only [genCI, plainCI, bind_assoc]
+    refine genCV_spec ra G d v H0 _ Γ M s hc.1 (fun r1 s1 Γ1 H1 hp1 ag1 => ?_)
+    refine genE_spec ra C G.hok G.hf G.hA G.hc D G.hPn G.hKa N G.hD _ d H1 rest Γ1 [] s1 hc.2.1 hc.2.2
+      (fun h s2 Γ2 H2 hp2 ag2 _ => ?_)
+    simp only [pure_bind]
+    exact hk _ s2 Γ2 H2 (hp1.trans hp2) (agreeL_trans ag1 ag2)
+  | indInfo v caps =>
+    simp only [genCI, plainCI, bind_assoc]
+    refine genCV_spec ra G d v H0 _ Γ M s hc.1 (fun r1 s1 Γ1 H1 hp1 ag1 => ?_)
+    unfold ConRon.Arena.Frontend.internCaps
+    simp only [bind_assoc]
+    refine genNames_spec ra G d _ H1 _ Γ1 [] s1 hc.2.1 (fun hs s2 Γ2 H2 hp2 ag2 => ?_)
+    refine genNames_spec ra G d _ H2 rest Γ2 [] s2 hc.2.2 (fun hs' s3 Γ3 H3 hp3 ag3 => ?_)
+    simp only [pure_bind]
+    exact hk _ s3 Γ3 H3 (hp1.trans (hp2.trans hp3)) (agreeL_trans ag1 (agreeL_trans ag2 ag3))
+  | ctorInfo v nP nF T =>
+    simp only [genCI, plainCI, bind_assoc]
+    refine genCV_spec ra G d v H0 _ Γ M s hc.1 (fun r1 s1 Γ1 H1 hp1 ag1 => ?_)
+    refine name_step ra G T hc.2 d H1 rest Γ1 [] s1 (fun h s2 Γ2 H2 hp2 ag2 => ?_)
+    simp only [pure_bind]
+    exact hk _ s2 Γ2 H2 (hp1.trans hp2) (agreeL_trans ag1 ag2)
+  | recInfo v mI rP isK rs =>
+    simp only [genCI, plainCI, bind_assoc]
+    refine genCV_spec ra G d v H0 _ Γ M s hc.1 (fun r1 s1 Γ1 H1 hp1 ag1 => ?_)
+    refine genRules_spec ra G d rs H1 rest Γ1 [] s1 hc.2 (fun hs s2 Γ2 H2 hp2 ag2 => ?_)
+    simp only [pure_bind]
+    exact hk _ s2 Γ2 H2 (hp1.trans hp2) (agreeL_trans ag1 ag2)
+
+theorem genCIList_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : List MlS} {N : Nat}
+    (G : GenEnv C D N) (d : Nat) :
+    ∀ (cs : List ConLeche.ConstantInfo) (H0 : List (BitVec 64)) (rest : ProgHOL 64) (Γ : Env) (M : Mem) (s : AState)
+      {β : Type} {k : List IConstantInfo → AM β} {R : β → BitVec 64 → AState → PState σ → Prop},
+      (∀ c ∈ cs, CILit d N c) →
+      (∀ hs s' Γ' H', H0 <+: H' → AgreeL Γ Γ' d → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k hs) R) →
+      SpecR (Inv (ctxH C H0) s Γ M D) (genCIList C d cs rest) s (plainCIList cs >>= k) R := by
+  intro cs
+  induction cs with
+  | nil =>
+    intro H0 rest Γ M s β k R _ hk
+    simp only [genCIList, plainCIList, pure_bind]
+    intro t ht; exact hk [] s Γ H0 (List.prefix_refl _) (agreeL_refl _ _) t (lit_dropMem ht)
+  | cons c cs ih =>
+    intro H0 rest Γ M s β k R hcs hk
+    simp only [genCIList, plainCIList, bind_assoc]
+    refine genCI_spec ra G d c H0 _ Γ M s (hcs c (List.mem_cons_self ..)) (fun h1 s1 Γ1 H1 hp1 ag1 => ?_)
+    refine ih H1 rest Γ1 [] s1 (fun m hm => hcs m (List.mem_cons_of_mem _ hm)) (fun hs s2 Γ2 H2 hp2 ag2 => ?_)
+    simp only [pure_bind]
+    exact hk _ s2 Γ2 H2 (hp1.trans hp2) (agreeL_trans ag1 ag2)
+
+end
+
 end ConPanqueque.T.Lit
