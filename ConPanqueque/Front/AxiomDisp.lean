@@ -16,7 +16,7 @@ variable {σ : Type}
 
 theorem tag_21 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 21) : a = .objP 21 0 fRecAxiom declAx := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem axCore (C : Ctx) (hok : CtxOK C)

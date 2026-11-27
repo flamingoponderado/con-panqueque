@@ -39,7 +39,7 @@ def plTag : LinePayload → Nat
   | .decl (.opaq _ _ _) => 16
   | .decl (.ax _ _) => 21
   | .decl (.quot _ _) => 22
-  | .decl _ => 0
+  | .decl (.ind _ _ _) => 23
   | .header => 17
 
 theorem srMap_ok {α β : Type} {f : α → β} {x : ScanRes α} {r : β} {e : USize} (h : srMap f x = .ok r e) :
@@ -69,7 +69,7 @@ theorem plOK_tag_eq {b : ByteArray} {wpl ws : BitVec 64} {pl : LinePayload} (h :
   rcases h with ⟨rfl, rfl⟩ | ⟨k, a, hm, he⟩
   · rfl
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false, Prod.mk.injEq] at hm
-  rcases hm with ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩
+  rcases hm with ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩
   · exact he.elim
   · exact he.elim
   · exact he.elim
@@ -143,6 +143,12 @@ theorem plOK_tag_eq {b : ByteArray} {wpl ws : BitVec 64} {pl : LinePayload} (h :
   · obtain ⟨rfl, v, e, hs, -⟩ := he
     simp only [declQuot, ConLeche.Frontend.scanQuotDecl] at hs
     rw [scanQuotDeclLoop_eq b _ (v + 1) true 0 "" [] 0 0 rfl] at hs
+    obtain ⟨a, rfl⟩ := srMap_ite hs; rfl
+  · obtain ⟨rfl, v, e, hs, -⟩ := he
+    simp only [declInd, ConLeche.Frontend.scanIndDecl] at hs
+    have hq := scanIndDeclLoop_eq b _ (v + 1) true 0 (2 ^ 64) (2 ^ 64) (2 ^ 64) rfl
+    simp only [rescanL_top] at hq
+    rw [hq] at hs
     obtain ⟨a, rfl⟩ := srMap_ite hs; rfl
 
 /-- The payload a record came from. -/

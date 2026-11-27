@@ -19,7 +19,7 @@ macro "code_auto'" : tactic => `(tactic| repeat' (first
   | (rename_i ht; rw [ht, hC, codeMap_lookup]; kernel_rfl)
   | (intro (o : ConPanqueque.T.Big.BitOp); cases o)
   | (intro (b : Bool); cases b)
-  | (intro (k : Nat) hk; rcases k with _ | _ | _ | _ | _ | _ | k <;> (try omega))
+  | (intro (k : Nat) hk; rcases k with _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | k <;> (try omega))
   | (intro _)
   | (constructor)
   | unfold_head))

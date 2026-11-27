@@ -23,7 +23,7 @@ theorem qtL_none (C : Ctx) (jN jL jE cap : Nat) (wi ws0 : BitVec 64) (bufJ bsz r
 
 theorem tag_22 {k : Key} {a : LActP} (hm : (k, a) ∈ lineTblP) (ht : a.tag = 22) : a = .objP 22 0 fRecQuot declQuot := by
   simp only [lineTblP, List.mem_cons, List.not_mem_nil, or_false] at hm
-  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
+  rcases hm with h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h | h <;> (simp only [Prod.mk.injEq] at h; obtain ⟨rfl, rfl⟩ := h) <;>
     first | rfl | (simp [LActP.tag] at ht)
 
 theorem qtCore (C : Ctx) (hok : CtxOK C)

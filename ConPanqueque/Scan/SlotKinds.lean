@@ -16,6 +16,7 @@ def SVal.kind : SVal → Nat
   | .s _ => 2
   | .b _ => 3
   | .h _ => 4
+  | .p _ => 5
 
 /-- The slot and kind an action writes. -/
 def VAct.wr : VAct → Option (Nat × Nat)
@@ -24,6 +25,7 @@ def VAct.wr : VAct → Option (Nat × Nat)
   | .str sl => some (sl, 2)
   | .bool sl => some (sl, 3)
   | .hints sl => some (sl, 4)
+  | .sub _ _ sl => some (sl, 5)
   | _ => none
 
 def KindsOK (ks : List Nat) (slots : List SVal) : Prop :=

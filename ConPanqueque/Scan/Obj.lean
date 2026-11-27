@@ -18,6 +18,8 @@ inductive SVal where
   | s (x : String)
   | b (x : Bool)
   | h (x : HintsRec)
+  /-- a position the value is read again from (written by `.sub`) -/
+  | p (x : Nat)
   deriving Inhabited
 
 /-- What a key's value is and where it goes. -/
@@ -34,6 +36,9 @@ inductive VAct where
   | bool (sl : Nat)
   | boolDrop
   | hints (sl : Nat)
+  /-- a value scanned by a separate Pancake function (`subName fid`), whose Lean model is `sc`; the
+  slot keeps the value's position (`SVal.p`) -/
+  | sub (fid : Nat) (sc : ByteArray → USize → ScanRes Unit) (sl : Nat)
 
 /-- A slot table: for each key, its bit in the seen-mask and its action; and the mask of the keys
 that must be present. -/
@@ -71,6 +76,9 @@ def stepVal (b : ByteArray) (i v : USize) : VAct → ScanRes (Option (Nat × SVa
   | .hints sl => match scanHints b v with
       | .err er => .err er
       | .ok x e => .ok (some (sl, .h x)) e
+  | .sub _ sc sl => match sc b v with
+      | .err er => .err er
+      | .ok _ e => .ok (some (sl, .p v.toNat)) e
 
 def applyUpd (slots : List SVal) : Option (Nat × SVal) → List SVal
   | none => slots
@@ -139,6 +147,10 @@ def SVal.bool : SVal → Bool
 def SVal.hint : SVal → HintsRec
   | .h x => x
   | _ => .opaque
+
+def SVal.pos : SVal → Nat
+  | .p x => x
+  | _ => 2 ^ 64
 
 def appSpec : ObjSpec := ⟨[(.kArg, 1, .natSet 0), (.kFn, 2, .natSet 1)], 3⟩
 
