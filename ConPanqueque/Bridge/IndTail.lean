@@ -20,6 +20,7 @@ import ConRon.Bridge.Checker.Names
 import ConRon.Bridge.Core.Walks.Guards
 import ConRon.Bridge.EnvDenote
 import ConRon.Bridge.Inductives.BlockTail
+import ConRon.Bridge.Inductives.Decl
 
 /-! # The checks after the pass, with the index they leave
 
@@ -610,5 +611,82 @@ theorem checkBlock_bridgeW (hk : CoreSpec Arena.checkFuel)
   rw [ite_eq_left hnd, ite_eq_left hbool, hQP]
   dsimp only
   exact FOk.bind hF1 (FOk.bind hFP (FOk.bind FOk.unwrapOr (FOk.seq hFT (FOk.pure _))))
+
+/-! ## The route -/
+
+theorem blockReadsAt_feq {fe fe₀ : IFEnv} {p : Arena.BlockShape} {reads : Bool} {s s' : AState}
+    (h : Arena.blockReadsAt fe p s = .ok ((reads, fe₀), s')) : GR.FEq fe₀ fe := by
+  simp only [Arena.blockReadsAt] at h
+  obtain ⟨cs, _, -, h1⟩ := AM.bind_ok h
+  obtain ⟨recs, _, -, h2⟩ := AM.bind_ok h1
+  obtain ⟨ok, _, -, h3⟩ := AM.bind_ok h2
+  obtain ⟨e, -⟩ := AM.pure_ok h3
+  simp only [Prod.mk.injEq] at e
+  obtain ⟨news, hn, hpop⟩ := consBlockRecsTemp_pop cs fe []
+  rw [List.nil_append] at hn
+  first | rw [e.2] | rw [← e.2]
+  rw [hn]
+  exact (feq_setFlags _ _ _).trans hpop
+
+theorem checkIndRoute_bridgeW {env : Env} {fe fe' : IFEnv}
+    {s s' : AState} {block : List IConstantInfo} {b : List ConstantInfo}
+    {nP : Nat} {pinsP : List NatOpPinSet}
+    (hk : CoreSpec Arena.checkFuel)
+    (hok : FoldOK env fe s)
+    (hb : Frontend.denoteCIList s.store block = some b)
+    (hrun : checkIndRoute fe block nP s = .ok (fe', s')) :
+    IndOut s s' (∃ env' F,
+      ConLeche.checkDeclKind (ConLeche.fueledOps .verified F) pinsP env (.indDecl b nP)
+        = .ok env' ∧ IFEnvOK env' fe' s' ∧ BlockIdx fe fe') := by
+  simp only [checkIndRoute] at hrun
+  -- the parameter-count gate
+  obtain ⟨okb, s₁, h1, h2⟩ := AM.bind_ok hrun
+  obtain ⟨hstep1, hr1⟩ := indParamsOk_spec nP block b s s₁ okb hok.check.state hb h1
+  subst hr1
+  cases hparams : ConLeche.indParamsOk nP b with
+  | false => rw [hparams] at h2; exact absurd h2 (fun h => AM.fail_ok h)
+  | true =>
+  rw [hparams] at h2
+  simp only [Bool.not_true, Bool.false_eq_true, ite_false] at h2
+  -- the reader
+  obtain ⟨o, s₂, h3, h4⟩ := AM.bind_ok h2
+  have c1 := hstep1.toCore hok.check
+  have hb₁ : Frontend.denoteCIList s₁.store block = some b :=
+    denoteCIList_mono hstep1.ext _ _ hb
+  obtain ⟨c2, hr2⟩ := readBlock_spec fe nP block b s₁ s₂ o c1.ok hb₁ h3
+  have hext12 : Ext s.store s₂.store := hstep1.ext.trans c2.ext
+  have hpins12 : s₂.pins = s.pins := by rw [c2.pins, hstep1.pins]
+  cases o with
+  | error e => exact absurd h4 (fun h => AM.fail_ok h)
+  | ok p =>
+  simp only [ROp] at hr2
+  obtain ⟨q, hq, hrel⟩ := hr2
+  have hq' := toOption_eq_some hq
+  -- the ι reading rule, read at the input index with the block pushed
+  obtain ⟨⟨reads, fe₀⟩, s₃, h5, h6⟩ := AM.bind_ok h4
+  obtain ⟨c3, hrel3, x3, pn3, hreads⟩ := blockReadsAt_bridge c2.ok
+    (EnvRel.ofCheck hok.check hok.gate hok.envWF |>.mono hext12) hrel h5
+  -- the block's check, at the index the pops gave back
+  obtain ⟨fe'', s₄, h7, h8⟩ := AM.bind_ok h6
+  have hfe₀ := blockReadsAt_feq h5
+  have out := checkBlock_bridgeW hk c3 hok.envWF hrel3
+    (denoteCIList_mono (c2.ext.trans x3) _ _ hb₁) (dShape_ext x3 _ _ hrel)
+    (ConLeche.readBlock_declared hq') h7
+  obtain ⟨env', hF, Q, rfl, hie', hbi⟩ := out.run
+  cases reads with
+  | false => exact absurd h8 (fun h => AM.fail_ok h)
+  | true =>
+  obtain ⟨rfl, rfl⟩ := AM.pure_ok h8
+  have hR := hreads rfl Q
+  exact
+    { state := out.state
+      ext := (hext12.trans x3).trans out.ext
+      pins := by rw [out.pins, pn3, hpins12]
+      run := by
+        obtain ⟨F, hF'⟩ := FOk.checkDeclKind (pins := pinsP) (by
+          rw [checkDecl_ind_route hparams, hq']
+          exact FOk.bind hF (by simp only [hR]; exact FOk.pure _))
+        exact ⟨_, F, hF', hie', fun hc => hbi.1 (IFEnvCoh.feq hfe₀ hc),
+          fun hs t ht => hbi.2.1 (by rw [hfe₀.1]; exact hs) t ht, hbi.2.2⟩ }
 
 end ConRon.Bridge.Inductives
