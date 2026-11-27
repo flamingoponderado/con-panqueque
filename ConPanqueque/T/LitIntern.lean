@@ -6,6 +6,7 @@ import ConPanqueque.T.SubstLsTop
 import ConPanqueque.T.CtxTr
 import ConPanqueque.T.EIntern2
 import ConPanqueque.Logic.PlainIntern
+import ConRon.Bridge.Checker.Basis
 
 /-!
 # Interning a literal, node by node
@@ -1049,5 +1050,28 @@ theorem basisP_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : L
       (by simp only [basisTwin]; exact bind_ok_of hr1 hr2))
 
 end
+
+open ConPanqueque.Logic.InternRerun ConPanqueque.Logic.PlainIntern in
+/-- **The phase's twin run**: a parse-style step (store extended, flags, memos, caches, pins kept), the scratch
+tier still off, and every pinned block's interning rerunnable at the end store (`BasisInv`'s witnesses). -/
+theorem basisTwin_step : ∀ (ks : List ConLeche.BasisKind) {s s' : AState}, StateOK s → Off s.store →
+    basisTwin ks s = .ok ((), s') →
+    ConRon.Bridge.Frontend.IStepS s s' ∧ Off s'.store ∧ FP s.store s'.store ∧
+      ∀ k ∈ ks, ∃ (s0 s1 : AState) (r : List IConstantInfo), Off s0.store ∧
+        ConRon.Arena.BasisKind.decls k s0 = .ok (r, s1) ∧ FP s1.store s'.store
+  | [], s, s', hok, ho, h => by
+    simp only [basisTwin] at h; obtain ⟨-, rfl⟩ := AM.pure_ok h
+    exact ⟨ConRon.Bridge.Frontend.IStepS.refl hok, ho, FP.refl _, fun k hk => by cases hk⟩
+  | k :: ks, s, s', hok, ho, h => by
+    simp only [basisTwin] at h
+    obtain ⟨r, s1, g1, r1⟩ := AM.bind_ok h
+    have hd := basisDecls_plain k ho g1
+    obtain ⟨hst1, -⟩ := ConRon.Bridge.BasisKind.decls_run hok hd
+    obtain ⟨ho1, hp1, -⟩ := (plainCIList_rr _) s r s1 ho g1
+    obtain ⟨hst2, ho2, hp2, hall⟩ := basisTwin_step ks hst1.ok ho1 r1
+    refine ⟨hst1.trans hst2, ho2, hp1.trans hp2, fun k' hk' => ?_⟩
+    rcases List.mem_cons.mp hk' with rfl | hk'
+    · exact ⟨s, s1, r, ho, hd, hp2⟩
+    · exact hall k' hk'
 
 end ConPanqueque.T.Lit

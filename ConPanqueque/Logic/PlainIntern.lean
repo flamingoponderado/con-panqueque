@@ -497,6 +497,22 @@ theorem internCIList_plain : ∀ (cs : List ConLeche.ConstantInfo) (m : EMemo) (
     unfold Frontend.internCIList
     simp [AM.bind_apply, bind, StateT.bind, Except.bind, pure, StateT.pure, Except.pure, e1, e2]
 
+theorem plainCI_rr (c : ConLeche.ConstantInfo) : RR (plainCI c) := by
+  cases c with
+  | axiomInfo v => simp only [plainCI]; exact RR.bind (plainCV_rr v) (fun _ => RR.pure _)
+  | thmInfo v => simp only [plainCI]; exact RR.bind (plainCV_rr v) (fun _ => RR.pure _)
+  | defnInfo v e h => simp only [plainCI]; exact RR.bind (plainCV_rr v) (fun _ => RR.bind (plainE_rr e) (fun _ => RR.pure _))
+  | indInfo v c => simp only [plainCI]; exact RR.bind (plainCV_rr v) (fun _ => RR.bind (internCaps_rr c) (fun _ => RR.pure _))
+  | ctorInfo v nP nF T =>
+    simp only [plainCI]; exact RR.bind (plainCV_rr v) (fun _ => RR.bind (internName_rr T) (fun _ => RR.pure _))
+  | recInfo v mI rP k rs =>
+    simp only [plainCI]; exact RR.bind (plainCV_rr v) (fun _ => RR.bind (plainRules_rr rs) (fun _ => RR.pure _))
+
+theorem plainCIList_rr : ∀ cs : List ConLeche.ConstantInfo, RR (plainCIList cs)
+  | [] => by unfold plainCIList; exact RR.pure _
+  | c :: cs => by
+    unfold plainCIList; exact RR.bind (plainCI_rr c) (fun _ => RR.bind (plainCIList_rr cs) (fun _ => RR.pure _))
+
 /-- **A pinned block's interning is its plain interning.** -/
 theorem basisDecls_plain (k : ConLeche.BasisKind) {s s' : AState} {r : List IConstantInfo} (ho : Off s.store)
     (h : plainCIList (ConLeche.BasisKind.decls k) s = .ok (r, s')) :
