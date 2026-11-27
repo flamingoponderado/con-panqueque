@@ -1,6 +1,8 @@
 import ConPanqueque.T.Ind.RecInstall
 import ConPanqueque.T.Decl.FeSwitch
 import ConPanqueque.T.Ind.IdxSorts
+import ConPanqueque.T.Ind.IdxSortsAll
+import ConPanqueque.T.Ind.ConsCtorsAll
 
 /-!
 # `checkBlockTail` (one member, one recursor)
@@ -167,24 +169,28 @@ def ctbRs := ofString "ctb_rs"
 def ctbQ := ofString "ctb_q"
 def ctbX := ofString "ctb_x"
 def ctbR := ofString "ctb_r"
+def ctbK := ofString "ctb_k"
 def fCtb := ofString "checkBlockTail"
 
 def ctbParams : List MlS := [ctbSh, ctbOrr, ctbPm, ctbOt, ctbNt, ctbOq, ctbNq, ctbLv, ctbOlp, ctbTy0, ctbPp, ctbNpp, ctbPa, ctbNd, ctbNm, ctbOsl, ctbNsl, ctbOm, ctbNc, ctbNi, ctbInd, ctbNpc, ctbNP, ctbRs, ctbQ]
-def ctbLocals : List MlS := [ctbX, ctbR, lJ0]
+def ctbLocals : List MlS := [ctbX, ctbR, ctbK, lJ0]
 
 def ctbBody (C : Ctx) : ProgHOL 64 := prologue ctbLocals
-  (.seq (.call (some (some (.local, ctbX), none)) fBis [vv ctbOm, vv ctbNP, vv ctbRs])
-  (.seq (.call (some (some (.local, ctbX), none)) fConsCtors [vv ctbOq, .const 0, vv ctbNq, vv ctbNP, vv ctbNm])
+  (.seq (.assign .local ctbK (.load .one (vv ctbOm)))
+  (.seq (.call (some (some (.local, ctbX), none)) fBsa [vv ctbOm, .const 0, vv ctbK, vv ctbNP, vv ctbRs])
+  (.seq (.call (some (some (.local, ctbX), none)) fCca [vv ctbOm, .const 0, vv ctbK, vv ctbNP])
   (flushCode C (flushRegions false)
   (.seq (.call (some (some (.local, ctbR), none)) fGa [vv ctbSh, vv ctbOrr, vv ctbPm, vv ctbOt, vv ctbNt, vv ctbOq, vv ctbNq, vv ctbLv, vv ctbOlp, vv ctbTy0, vv ctbPp, vv ctbNpp, vv ctbPa, vv ctbNd, vv ctbNm, vv ctbOsl, vv ctbNsl, vv ctbOm, vv ctbNc, vv ctbNi, vv ctbInd, vv ctbNpc])
   (.seq (.call (some (some (.local, ctbX), none)) fCts [vv ctbR, vv ctbOrr, vv ctbOq, vv ctbNq, vv ctbSh, vv ctbQ])
-    (.return (vv ctbX)))))))
+    (.return (vv ctbX))))))))
 
 structure CTBCodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
   bis : BISCodes C
   k : KCodes C Comp.kBodies
   ac : Comp.AllCodes mode C
   csc : CSCCodes C
+  bsa : C.code.lookup fBsa = some (bsaParams.map (fun p => (p, ShapeHOL.one)), bsaBody, .one)
+  cca : C.code.lookup fCca = some (ccaParams.map (fun p => (p, ShapeHOL.one)), ccaBody C, .one)
   ga : GACodes mode C
   cts : CTSCodes C
   self : C.code.lookup fCtb = some (ctbParams.map (fun p => (p, ShapeHOL.one)), ctbBody C, .one)
@@ -477,40 +483,52 @@ theorem ctb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   refine specR_prologue (postCB_locals C _) (ctb_none C _) ?_
   rw [checkBlockTail_eq, hqp, hq1, hnest, hcls]
   have hk1 : p.k = 1 := by simp [BlockShape.k, hms]
-  refine specR_callNIH (C := C) ctbX fBis bisParams [vv ctbOm, vv ctbNP, vv ctbRs] (bisBody C)
-    [cellA C om, BitVec.ofNat 64 p.nP, Enc.idxW p.resSort] (by decide) rfl (by decide) hc.bis.self
-    ⟨by simp +decide [sev, Env.get, ctbParams, ctxEnv], by simp +decide [sev, Env.get, ctbParams, ctxEnv],
-      by simp +decide [sev, Env.get, ctbParams, ctxEnv], trivial⟩
+  refine UD.specR_heapLoadI' (C := C) ctbK (vv ctbOm) om _ hM.1 (by decide)
+    (by simp +decide [sev, Env.get, ctbParams, ctxEnv]) ?_
+  refine specR_callNIH (C := C) ctbX fBsa bsaParams [vv ctbOm, .const 0, vv ctbK, vv ctbNP, vv ctbRs] bsaBody
+    [cellA C om, BitVec.ofNat 64 0, BitVec.ofNat 64 p.members.length, BitVec.ofNat 64 p.nP, Enc.idxW p.resSort]
+    (by decide) rfl (by decide) hc.bsa
+    ⟨by simp +decide [sev, Env.get_cons, Env.get, ctbParams, ctxEnv], by simp [sev], by simp [sev, Env.get_cons],
+      by simp +decide [sev, Env.get_cons, Env.get, ctbParams, ctxEnv],
+      by simp +decide [sev, Env.get_cons, Env.get, ctbParams, ctxEnv], trivial⟩
     (fun a w s' st => checkBlockIdxSorts mode C.fe p p.members s = .ok (a, s') ∧ Decl.PostU C a w s' st)
     (fun a _ s' _ => checkBlockIdxSorts mode C.fe p p.members s = .ok (a, s'))
     (fun a w s' st ⟨hr, H', hp', hsr⟩ => ⟨H', hp', hr, hsr⟩)
-    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu bisParams _ rfl hlk)
-      (bis_spec mode ra C hok hs hc.k hc.ac hc.bis heqS p ms0 hms om (by rw [← hms]; exact hM) lsr hSd (by omega) hni0 s)))
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu bsaParams _ rfl hlk)
+      (by
+        have h := bsa_spec (σ := σ) mode ra C hok hs hc.k hc.ac ⟨hc.bis, hc.bsa⟩ heqS p om hM (by simp [hms]) lsr hSd
+          (by omega) (fun ms hm => by simp only [hms, List.mem_singleton] at hm; subst hm; exact hni0)
+          _ 0 C.H s rfl (Nat.zero_le _) (List.prefix_refl _)
+        rw [List.drop_zero] at h
+        exact h)))
     (fun _ w s1 H1 hp1 hbisr => ?_)
   have hp1' : C.H <+: H1 := hp1
   have hok1 := ctxOK_H hok H1
-  refine specR_congr (m' := pure (consSumCtors p.nP ms0.cvT.name (ms0.ctors.drop 0) C.fe) >>= fun fe₂ =>
+  refine specR_congr (m' := pure (consBlockCtors p.nP ((p.members.map memberGroup).drop 0) C.fe) >>= fun fe₂ =>
       flushCaches >>= fun _ => genRecCheck mode fe₂ p false q.params q.tbl q.rd [m] block >>= fun r => tailS mode p Q r)
-    (by simp [checkBlockRec, BlockShape.ctorGroups, hms, consBlockCtors]) ?_
-  refine specR_callNC (C := ctxH C H1) ctbX fConsCtors cscParams [vv ctbOq, .const 0, vv ctbNq, vv ctbNP, vv ctbNm]
-    (cscBody C) [cellA C oq, BitVec.ofNat 64 0, BitVec.ofNat 64 ms0.ctors.length, BitVec.ofNat 64 p.nP,
-      Enc.idxW ms0.cvT.name] (by decide) rfl (by decide) (by ctx_tr hc.csc.self)
+    (by simp only [List.drop_zero, pure_bind]; try rfl) ?_
+  refine specR_callNC (C := ctxH C H1) ctbX fCca ccaParams [vv ctbOm, .const 0, vv ctbK, vv ctbNP]
+    (ccaBody C) [cellA C om, BitVec.ofNat 64 0, BitVec.ofNat 64 p.members.length, BitVec.ofNat 64 p.nP]
+    (by decide) rfl (by decide) (by ctx_tr hc.cca)
     ⟨by simp +decide [sev, Env.get_cons, Env.get, ctbParams, ctxEnv], by simp [sev],
-      by simp +decide [sev, Env.get_cons, Env.get, ctbParams, ctxEnv, hmc],
       by simp +decide [sev, Env.get_cons, Env.get, ctbParams, ctxEnv],
       by simp +decide [sev, Env.get_cons, Env.get, ctbParams, ctxEnv], trivial⟩
-    (fun a w s' st => (pure (consSumCtors p.nP ms0.cvT.name (ms0.ctors.drop 0) C.fe) : AM IFEnv) s1 = .ok (a, s') ∧
+    (fun a w s' st => (pure (consBlockCtors p.nP ((p.members.map memberGroup).drop 0) C.fe) : AM IFEnv) s1 = .ok (a, s') ∧
       PostEnv (ctxH C H1) a w s' st)
     (fun r w s' C' => r = consSumCtors p.nP ms0.cvT.name ms0.ctors C.fe ∧ s' = s1 ∧ ∃ EH envM H,
       C' = ctxNew (ctxH C H1) r EH envM H ∧ C.EH <+: EH ∧ H1 <+: H ∧ CtxOK (ctxNew (ctxH C H1) r EH envM H) ∧
       TblGate r ∧ FlagsOK r ∧ LitsPinned r C.pins)
     (fun a w s' st ⟨hrun, EH, envM, H, h1, h2, h3, h4, h5, h6, h7⟩ => by
       obtain ⟨e1, e2⟩ := AM.pure_ok hrun
-      exact ⟨_, ⟨by rw [e1, List.drop_zero], e2, EH, envM, H, rfl, h1, h2, h3, h5, h6, h7⟩, h4⟩)
-    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu cscParams _ rfl hlk)
-      (csc_spec (ctxH C H1) (by ctx_tr hc.csc) p.nP (by omega) ms0.cvT.name ms0.ctors oq (by rw [← hmc]; exact ctorsRep_mono hp1' hcr)
-        (by rw [← hmc]; exact hcsl) hcden hcnd _ 0 C.fe C.EH C.envM H1 s1 rfl (by omega) (List.prefix_refl _)
-        (List.prefix_refl _) hok1 hg hF hL (by simpa using hcnew))))
+      exact ⟨_, ⟨by rw [e1, List.drop_zero, hms]; try rfl, e2, EH, envM, H, rfl, h1, h2, h3, h5, h6, h7⟩, h4⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu ccaParams _ rfl hlk)
+      (cca_spec (ctxH C H1) ⟨by ctx_tr hc.csc, by ctx_tr hc.cca⟩ p.nP (by omega) p.members om
+        (ptrsRep_mono hp1' (fun _ _ h => memberRep_mono hp1' h) hM) (by simp [hms])
+        (fun m' hm => by simp only [hms, List.mem_singleton] at hm; subst hm; rw [← hmc]; exact hcsl)
+        (fun m' hm => by simp only [hms, List.mem_singleton] at hm; subst hm; exact hcden)
+        (by simpa [hms] using hcnd) _ 0 C.fe C.EH C.envM H1 s1 rfl (by omega) (List.prefix_refl _)
+        (List.prefix_refl _) hok1 hg hF hL
+        (fun m' hm => by simp only [hms, List.drop_zero, List.mem_singleton] at hm; subst hm; exact hcnew))))
     (fun r w s2 C2 ⟨er, es, EH2, envM2, H2, eC, hpE2, hp2, hok2, hg2, hF2, hL2⟩ => ?_)
   subst eC er es
   have hpC2 : C.H <+: H2 := hp1'.trans hp2

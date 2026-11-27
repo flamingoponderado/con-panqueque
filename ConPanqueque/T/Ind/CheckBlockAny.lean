@@ -93,11 +93,6 @@ theorem cbk_spec_any (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.Runtime
   obtain ⟨⟨oc, hoc, hcv⟩, ⟨od, hod, hcvd⟩, hni0, ⟨oct, hoct, hctr⟩⟩ := hmr
   refine UD.specR_heapLoadI' (C := C) cbkOmr _ (om + 1 + 0) _ homr (by decide)
     (by simp +decide [sev, Env.get_cons]; exact cellA_add8 C om) ?_
-  refine UD.specR_heapLoadI' (C := C) cbkOc (vv cbkOmr) omr _ hoc (by decide) (by simp [sev, Env.get_cons]) ?_
-  refine UD.specR_heapLoadI' (C := C) cbkNm (vv cbkOc) oc _ hcv.1 (by decide) (by simp [sev, Env.get_cons]) ?_
-  refine UD.specR_heapLoadI' (C := C) cbkOd _ (omr + 1) _ hod (by decide)
-    (by simp +decide [sev, Env.get_cons]; exact cellA_add8 C omr) ?_
-  refine UD.specR_heapLoadI' (C := C) cbkDnm (vv cbkOd) od _ hcvd.1 (by decide) (by simp [sev, Env.get_cons]) ?_
   refine UD.specR_heapLoadI' (C := C) cbkOct _ (omr + 3) _ hoct (by decide)
     (by simp +decide [sev, Env.get_cons]; exact cellA_add_ofNat C omr 3) ?_
   refine UD.specR_heapLoadI' (C := C) cbkNct (vv cbkOct) oct _ hctr.1 (by decide) (by simp [sev, Env.get_cons]) ?_

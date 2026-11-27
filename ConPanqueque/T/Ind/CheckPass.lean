@@ -2,13 +2,14 @@ import ConPanqueque.T.SameLay
 import ConPanqueque.T.Ind.CheckInds
 import ConPanqueque.T.Ind.ClassPass
 import ConPanqueque.T.Ind.KindsFlat
+import ConPanqueque.T.Ind.SumCtorsAll
 
 /-!
-# `checkBlockPass` (one member)
+# `checkBlockPass` (any number of members, unnested)
 
-`cpsBody`: the formers (`checkBlockInds`), the flush, the constructors (`checkSumCtors`), the walk's context
-(`blockNestCtx`), the classes, the positivity check, the seeds (one class, at the member; else hang); the
-pass's pieces returned as a record `[shape, nest ctx, classes, positivity, 0, 0]`.
+`cpsBody`: the formers (`checkBlockInds`), the flush, every member's constructors (`checkBlockCtors`, `sca`),
+the walk's context (`blockNestCtx`), the classes, the positivity check, the seeds (a class without a member
+hangs); the pass's pieces returned as a record `[shape, nest ctx, classes, positivity, 0, 0]`.
 -/
 
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
@@ -27,10 +28,8 @@ def cpsOm := ofString "cps_om"
 def cpsOmr := ofString "cps_omr"
 def cpsOc := ofString "cps_oc"
 def cpsOlw := ofString "cps_olw"
-def cpsOct := ofString "cps_oct"
-def cpsNct := ofString "cps_nct"
+def cpsNm := ofString "cps_nm"
 def cpsNp := ofString "cps_np"
-def cpsNi := ofString "cps_ni"
 def cpsRs := ofString "cps_rs"
 def cpsLg := ofString "cps_lg"
 def cpsIp := ofString "cps_ip"
@@ -47,7 +46,7 @@ def cpsR := ofString "cps_r"
 def fCps := ofString "checkBlockPass"
 
 def cpsParams : List MlS := [cpsSh, cpsIr]
-def cpsLocals : List MlS := [cpsS1, cpsOm, cpsOmr, cpsOc, cpsOlw, cpsOct, cpsNct, cpsNp, cpsNi, cpsRs, cpsLg, cpsIp, cpsX,
+def cpsLocals : List MlS := [cpsS1, cpsOm, cpsOmr, cpsOc, cpsOlw, cpsNm, cpsNp, cpsRs, cpsLg, cpsIp, cpsX,
   cpsBn, cpsPp, cpsOrr, cpsCb, cpsCp, cpsOms, cpsNcl, cpsR, lJ0]
 
 def cpsBody (C : Ctx) : ProgHOL 64 := prologue cpsLocals
@@ -57,15 +56,13 @@ def cpsBody (C : Ctx) : ProgHOL 64 := prologue cpsLocals
   (.seq (.assign .local cpsOmr (.load .one (.op .add [vv cpsOm, .const 8])))
   (.seq (.assign .local cpsOc (.load .one (vv cpsOmr)))
   (.seq (.assign .local cpsOlw (.load .one (.op .add [vv cpsOc, .const 8])))
-  (.seq (.assign .local cpsOct (.load .one (.op .add [vv cpsOmr, .const 24])))
-  (.seq (.assign .local cpsNct (.load .one (vv cpsOct)))
+  (.seq (.assign .local cpsNm (.load .one (vv cpsOm)))
   (.seq (.assign .local cpsNp (.load .one (.op .add [vv cpsS1, .const 16])))
-  (.seq (.assign .local cpsNi (.load .one (.op .add [vv cpsOmr, .const 16])))
   (.seq (.assign .local cpsRs (.load .one (.op .add [vv cpsS1, .const 32])))
   (.seq (.assign .local cpsLg (.load .one (.op .add [vv cpsS1, .const 40])))
   (.seq (.assign .local cpsIp (.load .one (.op .add [vv cpsS1, .const 48])))
-  (.seq (.call (some (some (.local, cpsX), none)) fSumCtors
-      [vv cpsOct, .const 0, vv cpsNct, vv cpsOc, vv cpsOlw, vv cpsNp, vv cpsNi, vv cpsRs, vv cpsIp, vv cpsLg])
+  (.seq (.call (some (some (.local, cpsX), none)) fSca
+      [vv cpsOm, .const 0, vv cpsNm, vv cpsOlw, vv cpsNp, vv cpsRs, vv cpsIp, vv cpsLg])
   (.seq (.call (some (some (.local, cpsBn), none)) fBlockNestCtx [vv cpsOm, vv cpsNp])
   (.seq (.assign .local cpsPp (.load .one (vv cpsBn)))
   (.seq (.assign .local cpsOrr (.load .one (.op .add [vv cpsS1, .const 8])))
@@ -73,10 +70,9 @@ def cpsBody (C : Ctx) : ProgHOL 64 := prologue cpsLocals
   (.seq (.call (some (some (.local, cpsCp), none)) fCbp [vv cpsOm, vv cpsNp, vv cpsRs])
   (.seq (.assign .local cpsOms (.load .one (.op .add [vv cpsCb, .const 8])))
   (.seq (.assign .local cpsNcl (.load .one (vv cpsOms)))
-  (.ite (.cmp .equal (vv cpsNcl) (.const 1))
-    (.seq (.call (some (some (.local, cpsX), none)) fSd [vv cpsOms, .const 0])
-    (alloc6 C cpsR (vv cpsS1) (vv cpsBn) (vv cpsCb) (vv cpsCp) (.const 0) (.const 0) (.return (vv cpsR))))
-    hang))))))))))))))))))))))
+  (guardP cpsNcl 58
+  (.seq (.call (some (some (.local, cpsX), none)) fSd [vv cpsOms, .const 0])
+  (alloc6 C cpsR (vv cpsS1) (vv cpsBn) (vv cpsCb) (vv cpsCp) (.const 0) (.const 0) (.return (vv cpsR))))))))))))))))))))))))
 
 structure CPSCodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
   cbi : CBICodes mode C
@@ -84,6 +80,7 @@ structure CPSCodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
   sc : SCCodes mode C
   scS : C.code.lookup fSumCtor = some (scParams.map (fun p => (p, ShapeHOL.one)), scBody C, .one)
   scs : C.code.lookup fSumCtors = some (scsParams.map (fun p => (p, ShapeHOL.one)), scsBody, .one)
+  sca : C.code.lookup fSca = some (scaParams.map (fun p => (p, ShapeHOL.one)), scaBody, .one)
   bn : BNCodes C
   cbc : CBCCodes C
   k : KCodes C Comp.kBodies
@@ -108,7 +105,7 @@ def PostCPS (C : Ctx) (p₀ : BlockShape) (q : BlockPass) (w : BitVec 64) (s' : 
     (∃ s0 ip, q.p = { p₀ with resSort := s0, isProp := ip } ∧ ∃ l, denoteL s'.store.ls s0 = some l) ∧
     (∃ ob opp, H[o + 1]? = some (cellA C ob) ∧ H[ob]? = some (cellA C opp) ∧ BlkAt H opp (q.params.map Enc.idxW)) ∧
     (∃ ocb ord oms, H[o + 2]? = some (cellA C ocb) ∧ H[ocb]? = some (cellA C ord) ∧ ClassReadRep C H ord q.rd ∧
-      H[ocb + 1]? = some (cellA C oms) ∧ TMBlk C H oms q.params q.cls ∧ q.cls.length = 1) ∧
+      H[ocb + 1]? = some (cellA C oms) ∧ TMBlk C H oms q.params q.cls) ∧
     (∃ ocp oo on outs, H[o + 3]? = some (cellA C ocp) ∧ H[ocp]? = some (cellA C oo) ∧ PRep C H oo (OutsRep C) outs ∧
       q.kinds = nestOutKinds outs ∧ H[ocp + 1]? = some (cellA C on) ∧ PRep C H on (NfRep C) q.tbl)
 
@@ -134,8 +131,15 @@ theorem sumCtorOK_ext {C : Ctx} {St : EStore} (hx : Ext C.St St) {nP : Nat} {c :
   rw [List.getElem?_eq_getElem (by omega)] at e ⊢
   exact hx.lss.ls.ns _ _ e
 
+/-- What one member needs for the pass. -/
+def CPSMemberOK (C : Ctx) (nP : Nat) (ms : MemberShape) : Prop :=
+  ms.cvT.levelParams.length < 2 ^ 59 ∧ ms.nIdx < 2 ^ 56 ∧ ms.ctors.length < 2 ^ 58 ∧
+  (∃ ks : List ConLeche.Name, ∃ hkl : ks.length = ms.cvT.levelParams.length,
+    ∀ j (hj : j < ms.cvT.levelParams.length), denoteN C.St.ns ms.cvT.levelParams[j] = some (ks[j]'(by omega))) ∧
+  CVDen ms.declared C.St ∧ C.fe.find? ms.declared.name = none ∧ ∀ c ∈ ms.ctors, CVDen c.1 C.St ∧ SumCtorOK C nP c
+
 set_option maxHeartbeats 64000000 in
-/-- **`checkBlockPass`**: one member, one recursor. -/
+/-- **`checkBlockPass`**: any number of members (at least one), unnested. -/
 theorem cps_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
     (hs : C.side = false) (hpl : C.saved = none) (hc : CPSCodes mode C)
     (hg : TblGate C.fe) (hF : FlagsOK C.fe) (hL : LitsPinned C.fe C.pins)
@@ -143,15 +147,11 @@ theorem cps_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
       (lu lv : ConLeche.Level), denoteL s.store.ls u = some lu → denoteL s.store.ls v = some lv → CachesOK s →
       SpecR (σ := σ) (Pre (ctxH C' H) s [(LEq.pLa, Enc.idxW u), (LEq.pLb, Enc.idxW v)]) LLeq.eqvBody s (lvlEq? u v)
         (fun o w s' st => LLeq.PostOB (ctxH C' H) o w s' st))
-    (p₀ : BlockShape) (ms0 : MemberShape) (hms : p₀.members = [ms0]) (rc : RecShape) (hrecs : p₀.recs = [rc])
+    (p₀ : BlockShape) (hne : p₀.members ≠ [])
     (osh : Nat) (hsh : ShapeRep C C.H osh p₀) (isRec : Bool)
-    (hnP : p₀.nP < 2 ^ 55) (hlp : ms0.cvT.levelParams.length < 2 ^ 59) (hni : ms0.nIdx < 2 ^ 56)
-    (hcl : ms0.ctors.length < 2 ^ 58) (hnf : ∀ c ∈ ms0.ctors, p₀.nP + c.2 < 2 ^ 56)
-    (hmI : rc.mI < 2 ^ 56) (hrP : rc.rP < 2 ^ 61)
-    (ks : List ConLeche.Name) (hkl : ks.length = ms0.cvT.levelParams.length)
-    (hks : ∀ j (hj : j < ms0.cvT.levelParams.length), denoteN C.St.ns ms0.cvT.levelParams[j] = some (ks[j]'(by omega)))
-    (hdd : CVDen ms0.declared C.St) (hfresh : C.fe.find? ms0.declared.name = none)
-    (hcs : ∀ c ∈ ms0.ctors, CVDen c.1 C.St ∧ SumCtorOK C p₀.nP c)
+    (hnP : p₀.nP < 2 ^ 55) (hml : p₀.members.length < 2 ^ 55) (hrl : p₀.recs.length < 2 ^ 59)
+    (hmem : ∀ ms ∈ p₀.members, CPSMemberOK C p₀.nP ms)
+    (hrecs : ∀ rc ∈ p₀.recs, rc.mI < 2 ^ 56 ∧ rc.rP < 2 ^ 61)
     (hrun : ∀ (s0 : LIdx) (ip : Bool) (s s1 : AState) (ctx : NestCtx) (holes : List EIdx), StateOK s → Ext C.St s.store →
       (denoteL s.store.ls s0).isSome = true →
       blockNestCtx { p₀ with resSort := s0, isProp := ip } s = .ok ((ctx, holes), s1) →
@@ -161,7 +161,12 @@ theorem cps_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
       (checkBlockPass mode C.fe p₀ isRec) (PostCPS C p₀) := by
   refine specR_prologue (postCPS_locals C p₀) (cps_none C _) ?_
   unfold checkBlockPass
+  obtain ⟨ms0, rest, hms⟩ : ∃ a l, p₀.members = a :: l := by
+    cases h : p₀.members with
+    | nil => exact absurd h hne
+    | cons a l => exact ⟨a, l, rfl⟩
   have hlpp : p₀.lps = ms0.cvT.levelParams := by simp [BlockShape.lps, hms]
+  obtain ⟨hlp, -, -, ⟨ks, hkl, hks⟩, -⟩ := hmem ms0 (by simp [hms])
   refine specR_callNC (C := C) cpsS1 fCbi cbiParams [vv cpsSh, vv cpsIr] (cbiBody C) [cellA C osh, boolW isRec]
     (by decide) rfl (by decide) hc.cbiS
     ⟨by simp +decide [sev, Env.get, cpsParams, ctxEnv], by simp +decide [sev, Env.get, cpsParams, ctxEnv], trivial⟩
@@ -172,10 +177,10 @@ theorem cps_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
       ShapeRep C H o r.2 ∧ ∃ s0 ip, r.2 = { p₀ with resSort := s0, isProp := ip } ∧ ∃ l, denoteL s'.store.ls s0 = some l)
     (fun r w s' st ⟨EH, envM, H, o, h1, h2, h3, h4, h5⟩ => ⟨_, ⟨EH, envM, H, o, rfl, h1, h2, h3, h5⟩, h4⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cbiParams _ rfl hlk)
-      (cbi_spec mode ra C hok hs hc.cbi hg hF hL heqS p₀ osh hsh isRec (by omega) (by simp [hms])
+      (cbi_spec mode ra C hok hs hc.cbi hg hF hL heqS p₀ osh hsh isRec (by omega) (by omega)
         (fun ms hm => by
-          simp only [hms, List.mem_singleton] at hm; subst hm
-          exact ⟨by omega, by omega, ⟨ks, hkl, hks⟩, hdd, hfresh⟩) s))
+          obtain ⟨h1, h2, -, h4, h5, h6, -⟩ := hmem ms hm
+          exact ⟨by omega, by omega, h4, h5, h6⟩) s))
     (fun r w s1 C1 ⟨EH1, envM1, H1, o1, eC, hpE1, hp1, hok1, hg1, hF1, hL1, hf1, ew, hsh1, s0, ip, hp₁, l0, hl0⟩ => ?_)
   subst eC ew
   obtain ⟨fe₁, p₁⟩ := r
@@ -192,10 +197,10 @@ theorem cps_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   set C2 := ctxSt (ctxNew C fe₁ EH1 envM1 H1) sF.store with hC2
   have hok2 : CtxOK C2 := ctxOK_St hok1 _
   obtain ⟨⟨om, hom, hM⟩, ⟨or_, hor, hR⟩, hnP1, hel1, hrs1, hlg1, hip1⟩ := hsh1
-  have hm0 : p₁.members = [ms0] := hms
+  have hm0 : p₁.members = ms0 :: rest := hms
   obtain ⟨omr, homr, hmr⟩ := hM.2 0 (by simp [hm0])
   simp only [hm0, List.getElem_cons_zero] at hmr
-  obtain ⟨⟨oc, hoc, hcv⟩, -, hni1, ⟨ol, hol, hctr⟩⟩ := hmr
+  obtain ⟨⟨oc, hoc, hcv⟩, -, -, -⟩ := hmr
   obtain ⟨wl, hwl, olp, hwo, hlpb⟩ := hcv.2.1
   refine UD.specR_heapLoadI' (C := C2) cpsOm _ o1 _ hom (by decide)
     (by simp +decide [sev, Env.get_cons, Env.get, Env.kill, cpsParams, ctxEnv] <;> rfl) ?_
@@ -205,45 +210,43 @@ theorem cps_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   refine UD.specR_heapLoadI' (C := C2) cpsOlw _ (oc + 1) _ hwl (by decide)
     (by simp +decide [sev, Env.get_cons]; exact cellA_add8 C oc) ?_
   rw [hwo]
-  refine UD.specR_heapLoadI' (C := C2) cpsOct _ (omr + 3) _ hol (by decide)
-    (by simp +decide [sev, Env.get_cons]; exact cellA_add_ofNat C omr 3) ?_
-  refine UD.specR_heapLoadI' (C := C2) cpsNct (vv cpsOct) ol _ hctr.1 (by decide) (by simp [sev, Env.get_cons] <;> rfl) ?_
+  refine UD.specR_heapLoadI' (C := C2) cpsNm (vv cpsOm) om _ hM.1 (by decide) (by simp [sev, Env.get_cons] <;> rfl) ?_
   refine UD.specR_heapLoadI' (C := C2) cpsNp _ (o1 + 2) _ hnP1.1 (by decide)
     (by simp +decide [sev, Env.get_cons, Env.get, Env.kill, cpsParams, ctxEnv]; exact cellA_add_ofNat C o1 2) ?_
-  refine UD.specR_heapLoadI' (C := C2) cpsNi _ (omr + 2) _ hni1 (by decide)
-    (by simp +decide [sev, Env.get_cons]; exact cellA_add_ofNat C omr 2) ?_
   refine UD.specR_heapLoadI' (C := C2) cpsRs _ (o1 + 4) _ hrs1 (by decide)
     (by simp +decide [sev, Env.get_cons, Env.get, Env.kill, cpsParams, ctxEnv]; exact cellA_add_ofNat C o1 4) ?_
   refine UD.specR_heapLoadI' (C := C2) cpsLg _ (o1 + 5) _ hlg1 (by decide)
     (by simp +decide [sev, Env.get_cons, Env.get, Env.kill, cpsParams, ctxEnv]; exact cellA_add_ofNat C o1 5) ?_
   refine UD.specR_heapLoadI' (C := C2) cpsIp _ (o1 + 6) _ hip1 (by decide)
     (by simp +decide [sev, Env.get_cons, Env.get, Env.kill, cpsParams, ctxEnv]; exact cellA_add_ofNat C o1 6) ?_
-  rw [show checkBlockCtors mode fe₁ fe₁ p₁ p₁.members = (checkSumCtors mode C2.fe C2.fe ms0.cvT.name ms0.cvT.levelParams
-      p₀.nP ms0.nIdx s0 ip p₀.large ms0.cvT (ms0.ctors.drop 0) >>= fun _ => pure ()) by
-    simp [checkBlockCtors, hm0, hp₁, BlockShape.lps, hms]; rfl]
-  simp only [bind_assoc, pure_bind]
+  have hlp1 : p₁.lps = ms0.cvT.levelParams := by simp [hp₁, BlockShape.lps, hms]
+  have hml1 : p₁.members.length = p₀.members.length := rfl
   have hokS : CtxOK (ctxSt C sF.store) := ctxOK_St hok sF.store
-  refine specR_callNIH (C := C2) cpsX fSumCtors scsParams
-    [vv cpsOct, .const 0, vv cpsNct, vv cpsOc, vv cpsOlw, vv cpsNp, vv cpsNi, vv cpsRs, vv cpsIp, vv cpsLg] scsBody
-    [cellA C ol, BitVec.ofNat 64 0, BitVec.ofNat 64 ms0.ctors.length, cellA C oc, cellA C olp, BitVec.ofNat 64 p₀.nP,
-      BitVec.ofNat 64 ms0.nIdx, Enc.idxW s0, boolW ip, boolW p₀.large] (by decide) rfl (by decide) hc.scs
-    ⟨by simp +decide [sev, Env.get_cons] <;> rfl, by simp [sev], by simp +decide [sev, Env.get_cons],
+  have hscaC : SCACodes mode C2 := ⟨by ctx_tr hc.sc, by ctx_tr hc.scS, hc.scs, hc.sca⟩
+  refine specR_callNIH (C := C2) cpsX fSca scaParams
+    [vv cpsOm, .const 0, vv cpsNm, vv cpsOlw, vv cpsNp, vv cpsRs, vv cpsIp, vv cpsLg] scaBody
+    [cellA C om, BitVec.ofNat 64 0, BitVec.ofNat 64 p₁.members.length, cellA C olp, BitVec.ofNat 64 p₀.nP,
+      Enc.idxW s0, boolW ip, boolW p₀.large] (by decide) rfl (by decide) hc.sca
+    ⟨by simp +decide [sev, Env.get_cons] <;> rfl, by simp [sev], by simp +decide [sev, Env.get_cons] <;> rfl,
       by simp +decide [sev, Env.get_cons] <;> rfl, by simp +decide [sev, Env.get_cons] <;> rfl,
-      by simp +decide [sev, Env.get_cons] <;> rfl, by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons] <;> rfl,
-      by simp +decide [sev, Env.get_cons] <;> rfl, by simp +decide [sev, Env.get_cons] <;> rfl, trivial⟩
+      by simp +decide [sev, Env.get_cons] <;> rfl, by simp +decide [sev, Env.get_cons] <;> rfl,
+      by simp +decide [sev, Env.get_cons] <;> rfl, trivial⟩
     (Decl.PostU (ctxH C2 H1)) (fun _ _ _ _ => True)
     (fun a w s' st ⟨H', hp', hsr⟩ => ⟨H', hp', trivial, hsr⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu scsParams _ rfl hlk)
-      (scs_spec mode ra C2 hok2 hs (by ctx_tr hc.sc) (by ctx_tr hc.scS) hc.scs (heqS C2 rfl hok2) ms0.cvT.levelParams
-        p₀.nP ms0.nIdx s0 l0 (by show denoteL sF.store.ls s0 = _; rw [hstF]; exact hl0) ip p₀.large ms0.cvT ms0.ctors
-        hni hlp hcl H1 (List.prefix_refl _) ol oc olp hctr hcv hlpb
-        (fun i hi => sumCtorOK_ext (C := ctxNew C fe₁ EH1 envM1 H1) hxF (hcs _ (List.getElem_mem hi)).2)
-        _ 0 H1 sF rfl (by omega) (List.prefix_refl _)))
+    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu scaParams _ rfl hlk)
+      (by
+        have h := sca_spec mode ra C2 hok2 hs hscaC (heqS C2 rfl hok2) p₁ om olp hM (by omega) l0
+          (by show denoteL sF.store.ls s0 = _; rw [hstF]; exact hl0) (by rw [hlp1]; omega)
+          (by rw [hlp1]; exact hlpb)
+          (fun ms hm => by
+            obtain ⟨-, h2, h3, -, -, -, h7⟩ := hmem ms hm
+            exact ⟨h2, h3, fun i hi => sumCtorOK_ext (C := ctxNew C fe₁ EH1 envM1 H1) hxF
+              (h7 _ (List.getElem_mem hi)).2⟩)
+          _ 0 H1 sF rfl (by omega) (List.prefix_refl _)
+        rw [List.drop_zero] at h
+        exact h))
     (fun _ w s3 H3 hp3 _ => ?_)
   have hp3' : H1 <+: H3 := hp3
-  have hlp1 : p₁.lps = ms0.cvT.levelParams := by simp [hp₁, BlockShape.lps, hms]
-  have hml1 : p₁.members.length = 1 := by simp [hm0]
-  have hrl1 : p₁.recs = [rc] := hrecs
   refine specR_callNIH (C := ctxH C2 H3) cpsBn fBlockNestCtx bnParams [vv cpsOm, vv cpsNp] (bnBody C)
     [cellA C om, BitVec.ofNat 64 p₁.nP] (by decide) rfl (by decide) (by ctx_tr hc.bn.self)
     ⟨by simp +decide [sev, Env.get_cons] <;> rfl, by simp +decide [sev, Env.get_cons], trivial⟩
@@ -252,7 +255,7 @@ theorem cps_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     (fun r w s' st ⟨H', hp', hsr, _, _, _, _, _, _, orb, oq, oh, hw, h1, h2, _⟩ => ⟨H', hp', ⟨orb, oq, hw, h1, h2⟩, hsr⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu bnParams _ rfl hlk)
       (bn_spec ra C2 hok2 (by ctx_tr hc.bn) p₁ om H3 hp3'
-        (ptrsRep_mono hp3' (fun _ _ h => memberRep_mono hp3' h) hM) (by rw [hml1]; show p₀.nP + 1 < _; omega)
+        (ptrsRep_mono hp3' (fun _ _ h => memberRep_mono hp3' h) hM) (by show p₀.nP + p₀.members.length < _; omega)
         (by omega) (by rw [hlp1]; omega) s3))
     (fun bnr w s4 H4 hp4 ⟨orb, opp, ew, hpp4, hppb⟩ => ?_)
   subst ew
@@ -275,13 +278,10 @@ theorem cps_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cbcParams _ rfl hlk)
       (cbc_spec ra C2 hok2 (by ctx_tr hc.cbc) mode p₁ ctx.params om or_ olp opp H4 hp14
         (ptrsRep_mono hp14 (fun _ _ h => memberRep_mono hp14 h) hM) (ptrsRep_mono hp14 (fun _ _ h => recRep_mono hp14 h) hR)
-        (by omega) (by show p₀.nP < _; omega) (by rw [hrl1]; simp)
-        (fun i hi => by simp only [hrl1, List.length_singleton] at hi; have : i = 0 := by omega
-                        subst this; simpa [hrl1] using hmI)
-        (fun i hi => by simp only [hrl1, List.length_singleton] at hi; have : i = 0 := by omega
-                        subst this; simpa [hrl1] using hrP)
-        (fun i hi => by simp only [hm0, List.length_singleton] at hi; have : i = 0 := by omega
-                        subst this; simp [hm0]; omega)
+        (by omega) (by show p₀.nP < _; omega) hrl
+        (fun i hi => (hrecs _ (List.getElem_mem hi)).1)
+        (fun i hi => (hrecs _ (List.getElem_mem hi)).2)
+        (fun i hi => by have := (hmem _ (List.getElem_mem hi)).2.1; omega)
         (by rw [hlp1]; exact eblk_mono hlpb hp14) (by rw [hlp1]; omega) hppb s4))
     (fun cbr w s5 H5 hp5 ⟨ocb, ord, oms, ew, hcb5, hrd5, hms5, htm5⟩ => ?_)
   subst ew
@@ -303,11 +303,10 @@ theorem cps_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cbpParams _ rfl hlk)
       (cbp_spec ra mode C2 hok2 hs (by ctx_tr hc.k) (by ctx_tr hc.ac) (by ctx_tr hc.cbp)
         (fun C' hcode => heqS C' hcode) p₁ om hM (by omega) (by show p₀.nP < _; omega) (by rw [hlp1]; omega)
-        (fun i hi => by simp only [hm0, List.length_singleton] at hi; have : i = 0 := by omega
-                        subst this; simp [hm0]; omega)
+        (fun i hi => by have := (hmem _ (List.getElem_mem hi)).2.1; omega)
         (fun m hm => by
-          simp only [hm0, List.mem_singleton] at hm; subst hm
-          exact ⟨hcl, fun c hc' => ⟨cvDen_ext (hcs c hc').1 hxF, by have := hnf c hc'; omega⟩⟩)
+          obtain ⟨-, -, h3, -, -, -, h7⟩ := hmem m hm
+          exact ⟨h3, fun c hc' => ⟨cvDen_ext (h7 c hc').1 hxF, by have := (h7 c hc').2.1; omega⟩⟩)
         ks (by rw [hlp1]; exact hkl)
         (fun j hj => by
           have hj' : j < ms0.cvT.levelParams.length := by rw [← hlp1]; exact hj
@@ -332,17 +331,7 @@ theorem cps_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN => ?_)
   have hbl := blkAt_len (ctxOK_H hok2 H6) hHN hpsb
   simp only [List.length_map] at hbl
-  by_cases hc1 : cls.length = 1
-  swap
-  · refine specR_ifI _ 0 (by
-      simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]
-      intro h; apply hc1
-      have := congrArg BitVec.toNat h
-      simp only [BitVec.toNat_ofNat] at this
-      rw [Nat.mod_eq_of_lt (by omega)] at this
-      simpa using this) (fun h => absurd rfl h) (fun _ => specR_hangI)
-  refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hc1])
-    (fun _ => ?_) (fun h => absurd h (by decide))
+  refine specR_guardI cpsNcl cls.length 58 (by decide) (by simp [Env.get_cons]) (by omega) (fun hcl58 => ?_)
   refine specR_callNIH (C := ctxH C2 H6) cpsX fSd cseParams [vv cpsOms, .const 0] cseBody
     [cellA C oms, BitVec.ofNat 64 0] (by decide) rfl (by decide) hc.cse
     ⟨by simp +decide [sev, Env.get_cons] <;> rfl, by simp [sev], trivial⟩
@@ -368,7 +357,7 @@ theorem cps_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     hf1, rfl, ⟨o1, g0, shapeRep_mono hp19 ⟨⟨om, hom, hM⟩, ⟨or_, hor, hR⟩, hnP1, ?_, hrs1, hlg1, hip1⟩⟩,
     ⟨s0, ip, rfl, l0, ?_⟩, ⟨orb, opp, g1, ConPanqueque.T.Decl.get_prefix hpp4 hp49, blkAt_mono hppb hp49⟩,
     ⟨ocb, ord, oms, g2, ConPanqueque.T.Decl.get_prefix hcb5 (hp6'.trans hp8'), classReadRep_mono (hp6'.trans hp8') hrd5,
-      ConPanqueque.T.Decl.get_prefix hms5 (hp6'.trans hp8'), tmBlk_mono (hp6'.trans hp8') htm5, hc1⟩,
+      ConPanqueque.T.Decl.get_prefix hms5 (hp6'.trans hp8'), tmBlk_mono (hp6'.trans hp8') htm5⟩,
     ⟨ocp, oo, on, outs, g3, ConPanqueque.T.Decl.get_prefix hcp6 hp8', pRep_mono hp8' (fun _ _ h => outsRep_mono hp8' h) hout6,
       rfl, ConPanqueque.T.Decl.get_prefix hon6 hp8', pRep_mono hp8' (fun _ _ h => nfRep_mono hp8' h) hnf6⟩⟩
   · exact hel1

@@ -280,3 +280,58 @@ What still hangs at k > 1, in pipeline order (the next steps):
   `p.k = 1` restriction (§1 table), and inductive hypotheses at classes other than `0` (`KindsOK`).
 * `bt` (`BlockTables`) over members (needs the table list built across members), `cbkInst` over tables.
 * the front end (`Front/IndLine*`): `tys = [t]`, `rcs = [r]`, `numMotives = 1` (§1 "Front end").
+
+## 8. Mutual blocks, round 2: the pass and the k-generic loops wired in (progress log)
+
+Every step below ends with a green build; nothing here accepts a k > 1 block yet (the generator still hangs
+there), but the pass and every per-member loop that `cbk` runs before and after the generator are now the general
+ones, so lifting `nm0 = 1` only waits for the generator and the tables.
+
+1. **`cps` is general** (`CheckPass`). The member-0 `fSumCtors` call is replaced by `fSca [om, 0, nm, olw, nP, rs,
+   ip, lg]` (`sca_spec`, `nm` read from the members' pointer block, `olw` = member 0's level-parameter block =
+   `p.lps`). The `ncl = 1` test is gone: `cse` already hangs at a class without a member; the class count is only
+   guarded below `2^58` (`guardP cps_ncl 58`, needed by `cse_spec`). `cps_spec` now takes
+   `p₀.members ≠ []`, `p₀.members.length < 2^55`, `p₀.recs.length < 2^59`, `∀ ms ∈ p₀.members, CPSMemberOK C p₀.nP ms`
+   (the bundle of the per-member facts `cbi`/`sca`/`cbp` need: level-parameter bound and names, `nIdx`, constructor
+   count, `CVDen` of the declared value, freshness, every constructor's `CVDen` and `SumCtorOK`) and
+   `∀ rc ∈ p₀.recs, rc.mI < 2^56 ∧ rc.rP < 2^61`. `PostCPS` lost `q.cls.length = 1`.
+   `CPSCodes` gained `sca` (the `fSca` lookup).
+2. **`cbk` reads `ncl = 1` itself** (`CheckBlockK`, new local `cbk_ncl`): just before it reads class 0 it tests the
+   class count (else hang). This is where the restriction now lives (with `nm0 = 1`, `nrl = 1`, `nrc = 1`, `rc0 = 0`,
+   slot 0 a motive, `mb = 1`/member `0`, `tgt = 0`).
+3. **`cbk`'s name checks are the k-generic loops**: `cnn` (member 0's constructors) is replaced by
+   `fCnk [om, nm0]` (all constructor names and all member names distinct; the twin's condition is matched by
+   `specR_congr` with `Bool.not_and`, `flatCtors` = `allCtors` by `rfl`); the inline `Bool`-name tests and the
+   declared name's `envFindP` are replaced by `fMok [om, 0, nm0, bt, bf]` (`mok_spec`, `membersOk_contains` turns
+   the twin's `memberNames.contains` test to `false`, freshness of member 0's declared name read off `MembersOk`).
+   The loads of `cbk_oc`, `cbk_nm`, `cbk_od`, `cbk_dnm` were dropped (the locals stay declared, unused).
+   `cfh` (member 0's constructors fresh at the formers' environment) is replaced by `fCfa [om, 0, nm0]`.
+   `CBKCodes` gained `cnk`, `mok`, `cfa`, `ria`.
+4. **`ctb` runs `bsa` and `cca`** (`BlockTail`): `ctb_k := load ctb_om` (the member count), then
+   `fBsa [om, 0, k, nP, rs]` (`checkBlockIdxSorts … p.members`) and `fCca [om, 0, k, nP]`
+   (`consBlockCtors nP (p.members.map memberGroup)`; the twin's `ctorGroups` is that list by `rfl`). `ctb_spec`'s
+   statement is unchanged (still `p.members = [ms0]` elsewhere); `CTBCodes` gained `bsa`, `cca`.
+5. **The install runs `ria`** (`CheckBlockInst`): `cbkInst` calls `fRia [cbk_or1, 0, cbk_nrl]` (the pass's recursor
+   pointer block, the recursor count) instead of `fRin [cbk_orr1]`. `ci_spec` takes the recursor list
+   (`PtrsRep … rcs`, `rcs.length < 2^58`, per-recursor level-parameter bound and `CVDen`) and refines
+   `pure (pushTables Q (pushAll (rcs.map plainRec) K.fe))`, the twin's `pushDelta` at `blockRecs = rcs.map plainRec`
+   (`blockRecs_plain`, every unnested recursor has `tgt < k`). `cbk` passes `[rc]` (defeq to the old `push`).
+
+Code table regenerated (`fSca`, `fCnk` and its helpers, `fMok`, `fCfa`, `fBsa`, `fCca`, `fRia` now reachable).
+`CheckBlockAny` (the hang paths of `cbkBody` at `nm0 ≠ 1`/`nrl ≠ 1`) follows the body: the four dropped loads were
+removed there too. Full `lake build` green (no `sorry`), `main_pipeline_prelude` unchanged.
+
+Suggested next step: the generator over k classes (§1 rows `ga`, `gb`, `cts`), starting with `ctb_spec`'s
+member-0 premises (`hms`, `hmc`, `hcvd` at `consSumCtors`) restated at `consBlockCtors p.nP p.ctorGroups`; then
+`cbk_spec` over `∀ ms ∈ p₀.members` and the `nm0`/`nrl`/`ncl`/`nrc` tests replaced by loops over classes.
+
+What still hangs at k > 1, in pipeline order (unchanged from §7 except the done items):
+* `cbk`: the tests `nm0 = 1`, `nrl = 1`, `ncl = 1`, `nrc = 1`, `rc0 = 0`, slot 0 a motive, the class at member `0`,
+  `tgt = 0`, `≤ 1` table (`guardP cbk_nqq 1`). (`fRmFill` and `fBlockIsRec` now get the member count `cbk_nm0`
+  instead of the constant `1`.) Lifting `nm0 = 1` also means restating `cbk_spec` over `∀ ms ∈ p₀.members` (its
+  hypotheses `hms`, `hcl`, `hni`, `hcs`, … are member-0 shaped; `cps_spec`'s `CPSMemberOK` is the bundle to pass).
+* `ctb_spec`/`cts`/`ga`/`gb` (the generator over k classes, the §1 table), `CBKRun.crt` (stated at `m ∈ q.cls`,
+  `rc ∈ q.p.recs`, so already list-shaped, but `ctb_spec`'s `hcvd` premise is member-0 shaped:
+  `consSumCtors p.nP ms0.cvT.name ms0.ctors` should become `consBlockCtors p.nP p.ctorGroups`).
+* `bt` over members and `cbkInst`'s table branch over a list of tables.
+* the front end (`Front/IndLine*`).
