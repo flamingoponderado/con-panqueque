@@ -17,11 +17,17 @@ namespace ConPanqueque.T.Decl
 
 open ConPanqueque.T ConPanqueque.Logic.InternRerun ConPanqueque.Logic.BasisNames
 
-/-- The pinned blocks interned below the floor. -/
-def BasisInv (C : Ctx) : Prop :=
-  ∃ st0 : EStore, StoreWF st0 ∧ Ext st0 C.St ∧ denoteNL st0 C.pins.reserved reservedBasisNameValues ∧
-    ∀ k : ConLeche.BasisKind, k ≠ .quotK → ∃ (s0 s1 : AState) (r : List IConstantInfo), Off s0.store ∧
+/-- The pinned blocks interned below store `st`, the reserved names `res` denoting. -/
+def BasisSt (st : EStore) (res : List NIdx) : Prop :=
+  ∃ st0 : EStore, StoreWF st0 ∧ Ext st0 st ∧ denoteNL st0 res reservedBasisNameValues ∧
+    ∀ k : ConLeche.BasisKind, ∃ (s0 s1 : AState) (r : List IConstantInfo), Off s0.store ∧
       ConRon.Arena.BasisKind.decls k s0 = .ok (r, s1) ∧ FP s1.store st0
+
+theorem BasisSt.mono {st st' : EStore} {res : List NIdx} (h : BasisSt st res) (hx : Ext st st') : BasisSt st' res :=
+  let ⟨st0, h1, h2, h3, h4⟩ := h; ⟨st0, h1, h2.trans hx, h3, h4⟩
+
+/-- The pinned blocks interned below the floor. -/
+abbrev BasisInv (C : Ctx) : Prop := BasisSt C.St C.pins.reserved
 
 theorem denoteNL_ext {a b : EStore} (hx : Ext a b) : ∀ (xs : List NIdx) (ns : List ConLeche.Name),
     denoteNL a xs ns → denoteNL b xs ns
@@ -36,7 +42,7 @@ theorem basis_at {σ : Type} {C : Ctx} (hb : BasisInv C) {s : AState} {t : PStat
     ∃ r : List IConstantInfo, ConRon.Arena.BasisKind.decls k s = .ok (r, s) ∧
       r.map (·.name) = resSlice k C.pins.reserved := by
   obtain ⟨st0, hwf0, hx0, hres0, hrun⟩ := hb
-  obtain ⟨s0, s1, r, ho0, hr, hfp⟩ := hrun k hk
+  obtain ⟨s0, s1, r, ho0, hr, hfp⟩ := hrun k
   have hx : Ext st0 s.store := hx0.trans hsr.floor
   have hnoop := basisDecls_noop k ho0 hr hfp hwf0 hsr.twf hx hoff
   refine ⟨r, hnoop, ?_⟩
