@@ -21,6 +21,7 @@ import ConRon.Bridge.Core.Walks.Guards
 import ConRon.Bridge.EnvDenote
 import ConRon.Bridge.Inductives.BlockTail
 import ConRon.Bridge.Inductives.Decl
+import ConLeche.Semantics.Inductives.DeclBlockWF
 
 /-! # The checks after the pass, with the index they leave
 
@@ -474,7 +475,7 @@ theorem checkBlock_bridgeW (hk : CoreSpec Arena.checkFuel)
     (hd : ∀ ms ∈ p₀P.members, ms.declared = ms.cvT)
     (hrun : Arena.checkBlock .verified fe block p₀ s = .ok (fe', s')) :
     IndOut s s' (∃ env', FOk (ConLeche.checkBlock (fueledOpsM .verified) env b p₀P) env' ∧
-      ∃ Q, env' = env.pushDelta (ConLeche.blockConstants p₀P) Q ∧
+      ∃ Q, env' = env.pushDelta (ConLeche.blockConstants p₀P) Q ∧ ConLeche.blockTables p₀P p₀P.members = some Q ∧
         IFEnvOK (env.pushDelta (ConLeche.blockConstants p₀P) Q) fe' s' ∧ BlockIdx fe fe') := by
   simp only [Arena.checkBlock] at hrun
   -- the distinct names
@@ -566,7 +567,7 @@ theorem checkBlock_bridgeW (hk : CoreSpec Arena.checkFuel)
   have hi := ((c1.toInst.trans i2).trans (p3.toInst.trans (i4.trans p41.toInst))).trans
     (i5.trans p6.toInst)
   refine ⟨hi.state, hi.ext, hi.pins,
-    ⟨env.pushDelta (ConLeche.blockConstants p₀P) QP, ?_, QP, rfl, ?_⟩⟩
+    ⟨env.pushDelta (ConLeche.blockConstants p₀P) QP, ?_, QP, rfl, hQP, ?_⟩⟩
   rotate_left
   · -- the index the block leaves
     obtain ⟨he₁, -⟩ := dPass_inv hq
@@ -637,7 +638,8 @@ theorem checkIndRoute_bridgeW {env : Env} {fe fe' : IFEnv}
     (hrun : checkIndRoute fe block nP s = .ok (fe', s')) :
     IndOut s s' (∃ env' F,
       ConLeche.checkDeclKind (ConLeche.fueledOps .verified F) pinsP env (.indDecl b nP)
-        = .ok env' ∧ IFEnvOK env' fe' s' ∧ BlockIdx fe fe') := by
+        = .ok env' ∧ env' = env.pushDelta (ConLeche.declConstants (.indDecl b nP))
+          (ConLeche.declTables (.indDecl b nP)) ∧ EnvWF env' ∧ IFEnvOK env' fe' s' ∧ BlockIdx fe fe') := by
   simp only [checkIndRoute] at hrun
   -- the parameter-count gate
   obtain ⟨okb, s₁, h1, h2⟩ := AM.bind_ok hrun
@@ -672,7 +674,7 @@ theorem checkIndRoute_bridgeW {env : Env} {fe fe' : IFEnv}
   have out := checkBlock_bridgeW hk c3 hok.envWF hrel3
     (denoteCIList_mono (c2.ext.trans x3) _ _ hb₁) (dShape_ext x3 _ _ hrel)
     (ConLeche.readBlock_declared hq') h7
-  obtain ⟨env', hF, Q, rfl, hie', hbi⟩ := out.run
+  obtain ⟨env', hF, Q, rfl, hQt, hie', hbi⟩ := out.run
   cases reads with
   | false => exact absurd h8 (fun h => AM.fail_ok h)
   | true =>
@@ -686,7 +688,13 @@ theorem checkIndRoute_bridgeW {env : Env} {fe fe' : IFEnv}
         obtain ⟨F, hF'⟩ := FOk.checkDeclKind (pins := pinsP) (by
           rw [checkDecl_ind_route hparams, hq']
           exact FOk.bind hF (by simp only [hR]; exact FOk.pure _))
-        exact ⟨_, F, hF', hie', fun hc => hbi.1 (IFEnvCoh.feq hfe₀ hc),
+        have hwf : EnvWF (env.pushDelta (ConLeche.blockConstants q) Q) := by
+          obtain ⟨F3, hF3⟩ := hF
+          rw [ConLeche.checkBlock_datF] at hF3
+          exact ConLeche.Semantics.blockRun_envWF hok.envWF
+            (ConLeche.Semantics.blockRun_of (ConLeche.readBlock_declared hq') hF3)
+        refine ⟨_, F, hF', by simp [ConLeche.declConstants, ConLeche.declTables, hq', hQt], hwf, hie',
+          fun hc => hbi.1 (IFEnvCoh.feq hfe₀ hc),
           fun hs t ht => hbi.2.1 (by rw [hfe₀.1]; exact hs) t ht, hbi.2.2⟩ }
 
 end ConRon.Bridge.Inductives
