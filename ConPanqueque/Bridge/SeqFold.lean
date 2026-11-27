@@ -40,7 +40,7 @@ def IsValueDecl : IDeclaration → Prop
 /-- A record the port checks: a value record, or the `sorryAx` axiom record (its name denoting
 `sorryAx`), which con-leche skips. -/
 def IsChecked (ns : NStore) : IDeclaration → Prop
-  | .axiomDecl cv => denoteN ns cv.name = some ConLeche.sorryAxName
+  | .axiomDecl cv => denoteN ns cv.name = some ConLeche.sorryAxName ∨ denoteN ns cv.name = some ConLeche.quotSoundName
   | .quotDecl _ _ => True
   | d => IsValueDecl d
 
@@ -49,7 +49,7 @@ theorem isChecked_of_value {ns : NStore} {pd : IDeclaration} (h : IsValueDecl pd
 
 /-- What the front end hands the fold: a value record, or an axiom record named by the `sorryAx` pin. -/
 def IsFrontDecl (P : Pins) : IDeclaration → Prop
-  | .axiomDecl cv => P.names[PIN_SORRY_AX]? = some cv.name
+  | .axiomDecl cv => P.names[PIN_SORRY_AX]? = some cv.name ∨ P.names[PIN_QUOT_SOUND]? = some cv.name
   | .quotDecl _ _ => True
   | d => IsValueDecl d
 
@@ -66,15 +66,18 @@ theorem isChecked_of_front {s : AState} (hp : PinsOK s) {pd : IDeclaration} (h :
     IsChecked s.store.ns pd := by
   cases pd with
   | axiomDecl cv =>
-    have h0 : s.pins.names[PIN_SORRY_AX]? = some cv.name := h
-    have h' : s.pins.names.toList[PIN_SORRY_AX]? = some cv.name := by simpa using h0
-    exact denoteNL_getElem? _ _ hp.names PIN_SORRY_AX cv.name ConLeche.sorryAxName h' (by decide)
+    rcases (h : s.pins.names[PIN_SORRY_AX]? = some cv.name ∨ s.pins.names[PIN_QUOT_SOUND]? = some cv.name)
+      with h0 | h0
+    · have h' : s.pins.names.toList[PIN_SORRY_AX]? = some cv.name := by simpa using h0
+      exact Or.inl (denoteNL_getElem? _ _ hp.names PIN_SORRY_AX cv.name ConLeche.sorryAxName h' (by decide))
+    · have h' : s.pins.names.toList[PIN_QUOT_SOUND]? = some cv.name := by simpa using h0
+      exact Or.inr (denoteNL_getElem? _ _ hp.names PIN_QUOT_SOUND cv.name ConLeche.quotSoundName h' (by decide))
   | _ => exact h
 
 theorem isChecked_ext {a b : EStore} (hx : Ext a b) {pd : IDeclaration} (h : IsChecked a.ns pd) :
     IsChecked b.ns pd := by
   cases pd with
-  | axiomDecl cv => exact denoteN_ext h hx
+  | axiomDecl cv => exact h.imp (fun h => denoteN_ext h hx) (fun h => denoteN_ext h hx)
   | _ => exact h
 
 /-- What a value arm hands the next record: con-ron's per-arm output, the returned index
@@ -321,16 +324,13 @@ theorem kind_sorry
   · exact absurd (hsn.mpr hs) hn10
 
 open ConLeche.Term ConLeche.Verify ConLeche.Cached ConLeche.Semantics in
-/-- A quotient record's arm: the pinned package's constant at the record's level parameters, pushed. -/
-theorem kind_quot
-    {pins : List INatOpPinSet} {pinsP : List NatOpPinSet} {env : Env}
+/-- A quotient record's check, at the index it hands on. -/
+theorem quot_core {env : Env}
     {fe fe' : IFEnv} {s s' : AState} {k : QuotKind} {v : IConstantVal} {c : ConstantVal}
-    (hok : FoldOK env fe s) (hpins : PinsDenote s.store pins pinsP)
-    (hcv : Frontend.denoteCV s.store v = some c)
-    (hrun : ConRon.Arena.checkDeclKind .verified pins fe (.quotDecl k v) s = .ok (fe', s')) :
-    KindOut pinsP env (.quotDecl k c) fe fe' s s' := by
-  have hout := checkDeclKind_bridge_quot (pinsP := pinsP) hok hcv hrun
-  simp only [ConRon.Arena.checkDeclKind, ConRon.Arena.checkQuotRecord] at hrun
+    (hok : FoldOK env fe s) (hcv : Frontend.denoteCV s.store v = some c)
+    (hrun : ConRon.Arena.checkQuotRecord fe k v s = .ok (fe', s')) :
+    StepOK (env.pushDelta [ConLeche.quotAt k c] []) fe' s' ∧ fe'.env.tables = fe.env.tables := by
+  simp only [ConRon.Arena.checkQuotRecord] at hrun
   have hst := hok.check.state
   have hr := hok.check.readOK
   obtain ⟨c1, s₁, g1, k1⟩ := AM.bind_ok hrun
@@ -370,9 +370,7 @@ theorem kind_quot
   obtain ⟨f1, f2, f3, f4, f5, f6, f7⟩ := quotPin_facts k
   have hshape : litShapeOk (ConLeche.quotAt k c) = true :=
     litShapeOk_of_not_lit (by rw [hname]; cases k <;> decide)
-  have hdc : ConLeche.declConstants (.quotDecl k c) = [ConLeche.quotAt k c] := rfl
-  refine ⟨hout, ?_, by simp only [IFEnv.push]; split <;> rfl⟩
-  rw [hdc]
+  refine ⟨?_, by simp only [IFEnv.push]; split <;> rfl⟩
   exact (hok.toStepOK.mono (hs1.ext.trans hs3.ext)).push hs3.ok hci hshape
     (constWF_atLps hdom (by rw [hlen]) f1 f2 f3 f4 f5 f6)
     (by
@@ -388,6 +386,40 @@ theorem kind_quot
       obtain ⟨rfl, -, -, rfl⟩ := h
       exact ⟨_, rfl⟩)
     (ruleWF_atLps _ f7)
+
+theorem kind_quot
+    {pins : List INatOpPinSet} {pinsP : List NatOpPinSet} {env : Env}
+    {fe fe' : IFEnv} {s s' : AState} {k : QuotKind} {v : IConstantVal} {c : ConstantVal}
+    (hok : FoldOK env fe s) (hpins : PinsDenote s.store pins pinsP)
+    (hcv : Frontend.denoteCV s.store v = some c)
+    (hrun : ConRon.Arena.checkDeclKind .verified pins fe (.quotDecl k v) s = .ok (fe', s')) :
+    KindOut pinsP env (.quotDecl k c) fe fe' s s' := by
+  have hout := checkDeclKind_bridge_quot (pinsP := pinsP) hok hcv hrun
+  simp only [ConRon.Arena.checkDeclKind] at hrun
+  obtain ⟨h1, h2⟩ := quot_core hok hcv hrun
+  exact ⟨hout, h1, h2⟩
+
+/-- The `Quot.sound` axiom record: the quotient record's check at the soundness slot. -/
+theorem kind_qsound
+    {pins : List INatOpPinSet} {pinsP : List NatOpPinSet} {env : Env}
+    {fe fe' : IFEnv} {s s' : AState} {cv : IConstantVal} {c : ConstantVal}
+    (hk : CoreSpec ConRon.Arena.checkFuel)
+    (hok : FoldOK env fe s) (hpins : PinsDenote s.store pins pinsP)
+    (hcv : Frontend.denoteCV s.store cv = some c) (hs : c.name = ConLeche.quotSoundName)
+    (hrun : ConRon.Arena.checkDeclKind .verified pins fe (.axiomDecl cv) s = .ok (fe', s')) :
+    KindOut pinsP env (.axiomDecl c) fe fe' s s' := by
+  have hout := checkDeclKind_bridge_axiom hk hok hpins hcv hrun
+  simp only [ConRon.Arena.checkDeclKind] at hrun
+  obtain ⟨hnm, -, -⟩ := denoteCV_inv hcv
+  obtain ⟨qs, s1, g1, r1⟩ := AM.bind_ok hrun
+  obtain ⟨e1, d1⟩ := pinAt_run (x := ConLeche.quotSoundName) hok.check.pins rfl g1
+  subst e1
+  have hqs := beq_handle_iff hok.check.state.wf hnm d1
+  rw [if_pos (hqs.mpr hs)] at r1
+  obtain ⟨h1, h2⟩ := quot_core hok hcv r1
+  have hdc : ConLeche.declConstants (.axiomDecl c) = [ConLeche.quotAt .sound c] := by
+    simp [ConLeche.declConstants, hs]
+  exact ⟨hout, by rw [hdc]; exact h1, h2⟩
 
 /-- A value record's own checks, at the index it hands on. -/
 theorem kind_value
@@ -444,10 +476,12 @@ theorem kind_value
       simp only [Option.map_some, Option.some.injEq] at hd
       subst hd
       have hn := (denoteCV_inv hcv).1
-      have hs : cv.name = ConLeche.sorryAxName := by
-        have h : denoteN s.store.ns v.name = some ConLeche.sorryAxName := hval
-        rw [hn] at h; exact Option.some.inj h
-      exact kind_sorry hk hok hpins hcv hs hrun
+      rcases (hval : denoteN s.store.ns v.name = some ConLeche.sorryAxName ∨
+          denoteN s.store.ns v.name = some ConLeche.quotSoundName) with h | h
+      · rw [hn] at h
+        exact kind_sorry hk hok hpins hcv (Option.some.inj h) hrun
+      · rw [hn] at h
+        exact kind_qsound hk hok hpins hcv (Option.some.inj h) hrun
   | quotDecl qk v =>
     simp only [Frontend.denoteDecl] at hd
     cases hcv : Frontend.denoteCV s.store v with

@@ -574,23 +574,35 @@ theorem quotMkCtor_quot {env : Env} (k : QuotKind) (c : ConstantVal) (hq : QuotM
       | (simp [quotAt, quotPin, ConstantInfo.atLps, BasisKind.decls, QuotKind.slot,
           quotBasis, quotA, quotMkA, quotLiftA, quotIndA, quotSoundA]))
 
-/-- A stream record's name: a value record's, or `sorryAx` for the `sorryAx` axiom record (which
-installs nothing). -/
+/-- The `Quot.sound` axiom record is checked as the soundness quotient record. -/
+theorem checkDecl_axSound {F : Nat} {pins : List NatOpPinSet} {env : Env} {c : ConstantVal}
+    (hs : c.name = quotSoundName) :
+    checkDecl .verified (fueledOps .verified F) pins env (.axiomDecl c) =
+      checkDecl .verified (fueledOps .verified F) pins env (.quotDecl .sound c) := by
+  unfold checkDecl checkDeclKind
+  simp [hs, basisNamesOk]
+
+/-- A stream record's name: a value record's, `sorryAx` for the `sorryAx` axiom record (which
+installs nothing), `Quot.sound` for its axiom record, a quotient record's. -/
 def recName : Declaration → Option Name
-  | .axiomDecl c => if c.name = sorryAxName then some c.name else none
+  | .axiomDecl c => if c.name = sorryAxName ∨ c.name = quotSoundName then some c.name else none
   | .quotDecl _ c => some c.name
   | d => valName d
 
 theorem recName_cases {d : Declaration} {n : Name} (h : recName d = some n) :
     valName d = some n ∨ (∃ c, d = .axiomDecl c ∧ c.name = sorryAxName ∧ n = c.name) ∨
-      ∃ k c, d = .quotDecl k c ∧ n = c.name := by
+      (∃ k c, d = .quotDecl k c ∧ n = c.name) ∨ (∃ c, d = .axiomDecl c ∧ c.name = quotSoundName ∧ n = c.name) := by
   cases d with
   | axiomDecl c =>
     simp only [recName] at h
     split at h
-    · rename_i hs; simp only [Option.some.injEq] at h; exact Or.inr (Or.inl ⟨c, rfl, hs, h.symm⟩)
+    · rename_i hs
+      simp only [Option.some.injEq] at h
+      rcases hs with hs | hs
+      · exact Or.inr (Or.inl ⟨c, rfl, hs, h.symm⟩)
+      · exact Or.inr (Or.inr (Or.inr ⟨c, rfl, hs, h.symm⟩))
     · cases h
-  | quotDecl k c => simp only [recName, Option.some.injEq] at h; exact Or.inr (Or.inr ⟨k, c, rfl, h.symm⟩)
+  | quotDecl k c => simp only [recName, Option.some.injEq] at h; exact Or.inr (Or.inr (Or.inl ⟨k, c, rfl, h.symm⟩))
   | _ => exact Or.inl h
 
 /-- The stream's records: value records, or the `sorryAx` axiom record, at names the environment's guards
@@ -606,7 +618,7 @@ theorem pureRun_ext {pins pins' : List NatOpPinSet} (envP : Env) : ∀ {ds : Lis
   | _, _, _, _, .nil _, _, _, _, _, _ => ⟨_, .nil _⟩
   | d :: ds, env₁, _, env₂, .cons ⟨F, hs⟩ rest, hx, hw2, hok, hq, hinv => by
     obtain ⟨n, hd', hn, hP⟩ := hok d (List.mem_cons_self ..)
-    rcases recName_cases hd' with hd | ⟨c, rfl, hsn, rfl⟩ | ⟨k, c, rfl, rfl⟩
+    rcases recName_cases hd' with hd | ⟨c, rfl, hsn, rfl⟩ | ⟨k, c, rfl, rfl⟩ | ⟨c, rfl, hqs, rfl⟩
     · have hf1 := checkDecl_val_fresh F pins env₁ d n hd hs
       obtain ⟨E₂, h2, hx', hw', c, hc, -, e1, e2⟩ :=
         checkDecl_ext hx hw2 F pins pins' d n hd (hinv n hf1 hP) hn hs
@@ -644,6 +656,20 @@ theorem pureRun_ext {pins pins' : List NatOpPinSet} (envP : Env) : ∀ {ds : Lis
           · cases hm1
           · rename_i hne; rw [ite_eq_right hne]; exact hinv m hm1 hmP)
       exact ⟨E₃, .cons ⟨F, h2⟩ hr⟩
+    · rw [checkDecl_axSound hqs] at hs
+      obtain ⟨hhit, -, hf1, -⟩ := checkDecl_quot_inv hs
+      have hnm := quotHit_name hhit
+      obtain ⟨E₂, h2, hx', hw', e1, e2⟩ :=
+        checkDecl_quot_ext hx hw2 F pins pins' .sound c (hinv _ hf1 (by rw [← hnm]; exact hP)) hq hs
+      obtain ⟨E₃, hr⟩ := pureRun_ext envP rest hx' hw' (fun d' hd' => hok d' (List.mem_cons_of_mem _ hd'))
+        (by rw [e1]; exact quotMkCtor_quot .sound c hq) (by
+          intro m hm1 hmP
+          subst e1 e2
+          rw [Env.find?_cons] at hm1 ⊢
+          split at hm1
+          · cases hm1
+          · rename_i hne; rw [ite_eq_right hne]; exact hinv m hm1 hmP)
+      exact ⟨E₃, .cons ⟨F, by rw [checkDecl_axSound hqs]; exact h2⟩ hr⟩
 
 /-- **The prelude, then the stream.**  An accepting run of the prelude from the empty environment
 and an accepting run of the stream from the empty environment (at any pins) give an accepting run

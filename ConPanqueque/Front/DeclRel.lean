@@ -34,7 +34,7 @@ def RecEnc (C : Ctx) (F : Nat) (H : List (BitVec 64)) (o : Nat) : IDeclaration �
   | .thmDecl cv v => F ≤ o ∧ H[o]? = some 2 ∧ CVEnc C F H (o + 1) cv ∧ H[o + 4]? = some (Enc.idxW v)
   | .opaqueDecl cv v => F ≤ o ∧ H[o]? = some 3 ∧ CVEnc C F H (o + 1) cv ∧ H[o + 4]? = some (Enc.idxW v)
   | .axiomDecl cv => F ≤ o ∧ H[o]? = some 5 ∧ CVEnc C F H (o + 1) cv ∧ (∃ w, H[o + 4]? = some w) ∧
-      C.pins.names[PIN_SORRY_AX]? = some cv.name
+      (C.pins.names[PIN_SORRY_AX]? = some cv.name ∨ C.pins.names[PIN_QUOT_SOUND]? = some cv.name)
   | .quotDecl k cv => F ≤ o ∧ H[o]? = some 6 ∧ CVEnc C F H (o + 1) cv ∧
       H[o + 4]? = some (BitVec.ofNat 64 (match k with | .type => 1 | .ctor => 2 | .lift => 3 | .ind => 4 | .sound => 5))
   | _ => False

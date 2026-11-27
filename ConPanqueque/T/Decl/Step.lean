@@ -407,7 +407,8 @@ theorem step_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ct
         ⟨ctxNewT C a EH envM tblM H, ⟨EH, envM, tblM, H, rfl, hpE, hp12.trans hpH, hokN, hgt, hfl, hlp⟩, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu kdParams _ rfl hlk)
         (ka_spec mode pins (ctxH C H2) hok2 (by ctx_tr hc) ra hs hpl hg hF hL cv wv (o + 1) ol
-          (get_prefix hn hp12) (get_prefix hl hp12) (get_prefix ht hp12) (blkAt_mono hb hp12) hlen ks hkl hks _))
+          (get_prefix hn hp12) (get_prefix hl hp12) (get_prefix ht hp12) (blkAt_mono hb hp12) hlen ks hkl hks htyD
+          hkq (Quot.qcodes_ctxH hqc H2) (by ctx_tr hfr) hA _))
       (fun a w s5 C5 ⟨EH, envM, tblM, H, eC, hpE, hpH, hokN, hgt, hfl, hlp⟩ => ?_)
     · exact ⟨by simp +decide [sev, Env.get, ConPanqueque.T.ExP.Env.get_kill_of_not_mem, ctxEnv]; exact cellA_add8 C o,
         by simp +decide [Env.get], by simp +decide [Env.get], trivial⟩

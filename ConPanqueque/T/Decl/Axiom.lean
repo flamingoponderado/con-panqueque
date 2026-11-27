@@ -1,4 +1,5 @@
 import ConPanqueque.T.Decl.StepDefn
+import ConPanqueque.T.Quot.ArmSpec
 
 /-!
 # `checkDecl` at an axiom
@@ -29,7 +30,8 @@ def pinGuard (C : Ctx) (i : Nat) (rest : ProgHOL 64) : ProgHOL 64 :=
 /-- `checkDecl` at an axiom (its constant value at `kdQ`). -/
 def kaBody (C : Ctx) : ProgHOL 64 := prologue kdLocals
   (.seq (.assign .local kdN (.load .one (vv kdQ)))
-  (pinGuard C PIN_QUOT_SOUND
+  (.seq (.assign .local kdL (.load .one (.const (ecell C (C.PO + PIN_QUOT_SOUND)))))
+  (.ite (.cmp .equal (vv kdN) (vv kdL)) (callR kdX Quot.fKq [vv kdQ, .const 5, .const 0] (.return (vv kdX)))
   (callR kdX fCcv [vv kdQ, .const 0, .const 0, .const 1]
   (pinGuard C PIN_PROPEXT (pinGuard C PIN_CHOICE (pinGuard C PIN_TRUST_COMPILER
   (pinGuard C PIN_OF_REDUCE_NAT (pinGuard C PIN_OF_REDUCE_BOOL
@@ -39,7 +41,7 @@ def kaBody (C : Ctx) : ProgHOL 64 := prologue kdLocals
   (.seq (.assign .local kdL (.load .one (.const (ecell C (C.PO + pinCount + 4)))))
   (.seq (.assign .local kdLn (.load .one (vv kdL)))
   (callR kdX fRsm [vv kdN, vv kdL, .const 0, vv kdLn]
-  (.ite (.cmp .notEqual (vv kdX) (.const 0)) rejectP (.return (.const 0)))))))))))))))))
+  (.ite (.cmp .notEqual (vv kdX) (.const 0)) rejectP (.return (.const 0))))))))))))))))))
 
 section
 variable {σ : Type}
@@ -114,6 +116,10 @@ theorem ka_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ctx)
     (ht : C.H[q + 2]? = some (Enc.idxW cv.type)) (hb : BlkAt C.H o (cv.levelParams.map Enc.idxW))
     (hlen : cv.levelParams.length < 2 ^ 59) (ks : List ConLeche.Name) (hkl : ks.length = cv.levelParams.length)
     (hks : ∀ j (hj : j < cv.levelParams.length), denoteN C.St.ns cv.levelParams[j] = some (ks[j]'(by omega)))
+    (htyD : (denoteE C.St cv.type).isSome = true)
+    (hkq : C.code.lookup Quot.fKq = some (kdParams.map (fun p => (p, ShapeHOL.one)), Quot.kqBody C, .one))
+    (hqc : Quot.QCodes mode C) (hfr : ConPanqueque.Front.FrontOK C)
+    (hA : denoteN C.St.ns default = some .anonymous)
     (s : AState) :
     SpecR (σ := σ) (Pre C s (kdParams.zip [cellA C q, wv, 0])) (kaBody C) s
       (checkDecl mode pins C.fe (.axiomDecl cv)) (PostStep C) := by
@@ -122,13 +128,34 @@ theorem ka_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ctx)
   dsimp only
   simp only [bind_assoc]
   refine UD.specR_heapLoadI' (C := C) kdN _ q _ hn (by decide) (by simp +decide [Env.get, kdParams, ctxEnv]) ?_
-  unfold pinGuard pinQuotSound
-  refine specR_pinAtI hok PIN_QUOT_SOUND (by decide) kdL (by decide) ?_
-  by_cases hq : cv.name = C.pins.names[PIN_QUOT_SOUND]'(by rw [hok.pinsRel.1]; decide)
-  · exact specR_ifI _ 1 (by simp +decide [sev, Env.get]; exact cmpEq_idxW_t hq) (fun _ => specR_hangI)
+  have hqs' : PIN_QUOT_SOUND < C.pins.names.size := by rw [hok.pinsRel.1]; decide
+  refine specR_envLoadI (C := C) kdL _ (C.PO + PIN_QUOT_SOUND) _ (by decide) rfl (hok.pinsRel.2.1 _ hqs') ?_
+  by_cases hq : cv.name = C.pins.names[PIN_QUOT_SOUND]
+  · -- `Quot.sound`: the quotient arm at the soundness slot
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get]; exact cmpEq_idxW_t hq) (fun _ => ?_)
       (fun h => absurd h (by decide))
+    refine specR_congr (m' := checkDecl mode pins C.fe (.axiomDecl cv) >>= fun fe => pure fe)
+      (by simp only [checkDecl, checkDeclKind, bind_assoc, bind_pure]) ?_
+    refine specR_callNC (C := C) (D := ctxLocals ++ kdLocals) kdX Quot.fKq kdParams [vv kdQ, .const 5, .const 0]
+      (Quot.kqBody C) [cellA C q, BitVec.ofNat 64 5, 0] (by decide) rfl (by decide) hkq
+      ⟨by simp +decide [Env.get, kdParams, ctxEnv], rfl, rfl, trivial⟩ (PostStep C)
+      (fun a w s' C' => ∃ EH envM tblM H, C' = ctxNewT C a EH envM tblM H ∧ C.EH <+: EH ∧ C.H <+: H ∧ CtxOK C' ∧
+        TblGate a ∧ FlagsOK a ∧ LitsPinned a C.pins)
+      (fun a w s' st ⟨EH, envM, tblM, H, hpE, hpH, hokN, hsr, hgt, hfl, hlp⟩ =>
+        ⟨ctxNewT C a EH envM tblM H, ⟨EH, envM, tblM, H, rfl, hpE, hpH, hokN, hgt, hfl, hlp⟩, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu kdParams _ rfl hlk)
+        (Quot.kqSound_spec ra mode pins C hok hqc hs hpl hg hF hL hfr hA cv (by simp [hqs', hq]) q
+          ⟨o, ks, hn, hl, ht, hb, by omega, hkl, hks, htyD⟩ _))
+      (fun a w s5 C5 ⟨EH, envM, tblM, H, eC, hpE, hpH, hokN, hgt, hfl, hlp⟩ => ?_)
+    subst eC
+    exact specR_returnI _ w (by simp +decide [Env.get])
+      (fun t ht => ⟨EH, envM, tblM, H, hpE, hpH, hokN, sr_of_eq ht.sr rfl rfl rfl rfl, hgt, hfl, hlp⟩)
   refine specR_ifI _ 0 (by simp +decide [sev, Env.get]; exact cmpEq_idxW_f hq) (fun h => absurd rfl h) (fun _ => ?_)
-  rw [ite_bindM, ite_eq_right_iff.mpr (fun h => absurd (by simpa using h) hq)]
+  refine specR_atEntry fun ta hta => ?_
+  unfold pinQuotSound
+  refine specR_runBind (pinAt_run hok hta.sr.pins _ (by decide)) ?_
+  have hq' : ¬ ((cv.name == C.pins.names[PIN_QUOT_SOUND]!) = true) := by simp [hqs', hq]
+  rw [ite_bindM, if_neg hq']
   simp only [bind_assoc]
   -- the front door
   refine specR_callNIH (C := C) kdX fCcv ccvParams [vv kdQ, .const 0, .const 0, .const 1] (ccvBody C)

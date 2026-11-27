@@ -31,7 +31,10 @@ def axVd (C : Ctx) : ProgHOL 64 :=
   tblGetP fy (vv fTN) (vv fCap) (vv fU)
     (tblGetP fz (vv fTE) (vv fCap) (vv fW3)
       (.seq (.assign .local kVh (.load .one (.const (ecell C (C.PO + PIN_SORRY_AX)))))
-        (.ite (.cmp .notEqual (vv fy) (vv kVh)) hang (vdTail C 5))))
+        (.ite (.cmp .notEqual (vv fy) (vv kVh))
+          (.seq (.assign .local kVh (.load .one (.const (ecell C (C.PO + PIN_QUOT_SOUND)))))
+            (.ite (.cmp .notEqual (vv fy) (vv kVh)) hang (vdTail C 5)))
+          (vdTail C 5))))
 
 theorem axVd_spec (C : Ctx) (hok : CtxOK C)
     (hnc : ∀ t : PState σ, t.code = C.code → NnCodes t)
@@ -70,7 +73,31 @@ theorem axVd_spec (C : Ctx) (hok : CtxOK C)
   let Γ2 : Env := (fz, Enc.idxW tyh) :: (fz, Enc.idxW tyh + 1) :: (fy, Enc.idxW nmh) :: (fy, Enc.idxW nmh + 1) :: Γ
   have g2 : ∀ y, y ≠ fz → y ≠ fy → Env.get Γ2 y = Env.get Γ y := fun y h1 h2 => by
     simp only [Γ2, Env.get_cons, ite_eq_right h1, ite_eq_right h2]
+  -- the record, once the name is pin `i`'s
+  have fin : ∀ (i : Nat) (hi : i < C.pins.names.size), nmh = C.pins.names[i] →
+      (C.pins.names[PIN_SORRY_AX]? = some nmh ∨ C.pins.names[PIN_QUOT_SOUND]? = some nmh) → ∀ (Γ3 : Env),
+      Γ3.get kVh = some (Enc.idxW C.pins.names[i]) → (∀ y, y ≠ kVh → y ≠ fz → y ≠ fy → Env.get Γ3 y = Env.get Γ y) →
+      Env.get Γ3 fy = some (Enc.idxW nmh) → Env.get Γ3 fz = some (Enc.idxW tyh) →
+      SpecR (Inv (σ := σ) C s Γ3 M D) (vdTail C 5) s (processLineCoreD st (.ax cv false))
+        (fun a w s' t' => ∃ d, DeclPost C F rb capD C.H st d a w s' t') := by
+    intro i hi hs hpin Γ3 hv3 g3 hy3 hz3
+    exact vdTail_spec C hok hnc hcN s Γ3 M D (fun x hx => hD x (by simp only [List.mem_append, List.mem_cons] at hx ⊢; tauto))
+      st F rb capD jN jL jE cap bufJ b hlay hreln hcap hcapN hbuf hdr hcapD cv.levelParams hus wpos hslot 5
+      (Enc.idxW nmh) (Enc.idxW tyh) (Enc.idxW C.pins.names[i])
+      (fun lpsH => .axiomDecl ⟨nmh, lpsH, tyh⟩)
+      (fun H r o hr ho h0 h1 h2 h3 h4 hb =>
+        ⟨hr, h0, ⟨o, ho, by simpa using h1, by simpa using h2, by simpa using h3, hb, by simpa using hus⟩, ⟨_, h4⟩, hpin⟩)
+      (fun hall => processAx_ok st cv nmh tyh hnm' hty' hall)
+      (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hTN)
+      (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hC)
+      hy3 hz3 hv3
+      (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hV)
+      (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hBA)
+      (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hBN)
+      (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hRB)
+      (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hCD)
   have hsz : PIN_SORRY_AX < C.pins.names.size := by rw [hok.pinsRel.1]; decide
+  have hqz : PIN_QUOT_SOUND < C.pins.names.size := by rw [hok.pinsRel.1]; decide
   refine specR_envLoadI (C := C) kVh _ (C.PO + PIN_SORRY_AX) _ (hD kVh (by simp)) rfl (hok.pinsRel.2.1 _ hsz) ?_
   let Γ3 : Env := (kVh, Enc.idxW C.pins.names[PIN_SORRY_AX]) :: Γ2
   have g3 : ∀ y, y ≠ kVh → y ≠ fz → y ≠ fy → Env.get Γ3 y = Env.get Γ y := fun y h0 h1 h2 => by
@@ -78,29 +105,29 @@ theorem axVd_spec (C : Ctx) (hok : CtxOK C)
   have hy3 : Env.get Γ3 fy = some (Enc.idxW nmh) := by
     simp only [Γ3, Γ2, Env.get_cons, ite_eq_right (show fy ≠ kVh by decide), ite_eq_right (show fy ≠ fz by decide),
       ite_eq_left]
+  have hz3 : Env.get Γ3 fz = some (Enc.idxW tyh) := by
+    simp only [Γ3, Γ2, Env.get_cons, ite_eq_right (show fz ≠ kVh by decide), ite_eq_left]
   by_cases hs : nmh = C.pins.names[PIN_SORRY_AX]
+  · refine specR_ifI _ 0 (by simp +decide [sev, vv, Env.get_cons, T.Decl.cmpNe_idxW_f hs])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    exact fin _ hsz hs (Or.inl (by rw [Array.getElem?_eq_getElem hsz, hs])) Γ3 (by simp [Γ3]) g3 hy3 hz3
+  refine specR_ifI _ 1 (by simp +decide [sev, vv, Env.get_cons, T.Decl.cmpNe_idxW_t hs]) (fun _ => ?_)
+    (fun h => absurd h (by decide))
+  refine specR_envLoadI (C := C) kVh _ (C.PO + PIN_QUOT_SOUND) _ (hD kVh (by simp)) rfl (hok.pinsRel.2.1 _ hqz) ?_
+  let Γ4 : Env := (kVh, Enc.idxW C.pins.names[PIN_QUOT_SOUND]) :: Γ3
+  have g4 : ∀ y, y ≠ kVh → y ≠ fz → y ≠ fy → Env.get Γ4 y = Env.get Γ y := fun y h0 h1 h2 => by
+    simp only [Γ4, Env.get_cons, ite_eq_right h0]; exact g3 y h0 h1 h2
+  have hy4 : Env.get Γ4 fy = some (Enc.idxW nmh) := by
+    simp only [Γ4, Env.get_cons, ite_eq_right (show fy ≠ kVh by decide)]; exact hy3
+  have hz4 : Env.get Γ4 fz = some (Enc.idxW tyh) := by
+    simp only [Γ4, Env.get_cons, ite_eq_right (show fz ≠ kVh by decide)]; exact hz3
+  by_cases hq : nmh = C.pins.names[PIN_QUOT_SOUND]
   swap
-  · exact specR_ifI _ 1 (by simp +decide [sev, vv, Env.get_cons, T.Decl.cmpNe_idxW_t hs])
+  · exact specR_ifI _ 1 (by simp +decide [sev, vv, Env.get_cons, T.Decl.cmpNe_idxW_t hq])
       (fun _ => specR_hangI) (fun h => absurd h (by decide))
-  refine specR_ifI _ 0 (by simp +decide [sev, vv, Env.get_cons, T.Decl.cmpNe_idxW_f hs])
+  refine specR_ifI _ 0 (by simp +decide [sev, vv, Env.get_cons, T.Decl.cmpNe_idxW_f hq])
     (fun h => absurd rfl h) (fun _ => ?_)
-  have hpin : C.pins.names[PIN_SORRY_AX]? = some nmh := by rw [Array.getElem?_eq_getElem hsz, hs]
-  refine vdTail_spec C hok hnc hcN s Γ3 M D (fun x hx => hD x (by simp only [List.mem_append, List.mem_cons] at hx ⊢; tauto))
-    st F rb capD jN jL jE cap bufJ b hlay hreln hcap hcapN hbuf hdr hcapD cv.levelParams hus wpos hslot 5
-    (Enc.idxW nmh) (Enc.idxW tyh) (Enc.idxW C.pins.names[PIN_SORRY_AX])
-    (fun lpsH => .axiomDecl ⟨nmh, lpsH, tyh⟩)
-    (fun H r o hr ho h0 h1 h2 h3 h4 hb =>
-      ⟨hr, h0, ⟨o, ho, by simpa using h1, by simpa using h2, by simpa using h3, hb, by simpa using hus⟩, ⟨_, h4⟩, hpin⟩)
-    (fun hall => processAx_ok st cv nmh tyh hnm' hty' hall)
-    (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hTN)
-    (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hC)
-    hy3
-    (by simp only [Γ3, Γ2, Env.get_cons, ite_eq_right (show fz ≠ kVh by decide), ite_eq_left]) (by simp [Γ3])
-    (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hV)
-    (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hBA)
-    (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hBN)
-    (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hRB)
-    (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hCD)
+  exact fin _ hqz hq (Or.inr (by rw [Array.getElem?_eq_getElem hqz, hq])) Γ4 (by simp [Γ4]) g4 hy4 hz4
 
 /-- An axiom record: unsafe ones hang. -/
 def axP (C : Ctx) : ProgHOL 64 := .ite (vv kUs) hang (axVd C)

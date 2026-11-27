@@ -67,8 +67,9 @@ theorem valName_names {d : Declaration} {n : Name} (h : valName d = some n) : d.
   cases d <;> simp_all [valName, Declaration.names]
 
 theorem recName_names {d : Declaration} {n : Name} (h : recName d = some n) : d.names = [n] := by
-  rcases recName_cases h with h | ⟨c, rfl, -, rfl⟩ | ⟨k, c, rfl, rfl⟩
+  rcases recName_cases h with h | ⟨c, rfl, -, rfl⟩ | ⟨k, c, rfl, rfl⟩ | ⟨c, rfl, -, rfl⟩
   · exact valName_names h
+  · simp [Declaration.names]
   · simp [Declaration.names]
   · simp [Declaration.names]
 
@@ -80,8 +81,9 @@ theorem valName_natOp {d : Declaration} {n : Name} (h : valName d = some n) (hn 
 
 theorem recName_natOp {d : Declaration} {n : Name} (h : recName d = some n) (hn : NameOK n) :
     isNatOpRecord d = none := by
-  rcases recName_cases h with h | ⟨c, rfl, -, rfl⟩ | ⟨k, c, rfl, rfl⟩
+  rcases recName_cases h with h | ⟨c, rfl, -, rfl⟩ | ⟨k, c, rfl, rfl⟩ | ⟨c, rfl, -, rfl⟩
   · exact valName_natOp h hn
+  · simp [isNatOpRecord]
   · simp [isNatOpRecord]
   · simp [isNatOpRecord]
 

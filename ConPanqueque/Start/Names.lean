@@ -159,9 +159,11 @@ theorem valName_denote {st : EStore} {dh : IDeclaration} {d : ConLeche.Declarati
       rw [hc] at h
       simp only [Option.map_some, Option.some.injEq] at h; subst h
       have hn := (denoteCV_inv hc).1
-      have hs : denoteN st.ns cv.name = some ConLeche.sorryAxName := hv
+      have hs : denoteN st.ns cv.name = some ConLeche.sorryAxName ∨
+          denoteN st.ns cv.name = some ConLeche.quotSoundName := hv
       rw [hn] at hs
-      have hcs : c.name = ConLeche.sorryAxName := Option.some.inj hs
+      have hcs : c.name = ConLeche.sorryAxName ∨ c.name = ConLeche.quotSoundName :=
+        hs.imp Option.some.inj Option.some.inj
       exact ⟨cv.name, c.name, rfl, hp.name, hn, by simp [ConPanqueque.Pipeline.recName, hcs]⟩
   | quotDecl k cv =>
     simp only [denoteDecl] at h

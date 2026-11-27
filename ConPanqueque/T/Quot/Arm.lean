@@ -1,6 +1,6 @@
 import ConPanqueque.T.Quot.Block
 import ConPanqueque.T.Quot.Install
-import ConPanqueque.T.Decl.Axiom
+import ConPanqueque.T.Decl.StepDefn
 import ConPanqueque.T.Decl.OffCheck
 import ConPanqueque.T.InstLPFast
 import ConPanqueque.T.Ind.ParamLevels
@@ -81,7 +81,8 @@ def tailP (C : Ctx) : ProgHOL 64 :=
 def instP (C : Ctx) : Nat → ProgHOL 64
   | 0 => envAllocP C kqE (.const 8) (.seq (.store (vv kqE) (.const 0))
       (callR kdX fInstQ [.const 3, vv kqR, .const 0, vv kqE, .const 0, .const 0, vv kqE, .const 0] (tailP C)))
-  | _ => callR kdX fInstQ [.const 4, vv kqR, .const 2, .const 1, vv qX, .const 0, .const 0, .const 0] (tailP C)
+  | 1 => callR kdX fInstQ [.const 4, vv kqR, .const 2, .const 1, vv qX, .const 0, .const 0, .const 0] (tailP C)
+  | _ => callR kdX fInstQ [.const 0, vv kqR, .const 0, .const 0, .const 0, .const 0, .const 0, .const 0] (tailP C)
 
 /-- The record at slot `j`. -/
 def armP (C : Ctx) (j : Nat) : ProgHOL 64 :=
@@ -93,7 +94,8 @@ def armP (C : Ctx) (j : Nat) : ProgHOL 64 :=
 /-- `checkDecl` at a quotient record (its constant value at `kdQ`, its kind's number in `kdV`). -/
 def kqBody (C : Ctx) : ProgHOL 64 := prologue kqLocals
   (.ite (.cmp .equal (vv kdV) (.const 1)) (armP C 0)
-  (.ite (.cmp .equal (vv kdV) (.const 2)) (armP C 1) hang))
+  (.ite (.cmp .equal (vv kdV) (.const 2)) (armP C 1)
+  (.ite (.cmp .equal (vv kdV) (.const 5)) (armP C 4) hang)))
 
 /-- A quotient kind's number. -/
 def qkN : ConLeche.QuotKind → Nat
