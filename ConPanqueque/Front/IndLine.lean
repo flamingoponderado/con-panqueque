@@ -82,7 +82,7 @@ structure IndBounds (s : AState) (blk : List IConstantInfo) (nP : Nat) : Prop wh
   tele : ∀ ci ∈ blk, ∀ e, denoteE s.store ci.toConstantVal.type = some e → ConLeche.Frontend.indPiTeleLen e < 2 ^ 55
   ctor : ∀ ci ∈ blk, ∀ cv np nf T, ci = .ctorInfo cv np nf T → np < 2 ^ 55 ∧ nf < 2 ^ 55
   rcs : ∀ ci ∈ blk, ∀ cv mi rp k rules, ci = .recInfo cv mi rp k rules →
-    mi < 2 ^ 57 ∧ rp < 2 ^ 57 ∧ rules.length < 2 ^ 55 ∧ ∀ ru ∈ rules, ru.nfields < 2 ^ 55
+    mi < 2 ^ 56 ∧ rp < 2 ^ 57 ∧ rules.length < 2 ^ 55 ∧ ∀ ru ∈ rules, ru.nfields < 2 ^ 55
 
 /-- The line's records in the supported shape. -/
 def IndShape (st : StateD) (s : AState) (tys : List IndTypeRec) (cts : List IndCtorRec) (rcs : List IndRecRec)
@@ -506,8 +506,8 @@ theorem indLine_spec (C : Ctx) (hok : CtxOK C) (cc : ILCodes σ C)
     · cases e
     · simp only [recInfoD, IConstantInfo.recInfo.injEq] at e
       obtain ⟨-, rfl, rfl, -, rfl⟩ := e
-      have := tw.ni; have := tw.nr; unfold B55 at *
-      rw [tw.rp, tw.rm, tw.rmin]
+      have := tw.ni; have := tw.nr; have hmi := tw.mi; unfold B55 at *
+      rw [tw.rp, tw.rm, tw.rmin] at hmi ⊢
       refine ⟨by omega, by omega, by simp; omega, fun ru hru => ?_⟩
       simp only [List.mem_map] at hru
       obtain ⟨ru0, hru0, rfl⟩ := hru

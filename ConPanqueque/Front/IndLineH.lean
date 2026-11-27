@@ -156,10 +156,11 @@ theorem recP_spec {α : Type} (C0 : Ctx) (hok : CtxOK C0) (cc : ILCodes σ C0)
       rw [sev_ne_c _ ilX _ 0 hX0, sev_ne_v _ ilX ilY _ _ hX0 hY0]
       simp only [Option.bind_eq_bind, Option.bind_some, Option.pure_def, bw_and]) (fun _ => specR_hangI) (fun hw => ?_)
   have hidx := optW_cases o B55 hoK (by unfold B55; decide) (t.numParams + r.numIndices) (by omega) (bw_eq0 hw)
-  have twin : (∀ ru ∈ r.rules, RuleOK st ru) → r.rules.length < B55 → RecTwin st s t cts r tyh := fun hr hnu =>
+  have twin : (∀ ru ∈ r.rules, RuleOK st ru) → r.rules.length < B55 →
+      r.numParams + r.numMotives + r.numMinors + r.numIndices < 2 ^ 56 → RecTwin st s t cts r tyh := fun hr hnu hmi =>
     ⟨⟨rn, hrn, hview⟩, hrp, hrm, hrmin, ⟨o, hrun3, fun k hk => (hidx k hk).symm⟩, fun ru hru => ⟨(hr ru hru).ctor,
       (hr ru hru).rhs⟩, fun x hx => by obtain ⟨j, hj, e⟩ := List.getElem_of_mem hx; rw [← e]; exact hlps j hj,
-      by unfold B55; omega, hnu, fun ru hru => (hr ru hru).nf, hlpl, ⟨rty, n, hrty, hn, hden⟩⟩
+      by unfold B55; omega, hnu, fun ru hru => (hr ru hru).nf, hlpl, ⟨rty, n, hrty, hn, hden⟩, hmi⟩
   have gq : ∀ y, y ∉ cvMods → y ∉ [ilY, ilX, ilD, ilA, fV2, fW3, fU] →
       Env.get ((ilY, BitVec.ofNat 64 (t.numParams + r.numIndices + 1)) :: (ilX, ConPanqueque.T.Ind.optW o) ::
       (ilD, BitVec.ofNat 64 r.numIndices) :: (ilA, Scan.natW r.numMinors) :: (ilA, Scan.natW r.numMotives) ::
@@ -177,7 +178,7 @@ theorem recP_spec {α : Type} (C0 : Ctx) (hok : CtxOK C0) (cc : ILCodes σ C0)
     ((gq _ (by decide) (by decide)).trans hCD) ((gq _ (by decide) (by decide)).trans hRq)
     ((gq _ (by decide) (by decide)).trans hP) ((gq _ (by decide) (by decide)).trans hNc)
     ((gq _ (by decide) (by decide)).trans hOB) (by envg) (by envg; exact h1y) (by envg; exact h1z)
-    (by envg; exact h1K) hfd (fun hr hnu => hm (twin hr hnu))) (fun u hu => hu)
-    (fun a w s' u ⟨h1, hr, hnu⟩ => ⟨h1, twin hr hnu⟩)
+    (by envg; exact h1K) hfd (fun hr hnu hmi => hm (twin hr hnu hmi))) (fun u hu => hu)
+    (fun a w s' u ⟨h1, hr, hnu, hmi⟩ => ⟨h1, twin hr hnu hmi⟩)
 
 end ConPanqueque.Front

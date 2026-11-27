@@ -1,6 +1,7 @@
 import ConPanqueque.Front.IndLine
 import ConPanqueque.T.Ind.ReadBlockRecs
 import ConPanqueque.T.Ind.NestCtxRun
+import ConPanqueque.T.Ind.ReadBlockSplit
 
 /-! # The inductive record's twin-run facts, from the front end
 
@@ -97,11 +98,10 @@ structure CBKRunRest (mode : ConLeche.CheckMode) (C : Ctx) (p₀ : BlockShape) (
         ⟨p₀.nP, q.params, [{ m with nfs := q.tbl }], [ms0.cvT.type], q.rd.slots, [xs], el, pre⟩
         p₀.k rc rc.cvR 0 s = .ok (cv, s') → (denoteE s'.store cv.type).isSome = true)
 
-/-- **The facts `indRun_of_front` does not derive yet**, each in the shape `IndRun` asks for it: the
-major index below `2⁵⁶` (the inductive line checks `2⁵⁷`), the firing modes' rules denoting, the
-split's shape and `checkBlock`'s pass facts (`CBKRunRest`). -/
+/-- **The facts `indRun_of_front` does not derive yet**, each in the shape `IndRun` asks for it: the firing
+modes' rules denoting with level lists below `2⁶⁰` (`RecDen`'s bound; the store's and the heap's layouts only give
+`2⁶¹`), and `checkBlock`'s pass facts (`CBKRunRest`: `PassFacts`, and the generated recursor types denoting). -/
 structure IndRunGap (C : Ctx) (block : List IConstantInfo) (nP : Nat) : Prop where
-  mi : ∀ ci ∈ block, ∀ cv mi rp k rules, ci = .recInfo cv mi rp k rules → mi < 2 ^ 56
   fire : ∀ (env : ConLeche.Env) (fe : IFEnv) (b : List ConLeche.ConstantInfo) (s : AState) (p : BlockShape)
     (s' : AState), FoldOK env fe s → Ext C.St s.store → Frontend.denoteCIList s.store block = some b →
     readBlock nP block s = .ok (.ok p, s') →
@@ -112,7 +112,7 @@ structure IndRunGap (C : Ctx) (block : List IConstantInfo) (nP : Nat) : Prop whe
     (s' : AState), FoldOK env fe s → Ext C.St s.store → Frontend.denoteCIList s.store block = some b →
     readBlock nP block s = .ok (.ok p, s') →
     ∀ C' : Ctx, C'.St = s'.store → C'.code = C.code → ∀ ms0 rc, p.members = [ms0] → p.recs = [rc] →
-      SplitOK p block ∧ CBKRunRest .verified C' p ms0 rc
+      CBKRunRest .verified C' p ms0 rc
 
 /-- **The inductive record's twin-run facts, from the front end's** (and `IndRunGap`): `readBlock`'s
 answer denotes con-leche's (`readBlock_run`), whose records are the block's (`readBlock_records`), whose
@@ -148,8 +148,8 @@ theorem indRun_of_front {C : Ctx} {block : List IConstantInfo} {nP : Nat} (hF : 
     intro cv mi rp k rules hc
     obtain ⟨ci, hci, hd⟩ := denoteCIList_mem hb0 _ hc
     obtain ⟨v, rs, rfl, hrl⟩ := denoteCI_rec hd
-    obtain ⟨-, h2, h3, -⟩ := hB.rcs _ hci v mi rp k rs rfl
-    exact ⟨hG.mi _ hci v mi rp k rs rfl, h2, by rw [← hrl]; exact h3⟩
+    obtain ⟨h1, h2, h3, -⟩ := hB.rcs _ hci v mi rp k rs rfl
+    exact ⟨h1, h2, by rw [← hrl]; exact h3⟩
   -- the answer's members and recursors, bounded
   have HM : ∀ ms ∈ p.members, ∃ mP ∈ pP.members, ConRon.Bridge.Inductives.dMember s'.store ms = some mP :=
     fun ms hms => mapM_some_mem hmsD ms hms
@@ -203,7 +203,8 @@ theorem indRun_of_front {C : Ctx} {block : List IConstantInfo} {nP : Nat} (hF : 
     ⟨fun ms hms => ⟨(HMb ms hms).2.2.1, (HMb ms hms).2.1, fun c hc => ((HMb ms hms).2.2.2.2.2 c hc).1⟩,
       fun rc hrc => (HRb rc hrc).1⟩,
     hG.fire env fe b s p s' hfo hx hb0' hrun⟩, fun C' hSt hcode ms0 rc hm hr => ?_⟩
-  obtain ⟨hsp, hcbk⟩ := hG.cbk env fe b s p s' hfo hx hb0' hrun C' hSt hcode ms0 rc hm hr
+  have hcbk := hG.cbk env fe b s p s' hfo hx hb0' hrun C' hSt hcode ms0 rc hm hr
+  have hsp : SplitOK p block := readBlock_splitOK hrun (by rw [hm]; rfl)
   have hms0 : ms0 ∈ p.members := by rw [hm]; exact List.mem_singleton_self _
   have hrc0 : rc ∈ p.recs := by rw [hr]; exact List.mem_singleton_self _
   obtain ⟨hni, hcvT, hdd, hlT, -, hcts⟩ := HMb ms0 hms0

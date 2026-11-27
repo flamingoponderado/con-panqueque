@@ -26,6 +26,8 @@ def ilTy := ofString "il_ty"
 def ilD := ofString "il_d"
 def ilK := ofString "il_k"
 
+def b56W : BitVec 64 := BitVec.ofNat 64 (2 ^ 56)
+
 def recRules (C : Ctx) : ProgHOL 64 :=
   .seq (callTo ilK (fIrF 1) [vv kBA, vv kBN, vv ilRq])
   (.seq (callTo ilRl (fIrF 8) [vv kBA, vv kBN, vv ilRq])
@@ -36,9 +38,10 @@ def recRules (C : Ctx) : ProgHOL 64 :=
     (.seq (.call (some (some (.local, ilZ), none)) fRuleLoop (ruleArgs (.const 0)))
     (.seq (.assign .local ilA (.op .add [.op .add [vv ilP, .const 1], vv ilNc]))
     (.seq (.assign .local ilB (.op .add [vv ilA, vv ilD]))
+    (.ite (.cmp .lower (vv ilB) (.const b56W))
     (allocWr C ilR [.const 5, vv fy, vv kKA0, vv fz, vv ilB, vv ilA, vv ilK, vv ilRP]
     (.seq (.store (slotE ilOB ilNc 2) (vv ilR))
-    (allocWr C kR [.const 4, vv ilP, vv ilOB] regPushP)))))))) hang)))
+    (allocWr C kR [.const 4, vv ilP, vv ilOB] regPushP))) hang)))))) hang)))
 
 def recP (C : Ctx) : ProgHOL 64 :=
   .seq (callTo fU (fIrF 3) [vv kBA, vv kBN, vv ilRq])
@@ -78,6 +81,7 @@ structure RecTwin (st : StateD) (s : AState) (t : IndTypeRec) (cts : List IndCto
   lpl : r.cv.levelParams.length < B55
   tele : ∃ rty n, st.exprs.get? r.cv.type = some rty ∧ n < B55 ∧
     ∀ e, denoteE s.store rty = some e → n = ConLeche.Frontend.indPiTeleLen e
+  mi : r.numParams + r.numMotives + r.numMinors + r.numIndices < 2 ^ 56
 
 /-- The type former and the constructors of the block. -/
 def indHead (st : StateD) (t : IndTypeRec) (cts : List IndCtorRec) (T : NIdx) : List IConstantInfo :=
@@ -197,11 +201,13 @@ theorem recRules_spec {α : Type} (C0 : Ctx) (hok : CtxOK C0) (cc : ILCodes σ C
     (hfd : ConPanqueque.Bridge.IsFrontDecl C0.pins (.indDecl (indBlockD st t cts r T) t.numParams))
     {m : AM (StateD ⊕ RecordVerdict)}
     (hm : (∀ ru ∈ r.rules, RuleOK st ru) → r.rules.length < B55 →
+      r.numParams + r.numMotives + r.numMinors + r.numIndices < 2 ^ 56 →
       m s = (pure (.inl { st with decls := st.decls.push (.indDecl (indBlockD st t cts r T) t.numParams) }) :
         AM (StateD ⊕ RecordVerdict)) s) :
     SpecR (Inv (σ := σ) (ctxH C0 Hc) s Γ [] D) (recRules C0) s m
       (fun a w s' t' => DeclPost C0 F rb capD C0.H st (.indDecl (indBlockD st t cts r T) t.numParams) a w s' t' ∧
-        (∀ ru ∈ r.rules, RuleOK st ru) ∧ r.rules.length < B55) := by
+        (∀ ru ∈ r.rules, RuleOK st ru) ∧ r.rules.length < B55 ∧
+        r.numParams + r.numMotives + r.numMinors + r.numIndices < 2 ^ 56) := by
   have hplat := hbuf.plat
   have hpc0 : C0.H <+: Hc := hp0.trans hpc
   have hokc := ctxOK_H hok Hc
@@ -313,10 +319,16 @@ theorem recRules_spec {α : Type} (C0 : Ctx) (hok : CtxOK C0) (cc : ILCodes σ C
       simp only [sev, vv]; envg; rw [hDd]
       simp only [Option.bind_eq_bind, Option.bind_some, Option.pure_def]
       congr 1; apply BitVec.eq_of_toNat_eq; simp [BitVec.toNat_add]) ?_
+  refine specR_ltGuardI ilB (BitVec.ofNat 64 (t.numParams + 1 + cts.length + r.numIndices)) b56W (by envg)
+    (fun hlB => ?_)
   -- the recursor's record
   have hcvR := cvOfD_eq st r.cv rn rty hrn hrty
   have hmi : r.numParams + r.numMotives + r.numMinors + r.numIndices = t.numParams + 1 + cts.length + r.numIndices := by
     rw [hrp, hrm, hrmin]
+  have hmi56 : r.numParams + r.numMotives + r.numMinors + r.numIndices < 2 ^ 56 := by
+    rw [hmi]
+    rw [BitVec.toNat_ofNat, Nat.mod_eq_of_lt (by omega)] at hlB
+    exact hlB
   have hrp' : r.numParams + r.numMotives + r.numMinors = t.numParams + 1 + cts.length := by rw [hrp, hrm, hrmin]
   refine specR_allocWrI (ctxH C0 H5) (ctxOK_H hok H5) ilR (hD ilR (by simp [recMods]))
     [.const 5, vv fy, vv kKA0, vv fz, vv ilB, vv ilA, vv ilK, vv ilRP]
@@ -356,7 +368,7 @@ theorem recRules_spec {α : Type} (C0 : Ctx) (hok : CtxOK C0) (cc : ILCodes σ C
   have hr8' : H7.length ≤ r0 := hr8
   have hp08 : C0.H <+: H8 := hp7.trans hp8
   have hnU' : r.rules.length < B55 := by unfold B55; omega
-  refine specR_congr (hm hrok hnU') ?_
+  refine specR_congr (hm hrok hnU' hmi56) ?_
   -- the record's encoding
   have tr : ∀ c v, H[c]? = some v → c ≠ ob + 2 + cts.length → H8[c]? = some v := fun c v hv hne =>
     getElem?_prefix hp8 (get_set_ne' (getElem?_prefix (hpc.trans (hp5.trans hp6)) hv) hne)
@@ -380,7 +392,7 @@ theorem recRules_spec {α : Type} (C0 : Ctx) (hok : CtxOK C0) (cc : ILCodes σ C
     (.indDecl (indBlockD st t cts r T) t.numParams) r0
     (fun c hc _ => by obtain ⟨q, hq⟩ := hp08; rw [← hq, List.getElem?_append_left (by omega)])
     hp08.length_le (declsRel_prefix hdr hp08) ?_ hcapD
-    (by envg; exact hRB) (by envg; exact hCD) (by envg <;> rfl)) (fun u hu => hu) (fun a w s' u h => ⟨h, hrok, hnU'⟩)
+    (by envg; exact hRB) (by envg; exact hCD) (by envg <;> rfl)) (fun u hu => hu) (fun a w s' u h => ⟨h, hrok, hnU', hmi56⟩)
   have hFob : F ≤ ob := by omega
   refine ⟨hfd, by omega, by simpa using hw8 0 (by simp), by simpa using hw8 1 (by simp), ob, hFob,
     by simpa using hw8 2 (by simp), ?_, by simp [indBlockD]; omega, by omega, fun i hi => ?_⟩
