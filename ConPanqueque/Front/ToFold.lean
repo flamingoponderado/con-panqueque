@@ -68,6 +68,9 @@ theorem recOK_of_enc {C : Ctx} {F : Nat} {H : List (BitVec 64)} {o : Nat} {d : I
     cases hc : denoteCV C.St cv with
     | none => rw [hc] at hd; simp at hd
     | some c => exact ⟨h1, recCV_of_enc h2 (by rw [hc]; rfl), h3⟩
+  | quotDecl k cv =>
+    obtain ⟨-, h1, -, -⟩ := h
+    exact ⟨6, h1, by decide, by decide, by decide, by decide, by decide⟩
   | _ => exact h.elim
 
 /-- **The registry as the fold's block.** -/

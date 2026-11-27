@@ -163,6 +163,14 @@ theorem valName_denote {st : EStore} {dh : IDeclaration} {d : ConLeche.Declarati
       rw [hn] at hs
       have hcs : c.name = ConLeche.sorryAxName := Option.some.inj hs
       exact ⟨cv.name, c.name, rfl, hp.name, hn, by simp [ConPanqueque.Pipeline.recName, hcs]⟩
+  | quotDecl k cv =>
+    simp only [denoteDecl] at h
+    cases hc : denoteCV st cv with
+    | none => rw [hc] at h; simp at h
+    | some c =>
+      rw [hc] at h
+      simp only [Option.map_some, Option.some.injEq] at h; subst h
+      exact ⟨cv.name, c.name, rfl, hp.name, (denoteCV_inv hc).1, rfl⟩
   | _ => exact hv.elim
 
 open ConPanqueque.Front ConPanqueque.T.Decl Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact

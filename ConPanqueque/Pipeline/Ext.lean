@@ -437,20 +437,160 @@ theorem checkDecl_sorry_fresh (F : Nat) (pins : List NatOpPinSet) (env : Env) (c
   | error e => rw [hc] at h; cases h
   | ok u => exact (checkConstantVal_res F env c false false true hc).2
 
+/-! ## Quotient records -/
+
+/-- `Quot.mk`, when stored, is a constructor (the quotient recursors' rules name it). -/
+def QuotMkCtor (env : Env) : Prop :=
+  ∀ ci, env.find? quotMkName = some ci → ∃ cv nP nF T, ci = .ctorInfo cv nP nF T
+
+theorem quotMkCtor_empty : QuotMkCtor Env.empty := fun ci h => by simp [Env.empty, Env.find?] at h
+
+/-- `envExt_cons` for a constant whose rules (if a recursor) name stored constructors. -/
+theorem envExt_cons' (hx : EnvExt env₁ env₂) (hw2 : EnvWF env₂) (c : ConstantInfo)
+    (hf1 : env₁.find? c.name = none) (hf2 : env₂.find? c.name = none) (hwE : EnvWF ⟨c :: env₁.consts, env₁.tables⟩)
+    (hn : NameOK c.name) (hrc : ∀ cv mI rP isK rules, c = .recInfo cv mI rP isK rules → ∀ r ∈ rules,
+      ∃ cvj cnP cnF T, env₁.find? (RecRule.ctor r) = some (.ctorInfo cvj cnP cnF T)) :
+    EnvExt ⟨c :: env₁.consts, env₁.tables⟩ ⟨c :: env₂.consts, env₂.tables⟩ := by
+  have fc : ∀ (e : Env) (n : Name), n ≠ c.name → Env.find? ⟨c :: e.consts, e.tables⟩ n = e.find? n := by
+    intro e n hne; rw [Env.find?_cons, ite_eq_right (fun h => hne h.symm)]
+  refine ⟨fun n ci h => ?_, fun T hT => ?_, ?_⟩
+  · by_cases e : n = c.name
+    · subst e; rw [Env.find?_cons_self] at h ⊢; exact h
+    · rw [fc _ _ e] at h ⊢; exact hx.find n ci h
+  · rw [EnvWF.findTable?_cons hw2 hf2, EnvWF.findTable?_cons hx.facts.wf hf1]
+    by_cases e : T = c.name
+    · subst e; simp [Env.findTable?, hf1, hf2]
+    · rw [fc _ _ e] at hT; exact hx.table T hT
+  · obtain ⟨hwf, hnat, hrc0, htc, hbool⟩ := hx.facts
+    obtain ⟨hop, hred, h1, h2, h3, h4, h5⟩ := hn
+    have nOp : ∀ m ∈ natOpNames, m ≠ c.name := fun m hm e => by
+      subst e; simp [natOpName, List.contains_iff_mem, hm] at hop
+    refine ⟨hwE, ?_, ?_, ?_, ?_⟩
+    · rw [fc _ _ (Ne.symm h1), fc _ _ (Ne.symm h2), fc _ _ (Ne.symm h3)]; exact hnat
+    · intro n cv mI rP isK rules hn' r hr
+      by_cases hne : n = c.name
+      · subst hne
+        rw [Env.find?_cons_self] at hn'
+        obtain ⟨cvj, cnP, cnF, T, hj⟩ := hrc cv mI rP isK rules (Option.some.inj hn') r hr
+        have hne2 : RecRule.ctor r ≠ c.name := by intro e; rw [e, hf1] at hj; cases hj
+        exact ⟨cvj, cnP, cnF, T, by rw [fc _ _ hne2]; exact hj⟩
+      · rw [fc _ _ hne] at hn'
+        obtain ⟨cvj, cnP, cnF, T, hj⟩ := hrc0 n cv mI rP isK rules hn' r hr
+        have hne2 : RecRule.ctor r ≠ c.name := by intro e; rw [e, hf1] at hj; cases hj
+        exact ⟨cvj, cnP, cnF, T, by rw [fc _ _ hne2]; exact hj⟩
+    · intro T tbl hT
+      rw [EnvWF.findTable?_cons hx.facts.wf hf1] at hT
+      obtain ⟨ci, hci⟩ := Option.isSome_iff_exists.mp (htc T tbl hT)
+      rw [Env.find?_cons]; split <;> simp [hci]
+    · rw [fc _ _ (nOp _ (by simp [natOpNames])), fc _ _ (nOp _ (by simp [natOpNames])),
+        fc _ _ (Ne.symm h4), fc _ _ (Ne.symm h5)]; exact hbool
+
+/-- A pin hit names the record at its pin's name. -/
+theorem quotHit_name {k : QuotKind} {c : ConstantVal} (h : quotPinHit k c = true) : c.name = (quotAt k c).name := by
+  simp only [quotPinHit, Bool.and_eq_true] at h
+  have e := ConstantVal.eq_of_beqP h.2
+  rw [show (quotAt k c).name = (quotPin k).name from atLps_name _ _, e]
+  rfl
+
+/-- The pinned quotient names' properties the extension reads (none an operation or a literal name). -/
+theorem quotAt_nameOK (k : QuotKind) (c : ConstantVal) : NameOK (quotAt k c).name := by
+  rw [show (quotAt k c).name = (quotPin k).name from atLps_name _ _]
+  cases k <;> refine ⟨by decide, by decide, by decide, by decide, by decide, by decide, by decide⟩
+
+/-- A quotient record's check: the pin hit, the predecessors, the install. -/
+theorem checkDecl_quot_inv {F : Nat} {pins : List NatOpPinSet} {env E : Env} {k : QuotKind} {c : ConstantVal}
+    (h : checkDecl .verified (fueledOps .verified F) pins env (.quotDecl k c) = .ok E) :
+    quotPinHit k c = true ∧ quotPredsOk env.find? k = true ∧ env.find? (quotAt k c).name = none ∧
+      E = ⟨quotAt k c :: env.consts, env.tables⟩ := by
+  unfold checkDecl checkDeclKind checkQuotRecord installBasisDecl at h
+  simp only [bind, Except.bind] at h
+  by_cases h1 : quotPinHit k c = true
+  · by_cases h2 : quotPredsOk env.find? k = true
+    · by_cases h3 : (env.find? (quotAt k c).name).isNone = true
+      · simp only [h1, h2, h3, Bool.not_true, Bool.false_eq_true, ite_false, pure, Except.pure] at h
+        simp only [basisNamesOk, ite_true] at h
+        refine ⟨h1, h2, by simpa using h3, ?_⟩
+        simpa using h.symm
+      · simp [h1, h2, h3, throw, throwThe, MonadExceptOf.throw] at h
+    · simp [h1, h2, throw, throwThe, MonadExceptOf.throw] at h
+  · simp [h1, throw, throwThe, MonadExceptOf.throw] at h
+
+theorem checkDecl_quot_ext (hx : EnvExt env₁ env₂) (hw2 : EnvWF env₂) (F : Nat) (pins pins' : List NatOpPinSet)
+    (k : QuotKind) (c : ConstantVal) (hf2 : env₂.find? (quotAt k c).name = none) (hq : QuotMkCtor env₁) {E : Env}
+    (h : checkDecl .verified (fueledOps .verified F) pins env₁ (.quotDecl k c) = .ok E) :
+    ∃ E₂, checkDecl .verified (fueledOps .verified F) pins' env₂ (.quotDecl k c) = .ok E₂ ∧ EnvExt E E₂ ∧ EnvWF E₂ ∧
+      E = ⟨quotAt k c :: env₁.consts, env₁.tables⟩ ∧ E₂ = ⟨quotAt k c :: env₂.consts, env₂.tables⟩ := by
+  have hwE : EnvWF E := ConLeche.Semantics.checkDecl_envWF hx.facts.wf h
+  obtain ⟨hhit, hpred, hf1, rfl⟩ := checkDecl_quot_inv h
+  have hpred2 : quotPredsOk env₂.find? k = true := by
+    have hs : ∀ n, (env₁.find? n).isSome = true → (env₂.find? n).isSome = true := fun n hn => by
+      rw [hx.find_of_isSome hn]; exact hn
+    cases k <;> simp only [quotPredsOk, Bool.and_eq_true] at hpred ⊢ <;> simp_all
+  have h2 : checkDecl .verified (fueledOps .verified F) pins' env₂ (.quotDecl k c) =
+      .ok ⟨quotAt k c :: env₂.consts, env₂.tables⟩ := by
+    unfold checkDecl checkDeclKind checkQuotRecord installBasisDecl
+    simp [bind, Except.bind, hhit, hpred2, hf2, basisNamesOk, pure, Except.pure]
+  refine ⟨_, h2, envExt_cons' hx hw2 _ hf1 hf2 hwE (quotAt_nameOK k c) ?_, ConLeche.Semantics.checkDecl_envWF hw2 h2,
+    rfl, rfl⟩
+  intro cv mI rP isK rules he r hr
+  have hM : (env₁.find? quotMkName).isSome = true ∧ RecRule.ctor r = quotMkName := by
+    cases k <;> simp [quotAt, quotPin, ConstantInfo.atLps, BasisKind.decls, QuotKind.slot,
+      quotBasis, quotA, quotMkA, quotLiftA, quotIndA, quotSoundA] at he
+    all_goals (obtain ⟨-, -, -, -, hrules⟩ := he
+               subst hrules
+               simp only [List.mem_singleton] at hr
+               subst hr
+               simp only [quotPredsOk, Bool.and_eq_true] at hpred
+               exact ⟨by simp_all, rfl⟩)
+  obtain ⟨hs, hc⟩ := hM
+  obtain ⟨ci, hci⟩ := Option.isSome_iff_exists.mp hs
+  obtain ⟨cvj, cnP, cnF, T, rfl⟩ := hq ci hci
+  exact ⟨cvj, cnP, cnF, T, by rw [hc]; exact hci⟩
+
+theorem checkDecl_basis {F : Nat} {pins : List NatOpPinSet} {env E : Env} {d : Declaration}
+    (h : checkDecl .verified (fueledOps .verified F) pins env d = .ok E) : basisNamesOk d = true := by
+  unfold checkDecl at h
+  simp only [bind, Except.bind] at h
+  split at h
+  · cases h
+  · by_cases hb : basisNamesOk d = true
+    · exact hb
+    · simp [hb, throw, throwThe, MonadExceptOf.throw] at h
+
+theorem quotMkCtor_cons {env : Env} {c : ConstantInfo} (hq : QuotMkCtor env)
+    (hc : c.name = quotMkName → ∃ cv nP nF T, c = .ctorInfo cv nP nF T) : QuotMkCtor ⟨c :: env.consts, env.tables⟩ := by
+  intro ci h
+  rw [Env.find?_cons] at h
+  split at h
+  · rename_i he; simp only [Option.some.injEq] at h; subst h; exact hc he
+  · exact hq ci h
+
+theorem quotMkCtor_quot {env : Env} (k : QuotKind) (c : ConstantVal) (hq : QuotMkCtor env) :
+    QuotMkCtor ⟨quotAt k c :: env.consts, env.tables⟩ :=
+  quotMkCtor_cons hq (fun he => by
+    rw [show (quotAt k c).name = (quotPin k).name from atLps_name _ _] at he
+    cases k <;> first
+      | (exact absurd he (by decide))
+      | (simp [quotAt, quotPin, ConstantInfo.atLps, BasisKind.decls, QuotKind.slot,
+          quotBasis, quotA, quotMkA, quotLiftA, quotIndA, quotSoundA]))
+
 /-- A stream record's name: a value record's, or `sorryAx` for the `sorryAx` axiom record (which
 installs nothing). -/
 def recName : Declaration → Option Name
   | .axiomDecl c => if c.name = sorryAxName then some c.name else none
+  | .quotDecl _ c => some c.name
   | d => valName d
 
 theorem recName_cases {d : Declaration} {n : Name} (h : recName d = some n) :
-    valName d = some n ∨ ∃ c, d = .axiomDecl c ∧ c.name = sorryAxName ∧ n = c.name := by
+    valName d = some n ∨ (∃ c, d = .axiomDecl c ∧ c.name = sorryAxName ∧ n = c.name) ∨
+      ∃ k c, d = .quotDecl k c ∧ n = c.name := by
   cases d with
   | axiomDecl c =>
     simp only [recName] at h
     split at h
-    · rename_i hs; simp only [Option.some.injEq] at h; exact Or.inr ⟨c, rfl, hs, h.symm⟩
+    · rename_i hs; simp only [Option.some.injEq] at h; exact Or.inr (Or.inl ⟨c, rfl, hs, h.symm⟩)
     · cases h
+  | quotDecl k c => simp only [recName, Option.some.injEq] at h; exact Or.inr (Or.inr ⟨k, c, rfl, h.symm⟩)
   | _ => exact Or.inl h
 
 /-- The stream's records: value records, or the `sorryAx` axiom record, at names the environment's guards
@@ -460,17 +600,26 @@ def StreamOK (envP : Env) (ds : List Declaration) : Prop :=
 
 /-- **An accepting run over value records carries over to an extension.** -/
 theorem pureRun_ext {pins pins' : List NatOpPinSet} (envP : Env) : ∀ {ds : List Declaration} {env₁ E₁ env₂ : Env},
-    PureRun pins ds env₁ E₁ → EnvExt env₁ env₂ → EnvWF env₂ → StreamOK envP ds →
+    PureRun pins ds env₁ E₁ → EnvExt env₁ env₂ → EnvWF env₂ → StreamOK envP ds → QuotMkCtor env₁ →
     (∀ m, env₁.find? m = none → envP.find? m = none → env₂.find? m = none) →
     ∃ E₂, PureRun pins' ds env₂ E₂
-  | _, _, _, _, .nil _, _, _, _, _ => ⟨_, .nil _⟩
-  | d :: ds, env₁, _, env₂, .cons ⟨F, hs⟩ rest, hx, hw2, hok, hinv => by
+  | _, _, _, _, .nil _, _, _, _, _, _ => ⟨_, .nil _⟩
+  | d :: ds, env₁, _, env₂, .cons ⟨F, hs⟩ rest, hx, hw2, hok, hq, hinv => by
     obtain ⟨n, hd', hn, hP⟩ := hok d (List.mem_cons_self ..)
-    rcases recName_cases hd' with hd | ⟨c, rfl, hsn, rfl⟩
+    rcases recName_cases hd' with hd | ⟨c, rfl, hsn, rfl⟩ | ⟨k, c, rfl, rfl⟩
     · have hf1 := checkDecl_val_fresh F pins env₁ d n hd hs
       obtain ⟨E₂, h2, hx', hw', c, hc, -, e1, e2⟩ :=
         checkDecl_ext hx hw2 F pins pins' d n hd (hinv n hf1 hP) hn hs
-      obtain ⟨E₃, hr⟩ := pureRun_ext envP rest hx' hw' (fun d' hd' => hok d' (List.mem_cons_of_mem _ hd')) (by
+      have hb := checkDecl_basis hs
+      obtain ⟨E₃, hr⟩ := pureRun_ext envP rest hx' hw' (fun d' hd' => hok d' (List.mem_cons_of_mem _ hd'))
+        (by
+          rw [e1]
+          refine quotMkCtor_cons hq (fun he => ?_)
+          have hn' : n = quotMkName := hc ▸ he
+          subst hn'
+          exfalso
+          cases d <;> simp only [valName, Option.some.injEq, reduceCtorEq] at hd <;>
+            simp only [basisNamesOk, hd] at hb <;> exact absurd hb (by decide)) (by
         intro m hm1 hmP
         subst e1 e2
         rw [Env.find?_cons] at hm1 ⊢
@@ -480,7 +629,20 @@ theorem pureRun_ext {pins pins' : List NatOpPinSet} (envP : Env) : ∀ {ds : Lis
       exact ⟨E₃, .cons ⟨F, h2⟩ hr⟩
     · have hf1 := checkDecl_sorry_fresh F pins env₁ c hsn hs
       obtain ⟨rfl, h2⟩ := checkDecl_sorry_ext hx F pins pins' c hsn (hinv _ hf1 hP) hs
-      obtain ⟨E₃, hr⟩ := pureRun_ext envP rest hx hw2 (fun d' hd'' => hok d' (List.mem_cons_of_mem _ hd'')) hinv
+      obtain ⟨E₃, hr⟩ := pureRun_ext envP rest hx hw2 (fun d' hd'' => hok d' (List.mem_cons_of_mem _ hd'')) hq hinv
+      exact ⟨E₃, .cons ⟨F, h2⟩ hr⟩
+    · obtain ⟨hhit, -, hf1, -⟩ := checkDecl_quot_inv hs
+      have hnm := quotHit_name hhit
+      obtain ⟨E₂, h2, hx', hw', e1, e2⟩ :=
+        checkDecl_quot_ext hx hw2 F pins pins' k c (hinv _ hf1 (by rw [← hnm]; exact hP)) hq hs
+      obtain ⟨E₃, hr⟩ := pureRun_ext envP rest hx' hw' (fun d' hd' => hok d' (List.mem_cons_of_mem _ hd'))
+        (by rw [e1]; exact quotMkCtor_quot k c hq) (by
+          intro m hm1 hmP
+          subst e1 e2
+          rw [Env.find?_cons] at hm1 ⊢
+          split at hm1
+          · cases hm1
+          · rename_i hne; rw [ite_eq_right hne]; exact hinv m hm1 hmP)
       exact ⟨E₃, .cons ⟨F, h2⟩ hr⟩
 
 /-- **The prelude, then the stream.**  An accepting run of the prelude from the empty environment
@@ -491,7 +653,7 @@ theorem prelude_then_stream (pins pins₀ : List NatOpPinSet) (P S : List Declar
     (hP : PureRun pins P Env.empty envP) (hS : PureRun pins₀ S Env.empty E₁) (hok : StreamOK envP S) :
     ∃ E, PureRun pins (P ++ S) Env.empty E := by
   have hwP := pureRun_envWF hP ConLeche.Semantics.EnvWF.empty
-  obtain ⟨E₂, h2⟩ := pureRun_ext (pins' := pins) envP hS (envExt_empty envP) hwP hok (fun _ _ h => h)
+  obtain ⟨E₂, h2⟩ := pureRun_ext (pins' := pins) envP hS (envExt_empty envP) hwP hok quotMkCtor_empty (fun _ _ h => h)
   exact ⟨E₂, pureRun_append hP h2⟩
 
 end ConPanqueque.Pipeline

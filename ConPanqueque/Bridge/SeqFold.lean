@@ -5,6 +5,7 @@ import ConRon.Bridge.Checker.Index
 import ConRon.Bridge.Checker.Basis
 import ConRon.Bridge.Frontend.Rel
 import ConRon.Bridge.Inductives.Decl
+import ConLeche.Semantics.DeclWF
 
 /-! # The sequential fold, bridged to con-leche
 
@@ -40,6 +41,7 @@ def IsValueDecl : IDeclaration → Prop
 `sorryAx`), which con-leche skips. -/
 def IsChecked (ns : NStore) : IDeclaration → Prop
   | .axiomDecl cv => denoteN ns cv.name = some ConLeche.sorryAxName
+  | .quotDecl _ _ => True
   | d => IsValueDecl d
 
 theorem isChecked_of_value {ns : NStore} {pd : IDeclaration} (h : IsValueDecl pd) : IsChecked ns pd := by
@@ -48,6 +50,7 @@ theorem isChecked_of_value {ns : NStore} {pd : IDeclaration} (h : IsValueDecl pd
 /-- What the front end hands the fold: a value record, or an axiom record named by the `sorryAx` pin. -/
 def IsFrontDecl (P : Pins) : IDeclaration → Prop
   | .axiomDecl cv => P.names[PIN_SORRY_AX]? = some cv.name
+  | .quotDecl _ _ => True
   | d => IsValueDecl d
 
 theorem denoteNL_getElem? {st : EStore} : ∀ (xs : List NIdx) (ns : List ConLeche.Name), denoteNL st xs ns →
@@ -317,6 +320,75 @@ theorem kind_sorry
     exact hok3.toStepOK
   · exact absurd (hsn.mpr hs) hn10
 
+open ConLeche.Term ConLeche.Verify ConLeche.Cached ConLeche.Semantics in
+/-- A quotient record's arm: the pinned package's constant at the record's level parameters, pushed. -/
+theorem kind_quot
+    {pins : List INatOpPinSet} {pinsP : List NatOpPinSet} {env : Env}
+    {fe fe' : IFEnv} {s s' : AState} {k : QuotKind} {v : IConstantVal} {c : ConstantVal}
+    (hok : FoldOK env fe s) (hpins : PinsDenote s.store pins pinsP)
+    (hcv : Frontend.denoteCV s.store v = some c)
+    (hrun : ConRon.Arena.checkDeclKind .verified pins fe (.quotDecl k v) s = .ok (fe', s')) :
+    KindOut pinsP env (.quotDecl k c) fe fe' s s' := by
+  have hout := checkDeclKind_bridge_quot (pinsP := pinsP) hok hcv hrun
+  simp only [ConRon.Arena.checkDeclKind, ConRon.Arena.checkQuotRecord] at hrun
+  have hst := hok.check.state
+  have hr := hok.check.readOK
+  obtain ⟨c1, s₁, g1, k1⟩ := AM.bind_ok hrun
+  obtain ⟨hs1, hc1⟩ := quotPinHit_run hst hr hcv g1
+  obtain ⟨hy1, k2⟩ := AM.dunless_ok AM.Never.fail_any k1
+  replace k2 := AM.pure_bind_ok k2
+  have hhit : ConLeche.quotPinHit k c = true := by rw [← hc1]; simpa using hy1
+  obtain ⟨c2, s₂, g2, k3⟩ := AM.bind_ok k2
+  obtain ⟨rfl, hc2⟩ := quotPredsOk_run hs1.ok (hok.check.pins.mono hs1.ext hs1.pins)
+    (hok.check.ienv.mono hs1.ext) g2
+  obtain ⟨hy2, k4⟩ := AM.dunless_ok AM.Never.fail_any k3
+  replace k4 := AM.pure_bind_ok k4
+  have hpred : ConLeche.quotPredsOk env.find? k = true := by rw [← hc2]; simpa using hy2
+  obtain ⟨ci, s₃, g3, k5⟩ := AM.bind_ok k4
+  obtain ⟨hs3, hci⟩ := quotAt_run hs1.ok hs1.read (denoteCV_ext hcv hs1.ext) g3
+  simp only [ConRon.Arena.installBasisDecl] at k5
+  obtain ⟨-, k6⟩ := AM.dunless_ok AM.Never.fail_any k5
+  replace k6 := AM.pure_bind_ok k6
+  obtain ⟨rfl, rfl⟩ := AM.pure_ok k6
+  -- the pushed constant's well-formedness (con-leche's `declQuotRun_envWF`, piece by piece)
+  simp only [ConLeche.quotPinHit, Bool.and_eq_true, beq_iff_eq] at hhit
+  obtain ⟨⟨-, hlen⟩, -⟩ := hhit
+  have hname : (ConLeche.quotAt k c).name = (ConLeche.quotPin k).name := atLps_name _ _
+  have hpred' : ∀ n ∈ quotNeeds k, n ≠ (ConLeche.quotPin k).name → (env.find? n).isSome = true := by
+    intro n hn hne
+    cases k <;> simp only [quotNeeds, List.mem_cons, List.not_mem_nil, or_false] at hn <;>
+      simp only [ConLeche.quotPredsOk, Bool.and_eq_true] at hpred <;>
+      rcases hn with rfl | rfl | rfl | rfl <;> simp_all
+  have hdom : ∀ n, ((quotStub k).find? n).isSome = true →
+      (Env.find? ⟨ConLeche.quotAt k c :: env.consts, env.tables⟩ n).isSome = true := by
+    intro n hn
+    rw [Env.find?_cons]
+    by_cases hs : (ConLeche.quotAt k c).name = n
+    · rw [ite_eq_left hs]; rfl
+    · rw [ite_eq_right hs]
+      exact hpred' n (quotStub_find hn) fun he => hs (hname.trans he.symm)
+  obtain ⟨f1, f2, f3, f4, f5, f6, f7⟩ := quotPin_facts k
+  have hshape : litShapeOk (ConLeche.quotAt k c) = true :=
+    litShapeOk_of_not_lit (by rw [hname]; cases k <;> decide)
+  have hdc : ConLeche.declConstants (.quotDecl k c) = [ConLeche.quotAt k c] := rfl
+  refine ⟨hout, ?_, by simp only [IFEnv.push]; split <;> rfl⟩
+  rw [hdc]
+  exact (hok.toStepOK.mono (hs1.ext.trans hs3.ext)).push hs3.ok hci hshape
+    (constWF_atLps hdom (by rw [hlen]) f1 f2 f3 f4 f5 f6)
+    (by
+      intro cv' caps h hn
+      cases k <;> simp [ConLeche.quotAt, ConLeche.quotPin, ConLeche.ConstantInfo.atLps, ConLeche.BasisKind.decls, ConLeche.QuotKind.slot,
+        ConLeche.quotBasis, ConLeche.quotA, ConLeche.quotMkA, ConLeche.quotLiftA, ConLeche.quotIndA, ConLeche.quotSoundA] at h
+      obtain ⟨-, rfl⟩ := h
+      exact nomatch hn)
+    (by
+      intro cv' nP nF T h
+      cases k <;> simp [ConLeche.quotAt, ConLeche.quotPin, ConLeche.ConstantInfo.atLps, ConLeche.BasisKind.decls, ConLeche.QuotKind.slot,
+        ConLeche.quotBasis, ConLeche.quotA, ConLeche.quotMkA, ConLeche.quotLiftA, ConLeche.quotIndA, ConLeche.quotSoundA] at h
+      obtain ⟨rfl, -, -, rfl⟩ := h
+      exact ⟨_, rfl⟩)
+    (ruleWF_atLps _ f7)
+
 /-- A value record's own checks, at the index it hands on. -/
 theorem kind_value
     {pins : List INatOpPinSet} {pinsP : List NatOpPinSet} {env : Env}
@@ -376,6 +448,15 @@ theorem kind_value
         have h : denoteN s.store.ns v.name = some ConLeche.sorryAxName := hval
         rw [hn] at h; exact Option.some.inj h
       exact kind_sorry hk hok hpins hcv hs hrun
+  | quotDecl qk v =>
+    simp only [Frontend.denoteDecl] at hd
+    cases hcv : Frontend.denoteCV s.store v with
+    | none => rw [hcv] at hd; simp at hd
+    | some cv =>
+      rw [hcv] at hd
+      simp only [Option.map_some, Option.some.injEq] at hd
+      subst hd
+      exact kind_quot hok hpins hcv hrun
   | _ => exact absurd hval id
 
 /-- **A value record's check** (`checkDecl`): con-ron's per-declaration output, and the

@@ -272,6 +272,10 @@ theorem recEnc_set_ext {C : Ctx} {F : Nat} {H H' : List (BitVec 64)} (hp : H <+:
     obtain ⟨ho, h1, ⟨ol, hol, c1, c2, c3, c4, c5⟩, ⟨w4, h3⟩, h4⟩ := h
     exact ⟨ho, getElem?_set_ext hp h1 hj, ⟨ol, hol, getElem?_set_ext hp c1 hj, getElem?_set_ext hp c2 hj,
       getElem?_set_ext hp c3 hj, blkAt_set_ext hp c4 j hj w, c5⟩, ⟨w4, getElem?_set_ext hp h3 hj⟩, h4⟩
+  | quotDecl k cv =>
+    obtain ⟨ho, h1, ⟨ol, hol, c1, c2, c3, c4, c5⟩, h3⟩ := h
+    exact ⟨ho, getElem?_set_ext hp h1 hj, ⟨ol, hol, getElem?_set_ext hp c1 hj, getElem?_set_ext hp c2 hj,
+      getElem?_set_ext hp c3 hj, blkAt_set_ext hp c4 j hj w, c5⟩, getElem?_set_ext hp h3 hj⟩
   | _ => exact h.elim
 
 /-- Writes past an image keep its registry, on any extension. -/
