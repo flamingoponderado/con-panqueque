@@ -325,7 +325,7 @@ theorem main_pipeline (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
   have hS := ConLeche.PureRun.of_foldlM (pins := []) (F := F') rc.decls.toList hacc
   refine ConPanqueque.Pipeline.pipeline_of_stream pins [] pre rc.decls hP.run hP.noOp hS (fun d hd => ?_)
   obtain ⟨n, hn, hnF⟩ := hnm d hd
-  refine ⟨n, hn, nameOK_of_notMem hnF, ?_, fun p hp e => hnF (e ▸ hP.keys p hp)⟩
+  refine ConPanqueque.Pipeline.recOK_of_recName hn (nameOK_of_notMem hnF) ?_ (fun p hp e => hnF (e ▸ hP.keys p hp))
   cases h : envP.find? n with
   | none => rfl
   | some ci => exact absurd (hP.names n (by rw [h]; simp)) hnF

@@ -1,4 +1,4 @@
-import ConPanqueque.Pipeline.Ext
+import ConPanqueque.Pipeline.Ext2
 import ConLeche.Frontend.Prepare
 
 /-! # `preparePrelude` on a stream that declares no prelude name
@@ -58,10 +58,19 @@ theorem preparePrelude_eq (pre : PreludeIx) (ds : Array Declaration)
   simp
 
 
-/-- A stream record the bridge accepts: a value record at a name the guards do not read, which the
-prelude's environment does not declare and no prelude record is keyed by. -/
+/-- A stream record the bridge accepts: a value, quotient or `sorryAx` record, or an inductive block,
+at names the guards do not read, which the prelude's environment does not declare and no prelude
+record is keyed by (and, in a block, not `Quot.mk`). -/
 def RecOK (pre : PreludeIx) (envP : Env) (d : Declaration) : Prop :=
-  ∃ n, recName d = some n ∧ NameOK n ∧ envP.find? n = none ∧ ∀ p ∈ pre.decls.toList, preludeKey p ≠ n
+  ∃ ns, recNames d = some ns ∧ ∀ n ∈ ns, NameOK n ∧ envP.find? n = none ∧
+    (∀ p ∈ pre.decls.toList, preludeKey p ≠ n) ∧ ((∃ b k, d = .indDecl b k) → n ≠ quotMkName)
+
+theorem recOK_of_recName {pre : PreludeIx} {envP : Env} {d : Declaration} {n : Name} (hn : recName d = some n)
+    (h1 : NameOK n) (h2 : envP.find? n = none) (h3 : ∀ p ∈ pre.decls.toList, preludeKey p ≠ n) :
+    RecOK pre envP d :=
+  ⟨[n], recNames_of_recName hn, fun m hm => by
+    rw [List.mem_singleton] at hm; subst hm
+    exact ⟨h1, h2, h3, fun ⟨b, k, he⟩ => by subst he; simp [recName, valName] at hn⟩⟩
 
 theorem valName_names {d : Declaration} {n : Name} (h : valName d = some n) : d.names = [n] := by
   cases d <;> simp_all [valName, Declaration.names]
@@ -87,6 +96,17 @@ theorem recName_natOp {d : Declaration} {n : Name} (h : recName d = some n) (hn 
   · simp [isNatOpRecord]
   · simp [isNatOpRecord]
 
+theorem recNames_names {d : Declaration} {ns : List Name} (h : recNames d = some ns) : ∀ n ∈ d.names, n ∈ ns := by
+  rcases recNames_cases h with ⟨b, k, rfl, rfl⟩ | ⟨n, hn, rfl, -⟩
+  · exact fun n hn => List.mem_append_left _ hn
+  · rw [recName_names hn]; exact fun m hm => hm
+
+theorem recNames_natOp {d : Declaration} {ns : List Name} (h : recNames d = some ns) (hok : ∀ n ∈ ns, NameOK n) :
+    isNatOpRecord d = none := by
+  rcases recNames_cases h with ⟨b, k, rfl, rfl⟩ | ⟨n, hn, rfl, -⟩
+  · rfl
+  · exact recName_natOp hn (hok n (List.mem_singleton_self _))
+
 /-- **The prepared stream accepts**: con-leche's prelude accepted, and the stream accepted alone. -/
 theorem pipeline_of_stream (pins pins₀ : List NatOpPinSet) (pre : PreludeIx) (ds : Array Declaration)
     {envP E₁ : Env} (hP : PureRun pins pre.decls.toList Env.empty envP)
@@ -94,14 +114,18 @@ theorem pipeline_of_stream (pins pins₀ : List NatOpPinSet) (pre : PreludeIx) (
     (hS : PureRun pins₀ ds.toList Env.empty E₁) (hok : ∀ d ∈ ds.toList, RecOK pre envP d) :
     ∃ E, PureRun pins (preparePrelude pre ds).toList Env.empty E := by
   rw [preparePrelude_eq pre ds (fun p hp d hd => by
-      obtain ⟨n, hn, -, -, hk⟩ := hok d hd
-      simp only [declares, recName_names hn, List.contains_cons, List.contains_nil, Bool.or_false, beq_iff_eq]
-      exact decide_eq_false (hk p hp))
+      obtain ⟨ns, hns, hall⟩ := hok d hd
+      simp only [declares]
+      rw [Bool.eq_false_iff]
+      intro hc
+      have hm := recNames_names hns _ (List.contains_iff_mem.mp hc)
+      exact (hall _ hm).2.2.1 p hp rfl)
     (fun d hd => by
       rcases List.mem_append.mp hd with h | h
       · exact hpOp d h
-      · obtain ⟨n, hn, hno, -⟩ := hok d h; exact recName_natOp hn hno)]
-  exact prelude_then_stream pins pins₀ _ _ hP hS (fun d hd => by
-    obtain ⟨n, hn, hno, hf, -⟩ := hok d hd; exact ⟨n, hn, hno, hf⟩)
+      · obtain ⟨ns, hns, hall⟩ := hok d h; exact recNames_natOp hns (fun n hn => (hall n hn).1))]
+  exact prelude_then_streamI pins pins₀ _ _ hP hS (fun d hd => by
+    obtain ⟨ns, hns, hall⟩ := hok d hd
+    exact ⟨ns, hns, fun n hn => ⟨(hall n hn).1, (hall n hn).2.1, (hall n hn).2.2.2⟩⟩)
 
 end ConPanqueque.Pipeline
