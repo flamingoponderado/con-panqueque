@@ -24,7 +24,7 @@ theorem declsRel_value {C : Ctx} {F rb capD : Nat} {H : List (BitVec 64)} {ds : 
   obtain ⟨k, hk, rfl⟩ := List.getElem_of_mem hd
   obtain ⟨o, -, hr⟩ := h.2.2.2.2 k (by simpa using hk)
   simp only [Array.getElem_toList] at hr ⊢
-  cases hx : ds[k] <;> rw [hx] at hr <;> first | trivial | exact hr.elim | exact hr.2.2.2.2
+  cases hx : ds[k] <;> rw [hx] at hr <;> first | trivial | exact hr.elim | exact hr.2.2.2.2 | exact hr.1
 
 set_option maxRecDepth 8000 in
 theorem foldCodes_ctxH {mode : ConLeche.CheckMode} {C : Ctx} (hc : FoldCodes mode C) (H : List (BitVec 64)) :

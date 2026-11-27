@@ -1,14 +1,16 @@
 import ConPanqueque.T.Decl.StepDefn
 import ConPanqueque.T.Quot.ArmSpec
+import ConPanqueque.T.Quot.StdSpec
 
 /-!
 # `checkDecl` at an axiom
 
-The port takes the axiom records the twin installs without a further check: `sorryAx` (the record is
-skipped, the environment unchanged). `Quot.sound` and the standard and compiler-trust axioms (`propext`,
-`Classical.choice`, `Lean.trustCompiler`, `Lean.ofReduceNat`, `Lean.ofReduceBool`) hang, as does every
-other axiom (which the twin declines). Past the name tests: the front door (`checkConstantVal` at
-`(false, false, true)`), the flush, and the reserved names.
+`sorryAx` (the record is skipped, the environment unchanged); `Quot.sound` (routed to the quotient arm at
+the soundness slot, before the front door); the standard and compiler-trust axioms (`propext`,
+`Classical.choice`, `Lean.trustCompiler`, `Lean.ofReduceNat`, `Lean.ofReduceBool`: past the front door,
+routed to the quotient procedure's standard arms, kind words `6` … `10`, which run the twin's environment
+check and install the axiom). Every other axiom hangs (the twin declines it). Past the name tests at
+`sorryAx`: the flush and the reserved names.
 -/
 
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
@@ -27,14 +29,20 @@ def pinGuard (C : Ctx) (i : Nat) (rest : ProgHOL 64) : ProgHOL 64 :=
   .seq (.assign .local kdL (.load .one (.const (ecell C (C.PO + i)))))
     (.ite (.cmp .equal (vv kdN) (vv kdL)) hang rest)
 
+/-- The name at `kdN` against pin `i`: equal hands the record to the quotient procedure at kind word `v`. -/
+def stdGuard (C : Ctx) (i v : Nat) (rest : ProgHOL 64) : ProgHOL 64 :=
+  .seq (.assign .local kdL (.load .one (.const (ecell C (C.PO + i)))))
+    (.ite (.cmp .equal (vv kdN) (vv kdL))
+      (callR kdX Quot.fKq [vv kdQ, .const (BitVec.ofNat 64 v), .const 0] (.return (vv kdX))) rest)
+
 /-- `checkDecl` at an axiom (its constant value at `kdQ`). -/
 def kaBody (C : Ctx) : ProgHOL 64 := prologue kdLocals
   (.seq (.assign .local kdN (.load .one (vv kdQ)))
   (.seq (.assign .local kdL (.load .one (.const (ecell C (C.PO + PIN_QUOT_SOUND)))))
   (.ite (.cmp .equal (vv kdN) (vv kdL)) (callR kdX Quot.fKq [vv kdQ, .const 5, .const 0] (.return (vv kdX)))
   (callR kdX fCcv [vv kdQ, .const 0, .const 0, .const 1]
-  (pinGuard C PIN_PROPEXT (pinGuard C PIN_CHOICE (pinGuard C PIN_TRUST_COMPILER
-  (pinGuard C PIN_OF_REDUCE_NAT (pinGuard C PIN_OF_REDUCE_BOOL
+  (stdGuard C PIN_PROPEXT 6 (stdGuard C PIN_CHOICE 7 (stdGuard C PIN_TRUST_COMPILER 8
+  (stdGuard C PIN_OF_REDUCE_NAT 9 (stdGuard C PIN_OF_REDUCE_BOOL 10
   (.seq (.assign .local kdL (.load .one (.const (ecell C (C.PO + PIN_SORRY_AX)))))
   (.ite (.cmp .notEqual (vv kdN) (vv kdL)) hang
   (flushCode C (flushRegions false)
@@ -105,6 +113,29 @@ theorem bind_run_of {α β : Type} {A : AM α} {K : α → AM β} {s s' : AState
     (A >>= K) s = K a s' := by
   simp [bind, StateT.bind, h, Except.bind]
 
+/-- The twin's arm past a positive environment check, the tail distributed. -/
+theorem prog_eq {X : AM Bool} {p : IFEnv} {E : AM IFEnv} {K : IFEnv → AM IFEnv} :
+    (X >>= fun b => (if b = true then pure p else E) >>= K) = (X >>= fun b => if b = true then K p else E >>= K) := by
+  congr 1; funext b; cases b <;> simp
+
+theorem bang_eq {C : Ctx} (hok : CtxOK C) (i : Nat) (hi : i < pinCount) :
+    C.pins.names[i]! = C.pins.names[i]'(by rw [hok.pinsRel.1]; exact hi) := by
+  have : i < C.pins.names.size := by rw [hok.pinsRel.1]; exact hi
+  simp [this]
+
+/-- `stdAxiomOk` at a name neither `propext`'s nor `Classical.choice`'s: `false`, the state unchanged. -/
+theorem stdAxiomOk_false {C : Ctx} (hok : CtxOK C) {s : AState} (hp : s.pins = C.pins) (fe : IFEnv)
+    (cv : IConstantVal) (h1 : cv.name ≠ C.pins.names[PIN_PROPEXT]!) (h2 : cv.name ≠ C.pins.names[PIN_CHOICE]!) :
+    stdAxiomOk fe cv s = .ok (false, s) := by
+  have h1' : (cv.name == C.pins.names[PIN_PROPEXT]!) = false := by simpa using h1
+  have h2' : (cv.name == C.pins.names[PIN_CHOICE]!) = false := by simpa using h2
+  unfold stdAxiomOk propextName choiceName pinPropext pinChoice
+  rw [bind_run_of (pinAt_run hok hp PIN_PROPEXT (by decide))]
+  simp only [h1', Bool.false_eq_true, ↓reduceIte]
+  rw [bind_run_of (pinAt_run hok hp PIN_CHOICE (by decide))]
+  simp only [h2', Bool.false_eq_true, ↓reduceIte]
+  rfl
+
 set_option maxHeartbeats 2000000 in
 /-- **`checkDecl` at an axiom**: `sorryAx` passes with the environment unchanged; the other pinned axiom
 names hang. -/
@@ -171,27 +202,98 @@ theorem ka_spec (mode : ConLeche.CheckMode) (pins : List INatOpPinSet) (C : Ctx)
     (fun _ w s1 H1 hp1' _ => ?_)
   have hok1 := ctxOK_H hok H1
   have hsz : PIN_SORRY_AX < C.pins.names.size := by rw [hok.pinsRel.1]; decide
-  -- the pinned axiom names
-  have guard : ∀ (i : Nat) (hi : i < pinCount) (Γ : Env) (rest : ProgHOL 64) {β : Type} {m : AM β}
-      {R : β → BitVec 64 → AState → PState σ → Prop},
+  -- the standard axioms' names
+  have hnq : cv.name ≠ C.pins.names[PIN_QUOT_SOUND]! := by rw [bang_eq hok PIN_QUOT_SOUND (by decide)]; exact hq
+  have hrc : Quot.RecCVQ C q cv := ⟨o, ks, hn, hl, ht, hb, by omega, hkl, hks, htyD⟩
+  have sguard : ∀ (i : Nat) (hi : i < pinCount) (k : Nat) (hk : k < 5) (Γ : Env) (rest : ProgHOL 64)
+      {m : AM IFEnv},
+      Γ.get kdN = some (Enc.idxW cv.name) → Γ.get kdQ = some (cellA C q) →
+      (cv.name = C.pins.names[i]'(by rw [hok.pinsRel.1]; exact hi) → ∀ Γ', Quot.Base C q Γ' →
+        SpecR (σ := σ) (Inv (ctxH C H1) s1 Γ' [] (ctxLocals ++ Quot.kqLocals)) (Quot.stdP C k) s1 m (PostStep C)) →
       (cv.name ≠ C.pins.names[i]'(by rw [hok.pinsRel.1]; exact hi) →
-        SpecR (Inv (ctxH C H1) s1 ((kdL, Enc.idxW (C.pins.names[i]'(by rw [hok.pinsRel.1]; exact hi))) :: Γ) []
-          (ctxLocals ++ kdLocals)) rest s1 m R) →
-      Γ.get kdN = some (Enc.idxW cv.name) →
-      SpecR (Inv (ctxH C H1) s1 Γ [] (ctxLocals ++ kdLocals)) (pinGuard C i rest) s1 m R := by
-    intro i hi Γ rest β m R hk hN
+        SpecR (σ := σ) (Inv (ctxH C H1) s1 ((kdL, Enc.idxW (C.pins.names[i]'(by rw [hok.pinsRel.1]; exact hi))) :: Γ)
+          [] (ctxLocals ++ kdLocals)) rest s1 m (PostStep C)) →
+      SpecR (σ := σ) (Inv (ctxH C H1) s1 Γ [] (ctxLocals ++ kdLocals)) (stdGuard C i (k + 6) rest) s1 m
+        (PostStep C) := by
+    intro i hi k hk Γ rest m hN hQ hyes hno
     have hi' : i < C.pins.names.size := by rw [hok.pinsRel.1]; exact hi
     refine specR_envLoadI (C := ctxH C H1) kdL _ (C.PO + i) _ (by decide) rfl (hok1.pinsRel.2.1 i hi') ?_
     by_cases he : cv.name = C.pins.names[i]
-    · exact specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, hN, ctxH, cmpEq_idxW_t he])
-        (fun _ => specR_hangI) (fun h => absurd h (by decide))
+    swap
     · exact specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, hN, ctxH, cmpEq_idxW_f he])
-        (fun h => absurd rfl h) (fun _ => hk he)
-  refine guard PIN_PROPEXT (by decide) _ _ (fun h1 => ?_) (by simp +decide [Env.get_cons])
-  refine guard PIN_CHOICE (by decide) _ _ (fun h2 => ?_) (by simp +decide [Env.get_cons])
-  refine guard PIN_TRUST_COMPILER (by decide) _ _ (fun h3 => ?_) (by simp +decide [Env.get_cons])
-  refine guard PIN_OF_REDUCE_NAT (by decide) _ _ (fun h4 => ?_) (by simp +decide [Env.get_cons])
-  refine guard PIN_OF_REDUCE_BOOL (by decide) _ _ (fun h5 => ?_) (by simp +decide [Env.get_cons])
+        (fun h => absurd rfl h) (fun _ => hno he)
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, hN, ctxH, cmpEq_idxW_t he]) (fun _ => ?_)
+      (fun h => absurd h (by decide))
+    refine specR_congr (m' := m >>= fun fe => pure fe) (by simp only [bind_pure]) ?_
+    refine specR_callNC (C := ctxH C H1) (D := ctxLocals ++ kdLocals) kdX Quot.fKq kdParams
+      [vv kdQ, .const (BitVec.ofNat 64 (k + 6)), .const 0]
+      (Quot.kqBody C) [cellA C q, BitVec.ofNat 64 (k + 6), 0] (by decide) rfl (by decide) hkq
+      ⟨by simp only [sev, sev_vv, Env.get_cons, ite_eq_right_iff.mpr (fun (e : kdQ = kdL) => absurd e (by decide))];
+          exact hQ, rfl, rfl, trivial⟩ (PostStep C)
+      (fun a w s' C' => ∃ EH envM tblM H, C' = ctxNewT C a EH envM tblM H ∧ C.EH <+: EH ∧ C.H <+: H ∧ CtxOK C' ∧
+        TblGate a ∧ FlagsOK a ∧ LitsPinned a C.pins)
+      (fun a w s' st ⟨EH, envM, tblM, H, hpE, hpH, hokN, hsr, hgt, hfl, hlp⟩ =>
+        ⟨ctxNewT C a EH envM tblM H, ⟨EH, envM, tblM, H, rfl, hpE, hpH, hokN, hgt, hfl, hlp⟩, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu kdParams _ rfl hlk)
+        (Quot.kqStd_of C H1 k hk q s1 (hyes he)))
+      (fun a w s5 C5 ⟨EH, envM, tblM, H, eC, hpE, hpH, hokN, hgt, hfl, hlp⟩ => ?_)
+    subst eC
+    exact specR_returnI _ w (by simp +decide [Env.get])
+      (fun t ht => ⟨EH, envM, tblM, H, hpE, hpH, hokN, sr_of_eq ht.sr rfl rfl rfl rfl, hgt, hfl, hlp⟩)
+  refine specR_atEntry fun t1 ht1 => ?_
+  have hp1 : s1.pins = C.pins := ht1.sr.pins
+  refine sguard PIN_PROPEXT (by decide) 0 (by decide) _ _ (by simp +decide [Env.get_cons])
+    (by simp +decide [Env.get_cons, Env.get, kdParams, ctxEnv]) (fun he Γ' hB' => ?_) (fun h1 => ?_)
+  · simp only [prog_eq]
+    exact Quot.stdPropext_spec ra mode C hok hqc hpl hg hF hL hfr hA cv q hrc hnq
+      (by rw [bang_eq hok PIN_PROPEXT (by decide)]; exact he) H1 hp1' s1 Γ' hB' _
+  have h1' : cv.name ≠ C.pins.names[PIN_PROPEXT]! := by rw [bang_eq hok PIN_PROPEXT (by decide)]; exact h1
+  refine sguard PIN_CHOICE (by decide) 1 (by decide) _ _ (by simp +decide [Env.get_cons])
+    (by simp +decide [Env.get_cons, Env.get, kdParams, ctxEnv]) (fun he Γ' hB' => ?_) (fun h2 => ?_)
+  · simp only [prog_eq]
+    exact Quot.stdChoice_spec ra mode C hok hqc hpl hg hF hL hfr hA cv q hrc hnq h1'
+      (by rw [bang_eq hok PIN_CHOICE (by decide)]; exact he) H1 hp1' s1 Γ' hB' _
+  have h2' : cv.name ≠ C.pins.names[PIN_CHOICE]! := by rw [bang_eq hok PIN_CHOICE (by decide)]; exact h2
+  have hsf := stdAxiomOk_false hok hp1 C.fe cv h1' h2'
+  refine sguard PIN_TRUST_COMPILER (by decide) 2 (by decide) _ _ (by simp +decide [Env.get_cons])
+    (by simp +decide [Env.get_cons, Env.get, kdParams, ctxEnv]) (fun he Γ' hB' => ?_) (fun h3 => ?_)
+  · refine specR_runBind hsf ?_
+    simp only [Bool.false_eq_true, ↓reduceIte, trustCompilerName, bind_assoc]
+    refine specR_runBind (pinAt_run hok hp1 PIN_TRUST_COMPILER (by decide)) ?_
+    have he' : cv.name = C.pins.names[PIN_TRUST_COMPILER]! := by
+      rw [bang_eq hok PIN_TRUST_COMPILER (by decide)]; exact he
+    simp only [← he', beq_self_eq_true, ↓reduceIte, bind_assoc, prog_eq]
+    exact Quot.stdTrust_spec ra mode C hok hqc hpl hg hF hL hfr hA cv q hrc hnq H1 hp1' s1 Γ' hB' _
+  have h3' : cv.name ≠ C.pins.names[PIN_TRUST_COMPILER]! := by
+    rw [bang_eq hok PIN_TRUST_COMPILER (by decide)]; exact h3
+  have h3b : (cv.name == C.pins.names[PIN_TRUST_COMPILER]!) = false := by simpa using h3'
+  refine sguard PIN_OF_REDUCE_NAT (by decide) 3 (by decide) _ _ (by simp +decide [Env.get_cons])
+    (by simp +decide [Env.get_cons, Env.get, kdParams, ctxEnv]) (fun he Γ' hB' => ?_) (fun h4 => ?_)
+  · refine specR_runBind hsf ?_
+    simp only [Bool.false_eq_true, ↓reduceIte, trustCompilerName, ofReduceNatName, ofReduceBoolName, bind_assoc]
+    refine specR_runBind (pinAt_run hok hp1 PIN_TRUST_COMPILER (by decide)) ?_
+    simp only [h3b, Bool.false_eq_true, ↓reduceIte, bind_assoc]
+    refine specR_runBind (pinAt_run hok hp1 PIN_OF_REDUCE_NAT (by decide)) ?_
+    refine specR_runBind (pinAt_run hok hp1 PIN_OF_REDUCE_BOOL (by decide)) ?_
+    have he' : cv.name = C.pins.names[PIN_OF_REDUCE_NAT]! := by
+      rw [bang_eq hok PIN_OF_REDUCE_NAT (by decide)]; exact he
+    simp only [← he', beq_self_eq_true, Bool.true_or, ↓reduceIte, bind_assoc, prog_eq]
+    exact Quot.stdOfRedNat_spec ra mode C hok hqc hpl hg hF hL hfr hA cv q hrc hnq he' H1 hp1' s1 Γ' hB' _
+  have h4' : cv.name ≠ C.pins.names[PIN_OF_REDUCE_NAT]! := by
+    rw [bang_eq hok PIN_OF_REDUCE_NAT (by decide)]; exact h4
+  have h4b : (cv.name == C.pins.names[PIN_OF_REDUCE_NAT]!) = false := by simpa using h4'
+  refine sguard PIN_OF_REDUCE_BOOL (by decide) 4 (by decide) _ _ (by simp +decide [Env.get_cons])
+    (by simp +decide [Env.get_cons, Env.get, kdParams, ctxEnv]) (fun he Γ' hB' => ?_) (fun h5 => ?_)
+  · refine specR_runBind hsf ?_
+    simp only [Bool.false_eq_true, ↓reduceIte, trustCompilerName, ofReduceNatName, ofReduceBoolName, bind_assoc]
+    refine specR_runBind (pinAt_run hok hp1 PIN_TRUST_COMPILER (by decide)) ?_
+    simp only [h3b, Bool.false_eq_true, ↓reduceIte, bind_assoc]
+    refine specR_runBind (pinAt_run hok hp1 PIN_OF_REDUCE_NAT (by decide)) ?_
+    refine specR_runBind (pinAt_run hok hp1 PIN_OF_REDUCE_BOOL (by decide)) ?_
+    have he' : cv.name = C.pins.names[PIN_OF_REDUCE_BOOL]! := by
+      rw [bang_eq hok PIN_OF_REDUCE_BOOL (by decide)]; exact he
+    simp only [h4b, ← he', beq_self_eq_true, Bool.false_or, ↓reduceIte, bind_assoc, prog_eq]
+    exact Quot.stdOfRedBool_spec ra mode C hok hqc hpl hg hF hL hfr hA cv q hrc hnq h4' he' H1 hp1' s1 Γ' hB' _
   -- `sorryAx`
   refine specR_envLoadI (C := ctxH C H1) kdL _ (C.PO + PIN_SORRY_AX) _ (by decide) rfl (hok1.pinsRel.2.1 _ hsz) ?_
   by_cases h6 : cv.name = C.pins.names[PIN_SORRY_AX]

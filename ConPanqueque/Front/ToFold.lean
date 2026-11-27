@@ -77,7 +77,9 @@ theorem recOK_of_enc {C : Ctx} {F : Nat} {H : List (BitVec 64)} {o : Nat} {d : I
       refine ⟨h1, recCV_of_enc h2 (by rw [hc]; rfl), ?_⟩
       show H[o + 4]? = _
       rw [h3]; cases k <;> rfl
-  | _ => exact h.elim
+  | indDecl block nP =>
+    -- not yet a front record: the dispatcher rejects inductive lines until the fold's `IndSem` is threaded
+    exact absurd h.1 (by simp [ConPanqueque.Bridge.IsFrontDecl, ConPanqueque.Bridge.IsValueDecl])
 
 /-- **The registry as the fold's block.** -/
 theorem registry_block {C : Ctx} {F rb capD : Nat} {H : List (BitVec 64)} {decls : Array IDeclaration}

@@ -587,3 +587,4 @@ import ConPanqueque.Scan.IndFuns
 import ConPanqueque.Scan.IndFields
 import ConPanqueque.Scan.QuotKind
 import ConPanqueque.Front.QuotRec
+import ConPanqueque.Front.IndLine

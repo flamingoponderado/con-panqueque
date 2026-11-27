@@ -1,5 +1,6 @@
 import ConPanqueque.Front.LstBlk
 import ConPanqueque.T.Decl.Step
+import ConPanqueque.Bridge.SeqFold
 
 /-! # The parsed declarations in the value heap
 
@@ -27,17 +28,25 @@ def CVEnc (C : Ctx) (F : Nat) (H : List (BitVec 64)) (q : Nat) (cv : IConstantVa
     H[q + 2]? = some (Enc.idxW cv.type) ∧ BlkAt H ol (cv.levelParams.map Enc.idxW) ∧
     cv.levelParams.length < 2 ^ 59
 
-/-- A declaration record's cells at `o`. -/
+/-- `H'` keeps every cell of `H` at or above `F`. -/
+def KeepsAbove (F : Nat) (H H' : List (BitVec 64)) : Prop :=
+  ∀ c, F ≤ c → ∀ v, H[c]? = some v → H'[c]? = some v
+
+/-- A declaration record's cells at `o`.  An inductive block's records lie at or above `F`: its
+`IndBlk` holds in every image keeping the cells at or above `F`. -/
 def RecEnc (C : Ctx) (F : Nat) (H : List (BitVec 64)) (o : Nat) : IDeclaration → Prop
   | .defnDecl cv v hint => F ≤ o ∧ H[o]? = some 1 ∧ CVEnc C F H (o + 1) cv ∧ H[o + 4]? = some (Enc.idxW v) ∧
       H[o + 5]? = some (BitVec.ofNat 64 (T.hintN hint)) ∧ T.hintN hint < 2 ^ 63
   | .thmDecl cv v => F ≤ o ∧ H[o]? = some 2 ∧ CVEnc C F H (o + 1) cv ∧ H[o + 4]? = some (Enc.idxW v)
   | .opaqueDecl cv v => F ≤ o ∧ H[o]? = some 3 ∧ CVEnc C F H (o + 1) cv ∧ H[o + 4]? = some (Enc.idxW v)
   | .axiomDecl cv => F ≤ o ∧ H[o]? = some 5 ∧ CVEnc C F H (o + 1) cv ∧ (∃ w, H[o + 4]? = some w) ∧
-      (C.pins.names[PIN_SORRY_AX]? = some cv.name ∨ C.pins.names[PIN_QUOT_SOUND]? = some cv.name)
+      ConPanqueque.Bridge.AxPinName C.pins cv.name
   | .quotDecl k cv => F ≤ o ∧ H[o]? = some 6 ∧ CVEnc C F H (o + 1) cv ∧
       H[o + 4]? = some (BitVec.ofNat 64 (match k with | .type => 1 | .ctor => 2 | .lift => 3 | .ind => 4 | .sound => 5))
-  | _ => False
+  | .indDecl block nP => ConPanqueque.Bridge.IsFrontDecl C.pins (.indDecl block nP) ∧ F ≤ o ∧ H[o]? = some 4 ∧ H[o + 1]? = some (BitVec.ofNat 64 nP) ∧
+      ∃ ob, F ≤ ob ∧ H[o + 2]? = some (cellA C ob) ∧
+      (∀ H', KeepsAbove F H H' → T.Ind.IndBlk C H' ob block) ∧ block.length < 2 ^ 59 ∧ nP < 2 ^ 59 ∧
+      ∀ i (hi : i < block.length), block[i].toConstantVal.levelParams.length < 2 ^ 59
 
 /-- The registry of declarations. -/
 def DeclsRel (C : Ctx) (F rb capD : Nat) (H : List (BitVec 64)) (decls : Array IDeclaration) : Prop :=
@@ -95,7 +104,17 @@ theorem recEnc_set {C : Ctx} {F : Nat} {H : List (BitVec 64)} {o : Nat} {d : IDe
     obtain ⟨ho, h1, h2, h3⟩ := h
     exact ⟨ho, by rw [getElem?_set_ge w (by omega)]; exact h1, cvEnc_set h2 j hj (by omega) w,
       by rw [getElem?_set_ge w (by omega)]; exact h3⟩
-  | _ => exact h.elim
+  | indDecl block nP =>
+    obtain ⟨hf, ho, h1, h2, ob, hob, h3, h4, h5⟩ := h
+    exact ⟨hf, ho, by rw [getElem?_set_ge w (by omega)]; exact h1, by rw [getElem?_set_ge w (by omega)]; exact h2,
+      ob, hob, by rw [getElem?_set_ge w (by omega)]; exact h3,
+      fun H' hk => h4 H' (fun c hc v hv => hk c hc v (by rw [getElem?_set_ge w (by omega)]; exact hv)), h5⟩
+
+theorem keepsAbove_prefix {F : Nat} {H H' : List (BitVec 64)} (hp : H <+: H') : KeepsAbove F H H' :=
+  fun _ _ _ hv => getElem?_prefix hp hv
+
+theorem keepsAbove_trans {F : Nat} {H1 H2 H3 : List (BitVec 64)} (a : KeepsAbove F H1 H2) (b : KeepsAbove F H2 H3) :
+    KeepsAbove F H1 H3 := fun c hc v hv => b c hc v (a c hc v hv)
 
 theorem recEnc_prefix {C : Ctx} {F : Nat} {H H' : List (BitVec 64)} {o : Nat} {d : IDeclaration}
     (h : RecEnc C F H o d) (hp : H <+: H') : RecEnc C F H' o d := by
@@ -115,7 +134,10 @@ theorem recEnc_prefix {C : Ctx} {F : Nat} {H H' : List (BitVec 64)} {o : Nat} {d
   | quotDecl k cv =>
     obtain ⟨ho, h1, h2, h3⟩ := h
     exact ⟨ho, getElem?_prefix hp h1, cvEnc_prefix h2 hp, getElem?_prefix hp h3⟩
-  | _ => exact h.elim
+  | indDecl block nP =>
+    obtain ⟨hf, ho, h1, h2, ob, hob, h3, h4, h5⟩ := h
+    exact ⟨hf, ho, getElem?_prefix hp h1, getElem?_prefix hp h2, ob, hob, getElem?_prefix hp h3,
+      fun H' hk => h4 H' (keepsAbove_trans (keepsAbove_prefix hp) hk), h5⟩
 
 /-- A write below the frontier and outside the registry keeps the registry. -/
 theorem declsRel_set {C : Ctx} {F rb capD : Nat} {H : List (BitVec 64)} {decls : Array IDeclaration}

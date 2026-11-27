@@ -87,7 +87,7 @@ def recNameW : IDeclaration → BitVec 64
   | .opaqueDecl cv _ => Enc.idxW cv.name
   | .axiomDecl cv => Enc.idxW cv.name
   | .quotDecl _ cv => Enc.idxW cv.name
-  | _ => 0
+  | .indDecl _ nP => BitVec.ofNat 64 nP
 
 theorem recEnc_name {C : Ctx} {F : Nat} {H : List (BitVec 64)} {o : Nat} {d : IDeclaration} (h : RecEnc C F H o d) :
     H[o + 1]? = some (recNameW d) := by
@@ -97,7 +97,7 @@ theorem recEnc_name {C : Ctx} {F : Nat} {H : List (BitVec 64)} {o : Nat} {d : ID
   | opaqueDecl cv v => obtain ⟨-, -, ⟨ol, -, h1, -⟩, -⟩ := h; exact h1
   | axiomDecl cv => obtain ⟨-, -, ⟨ol, -, h1, -⟩, -⟩ := h; exact h1
   | quotDecl k cv => obtain ⟨-, -, ⟨ol, -, h1, -⟩, -⟩ := h; exact h1
-  | _ => exact h.elim
+  | indDecl block nP => obtain ⟨-, -, -, h1, -⟩ := h; exact h1
 
 def forbidBody (cells : List Nat) : ProgHOL 64 :=
   .seq (.assign .local vFr (.load .one (vv vFp)))

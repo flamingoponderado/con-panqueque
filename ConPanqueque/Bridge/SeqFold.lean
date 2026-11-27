@@ -55,11 +55,32 @@ def IsChecked (ns : NStore) : IDeclaration → Prop
 theorem isChecked_of_value {ns : NStore} {pd : IDeclaration} (h : IsValueDecl pd) : IsChecked ns pd := by
   cases pd <;> first | exact h | exact h.elim
 
-/-- What the front end hands the fold: a value record, or an axiom record named by the `sorryAx` pin. -/
+/-- The pin slots naming the axiom records the front end accepts: `sorryAx`, `Quot.sound`, and the standard
+and compiler-trust axioms. -/
+def axPinSlots : List Nat :=
+  [PIN_SORRY_AX, PIN_QUOT_SOUND, PIN_PROPEXT, PIN_CHOICE, PIN_TRUST_COMPILER, PIN_OF_REDUCE_NAT, PIN_OF_REDUCE_BOOL]
+
+/-- The standard axioms' pin slots. -/
+def stdPinSlots : List Nat := [PIN_PROPEXT, PIN_CHOICE, PIN_TRUST_COMPILER, PIN_OF_REDUCE_NAT, PIN_OF_REDUCE_BOOL]
+
+/-- A name handle one of the accepted axioms' pins. -/
+def AxPinName (P : Pins) (n : NIdx) : Prop := ∃ i ∈ axPinSlots, P.names[i]? = some n
+
+/-- What the front end hands the fold: a value record, or an axiom record named by an accepted axiom's pin. -/
 def IsFrontDecl (P : Pins) : IDeclaration → Prop
-  | .axiomDecl cv => P.names[PIN_SORRY_AX]? = some cv.name ∨ P.names[PIN_QUOT_SOUND]? = some cv.name
+  | .axiomDecl cv => AxPinName P cv.name
   | .quotDecl _ _ => True
   | d => IsValueDecl d
+
+theorem axPin_cases {P : Pins} {n : NIdx} (h : AxPinName P n) :
+    (P.names[PIN_SORRY_AX]? = some n ∨ P.names[PIN_QUOT_SOUND]? = some n) ∨
+      ∃ i ∈ stdPinSlots, P.names[i]? = some n := by
+  obtain ⟨i, hi, h0⟩ := h
+  simp only [axPinSlots, List.mem_cons, List.not_mem_nil, or_false] at hi
+  rcases hi with rfl | rfl | rfl | rfl | rfl | rfl | rfl
+  · exact Or.inl (Or.inl h0)
+  · exact Or.inl (Or.inr h0)
+  all_goals exact Or.inr ⟨_, by simp [stdPinSlots], h0⟩
 
 theorem denoteNL_getElem? {st : EStore} : ∀ (xs : List NIdx) (ns : List ConLeche.Name), denoteNL st xs ns →
     ∀ (i : Nat) (x : NIdx) (y : ConLeche.Name), xs[i]? = some x → ns[i]? = some y → denoteN st.ns x = some y
@@ -74,20 +95,30 @@ theorem isChecked_of_front {s : AState} (hp : PinsOK s) {pd : IDeclaration} (h :
     IsChecked s.store.ns pd := by
   cases pd with
   | axiomDecl cv =>
-    rcases (h : s.pins.names[PIN_SORRY_AX]? = some cv.name ∨ s.pins.names[PIN_QUOT_SOUND]? = some cv.name)
-      with h0 | h0
-    · have h' : s.pins.names.toList[PIN_SORRY_AX]? = some cv.name := by simpa using h0
-      exact Or.inl (denoteNL_getElem? _ _ hp.names PIN_SORRY_AX cv.name ConLeche.sorryAxName h' (by decide))
-    · have h' : s.pins.names.toList[PIN_QUOT_SOUND]? = some cv.name := by simpa using h0
-      exact Or.inr (Or.inl (denoteNL_getElem? _ _ hp.names PIN_QUOT_SOUND cv.name ConLeche.quotSoundName h' (by decide)))
+    obtain ⟨i, hi, h0⟩ := (h : AxPinName s.pins cv.name)
+    have h' : s.pins.names.toList[i]? = some cv.name := by simpa using h0
+    simp only [axPinSlots, List.mem_cons, List.not_mem_nil, or_false] at hi
+    rcases hi with rfl | rfl | rfl | rfl | rfl | rfl | rfl
+    · exact Or.inl (denoteNL_getElem? _ _ hp.names _ cv.name ConLeche.sorryAxName h' (by decide))
+    · exact Or.inr (Or.inl (denoteNL_getElem? _ _ hp.names _ cv.name ConLeche.quotSoundName h' (by decide)))
+    · exact Or.inr (Or.inr ⟨_, denoteNL_getElem? _ _ hp.names _ cv.name ConLeche.propextName h' (by decide),
+        Or.inl rfl⟩)
+    · exact Or.inr (Or.inr ⟨_, denoteNL_getElem? _ _ hp.names _ cv.name ConLeche.choiceName h' (by decide),
+        Or.inr (Or.inl rfl)⟩)
+    · exact Or.inr (Or.inr ⟨_, denoteNL_getElem? _ _ hp.names _ cv.name ConLeche.trustCompilerName h' (by decide),
+        Or.inr (Or.inr (Or.inl rfl))⟩)
+    · exact Or.inr (Or.inr ⟨_, denoteNL_getElem? _ _ hp.names _ cv.name ConLeche.ofReduceNatName h' (by decide),
+        Or.inr (Or.inr (Or.inr (Or.inl rfl)))⟩)
+    · exact Or.inr (Or.inr ⟨_, denoteNL_getElem? _ _ hp.names _ cv.name ConLeche.ofReduceBoolName h' (by decide),
+        Or.inr (Or.inr (Or.inr (Or.inr rfl)))⟩)
   | indDecl _ _ => trivial
   | _ => exact h
 
+/-- An axiom record named by the `sorryAx` or the `Quot.sound` pin: its name denotes that pin's. -/
 theorem front_axiom_names {s : AState} (hp : PinsOK s) {cv : IConstantVal}
-    (h : IsFrontDecl s.pins (.axiomDecl cv)) :
+    (h : s.pins.names[PIN_SORRY_AX]? = some cv.name ∨ s.pins.names[PIN_QUOT_SOUND]? = some cv.name) :
     denoteN s.store.ns cv.name = some ConLeche.sorryAxName ∨ denoteN s.store.ns cv.name = some ConLeche.quotSoundName := by
-  rcases (h : s.pins.names[PIN_SORRY_AX]? = some cv.name ∨ s.pins.names[PIN_QUOT_SOUND]? = some cv.name)
-    with h0 | h0
+  rcases h with h0 | h0
   · have h' : s.pins.names.toList[PIN_SORRY_AX]? = some cv.name := by simpa using h0
     exact Or.inl (denoteNL_getElem? _ _ hp.names PIN_SORRY_AX cv.name ConLeche.sorryAxName h' (by decide))
   · have h' : s.pins.names.toList[PIN_QUOT_SOUND]? = some cv.name := by simpa using h0

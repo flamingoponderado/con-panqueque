@@ -237,7 +237,20 @@ theorem front_verdict2 {σ : Type} {F rb capD jN cap bufJ : Nat} {b : ByteArray}
     (fun b nP e => by have := hval _ hdm; rw [e] at this; exact this)
     (fun cv e => by
       have := hval _ hdm; rw [e] at this
-      exact ConPanqueque.Bridge.front_axiom_names (hpo.mono hstep.ext hstep.pins) this) (hpersR _ (by show st'.decls[k] ∈ st'.decls; exact Array.getElem_mem hk')) hdd
+      rcases ConPanqueque.Bridge.axPin_cases this with h01 | ⟨i, hi, hni⟩
+      · exact ConPanqueque.Bridge.front_axiom_names (hpo.mono hstep.ext hstep.pins) h01
+      -- a standard axiom's record is named by a pin: the forbidden-name pass hung on it
+      exfalso
+      have hi52 : i < 52 := by
+        simp only [ConPanqueque.Bridge.stdPinSlots, List.mem_cons, List.not_mem_nil, or_false] at hi
+        rcases hi with rfl | rfl | rfl | rfl | rfl <;> decide
+      have hsz : i < s.pins.names.size := by rw [hb.size]; exact hi52
+      have hni' : s.pins.names[i]? = some cv.name := by rw [hstep.pins] at hni; exact hni
+      have hcell := hb.names i hsz
+      rw [Array.getElem?_eq_getElem hsz, Option.some.injEq] at hni'
+      refine hforb k hk' (64 + i) (by simp [cellsF]; omega) ?_
+      simp only [Array.getElem_toList] at e
+      rw [e, hcell, hni']; rfl) (hpersR _ (by show st'.decls[k] ∈ st'.decls; exact Array.getElem_mem hk')) hdd
   refine ⟨n, hvn, ?_⟩
   have hpo' := hpo.mono hstep.ext hstep.pins
   have hwf : NStoreWF s'.store.ns := ConRon.Bridge.Frontend.nsWF_of_StateOK hstep.ok

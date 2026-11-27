@@ -2,9 +2,11 @@ import ConPanqueque.Front.Decl
 
 /-! # An axiom record in the value heap
 
-The twin pushes every safe axiom record. The port takes only `sorryAx` (the axiom con-leche skips):
-the record's name and type through the tables, the name tested against the `sorryAx` pin (any other
-hangs), then the five-cell record of kind `5` whose value cell holds the name. -/
+The twin pushes every safe axiom record. The port takes those named by an accepted axiom's pin
+(`axPinSlots`: `sorryAx`, `Quot.sound`, `propext`, `Classical.choice`, `Lean.trustCompiler`,
+`Lean.ofReduceNat`, `Lean.ofReduceBool`): the record's name and type through the tables, the name tested
+against those pins in turn (any other hangs), then the five-cell record of kind `5` whose value cell holds
+the name. -/
 
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
 open ConPanqueque.Logic ConPanqueque.V ConPanqueque.ConsModel ConPanqueque.ConsTbl
@@ -26,15 +28,17 @@ theorem processAx_ok (st : StateD) (cv : CVRec) (nmh : NIdx) (tyh : EIdx)
   have hm := mapM_name_ok st cv.levelParams hlps
   simp [processLineCoreD, parseCVD, StateD.name, getDeclD, StateD.expr, hnm, hty, hm, pushDecl]
 
-/-- A safe axiom: name and type through the tables, the name the `sorryAx` pin (else hang), the record. -/
+/-- The name (`fy`) against the pins at slots `is` in turn: equal to one, the record; to none, a hang. -/
+def axChain (C : Ctx) : List Nat → ProgHOL 64
+  | [] => hang
+  | i :: is => .seq (.assign .local kVh (.load .one (.const (ecell C (C.PO + i)))))
+      (.ite (.cmp .notEqual (vv fy) (vv kVh)) (axChain C is) (vdTail C 5))
+
+/-- A safe axiom: name and type through the tables, the name an accepted axiom's pin (else hang), the
+record. -/
 def axVd (C : Ctx) : ProgHOL 64 :=
   tblGetP fy (vv fTN) (vv fCap) (vv fU)
-    (tblGetP fz (vv fTE) (vv fCap) (vv fW3)
-      (.seq (.assign .local kVh (.load .one (.const (ecell C (C.PO + PIN_SORRY_AX)))))
-        (.ite (.cmp .notEqual (vv fy) (vv kVh))
-          (.seq (.assign .local kVh (.load .one (.const (ecell C (C.PO + PIN_QUOT_SOUND)))))
-            (.ite (.cmp .notEqual (vv fy) (vv kVh)) hang (vdTail C 5)))
-          (vdTail C 5))))
+    (tblGetP fz (vv fTE) (vv fCap) (vv fW3) (axChain C ConPanqueque.Bridge.axPinSlots))
 
 theorem axVd_spec (C : Ctx) (hok : CtxOK C)
     (hnc : ∀ t : PState σ, t.code = C.code → NnCodes t)
@@ -75,7 +79,7 @@ theorem axVd_spec (C : Ctx) (hok : CtxOK C)
     simp only [Γ2, Env.get_cons, ite_eq_right h1, ite_eq_right h2]
   -- the record, once the name is pin `i`'s
   have fin : ∀ (i : Nat) (hi : i < C.pins.names.size), nmh = C.pins.names[i] →
-      (C.pins.names[PIN_SORRY_AX]? = some nmh ∨ C.pins.names[PIN_QUOT_SOUND]? = some nmh) → ∀ (Γ3 : Env),
+      ConPanqueque.Bridge.AxPinName C.pins nmh → ∀ (Γ3 : Env),
       Γ3.get kVh = some (Enc.idxW C.pins.names[i]) → (∀ y, y ≠ kVh → y ≠ fz → y ≠ fy → Env.get Γ3 y = Env.get Γ y) →
       Env.get Γ3 fy = some (Enc.idxW nmh) → Env.get Γ3 fz = some (Enc.idxW tyh) →
       SpecR (Inv (σ := σ) C s Γ3 M D) (vdTail C 5) s (processLineCoreD st (.ax cv false))
@@ -96,38 +100,39 @@ theorem axVd_spec (C : Ctx) (hok : CtxOK C)
       (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hBN)
       (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hRB)
       (by rw [g3 _ (by decide) (by decide) (by decide)]; exact hCD)
-  have hsz : PIN_SORRY_AX < C.pins.names.size := by rw [hok.pinsRel.1]; decide
-  have hqz : PIN_QUOT_SOUND < C.pins.names.size := by rw [hok.pinsRel.1]; decide
-  refine specR_envLoadI (C := C) kVh _ (C.PO + PIN_SORRY_AX) _ (hD kVh (by simp)) rfl (hok.pinsRel.2.1 _ hsz) ?_
-  let Γ3 : Env := (kVh, Enc.idxW C.pins.names[PIN_SORRY_AX]) :: Γ2
-  have g3 : ∀ y, y ≠ kVh → y ≠ fz → y ≠ fy → Env.get Γ3 y = Env.get Γ y := fun y h0 h1 h2 => by
-    simp only [Γ3, Env.get_cons, ite_eq_right h0]; exact g2 y h1 h2
-  have hy3 : Env.get Γ3 fy = some (Enc.idxW nmh) := by
-    simp only [Γ3, Γ2, Env.get_cons, ite_eq_right (show fy ≠ kVh by decide), ite_eq_right (show fy ≠ fz by decide),
-      ite_eq_left]
-  have hz3 : Env.get Γ3 fz = some (Enc.idxW tyh) := by
-    simp only [Γ3, Γ2, Env.get_cons, ite_eq_right (show fz ≠ kVh by decide), ite_eq_left]
-  by_cases hs : nmh = C.pins.names[PIN_SORRY_AX]
-  · refine specR_ifI _ 0 (by simp +decide [sev, vv, Env.get_cons, T.Decl.cmpNe_idxW_f hs])
-      (fun h => absurd rfl h) (fun _ => ?_)
-    exact fin _ hsz hs (Or.inl (by rw [Array.getElem?_eq_getElem hsz, hs])) Γ3 (by simp [Γ3]) g3 hy3 hz3
-  refine specR_ifI _ 1 (by simp +decide [sev, vv, Env.get_cons, T.Decl.cmpNe_idxW_t hs]) (fun _ => ?_)
-    (fun h => absurd h (by decide))
-  refine specR_envLoadI (C := C) kVh _ (C.PO + PIN_QUOT_SOUND) _ (hD kVh (by simp)) rfl (hok.pinsRel.2.1 _ hqz) ?_
-  let Γ4 : Env := (kVh, Enc.idxW C.pins.names[PIN_QUOT_SOUND]) :: Γ3
-  have g4 : ∀ y, y ≠ kVh → y ≠ fz → y ≠ fy → Env.get Γ4 y = Env.get Γ y := fun y h0 h1 h2 => by
-    simp only [Γ4, Env.get_cons, ite_eq_right h0]; exact g3 y h0 h1 h2
-  have hy4 : Env.get Γ4 fy = some (Enc.idxW nmh) := by
-    simp only [Γ4, Env.get_cons, ite_eq_right (show fy ≠ kVh by decide)]; exact hy3
-  have hz4 : Env.get Γ4 fz = some (Enc.idxW tyh) := by
-    simp only [Γ4, Env.get_cons, ite_eq_right (show fz ≠ kVh by decide)]; exact hz3
-  by_cases hq : nmh = C.pins.names[PIN_QUOT_SOUND]
-  swap
-  · exact specR_ifI _ 1 (by simp +decide [sev, vv, Env.get_cons, T.Decl.cmpNe_idxW_t hq])
-      (fun _ => specR_hangI) (fun h => absurd h (by decide))
-  refine specR_ifI _ 0 (by simp +decide [sev, vv, Env.get_cons, T.Decl.cmpNe_idxW_f hq])
-    (fun h => absurd rfl h) (fun _ => ?_)
-  exact fin _ hqz hq (Or.inr (by rw [Array.getElem?_eq_getElem hqz, hq])) Γ4 (by simp [Γ4]) g4 hy4 hz4
+  have chain : ∀ (is : List Nat), (∀ i ∈ is, i ∈ ConPanqueque.Bridge.axPinSlots) → ∀ (Γ3 : Env),
+      (∀ y, y ≠ kVh → y ≠ fz → y ≠ fy → Env.get Γ3 y = Env.get Γ y) →
+      Env.get Γ3 fy = some (Enc.idxW nmh) → Env.get Γ3 fz = some (Enc.idxW tyh) →
+      SpecR (Inv (σ := σ) C s Γ3 M D) (axChain C is) s (processLineCoreD st (.ax cv false))
+        (fun a w s' t' => ∃ d, DeclPost C F rb capD C.H st d a w s' t') := by
+    intro is
+    induction is with
+    | nil => exact fun _ _ _ _ _ => specR_hangI
+    | cons i is ih =>
+      intro hmem Γ3 g3 hy3 hz3
+      have hiS : i ∈ ConPanqueque.Bridge.axPinSlots := hmem i (by simp)
+      have hsz : i < C.pins.names.size := by
+        rw [hok.pinsRel.1]
+        simp only [ConPanqueque.Bridge.axPinSlots, List.mem_cons, List.not_mem_nil, or_false] at hiS
+        rcases hiS with rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> decide
+      refine specR_envLoadI (C := C) kVh _ (C.PO + i) _ (hD kVh (by simp)) rfl (hok.pinsRel.2.1 _ hsz) ?_
+      let Γ4 : Env := (kVh, Enc.idxW C.pins.names[i]) :: Γ3
+      have g4 : ∀ y, y ≠ kVh → y ≠ fz → y ≠ fy → Env.get Γ4 y = Env.get Γ y := fun y h0 h1 h2 => by
+        simp only [Γ4, Env.get_cons, ite_eq_right h0]; exact g3 y h0 h1 h2
+      have hy4 : Env.get Γ4 fy = some (Enc.idxW nmh) := by
+        simp only [Γ4, Env.get_cons, ite_eq_right (show fy ≠ kVh by decide)]; exact hy3
+      have hz4 : Env.get Γ4 fz = some (Enc.idxW tyh) := by
+        simp only [Γ4, Env.get_cons, ite_eq_right (show fz ≠ kVh by decide)]; exact hz3
+      by_cases hs : nmh = C.pins.names[i]
+      · refine specR_ifI _ 0 (by simp +decide [sev, vv, Env.get_cons, hy3, T.Decl.cmpNe_idxW_f hs])
+          (fun h => absurd rfl h) (fun _ => ?_)
+        exact fin _ hsz hs ⟨i, hiS, by rw [Array.getElem?_eq_getElem hsz, hs]⟩ Γ4 (by simp [Γ4]) g4 hy4 hz4
+      refine specR_ifI _ 1 (by simp +decide [sev, vv, Env.get_cons, hy3, T.Decl.cmpNe_idxW_t hs]) (fun _ => ?_)
+        (fun h => absurd h (by decide))
+      exact ih (fun j hj => hmem j (by simp [hj])) Γ4 g4 hy4 hz4
+  exact chain _ (fun i hi => hi) Γ2 (fun y _ h1 h2 => g2 y h1 h2)
+    (by simp only [Γ2, Env.get_cons, ite_eq_right (show fy ≠ fz by decide), ite_eq_left])
+    (by simp only [Γ2, Env.get_cons, ite_eq_left])
 
 /-- An axiom record: unsafe ones hang. -/
 def axP (C : Ctx) : ProgHOL 64 := .ite (vv kUs) hang (axVd C)

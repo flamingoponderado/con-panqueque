@@ -1,4 +1,5 @@
 import ConPanqueque.T.Quot.Block
+import ConPanqueque.T.Quot.StdGen
 import ConPanqueque.T.Quot.Install
 import ConPanqueque.T.Decl.StepDefn
 import ConPanqueque.T.Decl.OffCheck
@@ -131,13 +132,114 @@ def restP (C : Ctx) (j : Nat) : ProgHOL 64 :=
 def armP (C : Ctx) (j : Nat) : ProgHOL 64 :=
   offCheckP C (quotSlotP C j (hitP (predsP C j (restP C j))))
 
+/-! ## The standard and compiler-trust axioms
+
+`checkAxiom` hands a record named by one of the five pins here (kind words `6` … `10`), past the front door.
+Each arm runs the twin's environment check (`stdAxiomOk`, `trustCompilerOk`, `ofReduceAxOk`): a stored
+constant at a pinned name, of the pinned kind (and counts), equal to the pinned shape (`matchesPin`, handle
+equality against the pin interned by `genSCV`, the scratch tier checked off); the record equal to its pin;
+then the reserved names, the install (`axiomInfo`), the literal flags, the flush. Any mismatch hangs. -/
+
+/-- A stored constant at pin `i`'s name of tag `tg` (its cell in `kqG`), else a hang. -/
+def findTagP (C : Ctx) (i tg : Nat) (rest : ProgHOL 64) : ProgHOL 64 :=
+  .seq (.assign .local kqF (.load .one (.const (ecell C (C.PO + i)))))
+  (envFindP C kqF (vv kqF) (.ite (.cmp .equal (vv kqF) (.const 0)) hang
+  (.seq (.assign .local kqG (.op .sub [vv kqF, .const 1]))
+  (.seq (.assign .local kqE (.load .one (vv kqG)))
+  (.ite (.cmp .notEqual (vv kqE) (.const (BitVec.ofNat 64 tg))) hang rest)))))
+
+/-- The stored constant's word `k` is `n`, else a hang. -/
+def fieldP (k n : Nat) (rest : ProgHOL 64) : ProgHOL 64 :=
+  .seq (.assign .local kqE (.load .one (.op .add [vv kqG, .const (BitVec.ofNat 64 (8 * k))])))
+  (.ite (.cmp .notEqual (vv kqE) (.const (BitVec.ofNat 64 n))) hang rest)
+
+/-- The level-parameter block at `kqA`'s one handle is the pin's (`qX`), else a hang (none: nothing). -/
+def lps1P : Nat → ProgHOL 64 → ProgHOL 64
+  | 0, rest => rest
+  | _, rest => .seq (.assign .local kqB (.load .one (.op .add [vv kqA, .const 8])))
+      (.ite (.cmp .notEqual (vv kqB) (vv qX)) hang rest)
+
+/-- The constant value at `e` (name, level-parameter block, type at words `0`, `1`, `2`) is the pin's
+(`L` level parameters), else a hang. -/
+def cmpP (e : ExpHOL 64) (L : Nat) (rest : ProgHOL 64) : ProgHOL 64 :=
+  .seq (.assign .local kdN (.load .one e))
+  (.ite (.cmp .notEqual (vv kdN) (vv qN)) hang
+  (.seq (.assign .local kqA (.load .one (.op .add [e, .const 8])))
+  (.seq (.assign .local kqLn (.load .one (vv kqA)))
+  (.ite (.cmp .notEqual (vv kqLn) (.const (BitVec.ofNat 64 L))) hang
+  (lps1P L
+  (.seq (.assign .local kqT2 (.load .one (.op .add [e, .const 16])))
+  (.ite (.cmp .notEqual (vv kqT2) (vv qT)) hang rest)))))))
+
+/-- The stored constant is the pin, else a hang. -/
+def cmpEP (L : Nat) (rest : ProgHOL 64) : ProgHOL 64 := cmpP (.op .add [vv kqG, .const 8]) L rest
+
+/-- The record is the pin, else a hang. -/
+def cmpRP (L : Nat) (rest : ProgHOL 64) : ProgHOL 64 := cmpP (vv kdQ) L rest
+
+/-- A standard pin interned (the scratch tier off, else a hang). -/
+def pinP (C : Ctx) (cv : ConLeche.ConstantVal) (rest : ProgHOL 64) : ProgHOL 64 :=
+  offCheckP C (genSCV C cv rest)
+
+/-- A constructor pin interned: its value, then its inductive's name (`internCI`'s order). -/
+def pinCtorP (C : Ctx) (cv : ConLeche.ConstantVal) (T : ConLeche.Name) (rest : ProgHOL 64) : ProgHOL 64 :=
+  offCheckP C (genSCV C cv (ConPanqueque.Start.nameP C ((ConPanqueque.Start.strComps T).getD []) rest))
+
+/-- The reserved names (a hang if the record's is one), freshness, the install, the flags, the flush. -/
+def stdInstP (C : Ctx) : ProgHOL 64 :=
+  .seq (.assign .local kdN (.load .one (vv kdQ)))
+  (.seq (.assign .local kdL (.load .one (.const (ecell C (C.PO + pinCount + 4)))))
+  (.seq (.assign .local kdLn (.load .one (vv kdL)))
+  (callR kdX fRsm [vv kdN, vv kdL, .const 0, vv kdLn]
+  (.ite (.cmp .notEqual (vv kdX) (.const 0)) hang
+  (envFindP C kqF (vv kdN) (.ite (.cmp .notEqual (vv kqF) (.const 0)) hang
+  (callR kdX fInstQ [.const 0, vv kdQ, .const 0, .const 0, .const 0, .const 0, .const 0, .const 0] (tailP C))))))))
+
+/-- Pins `i` and `j` name different handles, else a hang. -/
+def pinNeP (C : Ctx) (i j : Nat) (rest : ProgHOL 64) : ProgHOL 64 :=
+  .seq (.assign .local kdN (.load .one (.const (ecell C (C.PO + i)))))
+  (.seq (.assign .local kdL (.load .one (.const (ecell C (C.PO + j)))))
+  (.ite (.cmp .equal (vv kdN) (vv kdL)) hang rest))
+
+/-- `ofReduceAxOk` and the install at the element inductive (pin `ie`, its pinned value `ce`), the reduce
+operation (pin `ir`, `cr`), the axiom's pin `ca`. -/
+def ofRedP (C : Ctx) (ie : Nat) (ce : ConLeche.ConstantVal) (ir : Nat) (cr ca : ConLeche.ConstantVal) :
+    ProgHOL 64 :=
+  predGuard C PIN_EQ (findTagP C ie 3 (pinP C ce (cmpEP 0
+  (findTagP C ir 0 (pinP C cr (cmpEP 0
+  (pinP C ca (cmpRP 0 (stdInstP C)))))))))
+
+/-- The standard axiom arm `k`: `propext`, `Classical.choice`, `Lean.trustCompiler`, `Lean.ofReduceNat`,
+`Lean.ofReduceBool`. -/
+def stdP (C : Ctx) : Nat → ProgHOL 64
+  | 0 => predGuard C PIN_EQ
+      (findTagP C PIN_IFF 3 (pinP C ConLeche.iffA.toConstantVal (cmpEP 0
+      (findTagP C PIN_IFF_INTRO 4 (fieldP 4 2 (fieldP 5 2 (pinCtorP C ConLeche.iffIntroA.toConstantVal ConLeche.iffName (cmpEP 0
+      (findTagP C PIN_IFF_REC 5 (fieldP 4 4 (fieldP 5 4 (pinP C ConLeche.iffRecA.toConstantVal (cmpEP 1
+      (pinP C ConLeche.propextA (cmpRP 0 (stdInstP C))))))))))))))))
+  | 1 => findTagP C PIN_NONEMPTY 3 (pinP C ConLeche.nonemptyA.toConstantVal (cmpEP 1
+      (findTagP C PIN_NONEMPTY_INTRO 4 (fieldP 4 1 (fieldP 5 1 (pinCtorP C ConLeche.nonemptyIntroA.toConstantVal ConLeche.nonemptyName (cmpEP 1
+      (findTagP C PIN_NONEMPTY_REC 5 (fieldP 4 3 (fieldP 5 3 (pinP C ConLeche.nonemptyRecA.toConstantVal (cmpEP 1
+      (pinP C ConLeche.choiceA (cmpRP 1 (stdInstP C)))))))))))))))
+  | 2 => findTagP C PIN_TRUE 3 (pinP C ConLeche.trueCvA (cmpEP 0
+      (findTagP C PIN_TRUE_INTRO 4 (fieldP 4 0 (fieldP 5 0 (pinP C ConLeche.trueIntroCvA (cmpEP 0
+      (pinP C ConLeche.trustCompilerA (cmpRP 0 (stdInstP C))))))))))
+  | 3 => ofRedP C PIN_NAT ConLeche.natA.toConstantVal PIN_REDUCE_NAT ConLeche.reduceNatCvA ConLeche.ofReduceNatA
+  | _ => pinNeP C PIN_REDUCE_BOOL PIN_REDUCE_NAT
+      (ofRedP C PIN_BOOL ConLeche.boolCvA PIN_REDUCE_BOOL ConLeche.reduceBoolCvA ConLeche.ofReduceBoolA)
+
 /-- `checkDecl` at a quotient record (its constant value at `kdQ`, its kind's number in `kdV`). -/
 def kqBody (C : Ctx) : ProgHOL 64 := prologue kqLocals
   (.ite (.cmp .equal (vv kdV) (.const 1)) (armP C 0)
   (.ite (.cmp .equal (vv kdV) (.const 2)) (armP C 1)
   (.ite (.cmp .equal (vv kdV) (.const 5)) (armP C 4)
   (.ite (.cmp .equal (vv kdV) (.const 3)) (armP C 2)
-  (.ite (.cmp .equal (vv kdV) (.const 4)) (armP C 3) hang)))))
+  (.ite (.cmp .equal (vv kdV) (.const 4)) (armP C 3)
+  (.ite (.cmp .equal (vv kdV) (.const 6)) (stdP C 0)
+  (.ite (.cmp .equal (vv kdV) (.const 7)) (stdP C 1)
+  (.ite (.cmp .equal (vv kdV) (.const 8)) (stdP C 2)
+  (.ite (.cmp .equal (vv kdV) (.const 9)) (stdP C 3)
+  (.ite (.cmp .equal (vv kdV) (.const 10)) (stdP C 4) hang))))))))))
 
 /-- A quotient kind's number. -/
 def qkN : ConLeche.QuotKind → Nat
