@@ -837,4 +837,157 @@ theorem genCIList_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D 
 
 end
 
+/-! ## Checking a literal's conditions by evaluation -/
+
+def nameLitB (n : ConLeche.Name) : Bool :=
+  match strComps n with
+  | some cs => cs.all fun c => decide ((strBytes c).length < 2 ^ 50)
+  | none => false
+
+theorem nameLit_of {n : ConLeche.Name} (h : nameLitB n = true) : NameLit n := by
+  unfold nameLitB at h
+  split at h
+  · rename_i cs hcs
+    exact ⟨cs, hcs, fun c hc => by simpa using List.all_eq_true.mp h c hc⟩
+  · cases h
+
+def lvlB (N : Nat) : Nat → ConLeche.Level → Bool
+  | d, u => decide (d + ldepth u ≤ N) && lvlOKB u
+where lvlOKB : ConLeche.Level → Bool
+  | .zero => true
+  | .succ u => lvlOKB u
+  | .max u v => lvlOKB u && lvlOKB v
+  | .imax u v => lvlOKB u && lvlOKB v
+  | .param n => nameLitB n
+
+theorem lvlOK_of : ∀ {u : ConLeche.Level}, lvlB.lvlOKB u = true → LvlOK u
+  | .zero, _ => trivial
+  | .succ u, h => lvlOK_of (u := u) h
+  | .max u v, h => by simp only [lvlB.lvlOKB, Bool.and_eq_true] at h; exact ⟨lvlOK_of h.1, lvlOK_of h.2⟩
+  | .imax u v, h => by simp only [lvlB.lvlOKB, Bool.and_eq_true] at h; exact ⟨lvlOK_of h.1, lvlOK_of h.2⟩
+  | .param n, h => nameLit_of h
+
+def exprOKB : ConLeche.Expr → Bool
+  | .bvar i => decide (i < 2 ^ 63)
+  | .sort u => lvlB.lvlOKB u
+  | .const n us => nameLitB n && us.all lvlB.lvlOKB && decide (us.length < 2 ^ 59)
+  | .app f a => exprOKB f && exprOKB a
+  | .lam t b => exprOKB t && exprOKB b
+  | .forallE t b => exprOKB t && exprOKB b
+  | _ => false
+
+theorem exprOK_of : ∀ {e : ConLeche.Expr}, exprOKB e = true → ExprOK e
+  | .bvar i, h => by simp only [exprOKB, decide_eq_true_eq] at h; exact h
+  | .sort u, h => lvlOK_of h
+  | .const n us, h => by
+    simp only [exprOKB, Bool.and_eq_true, decide_eq_true_eq, List.all_eq_true] at h
+    exact ⟨nameLit_of h.1.1, fun u hu => lvlOK_of (h.1.2 u hu), h.2⟩
+  | .app f a, h => by simp only [exprOKB, Bool.and_eq_true] at h; exact ⟨exprOK_of h.1, exprOK_of h.2⟩
+  | .lam t b, h => by simp only [exprOKB, Bool.and_eq_true] at h; exact ⟨exprOK_of h.1, exprOK_of h.2⟩
+  | .forallE t b, h => by simp only [exprOKB, Bool.and_eq_true] at h; exact ⟨exprOK_of h.1, exprOK_of h.2⟩
+  | .lit _, h => by simp [exprOKB] at h
+  | .fvar _ _, h => by simp [exprOKB] at h
+  | .letE _ _ _, h => by simp [exprOKB] at h
+  | .proj _ _ _, h => by simp [exprOKB] at h
+
+def eB (d N : Nat) (e : ConLeche.Expr) : Bool := exprOKB e && decide (d + edepth e ≤ N)
+
+theorem eB_of {d N : Nat} {e : ConLeche.Expr} (h : eB d N e = true) : ExprOK e ∧ d + edepth e ≤ N := by
+  simp only [eB, Bool.and_eq_true, decide_eq_true_eq] at h; exact ⟨exprOK_of h.1, h.2⟩
+
+def cvB (d N : Nat) (cv : ConLeche.ConstantVal) : Bool :=
+  nameLitB cv.name && cv.levelParams.all nameLitB && eB d N cv.type
+
+theorem cvLit_of {d N : Nat} {cv : ConLeche.ConstantVal} (h : cvB d N cv = true) : CVLit d N cv := by
+  simp only [cvB, Bool.and_eq_true, List.all_eq_true] at h
+  exact ⟨nameLit_of h.1.1, fun n hn => nameLit_of (h.1.2 n hn), (eB_of h.2).1, (eB_of h.2).2⟩
+
+def fireB (d N : Nat) : ConLeche.RecRuleFire → Bool
+  | .plain => true
+  | .levels us => us.all (lvlB N d)
+  | .nested _ _ => false
+
+theorem fireLit_of {d N : Nat} : ∀ {f : ConLeche.RecRuleFire}, fireB d N f = true → FireLit d N f
+  | .plain, _ => trivial
+  | .levels us, h => fun u hu => by
+    have := List.all_eq_true.mp h u hu
+    simp only [lvlB, Bool.and_eq_true, decide_eq_true_eq] at this
+    exact ⟨lvlOK_of this.2, this.1⟩
+  | .nested _ _, h => by simp [fireB] at h
+
+def ruleB (d N : Nat) (rl : ConLeche.RecRule) : Bool :=
+  nameLitB rl.ctor && fireB d N rl.fire && eB d N rl.rhs
+
+theorem ruleLit_of {d N : Nat} {rl : ConLeche.RecRule} (h : ruleB d N rl = true) : RuleLit d N rl := by
+  simp only [ruleB, Bool.and_eq_true] at h
+  exact ⟨nameLit_of h.1.1, fireLit_of h.1.2, (eB_of h.2).1, (eB_of h.2).2⟩
+
+def ciB (d N : Nat) : ConLeche.ConstantInfo → Bool
+  | .axiomInfo v => cvB d N v
+  | .thmInfo v => cvB d N v
+  | .defnInfo v e _ => cvB d N v && eB d N e
+  | .indInfo v c => cvB d N v && c.all.all nameLitB && c.ctors.all nameLitB
+  | .ctorInfo v _ _ T => cvB d N v && nameLitB T
+  | .recInfo v _ _ _ rs => cvB d N v && rs.all (ruleB d N)
+
+theorem ciLit_of {d N : Nat} : ∀ {c : ConLeche.ConstantInfo}, ciB d N c = true → CILit d N c
+  | .axiomInfo v, h => cvLit_of h
+  | .thmInfo v, h => cvLit_of h
+  | .defnInfo v e _, h => by
+    simp only [ciB, Bool.and_eq_true] at h; exact ⟨cvLit_of h.1, (eB_of h.2).1, (eB_of h.2).2⟩
+  | .indInfo v c, h => by
+    simp only [ciB, Bool.and_eq_true, List.all_eq_true] at h
+    exact ⟨cvLit_of h.1.1, fun n hn => nameLit_of (h.1.2 n hn), fun n hn => nameLit_of (h.2 n hn)⟩
+  | .ctorInfo v _ _ T, h => by simp only [ciB, Bool.and_eq_true] at h; exact ⟨cvLit_of h.1, nameLit_of h.2⟩
+  | .recInfo v _ _ _ rs, h => by
+    simp only [ciB, Bool.and_eq_true, List.all_eq_true] at h
+    exact ⟨cvLit_of h.1, fun r hr => ruleLit_of (h.2 r hr)⟩
+
+/-! ## The basis phase -/
+
+set_option maxRecDepth 100000 in
+theorem basis_lits : ∀ k : ConLeche.BasisKind, ∀ c ∈ ConLeche.BasisKind.decls k, CILit 0 12 c := by
+  intro k c hc
+  have : ∀ k ∈ [ConLeche.BasisKind.eqK, .natK, .emptyK, .falseK, .quotK],
+      ∀ c ∈ ConLeche.BasisKind.decls k, ciB 0 12 c = true := by decide
+  exact ciLit_of (this k (by cases k <;> simp) c hc)
+
+/-- The pinned blocks, in the order the phase interns them. -/
+def basisKinds : List ConLeche.BasisKind := [.eqK, .natK, .emptyK, .falseK, .quotK]
+
+/-- Intern every pinned block's literals, then `rest`. -/
+def basisP (C : Ctx) : List ConLeche.BasisKind → ProgHOL 64 → ProgHOL 64
+  | [], rest => rest
+  | k :: ks, rest => genCIList C 0 (ConLeche.BasisKind.decls k) (basisP C ks rest)
+
+/-- The phase's twin: each pinned block's plain interning. -/
+def basisTwin : List ConLeche.BasisKind → AM Unit
+  | [] => pure ()
+  | k :: ks => do
+    let _ ← ConPanqueque.Logic.PlainIntern.plainCIList (ConLeche.BasisKind.decls k)
+    basisTwin ks
+
+section
+variable {σ : Type}
+
+theorem basisP_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) {C : Ctx} {D : List MlS}
+    (G : GenEnv C D 12) :
+    ∀ (ks : List ConLeche.BasisKind) (H0 : List (BitVec 64)) (rest : ProgHOL 64) (Γ : Env) (M : Mem) (s : AState)
+      {β : Type} {k : Unit → AM β} {R : β → BitVec 64 → AState → PState σ → Prop},
+      (∀ s' Γ' H', H0 <+: H' → AgreeL Γ Γ' 0 → SpecR (Inv (ctxH C H') s' Γ' [] D) rest s' (k ()) R) →
+      SpecR (Inv (ctxH C H0) s Γ M D) (basisP C ks rest) s (basisTwin ks >>= k) R := by
+  intro ks
+  induction ks with
+  | nil =>
+    intro H0 rest Γ M s β k R hk
+    simp only [basisP, basisTwin, pure_bind]
+    intro t ht; exact hk s Γ H0 (List.prefix_refl _) (agreeL_refl _ _) t (lit_dropMem ht)
+  | cons b bs ih =>
+    intro H0 rest Γ M s β k R hk
+    simp only [basisP, basisTwin, bind_assoc]
+    refine genCIList_spec ra G 0 _ H0 _ Γ M s (basis_lits b) (fun hs s1 Γ1 H1 hp1 ag1 => ?_)
+    exact ih H1 rest Γ1 [] s1 (fun s2 Γ2 H2 hp2 ag2 => hk s2 Γ2 H2 (hp1.trans hp2) (agreeL_trans ag1 ag2))
+
+end
+
 end ConPanqueque.T.Lit
