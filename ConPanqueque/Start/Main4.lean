@@ -1,6 +1,7 @@
 import ConPanqueque.Start.Main3
 import ConPanqueque.Prelude.Rest3
 import ConPanqueque.Logic.Die
+import ConPanqueque.Logic.Narrow
 
 /-! # The whole program, with con-leche's built-in prelude
 
@@ -319,24 +320,63 @@ theorem main_pipeline_prelude_P (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbi
 
 /-! ## The emitted program
 
-The program `scripts/Emit.lean` prints is the proved one with every failure exit `hang` replaced by
-the tail call `return die();` (`dieT`, `ConPanqueque/Logic/Die.lean`), and the code table with the
-function `die` (body `hang`) added and every body transformed the same way.  By `dieT_sim` it returns
-only what the proved program returns, so the theorem carries over. -/
+The program `scripts/Emit.lean` prints is the proved one with two emit-time rewrites:
+
+* every failure exit `hang` replaced by the tail call `return die();` (`dieT`,
+  `ConPanqueque/Logic/Die.lean`), and the function `die` (body `hang`) added to the code table;
+  by `dieT_sim` this only adds ways to stop;
+* then the scope of every constant declaration narrowed (`narrowT`,
+  `ConPanqueque/Logic/NarrowDefs.lean`), in `main` and in every body of the table; by
+  `narrowT_sim` the result and the FFI trace are those of the program before narrowing.
+
+So the theorem carries over. -/
+
+/-- `main` with the failure exits replaced. -/
+def mainBody3D : ProgHOL 64 := dieT mainBody3P
+
+/-- The code table with `die` added and the failure exits replaced. -/
+noncomputable def codeD : Code := codeMap (dieEntries (codeEntries Cg))
 
 /-- `main`, as emitted. -/
-def mainBody3 : ProgHOL 64 := dieT mainBody3P
+def mainBody3 : ProgHOL 64 := narrowT mainBody3D
 
 /-- The emitted code table. -/
-noncomputable def codeT : Code := codeMap (dieEntries (codeEntries Cg))
+noncomputable def codeT : Code := codeMap (narrowEntries (dieEntries (codeEntries Cg)))
 
 set_option maxRecDepth 100000 in
 theorem codeEntries_die_none : (codeEntries Cg).lookup fDie = none := by kernel_rfl
 
-theorem codeRel_T : CodeRel codeTP codeT where
+theorem codeRel_D : CodeRel codeTP codeD where
   none := by rw [codeTP, codeMap_lookup]; exact codeEntries_die_none
-  die := by rw [codeT, codeMap_lookup, dieEntries_lookup, ite_eq_left rfl]
-  other f hf := by rw [codeT, codeTP, codeMap_lookup, codeMap_lookup, dieEntries_lookup, ite_eq_right hf]
+  die := by rw [codeD, codeMap_lookup, dieEntries_lookup, ite_eq_left rfl]
+  other f hf := by rw [codeD, codeTP, codeMap_lookup, codeMap_lookup, dieEntries_lookup, ite_eq_right hf]
+
+theorem nCode_T : NCode codeD codeT := fun f => by
+  rw [codeT, codeD, codeMap_lookup, codeMap_lookup, narrowEntries_lookup]
+
+/-- The theorem for the program before narrowing. -/
+theorem main_pipeline_prelude_D (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : System.Platform.numBits = 64)
+    (t : PState σ) (hm : InitMem t) (hg : InitGlobals t codeD) (hbe : t.be = false) (w : BitVec 64)
+    (hret : (evaluateHOLFiniteState t mainBody3D).1 = some (.returned (.val (.word w)))) :
+    ∃ nb bs : List (BitVec 8), ⟨.extCall fRead, [], bs.zip nb⟩ ∈ (evaluateHOLFiniteState t mainBody3D).2.ffi.ioEvents ∧
+      ∃ r, ConLeche.Frontend.parseChunks [inputOf nb (leNat (nb.take 8))] = .ok r ∧
+        ∃ pre, ConLeche.Frontend.builtinPreludeE = .ok pre ∧
+          ∃ E, ConLeche.PureRun [] (ConLeche.Frontend.preparePrelude pre r.decls).toList ConLeche.Env.empty E := by
+  -- the same start with the proved code table
+  let t0 : PState σ := { t with code := codeTP }
+  have ht : t = { t0 with code := codeD } := by
+    obtain ⟨c, _⟩ := hg
+    cases t; simp only at c; subst c; rfl
+  have hg0 : InitGlobals t0 codeTP := by
+    obtain ⟨_, d, n1, n2, n3, n4, k, hh, eo, lit, et⟩ := hg
+    exact ⟨rfl, d, n1, n2, n3, n4, k, hh, eo, lit, et⟩
+  have hsim := dieT_sim t0 (c' := codeD) codeRel_D mainBody3P
+  rw [← ht] at hsim
+  unfold mainBody3D at hret ⊢
+  rcases hsim with hs | he
+  · exact absurd hret (stop_ne_returned hs _)
+  rw [he] at hret ⊢
+  exact main_pipeline_prelude_P ra hbits t0 ⟨hm.zero⟩ hg0 hbe w hret
 
 /-- **con-leche's fold accepts what the program accepts, at con-leche's built-in prelude.**  If
 `main` returns, the read input parses (con-leche's one-chunk parse `parseChunks`), con-leche's
@@ -349,20 +389,19 @@ theorem main_pipeline_prelude (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits
       ∃ r, ConLeche.Frontend.parseChunks [inputOf nb (leNat (nb.take 8))] = .ok r ∧
         ∃ pre, ConLeche.Frontend.builtinPreludeE = .ok pre ∧
           ∃ E, ConLeche.PureRun [] (ConLeche.Frontend.preparePrelude pre r.decls).toList ConLeche.Env.empty E := by
-  -- the same start with the proved code table
-  let t0 : PState σ := { t with code := codeTP }
-  have ht : t = { t0 with code := codeT } := by
+  -- the same start with the table before narrowing
+  let t1 : PState σ := { t with code := codeD }
+  have ht : t = { t1 with code := codeT } := by
     obtain ⟨c, _⟩ := hg
     cases t; simp only at c; subst c; rfl
-  have hg0 : InitGlobals t0 codeTP := by
+  have hg1 : InitGlobals t1 codeD := by
     obtain ⟨_, d, n1, n2, n3, n4, k, hh, eo, lit, et⟩ := hg
     exact ⟨rfl, d, n1, n2, n3, n4, k, hh, eo, lit, et⟩
-  have hsim := dieT_sim t0 (c' := codeT) codeRel_T mainBody3P
-  rw [← ht] at hsim
+  obtain ⟨h1, h2⟩ := narrowT_sim t1 (c' := codeT) nCode_T mainBody3D
+  rw [← ht] at h1 h2
   unfold mainBody3 at hret ⊢
-  rcases hsim with hs | he
-  · exact absurd hret (stop_ne_returned hs _)
-  rw [he] at hret ⊢
-  exact main_pipeline_prelude_P ra hbits t0 ⟨hm.zero⟩ hg0 hbe w hret
+  rw [h1] at hret
+  rw [h2]
+  exact main_pipeline_prelude_D ra hbits t1 ⟨hm.zero⟩ hg1 hbe w hret
 
 end ConPanqueque.Start
