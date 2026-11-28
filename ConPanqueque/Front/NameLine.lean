@@ -18,30 +18,6 @@ open ConLeche.Frontend (ScanRes NameRec scanString)
 
 variable {σ : Type}
 
-/-- `ssFun_sound` with the body's start before its end. -/
-theorem ssFun_sound2 (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
-    (hb : BytesAt t A b.data.toList) (i : USize) (hi0 : i.toNat ≤ b.size) (hc : SkipPlainCode t)
-    (lb : t.locals.lookup sB = some (.val (.word A)))
-    (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
-    (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
-    RetP t ssFun (fun w => ∃ e : USize, w = BitVec.ofNat 64 e.toNat ∧ e.toNat < b.size ∧ i.toNat + 1 ≤ e.toNat ∧ ∃ s,
-      ConLeche.Frontend.scanString b i = .ok s (e + 1) ∧ s.toUTF8 = b.extract (i + 1).toNat e.toNat) := by
-  rcases ssFun_spec t A b.data.toList i.toNat hb (by simpa using hi0) hc lb (by simpa using ln) li with
-    hs | ⟨w, r1, ⟨e, rfl, hi', he, hie, hq0, hqe, hpl⟩, r2⟩
-  · exact Or.inl hs
-  · have heU : (USize.ofNat e).toNat = e := by
-      rw [USize.toNat_ofNat']
-      simp only [USize.size_eq_two_pow, hp.bits]; apply Nat.mod_eq_of_lt; have := hp.size; simp at he; omega
-    refine Or.inr ⟨_, r1, ⟨USize.ofNat e, by rw [heU], by rw [heU]; simpa using he, by rw [heU]; exact hie, ?_⟩, r2⟩
-    have he' : (USize.ofNat e).toNat < b.size := by rw [heU]; simpa using he
-    have hi : i.toNat < b.size := by simpa using hi'
-    obtain ⟨s, h1, h2⟩ := scanString_plain hp i (USize.ofNat e) hi he' (by rw [heU]; omega)
-      (by rw [List.getElem?_eq_getElem (by simpa using hi)] at hq0; exact Option.some.inj hq0)
-      (by rw [List.getElem?_eq_getElem he] at hqe
-          simp only [heU]; exact Option.some.inj hqe)
-      (fun k hk h1 h2 => hpl k hk h1 (by rw [heU] at h2; exact h2))
-    exact ⟨s, h1, h2⟩
-
 def numInits : List (BitVec 64) := [0, 0]
 def fNumF (k : Nat) : MlS := ofString ("numf" ++ toString k)
 

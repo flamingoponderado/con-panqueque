@@ -1,4 +1,4 @@
-import ConPanqueque.Scan.ValueAt
+import ConPanqueque.Scan.Utf8
 
 /-! # Strings, soundly restricted
 
@@ -42,7 +42,7 @@ theorem ascii_valid (b : ByteArray) (h : ∀ x ∈ b.data.toList, x.toNat < 128)
 theorem strClose_plain {b : ByteArray} (hp : Plat b) (e : USize) (he : e.toNat < b.size)
     (hq : b.data.toList[e.toNat]'(by simpa using he) = 34) :
     ∀ n (j : USize), e.toNat - j.toNat = n → j.toNat ≤ e.toNat →
-      (∀ k (hk : k < b.data.toList.length), j.toNat ≤ k → k < e.toNat → isPlainN b.data.toList[k].toNat = true) →
+      (∀ k (hk : k < b.data.toList.length), j.toNat ≤ k → k < e.toNat → isStrN b.data.toList[k].toNat = true) →
       ConLeche.Frontend.strClose b j = e := by
   intro n
   induction n with
@@ -62,7 +62,7 @@ theorem strClose_plain {b : ByteArray} (hp : Plat b) (e : USize) (he : e.toNat <
     simp only
     rw [uget_eq b j hjl ((hp.lt_iff j).mpr hjl)]
     generalize hx : b.data.toList[j.toNat] = x at hc
-    simp only [isPlainN, Bool.and_eq_true, decide_eq_true_eq, Bool.not_eq_true', beq_eq_false_iff_ne] at hc
+    simp only [isStrN, Bool.and_eq_true, decide_eq_true_eq, Bool.not_eq_true', beq_eq_false_iff_ne] at hc
     have n34 : (x == 34) = false := by
       rw [show (34 : UInt8) = UInt8.ofNat 34 from rfl, beq_ofNat x 34 (by decide)]; simp; omega
     have n92 : (x == 92) = false := by
@@ -75,7 +75,7 @@ theorem strClose_plain {b : ByteArray} (hp : Plat b) (e : USize) (he : e.toNat <
 
 theorem hasEscape_plain {b : ByteArray} (hp : Plat b) (e : USize) (he : e.toNat ≤ b.size) :
     ∀ n (j : USize), b.size - j.toNat = n →
-      (∀ k (hk : k < b.data.toList.length), j.toNat ≤ k → k < e.toNat → isPlainN b.data.toList[k].toNat = true) →
+      (∀ k (hk : k < b.data.toList.length), j.toNat ≤ k → k < e.toNat → isStrN b.data.toList[k].toNat = true) →
       ConLeche.Frontend.hasEscape b j e = false := by
   intro n
   induction n using Nat.strongRecOn with
@@ -92,7 +92,7 @@ theorem hasEscape_plain {b : ByteArray} (hp : Plat b) (e : USize) (he : e.toNat 
         have hc := hpl j.toNat hjl' (Nat.le_refl _) hje'
         rw [uget_eq b j hjl h]
         generalize hx : b.data.toList[j.toNat] = x at hc
-        simp only [isPlainN, Bool.and_eq_true, decide_eq_true_eq, Bool.not_eq_true', beq_eq_false_iff_ne] at hc
+        simp only [isStrN, Bool.and_eq_true, decide_eq_true_eq, Bool.not_eq_true', beq_eq_false_iff_ne] at hc
         have n92 : (x == 92) = false := by
           rw [show (92 : UInt8) = UInt8.ofNat 92 from rfl, beq_ofNat x 92 (by decide)]; simp; omega
         simp only [n92, Bool.false_eq_true, ↓reduceIte]
@@ -110,6 +110,31 @@ theorem mem_extract_of {b : ByteArray} {a e : Nat} {x : UInt8} (h : x ∈ (b.ext
   refine ⟨a + k, by simp; omega, by omega, by omega, ?_⟩
   rw [← hx]; simp
 
+/-- **con-leche's `scanString` on an escape-free body**: the opening quote at `i`, body bytes that
+are no control byte, `"` or `\\`, valid UTF-8, the closing quote at `e`. -/
+theorem scanString_str {b : ByteArray} (hp : Plat b) (i e : USize) (hi : i.toNat < b.size)
+    (he : e.toNat < b.size) (hie : i.toNat + 1 ≤ e.toNat)
+    (hq0 : b.data.toList[i.toNat]'(by simpa using hi) = 34)
+    (hqe : b.data.toList[e.toNat]'(by simpa using he) = 34)
+    (hpl : ∀ k (hk : k < b.data.toList.length), i.toNat + 1 ≤ k → k < e.toNat →
+      isStrN b.data.toList[k].toNat = true)
+    (hval : ByteArray.IsValidUTF8 (b.extract (i + 1).toNat e.toNat)) :
+    ∃ s, ConLeche.Frontend.scanString b i = .ok s (e + 1) ∧
+      s.toUTF8 = b.extract (i + 1).toNat e.toNat := by
+  have hi1 : (i + 1).toNat = i.toNat + 1 := ConLeche.Frontend.usizeStep b i ((hp.lt_iff i).mpr hi)
+  have hclose := strClose_plain hp e he hqe _ (i + 1) rfl (by omega) (by rw [hi1]; exact hpl)
+  have hesc := hasEscape_plain hp e (by omega) _ (i + 1) rfl (by rw [hi1]; exact hpl)
+  refine ⟨String.fromUTF8 _ hval, ?_, rfl⟩
+  rw [ConLeche.Frontend.scanString, byteAt_eq hp, List.getElem?_eq_getElem (by simpa using hi)]
+  simp only [Option.getD_some, hq0, bne_self_eq_false, Bool.false_eq_true, ↓reduceIte, hclose, hesc]
+  have hne : (e == 0) = false := by
+    apply beq_eq_false_iff_ne.mpr; intro h; rw [h] at hie; simp at hie
+  simp only [hne, Bool.false_eq_true, ↓reduceIte, String.fromUTF8?, dite_eq_left hval]
+
+theorem isStrN_of_plain {c : Nat} (h : isPlainN c = true) : isStrN c = true := by
+  simp only [isPlainN, Bool.and_eq_true, decide_eq_true_eq] at h
+  simp only [isStrN, Bool.and_eq_true, decide_eq_true_eq]; exact ⟨⟨h.1.1.1, h.1.2⟩, h.2⟩
+
 /-- **con-leche's `scanString` on a plain body**: the opening quote at `i`, plain bytes, the closing
 quote at `e`. -/
 theorem scanString_plain {b : ByteArray} (hp : Plat b) (i e : USize) (hi : i.toNat < b.size)
@@ -121,20 +146,13 @@ theorem scanString_plain {b : ByteArray} (hp : Plat b) (i e : USize) (hi : i.toN
     ∃ s, ConLeche.Frontend.scanString b i = .ok s (e + 1) ∧
       s.toUTF8 = b.extract (i + 1).toNat e.toNat := by
   have hi1 : (i + 1).toNat = i.toNat + 1 := ConLeche.Frontend.usizeStep b i ((hp.lt_iff i).mpr hi)
-  have hclose := strClose_plain hp e he hqe _ (i + 1) rfl (by omega) (by rw [hi1]; exact hpl)
-  have hesc := hasEscape_plain hp e (by omega) _ (i + 1) rfl (by rw [hi1]; exact hpl)
   have hval : ByteArray.IsValidUTF8 (b.extract (i + 1).toNat e.toNat) := by
     apply ascii_valid
     intro x hx
     obtain ⟨k, hk, h1, h2, rfl⟩ := mem_extract_of hx
     have := hpl k hk (by omega) h2
     simp only [isPlainN, Bool.and_eq_true, decide_eq_true_eq] at this; omega
-  refine ⟨String.fromUTF8 _ hval, ?_, rfl⟩
-  rw [ConLeche.Frontend.scanString, byteAt_eq hp, List.getElem?_eq_getElem (by simpa using hi)]
-  simp only [Option.getD_some, hq0, bne_self_eq_false, Bool.false_eq_true, ↓reduceIte, hclose, hesc]
-  have hne : (e == 0) = false := by
-    apply beq_eq_false_iff_ne.mpr; intro h; rw [h] at hie; simp at hie
-  simp only [hne, Bool.false_eq_true, ↓reduceIte, String.fromUTF8?, dite_eq_left hval]
+  exact scanString_str hp i e hi he hie hq0 hqe (fun k hk h1 h2 => isStrN_of_plain (hpl k hk h1 h2)) hval
 
 /-- `c` is a plain string byte, as a 0/1 word. -/
 def plainTest : ExpHOL 64 :=
@@ -158,16 +176,18 @@ def fSkipPlain := ofString "skipPlain"
 def SkipPlainCode {σ : Type} (t : PanSemStateFiniteExact 64 σ) : Prop :=
   t.code.lookup fSkipPlain = some ([(sB, .one), (sN, .one), (sI, .one)], skFun plainTest, .one)
 
-/-- `scanStringPlain(b, n, i)`: the closing quote of the plain string at `i`; any other string is
-rejected (`hang`). -/
+/-- `scanString(b, n, i)`: the closing quote of the escape-free string at `i`, its body walked one
+UTF-8 character at a time (`u8Loop`); any other string is rejected (`hang`). -/
 def ssFun : ProgHOL 64 :=
-  .dec sY .one (.const 0) (.dec sE2 .one (.const 0)
-    (.seq (bAt sY (vv sI))
-      (.ite (.cmp .equal (vv sY) (.const 34))
-        (.seq (.call (some (some (.local, sE2), none)) fSkipPlain [vv sB, vv sN, .op .add [vv sI, .const 1]])
-          (.seq (bAt sY (vv sE2))
-            (.ite (.cmp .equal (vv sY) (.const 34)) (.return (vv sE2)) hang)))
-        hang)))
+  .dec sY .one (.const 0) (.dec sE2 .one (.const 0) (.dec sG .one (.const 1) (.dec sC .one (.const 0)
+    (.dec sU1 .one (.const 0) (.dec sU2 .one (.const 0) (.dec sU3 .one (.const 0) (.dec sUK .one (.const 0)
+      (.seq (bAt sY (vv sI))
+        (.ite (.cmp .equal (vv sY) (.const 34))
+          (.seq (.assign .local sE2 (.op .add [vv sI, .const 1]))
+            (.seq u8Loop
+              (.seq (bAt sY (vv sE2))
+                (.ite (.cmp .equal (vv sY) (.const 34)) (.return (vv sE2)) hang))))
+          hang)))))))))
 
 section
 variable {σ : Type}
@@ -222,25 +242,34 @@ theorem retP_dec {u : PanSemStateFiniteExact 64 σ} {x : MlS} {e : ExpHOL 64} {b
   exact h
 
 /-- What a returning `ssFun` knows, on the list. -/
-def PlainStr (bs : List UInt8) (i e : Nat) : Prop :=
-  i < bs.length ∧ e < bs.length ∧ i + 1 ≤ e ∧ bs[i]? = some 34 ∧ bs[e]? = some 34 ∧
-    ∀ k (hk : k < bs.length), i + 1 ≤ k → k < e → isPlainN bs[k].toNat = true
+def StrBody (bs : List UInt8) (i e : Nat) : Prop :=
+  i < bs.length ∧ e < bs.length ∧ i + 1 ≤ e ∧ bs[i]? = some 34 ∧ bs[e]? = some 34 ∧ SegOK bs (i + 1) e
 
-theorem ssFun_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (bs : List UInt8) (i0 : Nat)
-    (hb : BytesAt t A bs) (hi0 : i0 ≤ bs.length) (hc : SkipPlainCode t)
+/-- The body of `ssFun` after its declarations. -/
+def ssCore : ProgHOL 64 :=
+  .seq (bAt sY (vv sI))
+    (.ite (.cmp .equal (vv sY) (.const 34))
+      (.seq (.assign .local sE2 (.op .add [vv sI, .const 1]))
+        (.seq u8Loop
+          (.seq (bAt sY (vv sE2))
+            (.ite (.cmp .equal (vv sY) (.const 34)) (.return (vv sE2)) hang))))
+      hang)
+
+theorem ssCore_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (bs : List UInt8) (i0 : Nat)
+    (hb : BytesAt t A bs) (hi0 : i0 ≤ bs.length) (hroom : bs.length + 4 < 2 ^ 64)
     (lb : t.locals.lookup sB = some (.val (.word A)))
     (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 bs.length))))
-    (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i0)))) :
-    RetP t ssFun (fun w => ∃ e, w = BitVec.ofNat 64 e ∧ PlainStr bs i0 e) := by
-  have hL : bs.length < 2 ^ 64 := by have := hb.2.2.1; omega
-  unfold ssFun
-  refine retP_dec (w := 0) (by simp [evalHOLExact]) ?_
-  refine retP_dec (w := 0) (by simp [evalHOLExact]) ?_
-  let t2 := setVarHOLFinite sE2 (.val (.word 0)) (setVarHOLFinite sY (.val (.word 0)) t)
-  have e1 := bAt_spec t2 A bs sY (vv sI) i0 (bytesAt_congr hb rfl rfl rfl) (by omega) 0 (by lk [t2])
-    (by lk [t2]; exact lb) (by lk [t2]; exact ln) (eval_vv t2 sI _ (by lk [t2]; exact li))
+    (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i0))))
+    (ly : t.locals.lookup sY = some (.val (.word 0))) (le : t.locals.lookup sE2 = some (.val (.word 0)))
+    (lg : t.locals.lookup sG = some (.val (.word 1))) (lc : t.locals.lookup sC = some (.val (.word 0)))
+    (l1 : t.locals.lookup sU1 = some (.val (.word 0))) (l2 : t.locals.lookup sU2 = some (.val (.word 0)))
+    (l3 : t.locals.lookup sU3 = some (.val (.word 0))) (lK : t.locals.lookup sUK = some (.val (.word 0))) :
+    RetP t ssCore (fun w => ∃ e, w = BitVec.ofNat 64 e ∧ StrBody bs i0 e) := by
+  have hL : bs.length < 2 ^ 64 := by omega
+  unfold ssCore
+  have e1 := bAt_spec t A bs sY (vv sI) i0 hb (by omega) 0 ly lb ln (eval_vv t sI _ li)
   refine retP_seq e1 ?_ rfl rfl rfl rfl rfl
-  let t3 := setVarHOLFinite sY (.val (.word (BitVec.ofNat 64 (byteL bs i0).toNat))) t2
+  let t3 := setVarHOLFinite sY (.val (.word (BitVec.ofNat 64 (byteL bs i0).toNat))) t
   have hcmp := ConsLoop.eval_cmp_of t3 .equal (vv sY) (.const 34) (BitVec.ofNat 64 (byteL bs i0).toNat)
     (BitVec.ofNat 64 34) (eval_vv t3 sY _ (by lk [t3])) (by simp [evalHOLExact])
   rw [bw_eq _ _ (by have := UInt8.toNat_lt (byteL bs i0); omega) (by decide)] at hcmp
@@ -251,25 +280,28 @@ theorem ssFun_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (bs : List
     by_cases h : i0 < bs.length
     · exact h
     · simp [byteL, List.getElem?_eq_none (by omega : bs.length ≤ i0)] at hq0
-  have hle := skipL_le_length isPlainN bs _ (i0 + 1) rfl (by omega)
-  have hge := skipL_ge isPlainN bs _ (i0 + 1) rfl
-  have hall := skipL_all isPlainN bs _ (i0 + 1) rfl
-  have hcall := call3_ret t3 sE2 fSkipPlain sB sN sI (skFun plainTest) (vv sB) (vv sN) (.op .add [vv sI, .const 1])
-    A (BitVec.ofNat 64 bs.length) (BitVec.ofNat 64 (i0 + 1)) (BitVec.ofNat 64 (skipL isPlainN bs (i0 + 1))) 0
-    (by decide) (by decide) (by decide) hc (eval_vv t3 sB _ (by lk [t3, t2]; exact lb))
-    (eval_vv t3 sN _ (by lk [t3, t2]; exact ln))
-    (by rw [eval_add_c t3 sI _ _ (by lk [t3, t2]; exact li)]; congr 3; apply BitVec.eq_of_toNat_eq
-        simp [BitVec.toNat_add]; try omega) (by lk [t3, t2])
-    (fun callee h1 h2 h3 => skFun_spec isPlainN plainTest plainTest_ok _ A bs (i0 + 1)
-      (bytesAt_congr hb rfl rfl rfl) (by omega) h1 h2 h3)
-  rcases hcall with hs | ⟨u, hu, m1, d1, g1, c1, b1, le1, lo1⟩
-  · left; exact seq_stop t3 _ _ hs
+  have ha := ConsLoop.assign_local t3 sE2 (.op .add [vv sI, .const 1]) (BitVec.ofNat 64 (i0 + 1)) 0
+    (by rw [eval_add_c t3 sI _ _ (by lk [t3]; exact li)]; congr 3; apply BitVec.eq_of_toNat_eq
+        simp [BitVec.toNat_add])
+    (by lk [t3]; exact le)
+  refine retP_seq ha ?_ rfl rfl rfl rfl rfl
+  let t4 := setVarHOLFinite sE2 (.val (.word (BitVec.ofNat 64 (i0 + 1)))) t3
+  have hI : U8I t A bs (i0 + 1) t4 := ⟨rfl, rfl, rfl, rfl, rfl, by lk [t4, t3]; exact lb,
+    by lk [t4, t3]; exact ln, ⟨0, by lk [t4, t3]; exact lc⟩, ⟨0, by lk [t4, t3]; exact l1⟩,
+    ⟨0, by lk [t4, t3]; exact l2⟩, ⟨0, by lk [t4, t3]; exact l3⟩, ⟨0, by lk [t4, t3]; exact lK⟩,
+    ⟨1, by lk [t4, t3]; exact lg⟩,
+    ⟨BitVec.ofNat 64 (byteL bs i0).toNat, by lk [t4, t3]⟩, i0 + 1, Nat.le_refl _, by omega, by lk [t4],
+    segOK_refl bs (i0 + 1)⟩
+  rcases u8Loop_spec t A bs (i0 + 1) hroom hb t4 hI with hs | ⟨hn, hI'⟩
+  · left; exact seq_stop t4 _ _ hs
+  generalize hu : evaluateHOLFiniteState t4 u8Loop = r at hn hI'
+  obtain ⟨r1, u⟩ := r
+  simp only at hn hI'
+  subst hn
+  obtain ⟨m1, d1, c1, g1, b1, lb1, ln1, -, -, -, -, -, -, ⟨wy, ly1⟩, E, hE1, hE2, le1, hseg⟩ := hI'
   refine retP_seq hu ?_ m1 d1 g1 c1 b1
-  obtain ⟨E, hE⟩ : ∃ E, E = skipL isPlainN bs (i0 + 1) := ⟨_, rfl⟩
-  rw [← hE] at le1 hle hge
-  have e2 := bAt_spec u A bs sY (vv sE2) E (bytesAt_congr hb m1 d1 b1) (by omega) (BitVec.ofNat 64 (byteL bs i0).toNat)
-    (by rw [lo1 sY (by decide)]; lk [t3]) (by rw [lo1 sB (by decide)]; lk [t3, t2]; exact lb)
-    (by rw [lo1 sN (by decide)]; lk [t3, t2]; exact ln) (eval_vv u sE2 _ le1)
+  have e2 := bAt_spec u A bs sY (vv sE2) E (bytesAt_congr hb m1 d1 b1) (by omega) wy ly1 lb1 ln1
+    (eval_vv u sE2 _ le1)
   refine retP_seq e2 ?_ rfl rfl rfl rfl rfl
   let u2 := setVarHOLFinite sY (.val (.word (BitVec.ofNat 64 (byteL bs E).toNat))) u
   have hcmp2 := ConsLoop.eval_cmp_of u2 .equal (vv sY) (.const 34) (BitVec.ofNat 64 (byteL bs E).toNat)
@@ -283,14 +315,62 @@ theorem ssFun_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (bs : List
     · exact h
     · simp [byteL, List.getElem?_eq_none (by omega : bs.length ≤ E)] at hqe
   obtain ⟨r1, r2, r3, r4, r5, r6⟩ := return_vv u2 sE2 _ (by lk [u2]; exact le1)
-  refine Or.inr ⟨_, r1, ⟨E, rfl, hi, hEl, hge, ?_, ?_, fun k hk h1 h2 => hall k hk h1 (by omega)⟩, r2, r3, r4, r5, r6⟩
+  refine Or.inr ⟨_, r1, ⟨E, rfl, hi, hEl, hE1, ?_, ?_, hseg⟩, r2, r3, r4, r5, r6⟩
   · have : bs[i0]? = some bs[i0] := List.getElem?_eq_getElem hi
     rw [this]; congr 1; apply UInt8.toNat_inj.mp; simp [byteL, this] at hq0; simpa using hq0
   · have : bs[E]? = some bs[E] := List.getElem?_eq_getElem hEl
     rw [this]; congr 1; apply UInt8.toNat_inj.mp; simp [byteL, this] at hqe; simpa using hqe
 
+theorem ssFun_spec (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (bs : List UInt8) (i0 : Nat)
+    (hb : BytesAt t A bs) (hi0 : i0 ≤ bs.length) (hroom : bs.length + 4 < 2 ^ 64)
+    (lb : t.locals.lookup sB = some (.val (.word A)))
+    (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 bs.length))))
+    (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i0)))) :
+    RetP t ssFun (fun w => ∃ e, w = BitVec.ofNat 64 e ∧ StrBody bs i0 e) := by
+  unfold ssFun
+  refine retP_dec (w := 0) (by simp [evalHOLExact]) ?_
+  refine retP_dec (w := 0) (by simp [evalHOLExact]) ?_
+  refine retP_dec (w := 1) (by simp [evalHOLExact]) ?_
+  refine retP_dec (w := 0) (by simp [evalHOLExact]) ?_
+  refine retP_dec (w := 0) (by simp [evalHOLExact]) ?_
+  refine retP_dec (w := 0) (by simp [evalHOLExact]) ?_
+  refine retP_dec (w := 0) (by simp [evalHOLExact]) ?_
+  refine retP_dec (w := 0) (by simp [evalHOLExact]) ?_
+  exact ssCore_spec _ A bs i0 (bytesAt_congr hb rfl rfl rfl) hi0 hroom (by lk; exact lb) (by lk; exact ln)
+    (by lk; exact li) (by lk) (by lk) (by lk) (by lk) (by lk) (by lk) (by lk) (by lk)
+
+theorem extract_toList (b : ByteArray) (a e : Nat) :
+    (b.extract a e).data.toList = (b.data.toList.drop a).take (e - a) := by
+  rw [ByteArray.data_extract, Array.toList_extract, List.extract_eq_take_drop]
+
 /-- **The Pancake string scanner is sound for con-leche's `scanString`**: when it returns `e`, the
 string at `i` is accepted by `scanString` with the body `[i+1, e)` as its bytes. -/
+theorem ssFun_sound2 (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
+    (hb : BytesAt t A b.data.toList) (i : USize) (hi0 : i.toNat ≤ b.size) (_hc : SkipPlainCode t)
+    (lb : t.locals.lookup sB = some (.val (.word A)))
+    (ln : t.locals.lookup sN = some (.val (.word (BitVec.ofNat 64 b.size))))
+    (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
+    RetP t ssFun (fun w => ∃ e : USize, w = BitVec.ofNat 64 e.toNat ∧ e.toNat < b.size ∧
+      i.toNat + 1 ≤ e.toNat ∧ ∃ s,
+      ConLeche.Frontend.scanString b i = .ok s (e + 1) ∧ s.toUTF8 = b.extract (i + 1).toNat e.toNat) := by
+  have hroom : b.data.toList.length + 4 < 2 ^ 64 := by have := hp.room; simp; omega
+  rcases ssFun_spec t A b.data.toList i.toNat hb (by simpa using hi0) hroom lb (by simpa using ln) li with
+    hs | ⟨w, r1, ⟨e, rfl, hi', he, hie, hq0, hqe, hseg⟩, r2⟩
+  · exact Or.inl hs
+  · have heU : (USize.ofNat e).toNat = e := by
+      rw [USize.toNat_ofNat']
+      simp only [USize.size_eq_two_pow, hp.bits]; apply Nat.mod_eq_of_lt; have := hp.size; simp at he; omega
+    refine Or.inr ⟨_, r1, ⟨USize.ofNat e, by rw [heU], by rw [heU]; simpa using he, by rw [heU]; exact hie, ?_⟩, r2⟩
+    have he' : (USize.ofNat e).toNat < b.size := by rw [heU]; simpa using he
+    have hi : i.toNat < b.size := by simpa using hi'
+    have hi1 : (i + 1).toNat = i.toNat + 1 := ConLeche.Frontend.usizeStep b i ((hp.lt_iff i).mpr hi)
+    exact scanString_str hp i (USize.ofNat e) hi he' (by rw [heU]; omega)
+      (by rw [List.getElem?_eq_getElem (by simpa using hi)] at hq0; exact Option.some.inj hq0)
+      (by rw [List.getElem?_eq_getElem he] at hqe
+          simp only [heU]; exact Option.some.inj hqe)
+      (fun k hk h1 h2 => hseg.2 k hk h1 (by rw [heU] at h2; exact h2))
+      (ValidL.isValid _ (by rw [extract_toList, hi1, heU]; exact hseg.1))
+
 theorem ssFun_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArray) (hp : Plat b)
     (hb : BytesAt t A b.data.toList) (i : USize) (hi0 : i.toNat ≤ b.size) (hc : SkipPlainCode t)
     (lb : t.locals.lookup sB = some (.val (.word A)))
@@ -298,21 +378,9 @@ theorem ssFun_sound (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : Byte
     (li : t.locals.lookup sI = some (.val (.word (BitVec.ofNat 64 i.toNat)))) :
     RetP t ssFun (fun w => ∃ e : USize, w = BitVec.ofNat 64 e.toNat ∧ e.toNat < b.size ∧ ∃ s,
       ConLeche.Frontend.scanString b i = .ok s (e + 1) ∧ s.toUTF8 = b.extract (i + 1).toNat e.toNat) := by
-  rcases ssFun_spec t A b.data.toList i.toNat hb (by simpa using hi0) hc lb (by simpa using ln) li with
-    hs | ⟨w, r1, ⟨e, rfl, hi', he, hie, hq0, hqe, hpl⟩, r2⟩
+  rcases ssFun_sound2 t A b hp hb i hi0 hc lb ln li with hs | ⟨w, r1, ⟨e, h1, h2, -, h4⟩, r2⟩
   · exact Or.inl hs
-  · have heU : (USize.ofNat e).toNat = e := by
-      rw [USize.toNat_ofNat']
-      simp only [USize.size_eq_two_pow, hp.bits]; apply Nat.mod_eq_of_lt; have := hp.size; simp at he; omega
-    refine Or.inr ⟨_, r1, ⟨USize.ofNat e, by rw [heU], by rw [heU]; simpa using he, ?_⟩, r2⟩
-    have he' : (USize.ofNat e).toNat < b.size := by rw [heU]; simpa using he
-    have hi : i.toNat < b.size := by simpa using hi'
-    obtain ⟨s, h1, h2⟩ := scanString_plain hp i (USize.ofNat e) hi he' (by rw [heU]; omega)
-      (by rw [List.getElem?_eq_getElem (by simpa using hi)] at hq0; exact Option.some.inj hq0)
-      (by rw [List.getElem?_eq_getElem he] at hqe
-          simp only [heU]; exact Option.some.inj hqe)
-      (fun k hk h1 h2 => hpl k hk h1 (by rw [heU] at h2; exact h2))
-    exact ⟨s, h1, h2⟩
+  · exact Or.inr ⟨w, r1, ⟨e, h1, h2, h4⟩, r2⟩
 
 /-- `x = f(a1, a2, a3)` at a callee specified in the soundness form. -/
 theorem call3_retP (s : PanSemStateFiniteExact 64 σ) (x f x1 x2 x3 : MlS) (body : ProgHOL 64)

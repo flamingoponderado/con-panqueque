@@ -390,6 +390,7 @@ import ConPanqueque.Scan.Keys
 import ConPanqueque.Scan.KeyFun
 import ConPanqueque.Scan.KeyEnd
 import ConPanqueque.Scan.ValueAt
+import ConPanqueque.Scan.Utf8
 import ConPanqueque.Scan.Str
 import ConPanqueque.Scan.Obj
 import ConPanqueque.Scan.ObjInst

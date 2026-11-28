@@ -169,8 +169,8 @@ theorem br_step (t : PanSemStateFiniteExact 64 σ) (A : BitVec 64) (b : ByteArra
     have hclose := strClose_plain hp (USize.ofNat E) (by rw [hEU]; exact hEl)
       (by simp only [hEU]; apply UInt8.toNat_inj.mp
           simpa [byteL, List.getElem?_eq_getElem (by simpa using hEl : E < b.data.toList.length)] using hq')
-      _ (j + 1) rfl (by rw [hj1, hEU]; omega) (fun k hk h1 h2 => hall k hk (by rw [hj1] at h1; omega)
-        (by rw [hEU] at h2; omega))
+      _ (j + 1) rfl (by rw [hj1, hEU]; omega) (fun k hk h1 h2 => isStrN_of_plain (hall k hk (by rw [hj1] at h1; omega)
+        (by rw [hEU] at h2; omega)))
     rw [hclose] at hstep
     have hE1 : (USize.ofNat E + 1).toNat = E + 1 := by
       rw [ConLeche.Frontend.usizeStep b _ ((hp.lt_iff _).mpr (by rw [hEU]; exact hEl)), hEU]
