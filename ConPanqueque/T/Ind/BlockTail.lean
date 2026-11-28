@@ -551,7 +551,7 @@ theorem ctb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   refine specR_callNC (C := C2) ctbR fGa gaParams
     [vv ctbSh, vv ctbOrr, vv ctbPm, vv ctbOt, vv ctbNt, vv ctbOq, vv ctbNq, vv ctbLv, vv ctbOlp, vv ctbTy0,
       vv ctbPp, vv ctbNpp, vv ctbPa, vv ctbNd, vv ctbNm, vv ctbOsl, vv ctbNsl, vv ctbOm, vv ctbNc, vv ctbNi,
-      vv ctbInd, vv ctbNpc, vv ctbOms, vv ctbNcl] gaBody [cellA C osh, cellA C orr, cellA C opm, cellA C ot,
+      vv ctbInd, vv ctbNpc, vv ctbOms, vv ctbNcl] (gaBody C) [cellA C osh, cellA C orr, cellA C opm, cellA C ot,
         BitVec.ofNat 64 q.tbl.length, cellA C oq, BitVec.ofNat 64 m.ctors.length, Enc.idxW m.lvls, cellA C olp,
         Enc.idxW ms0.cvT.type, cellA C pp, BitVec.ofNat 64 m.pfvs.length, cellA C pa, BitVec.ofNat 64 m.ds.length,
         Enc.idxW ms0.cvT.name, cellA C osl, BitVec.ofNat 64 q.rd.slots.length, cellA C om, BitVec.ofNat 64 p.numCtors,

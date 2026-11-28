@@ -67,9 +67,12 @@ def croTy0 := ofString "cro_ty0"
 def croQ := ofString "cro_q"
 def croU := ofString "cro_u"
 def croB := ofString "cro_b"
+def croOms := ofString "cro_oms"
+def croFts := ofString "cro_fts"
+def croOsl := ofString "cro_osl"
 def fCro := ofString "classRecTyOk"
 
-def croParams : List MlS := [croRr, croNS, croPre, croPrl, croDs, croDn, croFt, croNi, croInd, croLv, croNP]
+def croParams : List MlS := [croRr, croNS, croPre, croPrl, croNi, croNP, croOms, croFts, croOsl]
 def croLocals : List MlS := [croTg, croRp, croMi, croG, croCv, croNm, croLp, croTy0, croQ, croU, croB]
 
 def croBody (C : Ctx) : ProgHOL 64 := prologue croLocals
@@ -79,7 +82,7 @@ def croBody (C : Ctx) : ProgHOL 64 := prologue croLocals
   (.ite (.cmp .equal (vv croRp) (vv croNS))
   (.seq (.assign .local croMi (.load .one (.op .add [vv croRr, .const 16])))
   (.ite (.cmp .equal (vv croMi) (.op .add [vv croRp, vv croNi]))
-  (.seq (.call (some (some (.local, croG), none)) Ind.fGrt [vv croPre, vv croPrl, vv croDs, vv croDn, vv croFt, vv croNi, vv croInd, vv croLv, vv croNP])
+  (.seq (.call (some (some (.local, croG), none)) Ind.fGrt [vv croPre, vv croPrl, vv croNP, vv croOms, vv croFts, vv croOsl, .const 0])
   (.seq (.assign .local croCv (.load .one (vv croRr)))
   (.seq (.assign .local croNm (.load .one (vv croCv)))
   (.seq (.assign .local croLp (.load .one (.op .add [vv croCv, .const 8])))
@@ -302,17 +305,17 @@ set_option maxHeartbeats 16000000 in
 /-- **`classRecTyOk g k rc rc.cvR 0`** (one class). -/
 theorem cro_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
     (hs : C.side = false) (hc : CROCodes mode C)
-    (g : ClassGen) (m : TargetMajor) (hcls : g.cls = [m]) (hmm : m.member = some 0) (fty : EIdx)
-    (hft : g.formerTys[0]? = some fty) (k : ClassKey) (hsl0 : g.slots[0]? = some (.motive k)) (opre pd : Nat)
+    (g : ClassGen) (m : TargetMajor) (hcls : g.cls = [m]) (hmm : m.member = some 0) (opre : Nat)
     (hprl : g.pre.length < 2 ^ 56) (hpre : BlkAt C.H opre (g.pre.map Enc.idxW)) (hni : m.nIdx < 2 ^ 56)
-    (hds : BlkAt C.H pd (m.ds.map Enc.idxW)) (hdl : m.ds.length < 2 ^ 56) (hnP : g.nP < 2 ^ 56)
+    (oms fts osl : Nat) (hT : Ind.TMBlkR C C.H oms g.cls) (hfts : BlkAt C.H fts (g.formerTys.map Enc.idxW))
+    (hsb : Ind.SlotBlk C C.H osl g.slots) (hnP : g.nP < 2 ^ 56)
     (hsll : g.slots.length < 2 ^ 56) (kk : Nat) (rc : RecShape) (orr : Nat) (hrr : Ind.RecRep C C.H orr rc)
     (hrl : rc.cvR.levelParams.length < 2 ^ 62) (ks : List ConLeche.Name) (hkl : ks.length = rc.cvR.levelParams.length)
     (hks : ∀ j (hj : j < rc.cvR.levelParams.length), denoteN C.St.ns rc.cvR.levelParams[j] = some (ks[j]'(by omega)))
     (s : AState) :
     SpecR (σ := σ) (Pre C s (croParams.zip [cellA C orr, BitVec.ofNat 64 (g.nP + g.slots.length), cellA C opre,
-        BitVec.ofNat 64 g.pre.length, cellA C pd, BitVec.ofNat 64 m.ds.length, Enc.idxW fty, BitVec.ofNat 64 m.nIdx,
-        Enc.idxW m.ind, Enc.idxW m.lvls, BitVec.ofNat 64 g.nP])) (croBody C) s
+        BitVec.ofNat 64 g.pre.length, BitVec.ofNat 64 m.nIdx, BitVec.ofNat 64 g.nP, cellA C oms, cellA C fts,
+        cellA C osl])) (croBody C) s
       (classRecTyOk mode C.fe g kk rc rc.cvR 0) (PostCVG C) := by
   refine specR_prologue (postCVG_locals _) (cro_none _ _) ?_
   obtain ⟨⟨ocv, hocv, hcv⟩, hrP, hmI, htgE, -, -⟩ := hrr
@@ -353,14 +356,14 @@ theorem cro_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   simp only [htg, hrp, hmi, beq_self_eq_true, Bool.and_self, Bool.not_true, Bool.false_eq_true, ↓reduceIte, pure_bind]
   have hp0 : C.H <+: C.H := List.prefix_refl _
   refine specR_callNIH (C := ctxH C C.H) croG Ind.fGrt Ind.grtParams
-    [vv croPre, vv croPrl, vv croDs, vv croDn, vv croFt, vv croNi, vv croInd, vv croLv, vv croNP] (Ind.grtBody C)
-    [cellA C opre, BitVec.ofNat 64 g.pre.length, cellA C pd, BitVec.ofNat 64 m.ds.length, Enc.idxW fty, BitVec.ofNat 64 m.nIdx, Enc.idxW m.ind, Enc.idxW m.lvls, BitVec.ofNat 64 g.nP] (by decide) rfl (by decide) hc.grt.self
-    ⟨by simp +decide [sev, Env.get_cons, Env.get, croParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, croParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, croParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, croParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, croParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, croParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, croParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, croParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, croParams, ctxEnv], trivial⟩
+    [vv croPre, vv croPrl, vv croNP, vv croOms, vv croFts, vv croOsl, .const 0] (Ind.grtBody C)
+    [cellA C opre, BitVec.ofNat 64 g.pre.length, BitVec.ofNat 64 g.nP, cellA C oms, cellA C fts, cellA C osl, BitVec.ofNat 64 0] (by decide) rfl (by decide) hc.grt.self
+    ⟨by simp +decide [sev, Env.get_cons, Env.get, croParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, croParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, croParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, croParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, croParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, croParams, ctxEnv], rfl, trivial⟩
     (Ind.PostSomeH (ctxH C C.H)) (fun o w _ _ => ∃ t, o = some t ∧ w = Enc.idxW t)
     (fun o w s' st ⟨H', t, hp', h1, h2, hsr⟩ => ⟨H', hp', ⟨t, h1, h2⟩, hsr⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu Ind.grtParams _ rfl hlk)
-      (Ind.grt_spec ra (ctxH C C.H) (ctxOK_H hok C.H) (by ctx_tr hc.grt) g m hcls fty hft k hsl0 opre pd hprl hpre hni hds
-        hdl hnP s))
+      (Ind.grt_spec ra (ctxH C C.H) (ctxOK_H hok C.H) (by ctx_tr hc.grt) g 0 oms fts osl (by decide) hT hfts hsb hsll opre
+        hprl hpre hnP s))
     (fun o w s1 H1 hp1 ⟨gty, ho, hw⟩ => ?_)
   subst ho hw
   have hp1' : C.H <+: H1 := hp1

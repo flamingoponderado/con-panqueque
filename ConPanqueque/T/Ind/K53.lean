@@ -320,17 +320,6 @@ theorem k53_none (C : Ctx) (vals : List (BitVec 64)) :
     ∀ x, x ∈ k53Locals → (ctxEnv C ++ k53Params.zip vals).get x = none :=
   Knot.params_none C k53Locals k53Params vals (by decide) (by decide)
 
-/-- A block in the heap is shorter than `2 ^ 61`. -/
-theorem blk_len_lt {C : Ctx} (hok : CtxOK C) {H : List (BitVec 64)} (hHN : H.length ≤ C.HN) {o : Nat}
-    {xs : List (BitVec 64)} (h : BlkAt H o xs) : xs.length < 2 ^ 61 := by
-  have hlay := hok.heapLay
-  have := (List.getElem?_eq_some_iff.mp h.1).1
-  rcases Nat.eq_zero_or_pos xs.length with h0 | hpos
-  · omega
-  · have h1 := h.2 (xs.length - 1) (by omega)
-    have := (List.getElem?_eq_some_iff.mp h1).1
-    omega
-
 set_option maxHeartbeats 64000000 in
 /-- **`targetK53`** at one recorded field `f`, the call's telescope and leaf a block `tele ++ [leaf]` (every `false`
 hangs). -/

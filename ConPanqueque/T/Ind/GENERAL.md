@@ -584,3 +584,75 @@ What still hangs at k > 1 (ordered plan, continuing §11's; items 1, 2 and the `
 5. **`cbk`**: drop `nm0 = 1`, `nrl = 1`, `ncl = 1`, `nrc = 1`, `rc0 = 0`, slot-0 motive, member-0 class, `tgt = 0`;
    `cbk_spec`/`CBKRun`/`CBKFacts` over all members (`CPSMemberOK`); `cbkInst`'s table branch over a list.
 6. **Front end** (`Front/IndLine*`, `IndBoundsP`/`indRun_of_front`), §1 "Front end".
+
+## 13. Mutual blocks, round 7: the IH readers, the prefix and the rules over the class block (progress log)
+
+Every step ends with a green build. Still nothing accepts a k > 1 block end to end (`cbk` still tests `ncl = 1` and
+the rest of §11's restrictions; `ga`/`gb` still check one recursor at class `0`), but every *per-class reader* in the
+generator now reads its class off the class block, and the prefix (`prefixBinders`) is generated for any number of
+classes and motives.
+
+1. **IH readers decode the class** (§12 plan item 1). `mih` (`GenPre`, "minorIhs") and `cgo` (`GenRule`,
+   "ruleCalls") replace the `guardP _ 32` hang by the `cfg` decoding (`kindW_cls`/`kindW_tele`): class
+   `c = w >>> 32` (hang unless `c <` the class block's length word), telescope `(w &&& (2^32-1)) - 1`, class `c`'s
+   `nPc` read off the class block (`guardP` 58). `mih` takes the class block and the slot block (`mih_oms`,
+   `mih_osl`, replacing `mih_npc`) and builds the motive variable `fvar (nP + motiveSlotOf slots c)` (`fMsl`, first
+   use of `msl`; `motiveSlot_eq` turns the twin's `ClassGen.motVar`); `cgo` takes the class block and a block of
+   recursor names indexed by class (`cgo_oms`, `cgo_rnb`, replacing `cgo_npc`/`cgo_rn`), its spec asking
+   `classRecOf recCls cvGs t = some rns[t]` for every `t < |rns|` (a class past the block hangs).
+   `mih_spec`/`cgo_spec` take `TMBlkR … g.cls` (+ `SlotBlk … g.slots` / the names block) instead of `g.cls = [m]`.
+   `blk_len_lt` moved from `K53` to `GenPre`.
+2. **`minorTy` at class `c`** (`mty`, `GenPre`): params `[cc, d, oms, osl, nP, cl]` (was class 0's `ds`, `lvls`,
+   `nPc` unpacked); reads class `cl`'s `lvls`, `ds`, `nPc` off the block (`guardP` 58/56), the conclusion's motive
+   through `msl`. `mty_spec` answers `g.minorTy cl x d` for any `cl < 2^63` (past the block hangs).
+3. **`classGenRule` and `classRulesOk` at class `cl`** (`cgr`, `GenRule`; `crl`, `RuleCheck`): the minor-slot search
+   (`fms`) at `cl` (was `.const 0`), the class block and the names block passed to `cgo`. `crl_spec` answers
+   `classRulesOk … cl xs`; the names block is a premise under the `∀ H` (it is allocated after the context, like the
+   pushed block). `cfr` (`FeR`) passes its pushed-names block `[cvG.name]` as the names block (one recursor at class
+   0: `classRecOf [0] [cvG] 0 = cvG.name`), and the class block; `cfr_spec` lost `hnpc`, gained `oms`/`TMBlkR`.
+4. **`ClassGen.major`, `motiveTy`, `classGenRecTy` at class `c`** (`mjr`, `mot`, `grt`, `GenMotive`): `mjr` takes
+   `[oms, fts, cl, d]` — class `cl`'s record off the class block and its former type off a former-type block
+   (`BlkAt … g.formerTys`), both hanging past the block (`guardP` 56 on `nIdx`, `|ds|`); `mot` `[oms, fts, cl, d,
+   elim]`; `grt` `[pre, |pre|, nP, oms, fts, osl, cl]` (its motive through `msl`). Specs answer `g.major cl d`,
+   `g.motiveTy cl d`, `classGenRecTy g cl`.
+5. **`prefixBinders` over any number of classes** (`psl`, `pb`, `GenMotive`): `psl` walks the slot stream with a
+   running motive count (`psl_mc`, `motCnt slots i`, `motCnt_succ`): a motive slot is `mot` at class
+   `motCnt slots i` (the twin's count of motives before it; the twin's anonymous filter predicate is matched with
+   `List.filter_congr`), a minor slot `.minor c C _` looks `C` up in class `c`'s block of the constructor
+   block-of-blocks (`ga_css`, `PostCCss`'s `PRep … PRep … CCRep`; a class past it hangs) and runs `mty` at `c`. No
+   more slot-0-is-the-motive or class-0-only restriction in the prefix. `pb` passes `[ps, sl, n, nP, css, fts, el,
+   oms]`.
+6. **Threading**: `cro` (`ClassConst`) passes `oms`/`fts`/`osl` to `grt` (still at class 0, its own member/index
+   checks still class 0's); `gb` takes `[opp, osl, nsl, nP, oc, nc, nIdx, elim, orr, oms, css, fts]` (lost class 0's
+   `ds`, `|ds|`, former type, `ind`, `lvls`, `nPc`); `ga` passes its `ga_css` and allocates the former-type block
+   `[ms0.cvT.type]` (`ga_fts`) right before `gb`. `gb_spec` lost `hft`, `hsl0`, `hds`, `hdl`, `hnpc`, gained the
+   constructor block-of-blocks and the former-type block. The statements of `ga_spec`, `ctb_spec`, `cbk_spec` and
+   `main_pipeline_prelude` are unchanged.
+
+Code table regenerated (no new procedure names; `fMsl` "motiveSlotOf" now reachable and in the table; `gaBody` now
+takes the context, `gaBody C`, since it allocates; `check_code_names.py`: the usual 6 BODIES warnings). Full
+`lake build` green (0 errors, no `sorry`), `main_pipeline_prelude` unchanged.
+
+What still hangs at k > 1 (ordered plan, continuing §12's; item 1 is done, and the prefix half of item 2):
+1. **`cro` at class `c`** (`ClassConst`, `classRecTyOk … c`): read class `c`'s record (`nIdx`, and the member word
+   `optNatW member` at record offset 2) instead of taking class 0's `nIdx`/`m.member = some 0`; the member test is
+   `rc.tgt == member.getD k` (decode: `0 ↦ k`, `t + 1 ↦ t`; compute it without an `ite` inside a `seq`, e.g.
+   `(Mb - 1) + (Mb == 0) * (k + 1)`, or split before the record reads); pass `c` to `grt` (ready, `grt_spec … cl`).
+2. **`classRecTysOk` loop** (new procedure over the stream's recursor records `ga_orl`/`ga_nrl` and the `recCls`
+   block, `BlkAt … (rd.recCls.map ofNat)` from `ClassRead`): per recursor `r` run `cro` at class `recCls[r]`, collect
+   the `cvG` records into a block; `gb_spec` over `p.recs`, `cvRis = p.recs.map (·.cvR)`, `rd.recCls` (drop
+   `hrecs : p.recs = [rc]`, `hrc0`).
+3. **`genRules` over the recursors** (`FeR`, `cfr`): the push of every rule-less recursor (`classFeR.go` as a loop of
+   today's one push), the flush, `crl` per recursor at class `recCls[r]` over `css[recCls[r]]` (`crl_spec` is
+   already per class, `cl`), the names block built from `classRecOf recCls cvGs t` for every class (a loop: first `r`
+   with `recCls[r] = t`; `cgo` hangs on a class past the block, so a block of the classes that have a recursor is
+   enough), the pops in reverse, the flush; `PostGR` over the output list `[(cvG, m, rhss)]`.
+4. **`ga_spec`/`ctb_spec` over class lists**: drop `q.cls = [m]`, `p.recs = [rc]`, `p.members = [ms0]`,
+   `rd.recCls = [0]`; `ccs_spec` already states everything per class (`classesCtors_one` no longer needed); the
+   former-type block must become `formerTysC = ms2.mapM (classFormerTy …)` (today `ga` allocates `[ms0.cvT.type]`;
+   for an unnested block it is the class's member's `cvT.type`, a loop over the class block reading each class's
+   member and the members' block).
+5. **`cts`** (`BlockTail`): `streamKCheck`/`streamRecsCheck`/`blockRecInfosTF` over the output list.
+6. **`cbk`**: drop `nm0 = 1`, `nrl = 1`, `ncl = 1`, `nrc = 1`, `rc0 = 0`, slot-0 motive, member-0 class, `tgt = 0`;
+   `cbk_spec`/`CBKRun`/`CBKFacts` over all members (`CPSMemberOK`); `cbkInst`'s table branch over a list.
+7. **Front end** (`Front/IndLine*`, `IndBoundsP`/`indRun_of_front`), §1 "Front end".
