@@ -6,6 +6,10 @@ CAKE_VERSION = v3479
 CAKE_SHA256  = e110bfcba19d6524ee4748608a67a275647445a048928cf623c2c9a973e31c9a
 CAKE_URL     = https://github.com/CakeML/cakeml/releases/download/$(CAKE_VERSION)/cake-x64-64.tar.gz
 CC     ?= cc
+# Linear-scan register allocation and a moderate heap: the default allocator and large heaps
+# make the checker's compile take hours (about 11 min this way).
+CAKEFLAGS ?= --reg_alg=4
+CAKEHEAP  ?= 4000
 CFLAGS ?= -O2
 B       = build
 
@@ -34,7 +38,7 @@ $(B)/cake: $(B)/cake-x64-64.tar.gz
 	cp $(B)/cake-x64-64/cake $@
 
 $(B)/%.S: %.pnk $(B)/cake
-	$(B)/cake --pancake < $< > $@.tmp
+	CML_HEAP_SIZE=$(CAKEHEAP) $(B)/cake --pancake $(CAKEFLAGS) < $< > $@.tmp
 	mv $@.tmp $@
 
 $(B)/%: $(B)/%.S ffi.c
