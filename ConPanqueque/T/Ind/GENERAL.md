@@ -703,6 +703,12 @@ The statements of `ga_spec` (+ `orc`), `ctb_spec` (+ `orc`), `cbk_spec` and `mai
 unchanged.  New procedures in the code table: `classRecTysOk`, `classRecsRulesOk`, `genRulesPush`, `constNames`,
 `firstRecAt`, `classRecNames`, `genRulesAll`.
 
+Binary (re-emitted, compiled from a snapshot of `checker.pnk` in the scratchpad, literal work included): 113/612
+e2e fixtures accepted (95 before; the gain is the literal lines). No change from accept to reject. No fixture
+accepted that `e2e-expected.txt` lists as reject/decline/error; the seven accepted `cmp_*_s` files appear only as
+the solution half of `--compare` pairs (whole solution exports, checked in full). The mutual fixtures still die
+in the front end (`f_line23`), which sits upstream of every piece changed here.
+
 What remains for k > 1 (ordered):
 1. **`gb_spec` over the lists**: drop `hrecs`, `hcls`, `hctors`, `[0]`; `recCls = rd.recCls`, `cvRis = p.recs.map
    (·.cvR)`; return the whole output list (`PostGRK`'s `PRep … RRRep`) instead of its first triple, and restate
