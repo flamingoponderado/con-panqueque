@@ -933,7 +933,7 @@ def cfgBody : ProgHOL 64 := prologue cfgLocals
   (.ite (.cmp .lower (vv cfgI) (vv cfgN))
     (.seq (.assign .local cfgX (.load .one (.op .add [vv cfgKb, .op .add [.panop .mul [vv cfgI, .const 8], .const 8]])))
     (.ite (.cmp .equal (vv cfgX) (.const 0)) cfgRec
-    (.ite (.cmp .lower (vv cfgI) (vv cndFn))
+    (guardP cfgX 32 (.ite (.cmp .lower (vv cfgI) (vv cndFn))
     (.seq (.assign .local cfgX (.op .sub [vv cfgX, .const 1]))
     (.seq (.assign .local cfgFt (.load .one (.op .add [vv cndFv, .op .add [.panop .mul [vv cfgI, .const 8], .const 8]])))
     (.seq (.call (some (some (.local, cfgFt), none)) fFvt [vv cfgFt])
@@ -953,7 +953,7 @@ def cfgBody : ProgHOL 64 := prologue cfgLocals
           cfgRec)
         hang)))))
       hang))))))))))
-    hang)))
+    hang))))
     (.return (.const 0)))
 
 structure CFGCodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
@@ -1064,7 +1064,7 @@ theorem cfg_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
           (ih (i + 1) Hr sr (by omega) (by omega) (hp.trans hpr)))
         (fun _ w s3 H3 hp3 _ => ?_)
       exact specR_returnI _ 0 rfl (fun t ht => ⟨H3, hpr.trans hp3, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    rcases hko ks[i] (List.getElem_mem hin) with hk | ⟨tele, hk, htele⟩
+    rcases hko ks[i] (List.getElem_mem hin) with hk | ⟨c, tele, hk, htele, hc24⟩
     · rw [hk] at hkx ⊢
       refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, cfKindW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
         (fun _ => ?_) (fun h => absurd h (by decide))
@@ -1073,10 +1073,13 @@ theorem cfg_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
         simp only [cfgParams, List.mem_cons, List.not_mem_nil, or_false] at hx
         rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> rfl)
     rw [hk] at hkx ⊢
-    have hkw : cfKindW (.recursive 0 tele) ≠ 0 := by
+    have hkw : cfKindW (.recursive c tele) ≠ 0 := by
       simp only [cfKindW]; intro e; have := congrArg BitVec.toNat e; simp at this; omega
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hkw)
       (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_guardI cfgX (tele + 1 + 2 ^ 32 * c) 32 (by decide) (by simp [Env.get_cons, cfKindW]) (by omega)
+      (fun hk32 => ?_)
+    obtain rfl : c = 0 := by omega
     simp only [classFieldsAgree]
     have hlwf := nd_lt_iff i fvs.length (by omega) (by omega)
     by_cases hif : i < fvs.length

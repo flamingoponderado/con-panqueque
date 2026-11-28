@@ -238,7 +238,7 @@ def mihBody (C : Ctx) : ProgHOL 64 := prologue mihLocals
     (.seq (.assign .local mihK (.load .one (.op .add [vv mihKb, .op .add [.panop .mul [vv mihI, .const 8], .const 8]])))
     (.ite (.cmp .equal (vv mihK) (.const 0))
       (.seq (mihRec (vv mihL)) (.return (vv ExS.lY)))
-    (.ite (.cmp .lower (vv mihI) (vv mihWn))
+    (guardP mihK 32 (.ite (.cmp .lower (vv mihI) (vv mihWn))
     (.ite (.cmp .lower (vv mihI) (vv mihFn))
     (.seq (.assign .local mihK (.op .sub [vv mihK, .const 1]))
     (.seq (.assign .local mihW (.load .one (.op .add [vv mihWs, .op .add [.panop .mul [vv mihI, .const 8], .const 8]])))
@@ -274,7 +274,7 @@ def mihBody (C : Ctx) : ProgHOL 64 := prologue mihLocals
     hang)))
     hang))))))))))
     hang)
-    hang)))
+    hang))))
     (alloc1 C lW (.const 0) (.return (vv lW))))
 
 structure MIHCodes (C : Ctx) : Prop where
@@ -370,7 +370,7 @@ theorem mih_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
     rw [recsFrom_succ x i hin]
     have hgd : x.kinds.getD i ClassField.ordinary = x.kinds[i] := by simp [List.getD, List.getElem?_eq_getElem hik]
     rw [hgd]
-    rcases hko x.kinds[i] (List.getElem_mem hik) with hk | ⟨tele, hk, htele⟩
+    rcases hko x.kinds[i] (List.getElem_mem hik) with hk | ⟨c, tele, hk, htele, hc24⟩
     · rw [hk] at hkx ⊢
       refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, cfKindW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
         (fun _ => ?_) (fun h => absurd h (by decide))
@@ -400,10 +400,13 @@ theorem mih_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       exact specR_returnI _ _ (by simp [sev, Env.get_cons]; rfl) (fun t ht => ⟨ihs, H1, ob, rfl, hp1, rfl, hb, by omega,
         sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     rw [hk] at hkx ⊢
-    have hkw : cfKindW (.recursive 0 tele) ≠ 0 := by
+    have hkw : cfKindW (.recursive c tele) ≠ 0 := by
       simp only [cfKindW]; intro e; have := congrArg BitVec.toNat e; simp at this; omega
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hkw)
       (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_guardI mihK (tele + 1 + 2 ^ 32 * c) 32 (by decide) (by simp [Env.get_cons, cfKindW]) (by omega)
+      (fun hk32 => ?_)
+    obtain rfl : c = 0 := by omega
     refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN0 => ?_)
     have hHN0' : H.length ≤ C.HN := hHN0
     have hlay := hok.heapLay

@@ -40,20 +40,21 @@ theorem pairsRep_mono' {H H' : List (BitVec 64)} (hp : H <+: H') {o : Nat} {ps :
 
 /-! ## The inductive hypotheses at one field -/
 
-/-- None (`0`), exactly one at class `0` (`1`), else `2`. -/
+/-- None (`0`), exactly one at a class `c < 2 ^ 24` (`c + 2`), else `1`. -/
 def ihkVal : List (Nat × Nat) → Nat
   | [] => 0
-  | [q] => if q.2 = 0 then 1 else 2
-  | _ :: _ :: _ => 2
+  | [q] => if q.2 < 2 ^ 24 then q.2 + 2 else 1
+  | _ :: _ :: _ => 1
 
 theorem ihkVal_cons (q : Nat × Nat) (l : List (Nat × Nat)) :
-    ihkVal (q :: l) = if ihkVal l = 0 then (if q.2 = 0 then 1 else 2) else 2 := by
+    ihkVal (q :: l) = if ihkVal l = 0 then (if q.2 < 2 ^ 24 then q.2 + 2 else 1) else 1 := by
   rcases l with _ | ⟨a, _ | ⟨b, l⟩⟩
   · rfl
-  · by_cases h : a.2 = 0 <;> simp [ihkVal, h]
+  · have h1 : ihkVal [a] ≠ 0 := by simp only [ihkVal]; split <;> omega
+    rw [if_neg h1]; rfl
   · simp [ihkVal]
 
-theorem ihkVal_le (l : List (Nat × Nat)) : ihkVal l ≤ 2 := by
+theorem ihkVal_le (l : List (Nat × Nat)) : ihkVal l < 2 ^ 24 + 2 := by
   rcases l with _ | ⟨q, _ | ⟨_, _⟩⟩ <;> simp only [ihkVal] <;> (try split) <;> omega
 
 theorem ihkVal_zero {l : List (Nat × Nat)} (h : ihkVal l = 0) : l = [] := by
@@ -62,11 +63,12 @@ theorem ihkVal_zero {l : List (Nat × Nat)} (h : ihkVal l = 0) : l = [] := by
   · simp only [ihkVal] at h; split at h <;> omega
   · simp [ihkVal] at h
 
-theorem ihkVal_one {l : List (Nat × Nat)} (h : ihkVal l = 1) : ∃ a, l = [(a, 0)] := by
+theorem ihkVal_hit {l : List (Nat × Nat)} (h : 2 ≤ ihkVal l) :
+    ∃ a c, l = [(a, c)] ∧ c < 2 ^ 24 ∧ ihkVal l = c + 2 := by
   rcases l with _ | ⟨q, _ | ⟨_, _⟩⟩
   · simp [ihkVal] at h
-  · simp only [ihkVal] at h; split at h
-    · rename_i hq; exact ⟨q.1, by rw [← hq]⟩
+  · simp only [ihkVal] at h ⊢; split at h
+    · rename_i hq; exact ⟨q.1, q.2, rfl, hq, by rw [if_pos hq]⟩
     · omega
   · simp [ihkVal] at h
 
@@ -89,8 +91,9 @@ def ihkBody : ProgHOL 64 := prologue ihkLocals
     (.seq (.call (some (some (.local, ihkR), none)) fIhk [vv ihkIh, .op .add [vv ihkJ, .const 1], vv ihkN, vv ihkI])
     (.ite (.cmp .equal (vv ihkA) (vv ihkI))
       (.ite (.cmp .equal (vv ihkR) (.const 0))
-        (.ite (.cmp .equal (vv ihkB) (.const 0)) (.return (.const 1)) (.return (.const 2)))
-        (.return (.const 2)))
+        (.ite (.cmp .lower (vv ihkB) (.const (BitVec.ofNat 64 (2 ^ 24)))) (.return (.op .add [vv ihkB, .const 2]))
+          (.return (.const 1)))
+        (.return (.const 1)))
       (.return (vv ihkR))))))
     (.return (.const 0)))
 
@@ -103,7 +106,7 @@ theorem ihk_none (C : Ctx) (vals : List (BitVec 64)) :
 
 /-- A small count's answer, the state and heap kept. -/
 def PostIK (C : Ctx) (s : AState) (r : Nat) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
-  s' = s ∧ w = BitVec.ofNat 64 r ∧ r ≤ 2 ∧ SR C s' st
+  s' = s ∧ w = BitVec.ofNat 64 r ∧ r < 2 ^ 24 + 2 ∧ SR C s' st
 
 set_option maxHeartbeats 16000000 in
 theorem ihk_spec (C : Ctx) (hc : C.code.lookup fIhk = some (ihkParams.map (fun p => (p, ShapeHOL.one)), ihkBody, .one))
@@ -142,7 +145,7 @@ theorem ihk_spec (C : Ctx) (hc : C.code.lookup fIhk = some (ihkParams.map (fun p
       (by simp +decide [sev, Env.get_cons, Env.get, ihkParams, ctxEnv]; exact cellA_pairB C oi j (by omega)) ?_
     rw [List.drop_eq_getElem_cons hin, List.filter_cons]
     refine specR_congr (m' := (pure (ihkVal ((ps.drop (j + 1)).filter (·.1 == i))) : AM Nat) >>= fun r =>
-      pure (if (ps[j].1 == i) = true then (if r = 0 then (if ps[j].2 = 0 then 1 else 2) else 2) else r))
+      pure (if (ps[j].1 == i) = true then (if r = 0 then (if ps[j].2 < 2 ^ 24 then ps[j].2 + 2 else 1) else 1) else r))
       (by simp only [pure_bind]; split <;> simp [ihkVal_cons]) ?_
     refine specR_callNIH (C := ctxH C H) ihkR fIhk ihkParams [vv ihkIh, .op .add [vv ihkJ, .const 1], vv ihkN, vv ihkI]
       ihkBody [cellA C oi, BitVec.ofNat 64 (j + 1), BitVec.ofNat 64 ps.length, BitVec.ofNat 64 i] (by decide) rfl
@@ -151,7 +154,7 @@ theorem ihk_spec (C : Ctx) (hc : C.code.lookup fIhk = some (ihkParams.map (fun p
         by simp +decide [sev, Env.get_cons, Env.get, ihkParams, ctxEnv]; exact word_add1_eq j,
         by simp +decide [sev, Env.get_cons, Env.get, ihkParams, ctxEnv],
         by simp +decide [sev, Env.get_cons, Env.get, ihkParams, ctxEnv], trivial⟩
-      (PostIK (ctxH C H) s) (fun r w s' H' => H' = H ∧ s' = s ∧ w = BitVec.ofNat 64 r ∧ r ≤ 2)
+      (PostIK (ctxH C H) s) (fun r w s' H' => H' = H ∧ s' = s ∧ w = BitVec.ofNat 64 r ∧ r < 2 ^ 24 + 2)
       (fun r w s' st ⟨h0, h1, h2, h4⟩ => ⟨H, List.prefix_refl _, ⟨rfl, h0, h1, h2⟩, h4⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ihkParams _ rfl hlk) (ih (j + 1) s (by omega) (by omega)))
       (fun r w s3 H3 hp3 ⟨eH, es, hw, hr⟩ => ?_)
@@ -174,22 +177,25 @@ theorem ihk_spec (C : Ctx) (hc : C.code.lookup fIhk = some (ihkParams.map (fun p
       refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
         (fun h => absurd rfl h) (fun _ => ?_)
       simp only [hr0, ite_false]
-      exact specR_returnI _ 2 rfl (fun t ht => ⟨rfl, rfl, by omega, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      exact specR_returnI _ 1 rfl (fun t ht => ⟨rfl, rfl, by omega, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     subst hr0
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
       (fun _ => ?_) (fun h => absurd h (by decide))
     simp only [ite_true]
-    by_cases hb0 : ps[j].2 = 0
-    · refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hb0])
+    have hb63 := hqb.2
+    have hlb := nd_lt_iff ps[j].2 (2 ^ 24) (by omega) (by omega)
+    by_cases hb0 : ps[j].2 < 2 ^ 24
+    · refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; omega)
         (fun _ => ?_) (fun h => absurd h (by decide))
       simp only [hb0, ite_true]
-      exact specR_returnI _ 1 rfl (fun t ht => ⟨rfl, rfl, by omega, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    · have hne : BitVec.ofNat 64 ps[j].2 ≠ 0#64 := fun e => hb0 (by
-        have := congrArg BitVec.toNat e; simp at this; omega)
-      refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
+      exact specR_returnI _ (BitVec.ofNat 64 (ps[j].2 + 2)) (by
+          simp only [sev, sev_vv, Env.get_cons]; simp; rw [BitVec.ofNat_add]; rfl)
+        (fun t ht => ⟨rfl, rfl, by omega, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+    · have hnl : ¬ (BitVec.ofNat 64 ps[j].2 < BitVec.ofNat 64 (2 ^ 24)) := fun h => hb0 (hlb.mp h)
+      refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; omega)
         (fun h => absurd rfl h) (fun _ => ?_)
       simp only [hb0, ite_false]
-      exact specR_returnI _ 2 rfl (fun t ht => ⟨rfl, rfl, by omega, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+      exact specR_returnI _ 1 rfl (fun t ht => ⟨rfl, rfl, by omega, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 end
 
@@ -199,6 +205,7 @@ def cmiS := ofString "cmi_s"
 def cmiI := ofString "cmi_i"
 def cmiN := ofString "cmi_n"
 def cmiCn := ofString "cmi_cn"
+def cmiK := ofString "cmi_k"
 def cmiP := ofString "cmi_p"
 def cmiTg := ofString "cmi_tg"
 def cmiCc := ofString "cmi_cc"
@@ -206,11 +213,11 @@ def cmiCv := ofString "cmi_cv"
 def cmiR := ofString "cmi_r"
 def fCmi := ofString "minorSlotIhs"
 
-def cmiParams : List MlS := [cmiS, cmiI, cmiN, cmiCn]
+def cmiParams : List MlS := [cmiS, cmiI, cmiN, cmiCn, cmiK]
 def cmiLocals : List MlS := [cmiP, cmiTg, cmiCc, cmiCv, cmiR]
 
 def cmiRec : ProgHOL 64 :=
-  .seq (.call (some (some (.local, cmiR), none)) fCmi [vv cmiS, .op .add [vv cmiI, .const 1], vv cmiN, vv cmiCn])
+  .seq (.call (some (some (.local, cmiR), none)) fCmi [vv cmiS, .op .add [vv cmiI, .const 1], vv cmiN, vv cmiCn, vv cmiK])
     (.return (vv cmiR))
 
 def cmiBody : ProgHOL 64 := prologue cmiLocals
@@ -220,7 +227,7 @@ def cmiBody : ProgHOL 64 := prologue cmiLocals
     (.ite (.cmp .equal (vv cmiTg) (.const 1))
       (.seq (.assign .local cmiCc (.load .one (.op .add [vv cmiP, .const 8])))
       (.seq (.assign .local cmiCv (.load .one (.op .add [vv cmiP, .const 16])))
-      (.ite (.cmp .equal (vv cmiCc) (.const 0))
+      (.ite (.cmp .equal (vv cmiCc) (vv cmiK))
         (.ite (.cmp .equal (vv cmiCv) (vv cmiCn))
           (.seq (.assign .local cmiR (.load .one (.op .add [vv cmiP, .const 24]))) (.return (vv cmiR)))
           cmiRec)
@@ -235,24 +242,24 @@ theorem cmi_none (C : Ctx) (vals : List (BitVec 64)) :
     ∀ x, x ∈ cmiLocals → (ctxEnv C ++ cmiParams.zip vals).get x = none :=
   Knot.params_none C cmiLocals cmiParams vals (by decide) (by decide)
 
-/-- The first minor slot at `(0, cn)` from `i` on: its inductive hypotheses' pairs. -/
-def PostCMI (C : Ctx) (sls : List ClassSlot) (cn : NIdx) (i : Nat) (s : AState) (_ : Unit) (w : BitVec 64)
+/-- The first minor slot at `(cc, cn)` from `i` on: its inductive hypotheses' pairs. -/
+def PostCMI (C : Ctx) (sls : List ClassSlot) (cn : NIdx) (cc : Nat) (i : Nat) (s : AState) (_ : Unit) (w : BitVec 64)
     (s' : AState) (st : PState σ) : Prop :=
-  s' = s ∧ ∃ r oi, w = cellA C oi ∧ i ≤ r ∧ ∃ hr : r < sls.length, isHitC cn sls[r] = true ∧
-    (∀ k (hk : k < sls.length), i ≤ k → k < r → isHitC cn sls[k] = false) ∧ PairsRep C.H oi (ihsOf sls[r]) ∧
+  s' = s ∧ ∃ r oi, w = cellA C oi ∧ i ≤ r ∧ ∃ hr : r < sls.length, isHitC cc cn sls[r] = true ∧
+    (∀ k (hk : k < sls.length), i ≤ k → k < r → isHitC cc cn sls[k] = false) ∧ PairsRep C.H oi (ihsOf sls[r]) ∧
     SR C s' st
 
 set_option maxHeartbeats 16000000 in
 theorem cmi_spec (C : Ctx) (hc : C.code.lookup fCmi = some (cmiParams.map (fun p => (p, ShapeHOL.one)), cmiBody, .one))
-    (sls : List ClassSlot) (os : Nat) (hsl : sls.length < 2 ^ 58) (cn : NIdx)
+    (sls : List ClassSlot) (os : Nat) (hsl : sls.length < 2 ^ 58) (cn : NIdx) (cc : Nat) (hcc : cc < 2 ^ 63)
     (hcb : ∀ sl ∈ sls, ∀ c C' ihs, sl = .minor c C' ihs → c < 2 ^ 63) (H : List (BitVec 64))
     (hsb : SlotBlk C H os sls) :
     ∀ f i (s : AState), sls.length - i = f → i ≤ sls.length →
       SpecR (σ := σ) (Pre (ctxH C H) s (cmiParams.zip [cellA C os, BitVec.ofNat 64 i, BitVec.ofNat 64 sls.length,
-        Enc.idxW cn])) cmiBody s (pure ()) (PostCMI (ctxH C H) sls cn i s) := by
+        Enc.idxW cn, BitVec.ofNat 64 cc])) cmiBody s (pure ()) (PostCMI (ctxH C H) sls cn cc i s) := by
   obtain ⟨ps, hpsl, hpsb, hpsr⟩ := hsb
   have hpost : ∀ (i : Nat) (s : AState) a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
-      PostCMI (ctxH C H) sls cn i s a w s' st → PostCMI (ctxH C H) sls cn i s a w s' { st with locals := L } :=
+      PostCMI (ctxH C H) sls cn cc i s a w s' st → PostCMI (ctxH C H) sls cn cc i s a w s' { st with locals := L } :=
     fun _ _ _ _ _ _ _ ⟨h0, r, oi, h1, h2, h3, h4, h5, h6, h7⟩ => ⟨h0, r, oi, h1, h2, h3, h4, h5, h6, sr_of_eq h7 rfl rfl rfl rfl⟩
   intro f
   induction f with
@@ -279,19 +286,19 @@ theorem cmi_spec (C : Ctx) (hc : C.code.lookup fCmi = some (cmiParams.map (fun p
     rw [hpi] at hpe
     refine UD.specR_heapLoadI' (C := ctxH C H) cmiP _ (os + 1 + i) _ hpe (by decide)
       (by simp +decide [sev, Env.get_cons, Env.get, cmiParams, ctxEnv]; exact cellA_mulIdx C os i (by omega)) ?_
-    have hrec : isHitC cn sls[i] = false → ∀ (Γ : Env), Γ.get cmiS = some (cellA C os) →
+    have hrec : isHitC cc cn sls[i] = false → ∀ (Γ : Env), Γ.get cmiS = some (cellA C os) →
         Γ.get cmiI = some (BitVec.ofNat 64 i) → Γ.get cmiN = some (BitVec.ofNat 64 sls.length) →
-        Γ.get cmiCn = some (Enc.idxW cn) →
+        Γ.get cmiCn = some (Enc.idxW cn) → Γ.get cmiK = some (BitVec.ofNat 64 cc) →
         SpecR (σ := σ) (Inv (ctxH C H) s Γ [] (ctxLocals ++ cmiLocals)) cmiRec s (pure ())
-          (PostCMI (ctxH C H) sls cn i s) := by
-      intro hf0 Γ gS gI gN gC
+          (PostCMI (ctxH C H) sls cn cc i s) := by
+      intro hf0 Γ gS gI gN gC gK
       refine specR_congr (m' := (pure () : AM Unit) >>= fun _ => pure ()) (by simp) ?_
-      refine specR_callNIH (C := ctxH C H) cmiR fCmi cmiParams [vv cmiS, .op .add [vv cmiI, .const 1], vv cmiN, vv cmiCn]
-        cmiBody [cellA C os, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 sls.length, Enc.idxW cn] (by decide) rfl (by decide) hc
-        ⟨by simp [sev, gS], by simp [sev, sev_vv, gI]; exact word_add1_eq i, by simp [sev, gN], by simp [sev, gC], trivial⟩
-        (PostCMI (ctxH C H) sls cn (i + 1) s)
+      refine specR_callNIH (C := ctxH C H) cmiR fCmi cmiParams [vv cmiS, .op .add [vv cmiI, .const 1], vv cmiN, vv cmiCn, vv cmiK]
+        cmiBody [cellA C os, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 sls.length, Enc.idxW cn, BitVec.ofNat 64 cc] (by decide) rfl (by decide) hc
+        ⟨by simp [sev, gS], by simp [sev, sev_vv, gI]; exact word_add1_eq i, by simp [sev, gN], by simp [sev, gC], by simp [sev, gK], trivial⟩
+        (PostCMI (ctxH C H) sls cn cc (i + 1) s)
         (fun _ w s' H' => H' = H ∧ s' = s ∧ ∃ r oi, w = cellA C oi ∧ i + 1 ≤ r ∧ ∃ hr : r < sls.length,
-          isHitC cn sls[r] = true ∧ (∀ k (hk : k < sls.length), i + 1 ≤ k → k < r → isHitC cn sls[k] = false) ∧
+          isHitC cc cn sls[r] = true ∧ (∀ k (hk : k < sls.length), i + 1 ≤ k → k < r → isHitC cc cn sls[k] = false) ∧
           PairsRep H oi (ihsOf sls[r]))
         (fun a w s' st ⟨h0, r, oi, h1, h2, h3, h4, h5, h6, h7⟩ => ⟨H, List.prefix_refl _, ⟨rfl, h0, r, oi, h1, h2, h3, h4, h5, h6⟩, h7⟩)
         (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cmiParams _ rfl hlk) (ih (i + 1) s (by omega) (by omega)))
@@ -312,7 +319,7 @@ theorem cmi_spec (C : Ctx) (hc : C.code.lookup fCmi = some (cmiParams.map (fun p
       refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
       exact hrec (by simp [isHitC]) _ (by simp +decide [Env.get_cons, Env.get, cmiParams, ctxEnv])
         (by simp +decide [Env.get_cons, Env.get, cmiParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, cmiParams, ctxEnv])
-        (by simp +decide [Env.get_cons, Env.get, cmiParams, ctxEnv])
+        (by simp +decide [Env.get_cons, Env.get, cmiParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, cmiParams, ctxEnv])
     | minor c C' ihs =>
       obtain ⟨h0, h1, h2, oi, h3, hpr⟩ := hsr
       have hc63 := hcb _ hsli c C' ihs rfl
@@ -322,15 +329,15 @@ theorem cmi_spec (C : Ctx) (hc : C.code.lookup fCmi = some (cmiParams.map (fun p
         (by simp +decide [sev, Env.get_cons]; exact cellA_add8 C op) ?_
       refine UD.specR_heapLoadI' (C := ctxH C H) cmiCv _ (op + 2) _ h2 (by decide)
         (by simp +decide [sev, Env.get_cons]; exact cellA_add_ofNat C op 2) ?_
-      by_cases hc0 : c = 0
+      by_cases hc0 : c = cc
       swap
-      · have hne : BitVec.ofNat 64 c ≠ 0#64 := fun e => hc0 (by have := congrArg BitVec.toNat e; simp at this; omega)
-        refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne) (fun h => absurd rfl h) (fun _ => ?_)
+      · have hne : BitVec.ofNat 64 c ≠ BitVec.ofNat 64 cc := fun e => hc0 (by have := congrArg BitVec.toNat e; simp at this; omega)
+        refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Env.get, cmiParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne) (fun h => absurd rfl h) (fun _ => ?_)
         exact hrec (by simp [isHitC, hc0]) _ (by simp +decide [Env.get_cons, Env.get, cmiParams, ctxEnv])
           (by simp +decide [Env.get_cons, Env.get, cmiParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, cmiParams, ctxEnv])
-          (by simp +decide [Env.get_cons, Env.get, cmiParams, ctxEnv])
+          (by simp +decide [Env.get_cons, Env.get, cmiParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, cmiParams, ctxEnv])
       subst hc0
-      refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+      refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Env.get, cmiParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
       by_cases hcv : C' = cn
       swap
       · have hne : Enc.idxW C' ≠ Enc.idxW cn := fun e => hcv (Enc.idxW_inj e)
@@ -338,7 +345,7 @@ theorem cmi_spec (C : Ctx) (hc : C.code.lookup fCmi = some (cmiParams.map (fun p
           (fun h => absurd rfl h) (fun _ => ?_)
         exact hrec (by simp [isHitC, hcv]) _ (by simp +decide [Env.get_cons, Env.get, cmiParams, ctxEnv])
           (by simp +decide [Env.get_cons, Env.get, cmiParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, cmiParams, ctxEnv])
-          (by simp +decide [Env.get_cons, Env.get, cmiParams, ctxEnv])
+          (by simp +decide [Env.get_cons, Env.get, cmiParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, cmiParams, ctxEnv])
       subst hcv
       refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Env.get, cmiParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
         (fun _ => ?_) (fun h => absurd h (by decide))
@@ -349,10 +356,10 @@ theorem cmi_spec (C : Ctx) (hc : C.code.lookup fCmi = some (cmiParams.map (fun p
           fun k hk h1 h2 => absurd h2 (by omega), by rw [hsl]; exact hpr, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 /-- The first hit's inductive hypotheses are `firstIhs`. -/
-theorem firstIhs_eq (sls : List ClassSlot) (cn : NIdx) (r : Nat) (hr : r < sls.length) (h1 : isHitC cn sls[r] = true)
-    (h2 : ∀ k (hk : k < sls.length), k < r → isHitC cn sls[k] = false) : firstIhs cn sls = ihsOf sls[r] := by
+theorem firstIhs_eq (sls : List ClassSlot) (cc : Nat) (cn : NIdx) (r : Nat) (hr : r < sls.length) (h1 : isHitC cc cn sls[r] = true)
+    (h2 : ∀ k (hk : k < sls.length), k < r → isHitC cc cn sls[k] = false) : firstIhs cc cn sls = ihsOf sls[r] := by
   unfold firstIhs
-  have : sls.find? (isHitC cn) = some sls[r] := by
+  have : sls.find? (isHitC cc cn) = some sls[r] := by
     rw [List.find?_eq_some_iff_getElem]
     exact ⟨h1, r, hr, rfl, fun j hj => by rw [h2 j (by omega) hj]; rfl⟩
   rw [this]; rfl
@@ -390,12 +397,21 @@ def cfsBody (C : Ctx) : ProgHOL 64 := prologue cfsLocals
       (.ite (.cmp .equal (vv cfsK) (.const 0))
         (.seq cfsRec (.seq (.assign .local cfsX (.const 0)) (prependP C cfsX)))
         hang)
-      (.ite (.cmp .equal (vv cfsK) (.const 1))
+      (.ite (.cmp .lower (vv cfsK) (.const 2))
+        hang
         (.seq (.call (some (some (.local, cfsX), none)) fPbn [.const (BitVec.ofNat 64 coreWalkFuel), vv cfsT])
-        (.seq (.assign .local cfsX (.op .add [vv cfsX, .const 1]))
-        (.seq cfsRec (prependP C cfsX))))
-        hang))))))
+        (.seq (.assign .local cfsX (.op .add [.op .add [vv cfsX, .const 1],
+          .panop .mul [.op .sub [vv cfsK, .const 2], .const (BitVec.ofNat 64 (2 ^ 32))]]))
+        (.seq cfsRec (prependP C cfsX))))))))))
     (alloc1 C lW (.const 0) (.return (vv lW))))
+
+/-- The recursive kind's word from the hit's code `c + 2` and the telescope's length. -/
+theorem kindW_word (t c : Nat) (ht : t + 1 < 2 ^ 32) (hc : c < 2 ^ 24) :
+    BitVec.ofNat 64 t + 1#64 + (BitVec.ofNat 64 (c + 2) - 2#64) * BitVec.ofNat 64 (2 ^ 32) =
+      BitVec.ofNat 64 (t + 1 + 2 ^ 32 * c) := by
+  have h1 : BitVec.ofNat 64 (c + 2) - 2#64 = BitVec.ofNat 64 c := by
+    rw [← BitVec.ofNat_add_ofNat]; exact BitVec.add_sub_cancel _ _
+  rw [h1, word_add1_eq, BitVec.ofNat_mul_ofNat, BitVec.ofNat_add_ofNat, Nat.mul_comm c]
 
 structure CFSCodes (C : Ctx) : Prop where
   fvt : C.code.lookup fFvt = some ([(pH, .one)], ExM.fvtBody, .one)
@@ -411,7 +427,7 @@ theorem cfs_none (C : Ctx) (vals : List (BitVec 64)) :
     ∀ x, x ∈ cfsLocals → (ctxEnv C ++ cfsParams.zip vals).get x = none :=
   Knot.params_none C cfsLocals cfsParams vals (by decide) (by decide)
 
-/-- The kinds' answer: a fresh block of `cfKindW`s, `n` of them, recursive at class `0` only. -/
+/-- The kinds' answer: a fresh block of `cfKindW`s, `n` of them, each recursive kind carrying its class (`KindsOK`). -/
 def PostKS (C : Ctx) (n : Nat) (ks : List ClassField) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
   ∃ H' o, C.H <+: H' ∧ w = cellA C o ∧ BlkAt H' o (ks.map cfKindW) ∧ ks.length = n ∧ KindsOK ks ∧ SR (ctxH C H') s' st
 
@@ -420,7 +436,8 @@ theorem postKS_locals (C : Ctx) (n : Nat) : ∀ a w s' (st : PState σ) (L : Hol
   fun _ _ _ _ _ ⟨H', o, h1, h2, h3, h4, h5, h6⟩ => ⟨H', o, h1, h2, h3, h4, h5, sr_of_eq h6 rfl rfl rfl rfl⟩
 
 set_option maxHeartbeats 32000000 in
-/-- **`classFieldsOf p ihs i`** over the fields from `i` on (a field naming a member at another class hangs). -/
+/-- **`classFieldsOf p ihs i`** over the fields from `i` on (a recursive field's kind carries its inductive
+hypothesis's class; a class at or above `2 ^ 24` hangs). -/
 theorem cfs_spec (C : Ctx) (hok : CtxOK C) (hc : CFSCodes C) (p : BlockShape) (ms : List MemberShape) (om : Nat)
     (hms : p.members = ms) (hM : PtrsRep C C.H om (MemberRep C C.H) ms) (hml : ms.length < 2 ^ 59)
     (ihs : List (Nat × Nat)) (oi : Nat) (hpr : PairsRep C.H oi ihs) (hil : ihs.length < 2 ^ 60)
@@ -481,7 +498,7 @@ theorem cfs_spec (C : Ctx) (hok : CtxOK C) (hc : CFSCodes C) (p : BlockShape) (m
       ⟨by simp +decide [sev, Env.get_cons, Env.get, cfsParams, ctxEnv], rfl,
         by simp +decide [sev, Env.get_cons, Env.get, cfsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cfsParams, ctxEnv],
         trivial⟩
-      (PostIK (ctxH C H2) s2) (fun r w _ _ => w = BitVec.ofNat 64 r ∧ r ≤ 2)
+      (PostIK (ctxH C H2) s2) (fun r w _ _ => w = BitVec.ofNat 64 r ∧ r < 2 ^ 24 + 2)
       (fun r w s' st ⟨_, h1, h2, h4⟩ => ⟨H2, List.prefix_refl _, ⟨h1, h2⟩, h4⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ihkParams _ rfl hlk)
         (ihk_spec C hc.ihk ihs oi H2 (pairsRep_mono' (hpC.trans hp2') hpr) hil i (by omega) ihs.length 0 s2 (by omega) (by omega)))
@@ -534,15 +551,16 @@ theorem cfs_spec (C : Ctx) (hok : CtxOK C) (hc : CFSCodes C) (p : BlockShape) (m
           · exact hko k hk, hsr⟩
     · refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
         (fun h => absurd rfl h) (fun _ => ?_)
-      by_cases hk1 : ihkVal hits = 1
+      by_cases hk2 : 2 ≤ ihkVal hits
       swap
-      · have hne : BitVec.ofNat 64 (ihkVal hits) ≠ 1#64 := fun e => hk1 (by
-          have := congrArg BitVec.toNat e; simp at this; omega)
-        exact specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
-          (fun h => absurd rfl h) (fun _ => specR_hangI)
-      obtain ⟨a, rfl⟩ := ihkVal_one hk1
-      refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hk1])
-        (fun _ => ?_) (fun h => absurd h (by decide))
+      · have hlt := nd_lt_iff (ihkVal hits) 2 (by omega) (by omega)
+        exact specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlt.mpr (by omega)])
+          (fun _ => specR_hangI) (fun h => absurd h (by decide))
+      obtain ⟨a, c, rfl, hc24, hkc⟩ := ihkVal_hit hk2
+      have hlt := nd_lt_iff (ihkVal [(a, c)]) 2 (by omega) (by omega)
+      have hnl : ¬ (BitVec.ofNat 64 (ihkVal [(a, c)]) < 2#64) := fun h => by have := hlt.mp h; omega
+      refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; omega)
+        (fun h => absurd rfl h) (fun _ => ?_)
       simp only [Bool.not_true, Bool.false_and, Bool.false_eq_true, ite_false, List.length_singleton, beq_self_eq_true,
         Bool.and_self, ite_true, bind_assoc]
       refine specR_callNIH (C := ctxH C H3) cfsX fPbn [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv cfsT] pbnBody
@@ -558,8 +576,8 @@ theorem cfs_spec (C : Ctx) (hok : CtxOK C) (hc : CFSCodes C) (p : BlockShape) (m
       simp only at hbl ⊢
       have hp4' : H3 <+: H4 := hp4
       have hcw : coreWalkFuel = 4000000000 := rfl
-      refine specR_assignI cfsX _ (BitVec.ofNat 64 (bs.length + 1)) (by decide)
-        (by simp +decide [sev, Env.get_cons]; exact word_add1_eq bs.length) ?_
+      refine specR_assignI cfsX _ (BitVec.ofNat 64 (bs.length + 1 + 2 ^ 32 * c)) (by decide)
+        (by simp only [sev, sev_vv, Env.get_cons]; rw [hkc]; simp +decide; exact kindW_word bs.length c (by omega) hc24) ?_
       unfold cfsRec
       refine specR_callNIH (C := ctxH C H4) ExS.lY fCfs cfsParams [vv cfsA, .op .add [vv cfsI, .const 1], vv cfsN, vv cfsMs,
           vv cfsIh, vv cfsIn] (cfsBody C)
@@ -578,14 +596,14 @@ theorem cfs_spec (C : Ctx) (hok : CtxOK C) (hc : CFSCodes C) (p : BlockShape) (m
         (fun ks w s5 H5 hp5 ⟨oy, hw, hry, hkl, hko⟩ => ?_)
       subst hw
       have hp5' : H4 <+: H5 := hp5
-      refine specR_congr (m' := pure (ClassField.recursive 0 bs.length :: ks)) (by simp [List.getD]) ?_
-      refine ExPre.prepend_spec C hok (H := H5) cfsX (cfKindW (.recursive 0 bs.length)) oy (ks.map cfKindW) (by decide)
+      refine specR_congr (m' := pure (ClassField.recursive c bs.length :: ks)) (by simp [List.getD]) ?_
+      refine ExPre.prepend_spec C hok (H := H5) cfsX (cfKindW (.recursive c bs.length)) oy (ks.map cfKindW) (by decide)
         (by simp +decide [Env.get_cons]) (by simp +decide [Env.get_cons, cfKindW]) hry (by decide)
         (by simp +decide [Env.get_cons, Env.get, cfsParams, ctxEnv]) (by decide) (fun H' o t hp' hb hsr => ?_)
       exact ⟨H', o, hp2'.trans (hp3'.trans (hp4'.trans (hp5'.trans hp'))), rfl, by simpa using hb, by simp [hkl]; omega,
         fun k hk => by
           rcases List.mem_cons.mp hk with rfl | hk
-          · exact Or.inr ⟨bs.length, rfl, by omega⟩
+          · exact Or.inr ⟨c, bs.length, rfl, by omega, hc24⟩
           · exact hko k hk, hsr⟩
 
 end
@@ -633,9 +651,9 @@ def ccoLocals : List MlS := [ccoCn, ccoE, ccoCt, ccoIh, ccoIl, ccoTy, ccoX, ccoF
 def ccoBody (C : Ctx) : ProgHOL 64 := prologue ccoLocals
   (.seq (.assign .local ccoCn (.load .one (vv ccoCv)))
   (.seq (.call (some (some (.local, ccoE), none)) fFfe [vv ccoTb, .const 0, vv ccoTk, vv ccoCn])
-  (.seq (.call (some (some (.local, ccoCt), none)) fCms [vv ccoSl, .const 0, vv ccoSk, vv ccoCn])
+  (.seq (.call (some (some (.local, ccoCt), none)) fCms [vv ccoSl, .const 0, vv ccoSk, vv ccoCn, .const 0])
   (.ite (.cmp .equal (vv ccoCt) (.const 1))
-  (.seq (.call (some (some (.local, ccoIh), none)) fCmi [vv ccoSl, .const 0, vv ccoSk, vv ccoCn])
+  (.seq (.call (some (some (.local, ccoIh), none)) fCmi [vv ccoSl, .const 0, vv ccoSk, vv ccoCn, .const 0])
   (.seq (.assign .local ccoIl (.load .one (vv ccoIh)))
   (.seq (.assign .local ccoTy (.load .one (.op .add [vv ccoE, .const 24])))
   (.seq (.call (some (some (.local, ccoX), none)) fOpenFvars [vv ccoNf, vv ccoTy, vv ccoNk])
@@ -723,42 +741,42 @@ theorem cco_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   simp only [List.drop_zero] at hfe
   rw [hfe]
   simp only
-  refine specR_callPure (C := ctxH C C.H) ccoCt fCms cmsParams [vv ccoSl, .const 0, vv ccoSk, vv ccoCn] cmsBody
-    [cellA C osl, BitVec.ofNat 64 0, BitVec.ofNat 64 rd.slots.length, Enc.idxW ctor.1.name]
-    ((rd.slots.drop 0).filter (isHitC ctor.1.name)).length (by decide) rfl (by decide) hc.cms
-    ⟨by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], rfl, by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], by simp +decide [sev, Env.get_cons], trivial⟩ (PostCMS (ctxH C C.H) (rd.slots.drop 0) ctor.1.name s)
+  refine specR_callPure (C := ctxH C C.H) ccoCt fCms cmsParams [vv ccoSl, .const 0, vv ccoSk, vv ccoCn, .const 0] cmsBody
+    [cellA C osl, BitVec.ofNat 64 0, BitVec.ofNat 64 rd.slots.length, Enc.idxW ctor.1.name, BitVec.ofNat 64 0]
+    ((rd.slots.drop 0).filter (isHitC 0 ctor.1.name)).length (by decide) rfl (by decide) hc.cms
+    ⟨by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], rfl, by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], by simp +decide [sev, Env.get_cons], rfl, trivial⟩ (PostCMS (ctxH C C.H) (rd.slots.drop 0) ctor.1.name s)
     (fun r w s' H' => H' = C.H ∧ w = BitVec.ofNat 64 r ∧ r ≤ (rd.slots.drop 0).length)
     (fun r w s' st ⟨_, h1, h2, h4⟩ => ⟨C.H, hp0, ⟨rfl, h1, h2⟩, h4⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cmsParams _ rfl hlk)
-      (cms_spec C hc.cms rd.slots osl hsl ctor.1.name hcb C.H hsb rd.slots.length 0 s (by omega) (by omega)))
+      (cms_spec C hc.cms rd.slots osl hsl ctor.1.name 0 (by decide) hcb C.H hsb rd.slots.length 0 s (by omega) (by omega)))
     (fun w H2 hp2 ⟨eH, hw, hr⟩ => ?_)
   subst eH hw
   simp only [List.drop_zero] at hr
-  by_cases hcnt : (rd.slots.filter (isHitC ctor.1.name)).length = 1
+  by_cases hcnt : (rd.slots.filter (isHitC 0 ctor.1.name)).length = 1
   swap
-  · have hne : BitVec.ofNat 64 (rd.slots.filter (isHitC ctor.1.name)).length ≠ 1#64 := fun e => hcnt (by
+  · have hne : BitVec.ofNat 64 (rd.slots.filter (isHitC 0 ctor.1.name)).length ≠ 1#64 := fun e => hcnt (by
       have := congrArg BitVec.toNat e; simp at this; omega)
     exact specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne) (fun h => absurd rfl h)
       (fun _ => specR_hangI)
   refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hcnt]) (fun _ => ?_) (fun h => absurd h (by decide))
-  obtain ⟨k, hk⟩ := classMinorSlot_one rd ctor.1.name hcnt
+  obtain ⟨k, hk⟩ := classMinorSlot_one rd 0 ctor.1.name hcnt
   rw [hk]
   simp only [pure_bind]
-  refine specR_callPure (C := ctxH C C.H) ccoIh fCmi cmiParams [vv ccoSl, .const 0, vv ccoSk, vv ccoCn] cmiBody
-    [cellA C osl, BitVec.ofNat 64 0, BitVec.ofNat 64 rd.slots.length, Enc.idxW ctor.1.name] () (by decide) rfl (by decide)
+  refine specR_callPure (C := ctxH C C.H) ccoIh fCmi cmiParams [vv ccoSl, .const 0, vv ccoSk, vv ccoCn, .const 0] cmiBody
+    [cellA C osl, BitVec.ofNat 64 0, BitVec.ofNat 64 rd.slots.length, Enc.idxW ctor.1.name, BitVec.ofNat 64 0] () (by decide) rfl (by decide)
     hc.cmi
-    ⟨by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], rfl, by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], by simp +decide [sev, Env.get_cons], trivial⟩
-    (PostCMI (ctxH C C.H) rd.slots ctor.1.name 0 s)
+    ⟨by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], rfl, by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], by simp +decide [sev, Env.get_cons], rfl, trivial⟩
+    (PostCMI (ctxH C C.H) rd.slots ctor.1.name 0 0 s)
     (fun _ w s' H' => H' = C.H ∧ ∃ r oi, w = cellA C oi ∧ ∃ hr : r < rd.slots.length,
-      isHitC ctor.1.name rd.slots[r] = true ∧ (∀ k (hk : k < rd.slots.length), k < r → isHitC ctor.1.name rd.slots[k] = false) ∧
+      isHitC 0 ctor.1.name rd.slots[r] = true ∧ (∀ k (hk : k < rd.slots.length), k < r → isHitC 0 ctor.1.name rd.slots[k] = false) ∧
       PairsRep C.H oi (ihsOf rd.slots[r]))
     (fun a w s' st ⟨_, r, oi, h1, _, h3, h4, h5, h6, h7⟩ => ⟨C.H, hp0, ⟨rfl, r, oi, h1, h3, h4, fun k hk h => h5 k hk (by omega) h, h6⟩, h7⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cmiParams _ rfl hlk)
-      (cmi_spec C hc.cmi rd.slots osl hsl ctor.1.name (fun sl h c C' ihs e => (hcb sl h c C' ihs e).1) C.H hsb
+      (cmi_spec C hc.cmi rd.slots osl hsl ctor.1.name 0 (by decide) (fun sl h c C' ihs e => (hcb sl h c C' ihs e).1) C.H hsb
         rd.slots.length 0 s (by omega) (by omega)))
     (fun w H2' hp2' ⟨eH, r, oi, hw, hr', hhit, hfirst, hpri⟩ => ?_)
   subst eH hw
-  rw [firstIhs_eq rd.slots ctor.1.name r hr' hhit hfirst]
+  rw [firstIhs_eq rd.slots 0 ctor.1.name r hr' hhit hfirst]
   generalize hihs : ihsOf rd.slots[r] = ihs at hpri
   refine UD.specR_heapLoadI' (C := ctxH C C.H) ccoIl (vv ccoIh) oi _ hpri.1 (by decide) (by simp [sev, Env.get_cons]; rfl) ?_
   refine UD.specR_heapLoadI' (C := ctxH C C.H) ccoTy _ (oe + 3) _ hnfr.2.2.2 (by decide)

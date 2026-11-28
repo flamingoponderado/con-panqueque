@@ -24,6 +24,7 @@ def fmsS := ofString "fms_s"
 def fmsI := ofString "fms_i"
 def fmsN := ofString "fms_n"
 def fmsCn := ofString "fms_cn"
+def fmsK := ofString "fms_k"
 def fmsP := ofString "fms_p"
 def fmsTg := ofString "fms_tg"
 def fmsCc := ofString "fms_cc"
@@ -31,11 +32,11 @@ def fmsCv := ofString "fms_cv"
 def fmsR := ofString "fms_r"
 def fFms := ofString "findMinorSlot"
 
-def fmsParams : List MlS := [fmsS, fmsI, fmsN, fmsCn]
+def fmsParams : List MlS := [fmsS, fmsI, fmsN, fmsCn, fmsK]
 def fmsLocals : List MlS := [fmsP, fmsTg, fmsCc, fmsCv, fmsR]
 
 def fmsRec : ProgHOL 64 :=
-  .seq (.call (some (some (.local, fmsR), none)) fFms [vv fmsS, .op .add [vv fmsI, .const 1], vv fmsN, vv fmsCn])
+  .seq (.call (some (some (.local, fmsR), none)) fFms [vv fmsS, .op .add [vv fmsI, .const 1], vv fmsN, vv fmsCn, vv fmsK])
     (.return (vv fmsR))
 
 def fmsBody : ProgHOL 64 := prologue fmsLocals
@@ -45,7 +46,7 @@ def fmsBody : ProgHOL 64 := prologue fmsLocals
     (.ite (.cmp .equal (vv fmsTg) (.const 1))
       (.seq (.assign .local fmsCc (.load .one (.op .add [vv fmsP, .const 8])))
       (.seq (.assign .local fmsCv (.load .one (.op .add [vv fmsP, .const 16])))
-      (.ite (.cmp .equal (vv fmsCc) (.const 0))
+      (.ite (.cmp .equal (vv fmsCc) (vv fmsK))
         (.ite (.cmp .equal (vv fmsCv) (vv fmsCn)) (.return (vv fmsI)) fmsRec)
         fmsRec)))
       fmsRec)))
@@ -59,22 +60,22 @@ theorem fms_none (C : Ctx) (vals : List (BitVec 64)) :
   Knot.params_none C fmsLocals fmsParams vals (by decide) (by decide)
 
 /-- The first slot from `i` on that is a hit. -/
-def PostFMS (C : Ctx) (sls : List ClassSlot) (cn : NIdx) (i : Nat) (s : AState) (_ : Unit) (w : BitVec 64)
+def PostFMS (C : Ctx) (sls : List ClassSlot) (cn : NIdx) (cc : Nat) (i : Nat) (s : AState) (_ : Unit) (w : BitVec 64)
     (s' : AState) (st : PState σ) : Prop :=
-  s' = s ∧ ∃ r, w = BitVec.ofNat 64 r ∧ i ≤ r ∧ ∃ hr : r < sls.length, isHitC cn sls[r] = true ∧
-    (∀ k (hk : k < sls.length), i ≤ k → k < r → isHitC cn sls[k] = false) ∧ SR C s' st
+  s' = s ∧ ∃ r, w = BitVec.ofNat 64 r ∧ i ≤ r ∧ ∃ hr : r < sls.length, isHitC cc cn sls[r] = true ∧
+    (∀ k (hk : k < sls.length), i ≤ k → k < r → isHitC cc cn sls[k] = false) ∧ SR C s' st
 
 set_option maxHeartbeats 16000000 in
 theorem fms_spec (C : Ctx) (hc : C.code.lookup fFms = some (fmsParams.map (fun p => (p, ShapeHOL.one)), fmsBody, .one))
-    (sls : List ClassSlot) (os : Nat) (hsl : sls.length < 2 ^ 58) (cn : NIdx)
+    (sls : List ClassSlot) (os : Nat) (hsl : sls.length < 2 ^ 58) (cn : NIdx) (cc : Nat) (hcc : cc < 2 ^ 63)
     (hcb : ∀ sl ∈ sls, ∀ c C' ihs, sl = .minor c C' ihs → c < 2 ^ 63) (H : List (BitVec 64))
     (hsb : SlotBlk C H os sls) :
     ∀ f i (s : AState), sls.length - i = f → i ≤ sls.length →
       SpecR (σ := σ) (Pre (ctxH C H) s (fmsParams.zip [cellA C os, BitVec.ofNat 64 i, BitVec.ofNat 64 sls.length,
-        Enc.idxW cn])) fmsBody s (pure ()) (PostFMS (ctxH C H) sls cn i s) := by
+        Enc.idxW cn, BitVec.ofNat 64 cc])) fmsBody s (pure ()) (PostFMS (ctxH C H) sls cn cc i s) := by
   obtain ⟨ps, hpsl, hpsb, hpsr⟩ := hsb
   have hpost : ∀ (i : Nat) (s : AState) a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
-      PostFMS (ctxH C H) sls cn i s a w s' st → PostFMS (ctxH C H) sls cn i s a w s' { st with locals := L } :=
+      PostFMS (ctxH C H) sls cn cc i s a w s' st → PostFMS (ctxH C H) sls cn cc i s a w s' { st with locals := L } :=
     fun _ _ _ _ _ _ _ ⟨h0, r, h1, h2, h3, h4, h5, h6⟩ => ⟨h0, r, h1, h2, h3, h4, h5, sr_of_eq h6 rfl rfl rfl rfl⟩
   intro f
   induction f with
@@ -102,19 +103,19 @@ theorem fms_spec (C : Ctx) (hc : C.code.lookup fFms = some (fmsParams.map (fun p
     refine UD.specR_heapLoadI' (C := ctxH C H) fmsP _ (os + 1 + i) _ hpe (by decide)
       (by simp +decide [sev, Env.get_cons, Env.get, fmsParams, ctxEnv]; exact cellA_mulIdx C os i (by omega)) ?_
     -- the recursive call: the answer from `i + 1` on, and slot `i` no hit
-    have hrec : isHitC cn sls[i] = false → ∀ (Γ : Env), Γ.get fmsS = some (cellA C os) →
+    have hrec : isHitC cc cn sls[i] = false → ∀ (Γ : Env), Γ.get fmsS = some (cellA C os) →
         Γ.get fmsI = some (BitVec.ofNat 64 i) → Γ.get fmsN = some (BitVec.ofNat 64 sls.length) →
-        Γ.get fmsCn = some (Enc.idxW cn) → (∀ y ∈ [fmsR], y ∈ ctxLocals ++ fmsLocals) →
+        Γ.get fmsCn = some (Enc.idxW cn) → Γ.get fmsK = some (BitVec.ofNat 64 cc) → (∀ y ∈ [fmsR], y ∈ ctxLocals ++ fmsLocals) →
         SpecR (σ := σ) (Inv (ctxH C H) s Γ [] (ctxLocals ++ fmsLocals)) fmsRec s (pure ())
-          (PostFMS (ctxH C H) sls cn i s) := by
-      intro hf0 Γ gS gI gN gC _
+          (PostFMS (ctxH C H) sls cn cc i s) := by
+      intro hf0 Γ gS gI gN gC gK _
       refine specR_congr (m' := (pure () : AM Unit) >>= fun _ => pure ()) (by simp) ?_
-      refine specR_callNIH (C := ctxH C H) fmsR fFms fmsParams [vv fmsS, .op .add [vv fmsI, .const 1], vv fmsN, vv fmsCn]
-        fmsBody [cellA C os, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 sls.length, Enc.idxW cn] (by decide) rfl (by decide) hc
-        ⟨by simp [sev, gS], by simp [sev, sev_vv, gI]; exact word_add1_eq i, by simp [sev, gN], by simp [sev, gC], trivial⟩
-        (PostFMS (ctxH C H) sls cn (i + 1) s)
+      refine specR_callNIH (C := ctxH C H) fmsR fFms fmsParams [vv fmsS, .op .add [vv fmsI, .const 1], vv fmsN, vv fmsCn, vv fmsK]
+        fmsBody [cellA C os, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 sls.length, Enc.idxW cn, BitVec.ofNat 64 cc] (by decide) rfl (by decide) hc
+        ⟨by simp [sev, gS], by simp [sev, sev_vv, gI]; exact word_add1_eq i, by simp [sev, gN], by simp [sev, gC], by simp [sev, gK], trivial⟩
+        (PostFMS (ctxH C H) sls cn cc (i + 1) s)
         (fun _ w s' H' => H' = H ∧ s' = s ∧ ∃ r, w = BitVec.ofNat 64 r ∧ i + 1 ≤ r ∧ ∃ hr : r < sls.length,
-          isHitC cn sls[r] = true ∧ ∀ k (hk : k < sls.length), i + 1 ≤ k → k < r → isHitC cn sls[k] = false)
+          isHitC cc cn sls[r] = true ∧ ∀ k (hk : k < sls.length), i + 1 ≤ k → k < r → isHitC cc cn sls[k] = false)
         (fun a w s' st ⟨h0, r, h1, h2, h3, h4, h5, h6⟩ => ⟨H, List.prefix_refl _, ⟨rfl, h0, r, h1, h2, h3, h4, h5⟩, h6⟩)
         (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu fmsParams _ rfl hlk) (ih (i + 1) s (by omega) (by omega)))
         (fun _ w s3 H3 hp3 ⟨eH, es, r, hw, hr1, hr2, hr3, hr4⟩ => ?_)
@@ -134,7 +135,7 @@ theorem fms_spec (C : Ctx) (hc : C.code.lookup fFms = some (fmsParams.map (fun p
       refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun h => absurd rfl h) (fun _ => ?_)
       exact hrec (by simp [isHitC]) _ (by simp +decide [Env.get_cons, Env.get, fmsParams, ctxEnv])
         (by simp +decide [Env.get_cons, Env.get, fmsParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, fmsParams, ctxEnv])
-        (by simp +decide [Env.get_cons, Env.get, fmsParams, ctxEnv]) (by decide)
+        (by simp +decide [Env.get_cons, Env.get, fmsParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, fmsParams, ctxEnv]) (by decide)
     | minor c C' ihs =>
       obtain ⟨h0, h1, h2, oi, h3, hpr⟩ := hsr
       have hc63 := hcb _ hsli c C' ihs rfl
@@ -144,15 +145,15 @@ theorem fms_spec (C : Ctx) (hc : C.code.lookup fFms = some (fmsParams.map (fun p
         (by simp +decide [sev, Env.get_cons]; exact cellA_add8 C op) ?_
       refine UD.specR_heapLoadI' (C := ctxH C H) fmsCv _ (op + 2) _ h2 (by decide)
         (by simp +decide [sev, Env.get_cons]; exact cellA_add_ofNat C op 2) ?_
-      by_cases hc0 : c = 0
+      by_cases hc0 : c = cc
       swap
-      · have hne : BitVec.ofNat 64 c ≠ 0#64 := fun e => hc0 (by have := congrArg BitVec.toNat e; simp at this; omega)
-        refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne) (fun h => absurd rfl h) (fun _ => ?_)
+      · have hne : BitVec.ofNat 64 c ≠ BitVec.ofNat 64 cc := fun e => hc0 (by have := congrArg BitVec.toNat e; simp at this; omega)
+        refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Env.get, fmsParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne) (fun h => absurd rfl h) (fun _ => ?_)
         exact hrec (by simp [isHitC, hc0]) _ (by simp +decide [Env.get_cons, Env.get, fmsParams, ctxEnv])
           (by simp +decide [Env.get_cons, Env.get, fmsParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, fmsParams, ctxEnv])
-          (by simp +decide [Env.get_cons, Env.get, fmsParams, ctxEnv]) (by decide)
+          (by simp +decide [Env.get_cons, Env.get, fmsParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, fmsParams, ctxEnv]) (by decide)
       subst hc0
-      refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
+      refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Env.get, fmsParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]) (fun _ => ?_) (fun h => absurd h (by decide))
       by_cases hcv : C' = cn
       swap
       · have hne : Enc.idxW C' ≠ Enc.idxW cn := fun e => hcv (Enc.idxW_inj e)
@@ -160,7 +161,7 @@ theorem fms_spec (C : Ctx) (hc : C.code.lookup fFms = some (fmsParams.map (fun p
           (fun h => absurd rfl h) (fun _ => ?_)
         exact hrec (by simp [isHitC, hcv]) _ (by simp +decide [Env.get_cons, Env.get, fmsParams, ctxEnv])
           (by simp +decide [Env.get_cons, Env.get, fmsParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, fmsParams, ctxEnv])
-          (by simp +decide [Env.get_cons, Env.get, fmsParams, ctxEnv]) (by decide)
+          (by simp +decide [Env.get_cons, Env.get, fmsParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, fmsParams, ctxEnv]) (by decide)
       subst hcv
       refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Env.get, fmsParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
         (fun _ => ?_) (fun h => absurd h (by decide))
@@ -358,7 +359,7 @@ def cgoBody (C : Ctx) : ProgHOL 64 := prologue cgoLocals
     (.seq (.assign .local cgoK (.load .one (.op .add [vv cgoKb, .op .add [.panop .mul [vv cgoI, .const 8], .const 8]])))
     (.ite (.cmp .equal (vv cgoK) (.const 0))
       (.seq cgoRec (.return (vv ExS.lY)))
-    (.ite (.cmp .lower (vv cgoI) (vv cgoWn))
+    (guardP cgoK 32 (.ite (.cmp .lower (vv cgoI) (vv cgoWn))
     (.ite (.cmp .lower (vv cgoI) (vv cgoFn))
     (.seq (.assign .local cgoK (.op .sub [vv cgoK, .const 1]))
     (.seq (.assign .local cgoW (.load .one (.op .add [vv cgoWs, .op .add [.panop .mul [vv cgoI, .const 8], .const 8]])))
@@ -391,7 +392,7 @@ def cgoBody (C : Ctx) : ProgHOL 64 := prologue cgoLocals
     hang)))
     hang))))))))))
     hang)
-    hang)))
+    hang))))
     (alloc1 C lW (.const 0) (.return (vv lW))))
 
 structure CGOCodes (C : Ctx) : Prop where
@@ -472,7 +473,7 @@ theorem cgo_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
     rw [show x.nF - i = (x.nF - (i + 1)) + 1 by omega, classGenRule.callsGo]
     have hgd : x.kinds.getD i ClassField.ordinary = x.kinds[i] := by simp [List.getD, List.getElem?_eq_getElem hik]
     rw [hgd]
-    rcases hko x.kinds[i] (List.getElem_mem hik) with hk | ⟨tele, hk, htele⟩
+    rcases hko x.kinds[i] (List.getElem_mem hik) with hk | ⟨c, tele, hk, htele, hc24⟩
     · rw [hk] at hkx ⊢
       refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, cfKindW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
         (fun _ => ?_) (fun h => absurd h (by decide))
@@ -503,10 +504,13 @@ theorem cgo_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       exact specR_returnI _ _ (by simp [sev, Env.get_cons]; rfl) (fun t ht => ⟨ihs, H1, ob, rfl, hp1, rfl, hb, by omega,
         sr_of_eq ht.sr rfl rfl rfl rfl⟩)
     rw [hk] at hkx ⊢
-    have hkw : cfKindW (.recursive 0 tele) ≠ 0 := by
+    have hkw : cfKindW (.recursive c tele) ≠ 0 := by
       simp only [cfKindW]; intro e; have := congrArg BitVec.toNat e; simp at this; omega
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hkw)
       (fun h => absurd rfl h) (fun _ => ?_)
+    refine specR_guardI cgoK (tele + 1 + 2 ^ 32 * c) 32 (by decide) (by simp [Env.get_cons, cfKindW]) (by omega)
+      (fun hk32 => ?_)
+    obtain rfl : c = 0 := by omega
     refine specR_fact (fun t ht => inv_heapLen ht) (fun hHN0 => ?_)
     have hHN0' : H.length ≤ C.HN := hHN0
     have hlay := hok.heapLay
@@ -825,7 +829,7 @@ def cgrBody (C : Ctx) : ProgHOL 64 := prologue cgrLocals
   (.ite (.cmp .lower (vv cgrLp) (vv cgrNp))
   hang
   (.seq (.assign .local cgrNs (.load .one (vv cgrSl)))
-  (.seq (.call (some (some (.local, cgrS), none)) fFms [(vv cgrSl), .const 0, (vv cgrNs), (vv cgrNm)])
+  (.seq (.call (some (some (.local, cgrS), none)) fFms [(vv cgrSl), .const 0, (vv cgrNs), (vv cgrNm), .const 0])
   (.seq (.call (some (some (.local, cgrX), none)) fOpenFvars [(vv cgrNf), (vv cgrTd), (vv cgrRp)])
   (.ite (.cmp .equal (vv cgrX) (.const 0))
   hang
@@ -876,9 +880,9 @@ theorem cgr_none (C : Ctx) (vals : List (BitVec 64)) :
     ∀ x, x ∈ cgrLocals → (ctxEnv C ++ cgrParams.zip vals).get x = none :=
   Knot.params_none C cgrLocals cgrParams vals (by decide) (by decide)
 
-theorem find_zip_hit (sls : List ClassSlot) (cn : NIdx) (p : Nat × ClassSlot → Bool) (hp : ∀ q, p q = isHitC cn q.2)
-    (r : Nat) (hr : r < sls.length) (h1 : isHitC cn sls[r] = true)
-    (h2 : ∀ k (hk : k < sls.length), k < r → isHitC cn sls[k] = false) :
+theorem find_zip_hit (sls : List ClassSlot) (c : Nat) (cn : NIdx) (p : Nat × ClassSlot → Bool) (hp : ∀ q, p q = isHitC c cn q.2)
+    (r : Nat) (hr : r < sls.length) (h1 : isHitC c cn sls[r] = true)
+    (h2 : ∀ k (hk : k < sls.length), k < r → isHitC c cn sls[k] = false) :
     ((List.range sls.length).zip sls).find? p = some (r, sls[r]) := by
   rw [List.find?_eq_some_iff_getElem]
   refine ⟨by rw [hp]; exact h1, r, by simp; exact hr, by simp [List.getElem_zip], fun j hj => ?_⟩
@@ -924,21 +928,21 @@ theorem cgr_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
   have hns : C.H[os]? = some (BitVec.ofNat 64 g.slots.length) := by simpa [hpsl] using hpsb.1
   refine UD.specR_heapLoadI' (C := ctxH C C.H) cgrNs _ os _ hns (by decide) (by simp +decide [sev, Env.get_cons, Env.get, cgrParams, ctxEnv]; rfl) ?_
   refine specR_congr (m' := (pure () : AM Unit) >>= fun _ => _) (by rw [pure_bind]) ?_
-  refine specR_callNIH (C := ctxH C C.H) cgrS fFms fmsParams [vv cgrSl, .const 0, vv cgrNs, vv cgrNm] fmsBody
-    [cellA C os, BitVec.ofNat 64 0, BitVec.ofNat 64 g.slots.length, Enc.idxW x.cv.name] (by decide) rfl (by decide) hc.fms
-    ⟨by simp +decide [sev, Env.get_cons, Env.get, cgrParams, ctxEnv], rfl, by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], trivial⟩
-    (PostFMS (ctxH C C.H) g.slots x.cv.name 0 s)
+  refine specR_callNIH (C := ctxH C C.H) cgrS fFms fmsParams [vv cgrSl, .const 0, vv cgrNs, vv cgrNm, .const 0] fmsBody
+    [cellA C os, BitVec.ofNat 64 0, BitVec.ofNat 64 g.slots.length, Enc.idxW x.cv.name, BitVec.ofNat 64 0] (by decide) rfl (by decide) hc.fms
+    ⟨by simp +decide [sev, Env.get_cons, Env.get, cgrParams, ctxEnv], rfl, by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], rfl, trivial⟩
+    (PostFMS (ctxH C C.H) g.slots x.cv.name 0 0 s)
     (fun _ w s' H' => H' = C.H ∧ s' = s ∧ ∃ r, w = BitVec.ofNat 64 r ∧ ∃ hr : r < g.slots.length,
-      isHitC x.cv.name g.slots[r] = true ∧ ∀ k (hk : k < g.slots.length), k < r → isHitC x.cv.name g.slots[k] = false)
+      isHitC 0 x.cv.name g.slots[r] = true ∧ ∀ k (hk : k < g.slots.length), k < r → isHitC 0 x.cv.name g.slots[k] = false)
     (fun a w s' st ⟨h0, r, h1, h2, h3, h4, h5, h6⟩ => ⟨C.H, List.prefix_refl _,
       ⟨rfl, h0, r, h1, h3, h4, fun k hk h => h5 k hk (Nat.zero_le _) h⟩, h6⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu fmsParams _ rfl hlk)
-      (fms_spec C hc.fms g.slots os (by omega) x.cv.name hcb C.H hsb g.slots.length 0 s (by omega) (by omega)))
+      (fms_spec C hc.fms g.slots os (by omega) x.cv.name 0 (by decide) hcb C.H hsb g.slots.length 0 s (by omega) (by omega)))
     (fun _ w s1 H1 hp1 ⟨eH, es, r, hw, hr, hh, hb⟩ => ?_)
   subst eH es hw
-  have e : ∀ p : Nat × ClassSlot → Bool, (∀ q, p q = isHitC x.cv.name q.2) →
+  have e : ∀ p : Nat × ClassSlot → Bool, (∀ q, p q = isHitC 0 x.cv.name q.2) →
       ((List.range g.slots.length).zip g.slots).find? p = some (r, g.slots[r]) :=
-    fun p hp => find_zip_hit g.slots x.cv.name p hp r hr hh hb
+    fun p hp => find_zip_hit g.slots 0 x.cv.name p hp r hr hh hb
   rw [e _ (fun q => by rcases q with ⟨_, sl⟩; cases sl <;> rfl)]
   simp only
   refine specR_callNIH (C := ctxH C C.H) cgrX fOpenFvars ofParams [vv cgrNf, vv cgrTd, vv cgrRp]

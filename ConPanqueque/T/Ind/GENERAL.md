@@ -462,3 +462,68 @@ What still hangs at k > 1 (ordered plan, continuing §9's):
 6. **`cbk`**: drop `nm0 = 1`, `nrl = 1`, `ncl = 1`, `nrc = 1`, `rc0 = 0`, slot-0 motive, member-0 class, `tgt = 0`;
    restate `cbk_spec`/`CBKRun`/`CBKFacts` over all members (`CPSMemberOK`); `cbkInst`'s table branch over a list.
 7. **Front end** (`Front/IndLine*`, `IndBoundsP`/`indRun_of_front`), §1 "Front end".
+
+## 11. Mutual blocks, round 5: the class block in the generator, kinds carry the class (progress log)
+
+Every step ends with a green build. Still nothing accepts a k > 1 block end to end; `cbk` still tests `ncl = 1`
+and the generator's per-class core (`ccl`/`cco`, `gb`) still works on class 0.
+
+1. **The class block reaches `ga`** (§10 plan item 1). `cbk` passes its `cbk_oms` (the pass's `TMBlk`) and the
+   class count `cbk_ncl` to `ctb` (new trailing parameters `ctb_oms`, `ctb_ncl`), which passes them on to `ga`
+   (`ga_oms`, `ga_ncl`). `ga` calls `fCns [oms, 0, ncl, ot, nt, olp, om, pp, npp]` (`cns_spec`, `classesNfs` over
+   the class block) instead of `fTmn` on class 0's unpacked fields; `GACodes.tmn` became `GACodes.cns`.
+   `ctb_spec` takes `oms` and `hT : TMBlk C C.H oms q.params q.cls` (the `q.cls = [m]` premise stays: `ccl` and `gb`
+   still read class 0); `ga_spec` takes `hT : TMBlk C C.H oms m.pfvs [m]` (derived in `ctb_spec` from `hcls` and the
+   block's `pfvs` field). `genRecA` is stated for any class list `cls`, and `genRecCheck_eq` holds for every
+   unnested block with `p.k ≠ 0` and every class at a member (`∀ m ∈ cls, m.member.isSome`); `p.k = 1` is gone.
+   The statements of `cbk_spec` and `main_pipeline_prelude` are unchanged.
+2. **The kinds word carries the class** (first half of §10 plan item 2). `cfKindW (.recursive c tele)` is now
+   `(tele + 1) + 2 ^ 32 * c` (was `tele + 1`), and `KindsOK` allows any class: every kind is `.ordinary` or
+   `.recursive c tele` with `tele + 1 < 2 ^ 32` and `c < 2 ^ 24` (was: class `0` only).
+   * `ihk` (`ClassCtorRec`, "ihsAtField") returns `0` (no inductive hypothesis at the field), `c + 2` (exactly
+     one, at class `c < 2 ^ 24`) or `1` (anything else); `ihkVal` and its lemmas (`ihkVal_cons`, `ihkVal_le`,
+     `ihkVal_zero`, `ihkVal_hit`, which replaced `ihkVal_one`) follow. `PostIK` bounds the answer by `2 ^ 24 + 2`.
+   * `cfs` ("classFieldsOf") hangs at an answer below `2` on an occurring field and otherwise writes
+     `(|bs| + 1) + (K - 2) * 2 ^ 32` (`kindW_word`), so `cfs_spec` answers the twin's `.recursive c |bs|` for the
+     hit's class `c` (was: a hit at a class other than `0` hung here).
+   * The three readers of the kinds word, `cfg` (`K53`, `classFieldsAgree`), `mih` (`GenPre`, `minorTy.ihsGo`) and
+     `cgo` (`GenRule`, `classGenRule.callsGo`), test the word with `guardP _ 32` right after its `≠ 0` test: a word
+     at class `c ≠ 0` hangs there (they still read class 0's record), class `0` decodes as before. So the hang
+     moved from the producer to the consumers, which is where plan item 3 below replaces it by the class's record.
+   No statement above `ccl` changed (`CCRep` keeps `KindsOK`).
+3. **The minor-slot lookups take the class** (prerequisite of `cco` at class `c`). `isHitC c cn` (was: class `0`
+   built in), `cmsHit l c cn`, `firstIhs c cn`, `cmsHits_cons`/`cmsHits_props`/`classMinorSlot_one rd c cn` (the twin's
+   `classMinorSlot rd c cn` at any class). The three slot walks gained a trailing class parameter and compare the slot's
+   class with it instead of `0`: `cms` (`ClassCtor`, "minorSlotCount", `cms_spec … cn cc hcc`), `cmi` (`ClassCtorRec`,
+   "minorSlotIhs", `cmi_spec`, `PostCMI … cn cc`) and `fms` (`GenRule`, "findMinorSlot", `fms_spec`, `PostFMS … cn cc`;
+   `find_zip_hit` takes the class). The callers still pass class `0`: `cco` (`fCms`/`fCmi` with `.const 0`) and `cgr`
+   (`fFms` with `.const 0`), so no statement above them changed.
+
+Code table regenerated after the steps above (`fCns` new; the other changes keep every procedure name, so the table
+is otherwise unchanged; `check_code_names.py`: the usual 6 BODIES warnings). Full `lake build` green (0 errors, no
+`sorry`), `main_pipeline_prelude` unchanged.
+
+What still hangs at k > 1 (ordered plan, continuing §10's; items 1 and the kinds/slot halves of 2 are done):
+1. **`cfg` over the class list** (`K53`): `cfg_spec` still takes `p.members = [ms0]` and answers
+   `classFieldsAgree … [ms0.cvT.type] [m] …`. Restate it over `fts = p.formers.map (·.type)` (as `tcc` already is,
+   §10 step 3), `p.lps`, and a class list `ms` with `ms[0]? = some m` (the guard admits only class-0 hypotheses, so
+   `targetMajorAt ms 0 = m` is the only class it reads); its `ms0.cvT.type`/`ms0.cvT.name` parameters (`cfgTy0`,
+   `cfgNm`, passed on to `cnd`/`k53`) then become `p.formers`/`p.lps`-based, as `k53Ms` already is.
+2. **`cco`/`ccl` at class `c`, then `ccs` (`classesCtors`) over the class block** (`ClassCtorRec`): `cco` takes the
+   class index (passed on to `fCms`/`fCmi`, which are ready) and class `c`'s `ds` (for `instPis`) and `member` (for
+   `targetCtorAt`) besides class 0's fields (for `cfg`); `cco_spec` answers `classCtorOf … ms c ctor` with
+   `ms[c]? = some mc`, `ms[0]? = some m0`. `ccl` loops `cco` over class `c`'s constructors; a new `ccs` loops `ccl`
+   over the `TMBlk` (per class its `CtorsRep`, `ds`, `member`), answering `classesCtors … ms 0 ms` as a block of
+   `PRep … CCRep` blocks; `ga` calls `ccs` instead of `ccl` and `cmc` compares against the summed lengths.
+3. **Readers of the IH's class** (`mih`/`mty` in `GenPre`, `cgo` in `GenRule`, `cfg` in `K53`): replace the
+   `guardP _ 32` hang by decoding `c = w >>> 32`, `tele = (w &&& (2^32-1)) - 1` and reading class `c`'s record
+   (motive index of class `c` = `motVar`, counting the motives before the slot; `ihParts g c`).
+4. **`gb` per recursor** (`GenRecCheck`, `FeR`, `RuleCheck`, `GenMotive`): `ClassGen` with `cls`/`ctors` lists
+   (`gb_spec` takes `g.cls = [m]`, `ctors = [xs]`, `recs = [rc]`, `recCls = [0]`, slot 0 a motive):
+   `classRecTysOk` loop (`classRecTyOk` with `rd.recCls[r]`), a motive per class, `classFeR` as a loop of the
+   one-recursor push and a loop of pops, `classRecsRulesOk` per recursor; `PostGR` over the output list. Then
+   `ga_spec`/`ctb_spec` drop `q.cls = [m]`/`p.recs = [rc]` (the class block is already threaded, step 1).
+5. **`cts`** (`BlockTail`): `streamKCheck`/`streamRecsCheck`/`blockRecInfosTF` over the output list.
+6. **`cbk`**: drop `nm0 = 1`, `nrl = 1`, `ncl = 1`, `nrc = 1`, `rc0 = 0`, slot-0 motive, member-0 class, `tgt = 0`;
+   `cbk_spec`/`CBKRun`/`CBKFacts` over all members (`CPSMemberOK`); `cbkInst`'s table branch over a list.
+7. **Front end** (`Front/IndLine*`, `IndBoundsP`/`indRun_of_front`), §1 "Front end".
