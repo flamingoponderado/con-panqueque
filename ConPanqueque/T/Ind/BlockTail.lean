@@ -172,9 +172,10 @@ def ctbNcl := ofString "ctb_ncl"
 def ctbX := ofString "ctb_x"
 def ctbR := ofString "ctb_r"
 def ctbK := ofString "ctb_k"
+def ctbOrc := ofString "ctb_orc"
 def fCtb := ofString "checkBlockTail"
 
-def ctbParams : List MlS := [ctbSh, ctbOrr, ctbPm, ctbOt, ctbNt, ctbOq, ctbNq, ctbLv, ctbOlp, ctbTy0, ctbPp, ctbNpp, ctbPa, ctbNd, ctbNm, ctbOsl, ctbNsl, ctbOm, ctbNc, ctbNi, ctbInd, ctbNpc, ctbNP, ctbRs, ctbQ, ctbOms, ctbNcl]
+def ctbParams : List MlS := [ctbSh, ctbOrr, ctbPm, ctbOt, ctbNt, ctbOq, ctbNq, ctbLv, ctbOlp, ctbTy0, ctbPp, ctbNpp, ctbPa, ctbNd, ctbNm, ctbOsl, ctbNsl, ctbOm, ctbNc, ctbNi, ctbInd, ctbNpc, ctbNP, ctbRs, ctbQ, ctbOms, ctbNcl, ctbOrc]
 def ctbLocals : List MlS := [ctbX, ctbR, ctbK, lJ0]
 
 def ctbBody (C : Ctx) : ProgHOL 64 := prologue ctbLocals
@@ -182,7 +183,7 @@ def ctbBody (C : Ctx) : ProgHOL 64 := prologue ctbLocals
   (.seq (.call (some (some (.local, ctbX), none)) fBsa [vv ctbOm, .const 0, vv ctbK, vv ctbNP, vv ctbRs])
   (.seq (.call (some (some (.local, ctbX), none)) fCca [vv ctbOm, .const 0, vv ctbK, vv ctbNP])
   (flushCode C (flushRegions false)
-  (.seq (.call (some (some (.local, ctbR), none)) fGa [vv ctbSh, vv ctbOrr, vv ctbPm, vv ctbOt, vv ctbNt, vv ctbOq, vv ctbNq, vv ctbLv, vv ctbOlp, vv ctbTy0, vv ctbPp, vv ctbNpp, vv ctbPa, vv ctbNd, vv ctbNm, vv ctbOsl, vv ctbNsl, vv ctbOm, vv ctbNc, vv ctbNi, vv ctbInd, vv ctbNpc, vv ctbOms, vv ctbNcl])
+  (.seq (.call (some (some (.local, ctbR), none)) fGa [vv ctbSh, vv ctbOrr, vv ctbPm, vv ctbOt, vv ctbNt, vv ctbOq, vv ctbNq, vv ctbLv, vv ctbOlp, vv ctbTy0, vv ctbPp, vv ctbNpp, vv ctbPa, vv ctbNd, vv ctbNm, vv ctbOsl, vv ctbNsl, vv ctbOm, vv ctbNc, vv ctbNi, vv ctbInd, vv ctbNpc, vv ctbOms, vv ctbNcl, vv ctbOrc])
   (.seq (.call (some (some (.local, ctbX), none)) fCts [vv ctbR, vv ctbOrr, vv ctbOq, vv ctbNq, vv ctbSh, vv ctbQ])
     (.return (vv ctbX))))))))
 
@@ -463,7 +464,8 @@ theorem ctb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     (hsl0 : q.rd.slots[0]? = some (.motive k0))
     (om : Nat) (hM : PtrsRep C C.H om (MemberRep C C.H) p.members) (hnk : p.nP + p.k < 2 ^ 56)
     (hni : m.nIdx < 2 ^ 56) (hnpc : m.nPc < 2 ^ 62) (hni0 : ms0.nIdx < 2 ^ 56)
-    (hrc0 : q.rd.recCls = [0]) (hnest : blockNestedBit p q.kinds = false)
+    (hrc0 : q.rd.recCls = [0]) (orc : Nat) (hRC : BlkAt C.H orc (q.rd.recCls.map (BitVec.ofNat 64)))
+    (hnest : blockNestedBit p q.kinds = false)
     (oms : Nat) (hT : TMBlk C C.H oms q.params q.cls) (Q : List IProjTable) (hQ : Q.length ≤ 1) (oQ : Nat)
     (hqQ : PRep C C.H oQ (fun H o t => TblVRep C H o t) Q)
     (hden : ∀ t ∈ Q, ∃ ks : List ConLeche.Name, ∃ hkl : ks.length = t.levelParams.length,
@@ -481,7 +483,8 @@ theorem ctb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
         Enc.idxW ms0.cvT.type, cellA C pp, BitVec.ofNat 64 m.pfvs.length, cellA C pa, BitVec.ofNat 64 m.ds.length,
         Enc.idxW ms0.cvT.name, cellA C osl, BitVec.ofNat 64 q.rd.slots.length, cellA C om, BitVec.ofNat 64 p.numCtors,
         BitVec.ofNat 64 m.nIdx, Enc.idxW m.ind, BitVec.ofNat 64 m.nPc] ++
-        [BitVec.ofNat 64 p.nP, Enc.idxW p.resSort, cellA C oQ, cellA C oms, BitVec.ofNat 64 q.cls.length]))) (ctbBody C) s
+        [BitVec.ofNat 64 p.nP, Enc.idxW p.resSort, cellA C oQ, cellA C oms, BitVec.ofNat 64 q.cls.length,
+          cellA C orc]))) (ctbBody C) s
       (checkBlockTail mode block q Q) (PostCB C (consBlockCtors p.nP p.ctorGroups C.fe)) := by
   refine specR_prologue (postCB_locals C _) (ctb_none C _) ?_
   have hTm : TMBlk C C.H oms m.pfvs [m] := by
@@ -551,12 +554,12 @@ theorem ctb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   refine specR_callNC (C := C2) ctbR fGa gaParams
     [vv ctbSh, vv ctbOrr, vv ctbPm, vv ctbOt, vv ctbNt, vv ctbOq, vv ctbNq, vv ctbLv, vv ctbOlp, vv ctbTy0,
       vv ctbPp, vv ctbNpp, vv ctbPa, vv ctbNd, vv ctbNm, vv ctbOsl, vv ctbNsl, vv ctbOm, vv ctbNc, vv ctbNi,
-      vv ctbInd, vv ctbNpc, vv ctbOms, vv ctbNcl] (gaBody C) [cellA C osh, cellA C orr, cellA C opm, cellA C ot,
+      vv ctbInd, vv ctbNpc, vv ctbOms, vv ctbNcl, vv ctbOrc] (gaBody C) [cellA C osh, cellA C orr, cellA C opm, cellA C ot,
         BitVec.ofNat 64 q.tbl.length, cellA C oq, BitVec.ofNat 64 m.ctors.length, Enc.idxW m.lvls, cellA C olp,
         Enc.idxW ms0.cvT.type, cellA C pp, BitVec.ofNat 64 m.pfvs.length, cellA C pa, BitVec.ofNat 64 m.ds.length,
         Enc.idxW ms0.cvT.name, cellA C osl, BitVec.ofNat 64 q.rd.slots.length, cellA C om, BitVec.ofNat 64 p.numCtors,
-        BitVec.ofNat 64 m.nIdx, Enc.idxW m.ind, BitVec.ofNat 64 m.nPc, cellA C oms, BitVec.ofNat 64 1] (by decide) rfl (by decide) (by ctx_tr hc.ga.self)
-    ⟨by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv, hcls], trivial⟩
+        BitVec.ofNat 64 m.nIdx, Enc.idxW m.ind, BitVec.ofNat 64 m.nPc, cellA C oms, BitVec.ofNat 64 1, cellA C orc] (by decide) rfl (by decide) (by ctx_tr hc.ga.self)
+    ⟨by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv, hcls], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], trivial⟩
     (PostGR { m with nfs := q.tbl.filter (fun e => m.ctors.any (·.1.name == e.ctor)) } C2)
     (fun r w s' C' => ∃ EH envM H o, C' = ctxNew C2 r.1 EH envM H ∧ C2.EH <+: EH ∧ C2.H <+: H ∧
       CtxOK (ctxNew C2 r.1 EH envM H) ∧ TblGate r.1 ∧ FlagsOK r.1 ∧ LitsPinned r.1 C2.pins ∧
@@ -570,7 +573,7 @@ theorem ctb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
         q.tbl ot (pRep_mono hpC2 (fun _ _ h => nfRep_mono hpC2 h) htb) htl hel m hmm oq (ctorsRep_mono hpC2 hcr) hcsl
         hnfc olp (eblk_mono hlp hpC2) pp (blkAt_mono hpf hpC2) hppl pa (blkAt_mono hA hpC2) hdl q.rd osl
         (slotBlk_mono hpC2 hsb) hsl hcb k0 hsl0 om (ptrsRep_mono hpC2 (fun _ _ h => memberRep_mono hpC2 h) hM) hnk hni hnpc
-        hrc0 oms (tmBlk_mono hpC2 hTm) s3 hu.pins (fun g0 cvRis s7 pre s1' s' cv hga hpb h => hcvd s3 g0 cvRis s7 pre s1' s' cv hpre3 hga hpb h)))
+        hrc0 orc (blkAt_mono hRC hpC2) oms (tmBlk_mono hpC2 hTm) s3 hu.pins (fun g0 cvRis s7 pre s1' s' cv hga hpb h => hcvd s3 g0 cvRis s7 pre s1' s' cv hpre3 hga hpb h)))
     (fun r w s4 C3 ⟨EH3, envM3, H3, o, eC, hpE3, hp3, hok3, hg3, hF3, hL3, hf3, ht3, cv, rhss, orh, oc, er, ew, ho1, ho2,
       hrh, hcv⟩ => ?_)
   subst eC ew

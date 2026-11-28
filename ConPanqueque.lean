@@ -557,6 +557,11 @@ import ConPanqueque.T.Ind.GenRule
 import ConPanqueque.T.Ind.RuleCheck
 import ConPanqueque.T.Ind.FeR
 import ConPanqueque.T.Ind.GenRecCheck
+import ConPanqueque.T.Ind.RecTys
+import ConPanqueque.T.Ind.RecRules
+import ConPanqueque.T.Ind.RecPush
+import ConPanqueque.T.Ind.RecNames
+import ConPanqueque.T.Ind.RecGen
 import ConPanqueque.T.Ind.GenRecHead
 import ConPanqueque.T.Ind.StreamK
 import ConPanqueque.T.Ind.StreamRecsAll

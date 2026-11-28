@@ -387,9 +387,10 @@ def gaNcl := ofString "ga_ncl"
 def gaCss := ofString "ga_css"
 def gaSum := ofString "ga_sum"
 def gaFts := ofString "ga_fts"
+def gaOrc := ofString "ga_orc"
 def fGa := ofString "genRecCheck"
 
-def gaParams : List MlS := [gaSh, gaOrr, gaPm, gaOt, gaNt, gaOq, gaNq, gaLv, gaOlp, gaTy0, gaPp, gaNpp, gaPa, gaNd, gaNm, gaOsl, gaNsl, gaOm, gaNc, gaNi, gaInd, gaNpc, gaOms, gaNcl]
+def gaParams : List MlS := [gaSh, gaOrr, gaPm, gaOt, gaNt, gaOq, gaNq, gaLv, gaOlp, gaTy0, gaPp, gaNpp, gaPa, gaNd, gaNm, gaOsl, gaNsl, gaOm, gaNc, gaNi, gaInd, gaNpc, gaOms, gaNcl, gaOrc]
 def gaLocals : List MlS := [gaX, gaQ, gaLg, gaRsrt, gaNp, gaNk, gaCs, gaNcs, gaMc, gaEl, gaEv, gaRs, gaK, gaOrl, gaNrl,
   gaCss, gaSum, gaFts]
 
@@ -416,7 +417,7 @@ def gaBody (C : Ctx) : ProgHOL 64 := prologue gaLocals
   (.seq (.call (some (some (.local, gaEv), none)) fElv [vv gaLg, vv gaEl])
   (alloc2 C gaFts (.const 1) (vv gaTy0)
   (.seq (.call (some (some (.local, gaRs), none)) fGb [vv gaPm, vv gaOsl, vv gaNsl, vv gaNp, vv gaCs, vv gaNcs, vv gaNi,
-      vv gaEv, vv gaOrr, vv gaOms, vv gaCss, vv gaFts])
+      vv gaEv, vv gaOrr, vv gaOms, vv gaCss, vv gaFts, vv gaOrl, vv gaOrc])
   (.return (vv gaRs))))))))
   hang)))))))))))))))
 
@@ -483,7 +484,8 @@ theorem ga_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
     (hsl0 : rd.slots[0]? = some (.motive k0))
     (om : Nat) (hM : PtrsRep C C.H om (MemberRep C C.H) p.members) (hnk : p.nP + p.k < 2 ^ 56)
     (hni : m.nIdx < 2 ^ 56) (hnpc : m.nPc < 2 ^ 62)
-    (hrc0 : rd.recCls = [0]) (oms : Nat) (hT : TMBlk C C.H oms m.pfvs [m]) (s : AState) (hpins : s.pins = C.pins)
+    (hrc0 : rd.recCls = [0]) (orc : Nat) (hRC : BlkAt C.H orc (rd.recCls.map (BitVec.ofNat 64)))
+    (oms : Nat) (hT : TMBlk C C.H oms m.pfvs [m]) (s : AState) (hpins : s.pins = C.pins)
     (hcvd : ∀ (g0 : ClassGen) (cvRis : List IConstantVal) (s7 : AState) (pre : List EIdx) s1 s' cv,
       gaPre mode C.fe p params tbl rd m block s = .ok ((g0, cvRis), s7) → g0.prefixBinders s7 = .ok (some pre, s1) →
       classRecTyOk mode C.fe { g0 with pre := pre } p.k rc rc.cvR 0 s1 = .ok (cv, s') →
@@ -492,7 +494,7 @@ theorem ga_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
         BitVec.ofNat 64 tbl.length, cellA C oq, BitVec.ofNat 64 m.ctors.length, Enc.idxW m.lvls, cellA C olp,
         Enc.idxW ms0.cvT.type, cellA C pp, BitVec.ofNat 64 m.pfvs.length, cellA C pa, BitVec.ofNat 64 m.ds.length,
         Enc.idxW ms0.cvT.name, cellA C osl, BitVec.ofNat 64 rd.slots.length, cellA C om, BitVec.ofNat 64 p.numCtors,
-        BitVec.ofNat 64 m.nIdx, Enc.idxW m.ind, BitVec.ofNat 64 m.nPc, cellA C oms, BitVec.ofNat 64 1])) (gaBody C) s
+        BitVec.ofNat 64 m.nIdx, Enc.idxW m.ind, BitVec.ofNat 64 m.nPc, cellA C oms, BitVec.ofNat 64 1, cellA C orc])) (gaBody C) s
       (genRecCheck mode C.fe p false params tbl rd [m] block) (PostGR { m with nfs := tbl.filter (fun e => m.ctors.any (·.1.name == e.ctor)) } C) := by
   refine specR_prologue (postGR_locals _ C) (ga_none C _) ?_
   have hk : p.k ≠ 0 := by simp [BlockShape.k, hms]
@@ -515,7 +517,7 @@ theorem ga_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
     (by simp [sev, Env.get_cons]; rfl) ?_
   have hrl : rc.cvR.levelParams.length < 2 ^ 59 := hlr rc (by rw [hrecs]; exact List.mem_cons_self ..)
   have hcsrC : CSRCodes mode C :=
-    ⟨hc.gcc, hc.trp.pim, hc.gb.cro.k, hc.gb.cro.ac, hc.ccv, hc.csr⟩
+    ⟨hc.gcc, hc.trp.pim, hc.gb.crs.cro.k, hc.gb.crs.cro.ac, hc.ccv, hc.csr⟩
   refine specR_callNIH (C := ctxH C H1) gaX fCsr csrParams [vv gaOrl, .const 0, vv gaNrl] (csrBody C)
     [cellA C orl, BitVec.ofNat 64 0, BitVec.ofNat 64 p.recs.length] (by decide) rfl (by decide) hc.csr
     ⟨by simp +decide [sev, Env.get_cons], rfl, by simp +decide [sev, Env.get_cons], trivial⟩
@@ -715,14 +717,16 @@ theorem ga_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
   have hpC9 : C.H <+: H9 := hpC7.trans hp8'
   have hp9 : H5 <+: H9 := hp7'.trans hp8'
   refine specR_callNC (C := ctxH C H9) (D := ctxLocals ++ gaLocals) gaRs fGb gbParams
-    [vv gaPm, vv gaOsl, vv gaNsl, vv gaNp, vv gaCs, vv gaNcs, vv gaNi, vv gaEv, vv gaOrr, vv gaOms, vv gaCss, vv gaFts] gbBody
+    [vv gaPm, vv gaOsl, vv gaNsl, vv gaNp, vv gaCs, vv gaNcs, vv gaNi, vv gaEv, vv gaOrr, vv gaOms, vv gaCss, vv gaFts,
+      vv gaOrl, vv gaOrc] gbBody
     [cellA C opm, cellA C osl, BitVec.ofNat 64 rd.slots.length, BitVec.ofNat 64 p.nP, cellA C ocs,
       BitVec.ofNat 64 xs.length, BitVec.ofNat 64 m.nIdx, Enc.idxW elim, cellA C orr, cellA C oms, cellA C ocss,
-      cellA C H8.length] (by decide) rfl (by decide)
+      cellA C H8.length, cellA C orl, cellA C orc] (by decide) rfl (by decide)
     hc.gb.self
     ⟨by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons],
       by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv],
-      by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons]; rfl, trivial⟩
+      by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons]; rfl, by simp +decide [sev, Env.get_cons],
+      by simp +decide [sev, Env.get_cons, Env.get, gaParams, ctxEnv], trivial⟩
     (PostGR { m with nfs := tbl.filter (fun e => m.ctors.any (·.1.name == e.ctor)) } (ctxH C H9))
     (fun r w s' C' => ∃ EH envM H o, C' = ctxNew (ctxH C H9) r.1 EH envM H ∧ C.EH <+: EH ∧ H9 <+: H ∧
       CtxOK (ctxNew (ctxH C H9) r.1 EH envM H) ∧ TblGate r.1 ∧ FlagsOK r.1 ∧ LitsPinned r.1 C.pins ∧
@@ -738,7 +742,8 @@ theorem ga_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
         (pRep_mono hp9 (fun _ _ => ccRep_mono hp9) hcs) hxnf hni (by show p.nP < _; omega)
         (fun sl h c C' ihs e => (hcb sl h c C' ihs e).1) oms
         (tmBlkR_mono hpC9 (tmBlkR_nfs (fun m => tbl.filter (fun e => m.ctors.any (·.1.name == e.ctor))) (tmBlkR_of_tmBlk hT)))
-        ocss H8.length (pRep_mono hp9 (fun _ _ h => pRep_mono hp9 (fun _ _ => ccRep_mono hp9) h) hcss) hftb s7
+        ocss H8.length (pRep_mono hp9 (fun _ _ h => pRep_mono hp9 (fun _ _ => ccRep_mono hp9) h) hcss) hftb
+        orl (ptrsRep_mono hpC9 (fun _ _ => recRep_mono hpC9) hRl) orc (by rw [← hrc0]; exact blkAt_mono hRC hpC9) s7
         (fun pre s1 s' cv hpb h => hcvd _ [rc.cvR] s7 pre s1 s' cv hgaPre hpb h)))
     (fun r w s8 C8 ⟨EH, envM, H, o, eC, h1, h2, h3, h4⟩ => ?_)
   subst eC

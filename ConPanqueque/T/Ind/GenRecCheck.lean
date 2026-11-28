@@ -1,4 +1,6 @@
 import ConPanqueque.T.Ind.FeR
+import ConPanqueque.T.Ind.RecTys
+import ConPanqueque.T.Ind.RecGen
 
 /-!
 # `genRecCheck` assembled (one member, one recursor, one class)
@@ -48,6 +50,33 @@ theorem classRecTyOk_shape {mode : ConLeche.CheckMode} {fe : IFEnv} {g : ClassGe
   · obtain ⟨_, s2, h2', -⟩ := AM.bind_ok h2
     exact (AM.fail_ok h2').elim
 
+theorem classRecTysOk_one {mode : ConLeche.CheckMode} {fe : IFEnv} {g : ClassGen} {k : Nat} {rc : RecShape}
+    {cv : IConstantVal} {c : Nat} {s s' : AState} {xs : List IConstantVal}
+    (h : classRecTysOk mode fe g k [rc] [cv] [c] s = .ok (xs, s')) :
+    ∃ x, classRecTyOk mode fe g k rc cv c s = .ok (x, s') ∧ xs = [x] := by
+  simp only [classRecTysOk] at h
+  obtain ⟨x, s1, h1, h⟩ := AM.bind_ok h
+  obtain ⟨xs', s2, h2, h⟩ := AM.bind_ok h
+  obtain ⟨rfl, rfl⟩ := AM.pure_ok h
+  obtain ⟨rfl, rfl⟩ := AM.pure_ok h2
+  exact ⟨x, h1, rfl⟩
+
+theorem genRules_out_one {mode : ConLeche.CheckMode} {fe : IFEnv} {p : BlockShape} {g : ClassGen}
+    {cv : IConstantVal} {m : TargetMajor} (hcls : g.cls = [m]) {s s' : AState}
+    {r : IFEnv × List (IConstantVal × TargetMajor × List EIdx)}
+    (h : genRules mode fe p g [0] [cv] s = .ok (r, s')) : ∃ rhss, r.2 = [(cv, m, rhss)] := by
+  rw [genRules_eq] at h
+  obtain ⟨out, s1, h1, h2⟩ := AM.bind_ok h
+  obtain ⟨_, s3, -, h4⟩ := AM.bind_ok h2
+  obtain ⟨rfl, -⟩ := AM.pure_ok h4
+  unfold gprM at h1
+  obtain ⟨_, s5, -, h6⟩ := AM.bind_ok h1
+  simp only [List.zip_cons_cons, List.zip_nil_right, classRecsRulesOk, hcls, targetMajorAt, List.getElem?_cons_zero,
+    pure_bind, bind_assoc] at h6
+  obtain ⟨rhss, s7, -, h8⟩ := AM.bind_ok h6
+  obtain ⟨rfl, -⟩ := AM.pure_ok h8
+  exact ⟨rhss, rfl⟩
+
 def gbOpp := ofString "gb_opp"
 def gbOsl := ofString "gb_osl"
 def gbNsl := ofString "gb_nsl"
@@ -71,10 +100,15 @@ def gbRs := ofString "gb_rs"
 def gbOms := ofString "gb_oms"
 def gbCss := ofString "gb_css"
 def gbFts := ofString "gb_fts"
+def gbOrl := ofString "gb_orl"
+def gbOrc := ofString "gb_orc"
+def gbNr := ofString "gb_nr"
+def gbCs := ofString "gb_cs"
+def gbT := ofString "gb_t"
 def fGb := ofString "genRecB"
 
-def gbParams : List MlS := [gbOpp, gbOsl, gbNsl, gbNp, gbOc, gbNc, gbNi, gbEl, gbOrr, gbOms, gbCss, gbFts]
-def gbLocals : List MlS := [gbPr, gbPl, gbN0, gbCv, gbRs]
+def gbParams : List MlS := [gbOpp, gbOsl, gbNsl, gbNp, gbOc, gbNc, gbNi, gbEl, gbOrr, gbOms, gbCss, gbFts, gbOrl, gbOrc]
+def gbLocals : List MlS := [gbPr, gbPl, gbN0, gbCv, gbRs, gbNr, gbCs, gbT]
 
 def gbBody : ProgHOL 64 := prologue gbLocals
   (.seq (.call (some (some (.local, gbPr), none)) fPb
@@ -82,17 +116,20 @@ def gbBody : ProgHOL 64 := prologue gbLocals
   (.seq (.assign .local gbPl (.load .one (vv gbPr)))
   (.ite (.cmp .lower (vv gbPl) (.const (BitVec.ofNat 64 (2 ^ 56))))
   (.seq (.assign .local gbN0 (.op .add [vv gbNp, vv gbNsl]))
-  (.seq (.call (some (some (.local, gbCv), none)) fCro
-      [vv gbOrr, vv gbN0, vv gbPr, vv gbPl, vv gbNi, vv gbNp, vv gbOms, vv gbFts, vv gbOsl])
-  (.seq (.call (some (some (.local, gbRs), none)) fCfr
-      [vv gbCv, vv gbOrr, vv gbOc, vv gbNc, vv gbPl, vv gbNp, vv gbOpp, vv gbOsl, vv gbPr, vv gbN0, vv gbOms])
-    (.return (vv gbRs)))))
+  (.seq (.assign .local gbNr (.load .one (vv gbOrl)))
+  (.seq (.call (some (some (.local, gbCs), none)) fCrs
+      [vv gbOrl, .const 0, vv gbNr, vv gbOrc, vv gbN0, vv gbPr, vv gbPl, vv gbNp, vv gbOms, vv gbFts, vv gbOsl])
+  (.seq (.assign .local gbCv (.load .one (.op .add [vv gbCs, .const 8])))
+  (.seq (.call (some (some (.local, gbRs), none)) fCfk
+      [vv gbCs, vv gbOrl, vv gbOrc, vv gbCss, vv gbOms, vv gbPl, vv gbNp, vv gbOpp, vv gbOsl, vv gbPr, vv gbN0])
+  (.seq (.assign .local gbT (.load .one (.op .add [vv gbRs, .const 8])))
+    (.return (vv gbT))))))))
   hang)))
 
 structure GBCodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
   pb : PBCodes C
-  cro : CROCodes mode C
-  cfr : CFRCodes mode C
+  crs : CRSCodes mode C
+  cfk : CFKCodes mode C
   self : C.code.lookup fGb = some (gbParams.map (fun p => (p, ShapeHOL.one)), gbBody, .one)
 
 section
@@ -125,13 +162,14 @@ theorem gb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
     (hcb : ∀ sl ∈ g0.slots, ∀ c C' ihs, sl = .minor c C' ihs → c < 2 ^ 63)
     (oms : Nat) (hT : TMBlkR C C.H oms g0.cls) (ocss fts : Nat)
     (hcss : PRep C C.H ocss (fun H o xs => PRep C H o (fun H o cc => CCRep C H o cc) xs) g0.ctors)
-    (hfts : BlkAt C.H fts (g0.formerTys.map Enc.idxW)) (s : AState)
+    (hfts : BlkAt C.H fts (g0.formerTys.map Enc.idxW)) (orl : Nat) (hR : PtrsRep C C.H orl (RecRep C C.H) p.recs)
+    (orc : Nat) (hRC : BlkAt C.H orc (([0] : List Nat).map (BitVec.ofNat 64))) (s : AState)
     (hcvd : ∀ (pre : List EIdx) s1 s' cv, g0.prefixBinders s = .ok (some pre, s1) →
       classRecTyOk mode C.fe { g0 with pre := pre } p.k rc rc.cvR 0 s1 = .ok (cv, s') →
       (denoteE s'.store cv.type).isSome = true) :
     SpecR (σ := σ) (Pre C s (gbParams.zip [cellA C opp, cellA C osl, BitVec.ofNat 64 g0.slots.length,
         BitVec.ofNat 64 g0.nP, cellA C oc, BitVec.ofNat 64 ccs.length, BitVec.ofNat 64 m.nIdx, Enc.idxW g0.elim,
-        cellA C orr, cellA C oms, cellA C ocss, cellA C fts])) gbBody s (genRecB mode C.fe p g0 [rc.cvR] [0]) (PostGR m C) := by
+        cellA C orr, cellA C oms, cellA C ocss, cellA C fts, cellA C orl, cellA C orc])) gbBody s (genRecB mode C.fe p g0 [rc.cvR] [0]) (PostGR m C) := by
   refine specR_prologue (postGR_locals m C) (gb_none C _) ?_
   unfold genRecB
   refine specR_callNIH (C := C) gbPr fPb pbParams
@@ -169,26 +207,48 @@ theorem gb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
     (fun _ => ?_) (fun h => absurd h (by decide))
   refine specR_assignI gbN0 _ (BitVec.ofNat 64 (g0.nP + g0.slots.length)) (by decide)
     (by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv]; rw [BitVec.ofNat_add]) ?_
-  rw [hrecs]
-  simp only [classRecTysOk, bind_assoc, pure_bind]
+  have ehr : p.recs.map (·.cvR) = [rc.cvR] := by simp [hrecs]
+  refine UD.specR_heapLoadI' (C := ctxH C H1) gbNr (vv gbOrl) orl _ (get_prefix hR.1 hp1') (by decide)
+    (by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv]; rfl) ?_
   have hok1 := ctxOK_H hok H1
-  refine specR_callNIH (C := ctxH C H1) gbCv fCro croParams
-    [vv gbOrr, vv gbN0, vv gbPr, vv gbPl, vv gbNi, vv gbNp, vv gbOms, vv gbFts, vv gbOsl] (croBody C)
-    [cellA C orr, BitVec.ofNat 64 (g0.nP + g0.slots.length), cellA C opr, BitVec.ofNat 64 pre.length,
-      BitVec.ofNat 64 m.nIdx, BitVec.ofNat 64 g0.nP, cellA C oms, cellA C fts, cellA C osl] (by decide) rfl (by decide) hc.cro.self
-    ⟨by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv], by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons],
-      by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv], trivial⟩
-    (fun a w s' st => classRecTyOk mode C.fe { g0 with pre := pre } p.k rc rc.cvR 0 s1 = .ok (a, s') ∧
-      PostCVG (ctxH C H1) a w s' st)
-    (fun cv w s' H' => classRecTyOk mode C.fe { g0 with pre := pre } p.k rc rc.cvR 0 s1 = .ok (cv, s') ∧
-      ∃ o, w = cellA C o ∧ Ind.CVRep C H' o cv)
+  refine specR_callNIH (C := ctxH C H1) gbCs fCrs crsParams
+    [vv gbOrl, .const 0, vv gbNr, vv gbOrc, vv gbN0, vv gbPr, vv gbPl, vv gbNp, vv gbOms, vv gbFts, vv gbOsl] (crsBody C)
+    [cellA C orl, BitVec.ofNat 64 0, BitVec.ofNat 64 p.recs.length, cellA C orc,
+      BitVec.ofNat 64 (g0.nP + g0.slots.length), cellA C opr, BitVec.ofNat 64 pre.length, BitVec.ofNat 64 g0.nP,
+      cellA C oms, cellA C fts, cellA C osl] (by decide) rfl (by decide) hc.crs.self
+    ⟨by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv], rfl, by simp +decide [sev, Env.get_cons],
+      by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv], by simp +decide [sev, Env.get_cons],
+      by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons],
+      by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv],
+      by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv], trivial⟩
+    (fun a w s' st => classRecTysOk mode C.fe { g0 with pre := pre } p.k p.recs [rc.cvR] [0] s1 = .ok (a, s') ∧
+      PostCVGs (ctxH C H1) a w s' st)
+    (fun cvs w s' H' => classRecTysOk mode C.fe { g0 with pre := pre } p.k p.recs [rc.cvR] [0] s1 = .ok (cvs, s') ∧
+      ∃ o, w = cellA C o ∧ PRep C H' o (fun H o cv => CVRep C H o cv) cvs)
     (fun a w s' st ⟨hrun, H', o, hp', hw, hcv, hsr⟩ => ⟨H', hp', ⟨hrun, o, hw, hcv⟩, hsr⟩)
-    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu croParams _ rfl hlk)
-      (cro_spec mode ra (ctxH C H1) hok1 hs (by ctx_tr hc.cro) { g0 with pre := pre } m hcls hmm
-        opr hpl56 hpr hni oms fts osl (tmBlkR_mono hp1' hT) (blkAt_mono hfts hp1') (slotBlk_mono hp1' hsb) hnP hsll p.k rc
-        orr (recRep_mono hp1' hrr) (by omega) ks hkl hks s1)))
-    (fun cvG w s2 H2 hp2 ⟨hrun, oq, hw, hcvq⟩ => ?_)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu crsParams _ rfl hlk)
+      (by
+        have h := crs_spec (σ := σ) mode ra (ctxH C H1) hok1 hs (by ctx_tr hc.crs) { g0 with pre := pre } opr hpl56 hpr
+          oms fts osl (tmBlkR_mono hp1' hT) (blkAt_mono hfts hp1') (slotBlk_mono hp1' hsb) hnP hsll p.k p.recs orl
+          (ptrsRep_mono hp1' (fun _ _ => recRep_mono hp1') hR) [0] orc (blkAt_mono hRC hp1') (by simp)
+          (fun rc' hm => by rw [hrecs, List.mem_singleton] at hm; subst hm; omega)
+          (fun rc' hm => by rw [hrecs, List.mem_singleton] at hm; subst hm; exact ⟨ks, hkl, hks⟩)
+          (p.recs.length - 0) 0 H1 s1 rfl (Nat.zero_le _) (List.prefix_refl _)
+        simp only [List.drop_zero] at h
+        rw [ehr] at h
+        exact h)))
+    (fun cvs w s2 H2 hp2 ⟨hrunS, oq0, hw, hcvs⟩ => ?_)
   subst hw
+  rw [hrecs] at hrunS
+  obtain ⟨cvG, hrun, rfl⟩ := classRecTysOk_one hrunS
+  have hcvsP := hcvs
+  obtain ⟨os, hosl, hosb, hosr⟩ := hcvs
+  obtain ⟨oq, rfl⟩ : ∃ oq, os = [oq] := by
+    rcases os with _ | ⟨a, _ | ⟨b, l⟩⟩ <;> simp at hosl; exact ⟨a, rfl⟩
+  have hcvq : CVRep C H2 oq cvG := hosr 0 (by simp) (by simp)
+  have hq1 : H2[oq0 + 1]? = some (cellA C oq) := by simpa using hosb.2 0 (by simp)
+  refine UD.specR_heapLoadI' (C := ctxH C H2) gbCv _ (oq0 + 1) _ hq1 (by decide)
+    (by simp +decide [sev, Env.get_cons]; exact cellA_add8 C oq0) ?_
   have hp2' : H1 <+: H2 := hp2
   have hpC2 : C.H <+: H2 := hp1'.trans hp2'
   obtain ⟨hnm, hlps⟩ := classRecTyOk_shape hrun
@@ -206,41 +266,59 @@ theorem gb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssum
       rw [denoteN_isSome_ext hfl (by rw [this]; rfl)], hty, by rw [hlps]; omega⟩
   refine specR_congr (m' := genRules mode C.fe p { g0 with pre := pre } [0] [cvG] >>= fun r => pure r)
     (by simp only [bind_pure]) ?_
-  refine specR_callNC (C := ctxSt (ctxH C H2) s2.store) (D := ctxLocals ++ gbLocals) gbRs fCfr cfrParams
-    [vv gbCv, vv gbOrr, vv gbOc, vv gbNc, vv gbPl, vv gbNp, vv gbOpp, vv gbOsl, vv gbPr, vv gbN0, vv gbOms] (cfrBody C)
-    [cellA C oq, cellA C orr, cellA C oc, BitVec.ofNat 64 ccs.length, BitVec.ofNat 64 pre.length, BitVec.ofNat 64 g0.nP,
-      cellA C opp, cellA C osl, cellA C opr, BitVec.ofNat 64 (g0.nP + g0.slots.length), cellA C oms] (by decide) rfl (by decide)
-    hc.cfr.self
+  have hpC2' : C.H <+: H2 := hpC2
+  refine specR_callNC (C := ctxSt (ctxH C H2) s2.store) (D := ctxLocals ++ gbLocals) gbRs fCfk cfkParams
+    [vv gbCs, vv gbOrl, vv gbOrc, vv gbCss, vv gbOms, vv gbPl, vv gbNp, vv gbOpp, vv gbOsl, vv gbPr, vv gbN0] (cfkBody C)
+    [cellA C oq0, cellA C orl, cellA C orc, cellA C ocss, cellA C oms, BitVec.ofNat 64 pre.length, BitVec.ofNat 64 g0.nP,
+      cellA C opp, cellA C osl, cellA C opr, BitVec.ofNat 64 (g0.nP + g0.slots.length)] (by decide) rfl (by decide)
+    hc.cfk.self
     ⟨by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv],
       by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv],
-      by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv],
+      by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv], by simp +decide [sev, Env.get_cons],
       by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv],
-      by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons],
-      by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv], trivial⟩
-    (PostGR m (ctxSt (ctxH C H2) s2.store))
+      by simp +decide [sev, Env.get_cons, Env.get, gbParams, ctxEnv], by simp +decide [sev, Env.get_cons],
+      by simp +decide [sev, Env.get_cons], trivial⟩
+    (fun r w s' st => genRules mode C.fe p { g0 with pre := pre } [0] [cvG] s2 = .ok (r, s') ∧
+      PostGRK (ctxSt (ctxH C H2) s2.store) r w s' st)
     (fun r w s' C' => ∃ EH envM H o, C' = ctxNew (ctxSt (ctxH C H2) s2.store) r.1 EH envM H ∧
       (ctxSt (ctxH C H2) s2.store).EH <+: EH ∧ (ctxSt (ctxH C H2) s2.store).H <+: H ∧
       CtxOK (ctxNew (ctxSt (ctxH C H2) s2.store) r.1 EH envM H) ∧
       TblGate r.1 ∧ FlagsOK r.1 ∧ LitsPinned r.1 C.pins ∧ (∀ n, r.1.find? n = C.fe.find? n) ∧
       (∀ n, r.1.findTable? n = C.fe.findTable? n) ∧
-      ∃ cv rhss orh oc, r.2 = [(cv, m, rhss)] ∧ w = cellA C o ∧ H[o]? = some (cellA C orh) ∧
-      H[o + 1]? = some (cellA C oc) ∧ BlkAt H orh (rhss.map Enc.idxW) ∧ CVRep C H oc cv)
-    (fun r w s' st ⟨EH, envM, H, o, h1, h2, h3, h4, h5⟩ => ⟨_, ⟨EH, envM, H, o, rfl, h1, h2, h3, h5⟩, h4⟩)
-    (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cfrParams _ rfl hlk)
-      (cfr_spec mode ra (ctxSt (ctxH C H2) s2.store) hokS hs hpl (by ctx_tr hc.cfr) hg hF hL p rc
-        (by rw [hrecs]; rfl) orr (recRep_mono hpC2 hrr) { g0 with pre := pre } m hcls oms (tmBlkR_mono hpC2 hT) cvG oq hcvq
-        (by rw [hlps]; exact hrl) ks (by rw [hlps]; exact hkl)
-        (fun j hj => by
+      genRules mode C.fe p { g0 with pre := pre } [0] [cvG] s2 = .ok (r, s') ∧ w = cellA C o ∧
+      PRep C H o (fun H o t => RRRep C H o t) r.2)
+    (fun r w s' st ⟨hrun, EH, envM, H, o, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11⟩ =>
+      ⟨_, ⟨EH, envM, H, o, rfl, h1, h2, h3, h5, h6, h7, h8, h9, hrun, h10, h11⟩, h4⟩)
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu cfkParams _ rfl hlk)
+      (cfk_spec mode ra (ctxSt (ctxH C H2) s2.store) hokS hs hpl (by ctx_tr hc.cfk) hg hF hL p { g0 with pre := pre } [0]
+        [cvG] hppl hsll hcb hpl56 hnP
+        (fun cv hm => by simp only [List.mem_singleton] at hm; subst hm; rw [hlps]; exact hrl)
+        (by simp) (fun xs hx => by
+          simp only [hctors, List.mem_singleton] at hx; subst hx; exact ⟨hcl, hnf⟩)
+        (fun cv hm => by simp only [List.mem_singleton] at hm; subst hm; exact hden)
+        (fun cv hm => by
+          simp only [List.mem_singleton] at hm; subst hm
+          refine ⟨ks, by rw [hlps]; exact hkl, fun j hj => ?_⟩
           have hj' : j < rc.cvR.levelParams.length := by rw [← hlps]; exact hj
           have e := hks j hj'
-          have hjj : cvG.levelParams[j] = rc.cvR.levelParams[j] := by simp [hlps]
+          have hjj : cv.levelParams[j] = rc.cvR.levelParams[j] := by simp [hlps]
           rw [hjj]; exact hfl.lss.ls.ns _ _ e)
-        hden opp (blkAt_mono hpp hpC2) hppl osl (slotBlk_mono hpC2 hsb) hsll hcb opr (blkAt_mono hpr hp2') hpl56 hnP ccs
-        (by simp [hctors]) oc (pRep_mono hpC2 (fun _ _ => ccRep_mono hpC2) hcs) hcl hnf s2))
-    (fun r w s3 C3 ⟨EH, envM, H, o, eC, h1, h2, h3, h4⟩ => ?_)
-  subst eC
-  exact specR_returnI _ _ (by simp [sev, Env.get_cons]) (fun t ht => ⟨EH, envM, H, o, h1, h2, h3,
-    sr_of_eq ht.sr rfl rfl rfl rfl, h4⟩)
+        oq0 orl orc ocss oms opp osl opr hcvsP (ptrsRep_mono hpC2' (fun _ _ => recRep_mono hpC2') hR)
+        (blkAt_mono hRC hpC2') (pRep_mono hpC2' (fun _ _ h => pRep_mono hpC2' (fun _ _ => ccRep_mono hpC2') h) hcss)
+        (tmBlkR_mono hpC2' hT) (blkAt_mono hpp hpC2') (slotBlk_mono hpC2' hsb) (blkAt_mono hpr hp2') s2)))
+    (fun r w s3 C3 ⟨EH, envM, H, o, eC, h1, h2, h3, h4, h5, h6, h7, h8, hrun, hw, hout⟩ => ?_)
+  subst eC hw
+  obtain ⟨rhss, hr2⟩ := genRules_out_one (g := { g0 with pre := pre }) hcls hrun
+  obtain ⟨ots, hotl, hotb, hotr⟩ := hout
+  rw [hr2] at hotl hotr
+  obtain ⟨ot, rfl⟩ : ∃ ot, ots = [ot] := by
+    rcases ots with _ | ⟨a, _ | ⟨b, l⟩⟩ <;> simp at hotl; exact ⟨a, rfl⟩
+  have hot1 : H[o + 1]? = some (cellA C ot) := by simpa using hotb.2 0 (by simp)
+  obtain ⟨orh, oc, om, k0, k1, k2, k3, -, -⟩ := hotr 0 (by simp) (by simp)
+  refine UD.specR_heapLoadI' (C := ctxNew (ctxSt (ctxH C H2) s2.store) r.1 EH envM H) gbT _ (o + 1) _ hot1 (by decide)
+    (by simp +decide [sev, Env.get_cons]; exact cellA_add8 C o) ?_
+  exact specR_returnI _ _ (by simp [sev, Env.get_cons]; rfl) (fun t ht => ⟨EH, envM, H, ot, h1, h2, h3,
+    sr_of_eq ht.sr rfl rfl rfl rfl, h4, h5, h6, h7, h8, cvG, rhss, orh, oc, hr2, rfl, k0, k2, k1, k3⟩)
 
 end
 

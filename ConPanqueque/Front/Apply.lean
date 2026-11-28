@@ -3,6 +3,7 @@ import ConPanqueque.Front.ScanKB
 import ConPanqueque.Front.AxiomDisp
 import ConPanqueque.Front.QuotDisp
 import ConPanqueque.Front.IndDisp
+import ConPanqueque.Front.LitDisp
 
 /-! # The frontend's code table and the line dispatcher
 
@@ -85,6 +86,19 @@ structure FrontCodes (σ : Type) (C : Ctx) : Prop where
   cCL : C.code.lookup fCtorLoop = some (ctorPs.map (fun p => (p, ShapeHOL.one)), prologue ctorL (ctorCore C), .one)
   cRL : C.code.lookup fRuleLoop = some (rulePs.map (fun p => (p, ShapeHOL.one)), prologue ruleL (ruleCore C), .one)
   l23 : C.code.lookup (fLine 23) = some (linePs.map (fun p => (p, ShapeHOL.one)), prologue indL (indLineP C), .one)
+  cLitS : C.code.lookup fInternLitStr = some ([(pKeyN, .one), (lEn, .one), (lHn, .one)], litStrBody, .one)
+  cQN : C.code.lookup fRecNatVal = some ([(sB, .one), (sN, .one), (sI, .one)], qnFun, .one)
+  cRN : C.code.lookup fReadNat = some ([(sB, .one), (sI, .one), (sE, .one)], rnFun, .one)
+  cLitW : C.code.lookup ConPanqueque.T.Str.fLitW =
+    some ([(ConPanqueque.T.Str.wV, .one)], ConPanqueque.T.Str.lwBody C, .one)
+  cLitB : C.code.lookup ConPanqueque.T.Big.fLitB =
+    some ([(ConPanqueque.T.Big.iLx, .one)], ConPanqueque.T.Big.litBlkBody C, .one)
+  l13 : C.code.lookup (fLine 13) = some (linePs.map (fun p => (p, ShapeHOL.one)), prologue strVL (strVLineP C), .one)
+  l20 : C.code.lookup (fLine 20) = some (linePs.map (fun p => (p, ShapeHOL.one)), prologue natVL (natVLineP C), .one)
+  cMul : C.code.lookup ConPanqueque.T.Big.fMul = some (ConPanqueque.T.Big.mulParams.map (fun p => (p, ShapeHOL.one)),
+    ConPanqueque.T.Big.mulBody C, .one)
+  cAdd : C.code.lookup ConPanqueque.T.Big.fAdd = some (ConPanqueque.T.Big.addParams.map (fun p => (p, ShapeHOL.one)),
+    ConPanqueque.T.Big.addBody C, .one)
 
 variable {σ : Type}
 
@@ -102,7 +116,7 @@ def chainP (rest : ProgHOL 64) : List Nat → ProgHOL 64
   | [] => hang
   | t :: ts => .ite (.cmp .equal (vv kTg) (.const (BitVec.ofNat 64 t))) (branchP rest t) (chainP rest ts)
 
-def dispTags : List Nat := [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 18, 19, 21, 22, 23]
+def dispTags : List Nat := [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23]
 
 /-- The dispatch after the scan phase. -/
 def dispatchP (rest : ProgHOL 64) : ProgHOL 64 :=
@@ -213,7 +227,7 @@ theorem dispatch_spec {β : Type} {k : StateD ⊕ RecordVerdict → AM β} {R : 
     obtain ⟨hpl, j0, ik, idx, j', hle, hwi⟩ := hpay hnb
     rw [he] at hpl
     simp only [dispTags, List.mem_cons, List.not_mem_nil, or_false] at ht
-    rcases ht with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+    rcases ht with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
     · show SpecR _ (guardIx (callLine 1 rest)) _ _ _
       refine specR_guardIx idx cap hfs.lay.capN (by have := hfs.lay.cap8; omega) (by rw [hIx, hwi]) h4 (fun hi => ?_)
       exact brBVar ra C hok fc.cBVar (fLine 1) fc.l1 s Γ M D hx st hfs ws (recPl rec) hpl j0 j' ik idx rec hle n hn hi h1 h2 h3 h4 (by rw [hIx, hwi]) hS0 h7 h8 h9 h10 hk'
@@ -250,6 +264,9 @@ theorem dispatch_spec {β : Type} {k : StateD ⊕ RecordVerdict → AM β} {R : 
     · show SpecR _ (guardIx (callLine 12 rest)) _ _ _
       refine specR_guardIx idx cap hfs.lay.capN (by have := hfs.lay.cap8; omega) (by rw [hIx, hwi]) h4 (fun hi => ?_)
       exact brProj ra C hok fc.cProj fc.hsc fc.fProj (fLine 12) fc.l12 s Γ M D hx st hfs ws (recPl rec) hpl j0 j' ik idx rec hle n hn hi h1 h2 h3 h4 (by rw [hIx, hwi]) hS0 h7 h8 h9 h10 hk'
+    · show SpecR _ (guardIx (callLine 13 rest)) _ _ _
+      refine specR_guardIx idx cap hfs.lay.capN (by have := hfs.lay.cap8; omega) (by rw [hIx, hwi]) h4 (fun hi => ?_)
+      exact brStrV ra C hok fc.cLitS fc.hsc fc.cStr (fLine 13) fc.l13 s Γ M D hx st hfs ws (recPl rec) hpl j0 j' ik idx rec hle n hn hi h1 h2 h3 h4 (by rw [hIx, hwi]) hS0 h7 h8 h9 h10 hk'
     · show SpecR _ (callLine 14 rest) _ _ _
       exact brDef ra C hok fc.hnc fc.hsc fc.cNth fc.cSafe fc.cHintV fc.hhc fc.fDef (fLine 14) fc.l14 s Γ M D hx st hfs ws (recPl rec) hpl j0 j' ik idx rec hle n hn h1 h2 h3 h4 (by rw [hIx, hwi]) hS0 h7 h8 h9 h10 hk'
     · show SpecR _ (callLine 15 rest) _ _ _
@@ -262,6 +279,9 @@ theorem dispatch_spec {β : Type} {k : StateD ⊕ RecordVerdict → AM β} {R : 
     · show SpecR _ (guardIx (callLine 19 rest)) _ _ _
       refine specR_guardIx idx cap hfs.lay.capN (by have := hfs.lay.cap8; omega) (by rw [hIx, hwi]) h4 (fun hi => ?_)
       exact brImax ra C hok fc.hnc fc.cNth fc.cImax (fLine 19) fc.l19 s Γ M D hx st hfs ws (recPl rec) hpl j0 j' ik idx rec hle n hn hi h1 h2 h3 h4 (by rw [hIx, hwi]) hS0 h7 h8 h9 h10 hk'
+    · show SpecR _ (guardIx (callLine 20 rest)) _ _ _
+      refine specR_guardIx idx cap hfs.lay.capN (by have := hfs.lay.cap8; omega) (by rw [hIx, hwi]) h4 (fun hi => ?_)
+      exact brNatV ra C hok fc.hsc fc.cQN fc.cRN fc.cLitW fc.cLitB fc.cMul fc.cAdd (fLine 20) fc.l20 s Γ M D hx st hfs ws (recPl rec) hpl j0 j' ik idx rec hle n hn hi h1 h2 h3 h4 (by rw [hIx, hwi]) hS0 h7 h8 h9 h10 hk'
     · show SpecR _ (callLine 21 rest) _ _ _
       exact brAx C hok fc.hnc fc.hsc fc.cNth fc.fAx (fLine 21) fc.l21 s Γ M D hx st hfs ws (recPl rec) hpl j0 j' ik idx rec hle n hn h1 h2 h3 h4 (by rw [hIx, hwi]) hS0 h7 h8 h9 h10 hk'
     · show SpecR _ (callLine 22 rest) _ _ _

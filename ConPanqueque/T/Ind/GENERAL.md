@@ -656,3 +656,59 @@ What still hangs at k > 1 (ordered plan, continuing §12's; item 1 is done, and 
 6. **`cbk`**: drop `nm0 = 1`, `nrl = 1`, `ncl = 1`, `nrc = 1`, `rc0 = 0`, slot-0 motive, member-0 class, `tgt = 0`;
    `cbk_spec`/`CBKRun`/`CBKFacts` over all members (`CPSMemberOK`); `cbkInst`'s table branch over a list.
 7. **Front end** (`Front/IndLine*`, `IndBoundsP`/`indRun_of_front`), §1 "Front end".
+
+## 14. Mutual blocks, round 8: the recursor types and the rules over every recursor (progress log)
+
+Items 1–3 of §13's plan are done as procedures and specs general in the recursor list; `gb` calls them (still at
+`p.recs = [rc]`, `g.cls = [m]`, `recCls = [0]`, because `ga`/`ctb`/`cbk`/`cts` are still one-member).  Every step
+ends with a green build; no `sorry`.
+
+1. **`cro` at class `c`** (`ClassConst`, `classRecTyOk … c`): params `[rr, ns, pre, prl, nP, oms, fts, osl, cl]`
+   (lost `ni`).  Reads the class block's length (a class past it hangs), class `c`'s record pointer, its `nIdx`
+   (`guardP` 56) and its member word (`optNatW`, record offset 2).  An outside class (`member = none`, word `0`)
+   hangs (nested blocks only); otherwise the recursor's `tgt` is compared with `word - 1`.  `croTail` (the
+   `rP`/`mI` checks, `grt` now at `cl`, the constant check, the defeq) is unchanged otherwise.  `cro_spec` lost
+   `hcls`/`hmm`/`hni`, gained `cl < 2^63`.
+2. **`classRecTysOk` loop** (`RecTys`, new procedure `crs` "classRecTysOk"): over the stream's recursor records (a
+   `PtrsRep … RecRep` block) and the recursors' classes (the `ClassRead` word block `recCls`), `cro` on recursor `i`
+   at class `recCls[i]`, the generated constants collected (`PRep … CVRep`, `PostCVGs`); a class list shorter than
+   the recursor list hangs.  `crs_spec` answers `classRecTysOk mode fe g k (rcs.drop i) ((rcs.map (·.cvR)).drop i)
+   (recCls.drop i)`.  `ptrsRep_len_lt` (a pointer block is shorter than `2^61`).
+   *Wiring*: `gb` takes the recursor block and the class block (`gbOrl`, `gbOrc`, new params) and calls `crs`
+   (`classRecTysOk_one` inverts the run at one recursor); `ga` passes its `gaOrl` and a new param `gaOrc`; `ctb`
+   passes a new param `ctbOrc`; `cbk` passes the `ClassRead` record's class block `cbkOrc`.  `ga_spec`/`ctb_spec`
+   gained `orc`/`hRC : BlkAt … (rd.recCls.map ofNat)`.
+3. **`genRules` over every recursor** (`RecRules`, `RecPush`, `RecNames`, `RecGen`):
+   * `crr` "classRecsRulesOk" (`RecRules`): recursor `i` at class `c = recCls[i]` runs `crl` over class `c`'s
+     constructor block (the block-of-blocks `css`), and contributes the triple record `[rules block, constant,
+     class c's record]` (`RRRep`, `PostOut`); stops when either list runs out (the twin's zip); a class past `css`
+     or the class block hangs.  `crr_spec` answers `classRecsRulesOk mode C.fe pushed g recCls cvGs (cvGs.drop i)
+     (recCls.drop i)`.
+   * `gpr` "genRulesPush" (`RecPush`): recursor `i`'s rule-less record written (`constRec`, rules block empty), its
+     name inserted (present: hang), the flags read, recursors `i+1…` recursively, then the name undone and the
+     flags read again; past the last recursor the flush and `crr`.  `gpr_spec` is by fuel induction over contexts
+     whose environment is the one with recursors `0…i-1` pushed (`classFeR.go`), answering `gprM … i C.fe`
+     (`gprM_succ`/`gprM_end`, `classFeR_go_fst`), and comes back at exactly the entry environment (`PostGP`: the
+     constant map answering alike, `sr_fe`/`specR_feI` to switch the environment).
+   * `cvn` "constNames" (the pushed names), `frc` "firstRecAt" and `rnb` "classRecNames" (`RecNames`): every
+     class's first recursor name, `classRecOf_of_first` (`firstRecFrom`); a class with no recursor hangs.
+   * `cfk` "genRulesAll" (`RecGen`): names, recursor names, `gpr`, the flush; the environment handed back is the
+     twin's `feBack` (`classFeR`'s pops, flags set back), which answers as the entry one (`classFeR_pop`,
+     `classFeR_pop_flags`; `feBack_find`/`_findTable`/`_tblGate`/`_flagsOK`/`_litsPinned`).  `cfk_spec` answers
+     `genRules mode C.fe p g recCls cvGs` with `PostGRK` (the output list as triple records).
+   *Wiring*: `gb` calls `cfk` instead of `cfr` and returns the first triple (`genRules_out_one` inverts the run at
+   one recursor, so `gb_spec`'s `PostGR` is unchanged).  `cfr` (`FeR`) is no longer called.
+
+The statements of `ga_spec` (+ `orc`), `ctb_spec` (+ `orc`), `cbk_spec` and `main_pipeline_prelude` are otherwise
+unchanged.  New procedures in the code table: `classRecTysOk`, `classRecsRulesOk`, `genRulesPush`, `constNames`,
+`firstRecAt`, `classRecNames`, `genRulesAll`.
+
+What remains for k > 1 (ordered):
+1. **`gb_spec` over the lists**: drop `hrecs`, `hcls`, `hctors`, `[0]`; `recCls = rd.recCls`, `cvRis = p.recs.map
+   (·.cvR)`; return the whole output list (`PostGRK`'s `PRep … RRRep`) instead of its first triple, and restate
+   `PostGR` over the list (its consumers: `ga`, `ctb`, `cts`).  `hcvd` becomes a statement about
+   `classRecTysOk`'s output (every generated type denotes).
+2. **`ga_spec`/`ctb_spec` over class lists** (§13 item 4): `ga` still checks one member's pins, one class's table
+   entries (`tmn`) and allocates the former-type block `[ms0.cvT.type]`; generalize to `formerTysC`.
+3. **`cts`** over the output list (`streamKCheck`/`streamRecsCheck`/`blockRecInfosTF`), §13 item 5.
+4. **`cbk`** (§13 item 6) and the **front end** (§13 item 7; the 29 mutual fixtures die there, `f_line23` 7673).

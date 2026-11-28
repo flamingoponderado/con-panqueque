@@ -67,7 +67,7 @@ theorem ILCodes.toSt {C : Ctx} (cc : ILCodes σ C) (St : EStore) : ILCodes σ (c
     cc.recsAt, cc.typesAt, cc.declF, cc.typeF, cc.ctorF, cc.recF, cc.ruleF⟩
 
 theorem frontCodes_St {C : Ctx} (h : FrontCodes σ C) (St : EStore) : FrontCodes σ (ctxSt C St) :=
-  ⟨h.hsc, h.hnc, h.hhc, h.hlc, h.cNth, h.cSafe, h.cHintV, h.cStr, h.cApp, h.cLam, h.cAll, h.cLet, h.cProj, h.cLs, h.cConst, h.cBVar, h.cSort, h.cSucc, h.cParam, h.cMax, h.cImax, h.cNNum, h.cNStr, h.fApp, h.fLam, h.fAll, h.fLet, h.fProj, h.fConst, h.fNum, h.fStrN, h.fThm, h.fOpq, h.fAx, h.fQt, h.cQK, h.fDef, h.cLnPl, h.cLnS0, h.cLnIx, h.cLnNx, h.l1, h.l2, h.l3, h.l4, h.l5, h.l6, h.l7, h.l8, h.l9, h.l10, h.l11, h.l12, h.l14, h.l15, h.l16, h.l21, h.l22, h.l18, h.l19, h.cLnKB, h.ilc.toSt St, h.cCL, h.cRL, h.l23⟩
+  ⟨h.hsc, h.hnc, h.hhc, h.hlc, h.cNth, h.cSafe, h.cHintV, h.cStr, h.cApp, h.cLam, h.cAll, h.cLet, h.cProj, h.cLs, h.cConst, h.cBVar, h.cSort, h.cSucc, h.cParam, h.cMax, h.cImax, h.cNNum, h.cNStr, h.fApp, h.fLam, h.fAll, h.fLet, h.fProj, h.fConst, h.fNum, h.fStrN, h.fThm, h.fOpq, h.fAx, h.fQt, h.cQK, h.fDef, h.cLnPl, h.cLnS0, h.cLnIx, h.cLnNx, h.l1, h.l2, h.l3, h.l4, h.l5, h.l6, h.l7, h.l8, h.l9, h.l10, h.l11, h.l12, h.l14, h.l15, h.l16, h.l21, h.l22, h.l18, h.l19, h.cLnKB, h.ilc.toSt St, h.cCL, h.cRL, h.l23, h.cLitS, h.cQN, h.cRN, h.cLitW, h.cLitB, h.l13, h.l20, h.cMul, h.cAdd⟩
 
 theorem declsRel_St {C : Ctx} {F rb capD : Nat} {H : List (BitVec 64)} {ds : Array IDeclaration}
     (h : DeclsRel C F rb capD H ds) (St : EStore) : DeclsRel (ctxSt C St) F rb capD H ds := by

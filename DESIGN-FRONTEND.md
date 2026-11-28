@@ -537,3 +537,15 @@ Still between this and con-leche's exit 0:
   reverse, so "the port accepts ⇒ con-leche exits 0" needs a completeness theorem for con-leche's
   cached checker that does not exist;
 - `parseBytes` vs `parseChunks [b]` (con-leche's `parseChunks_eq_parseBytes`).
+
+### Literal lines (strVal, natVal)
+
+`Front/LitDisp`: the dispatcher's tags 13 and 20 (`fLine 13`, `fLine 20`), refining con-ron's
+`parseExprEntryD` at `.strVal` / `.natVal` (`internE (.lit …)`).
+- `strVal`: the plain string scanner (`ssFun`) gives the body's span; the key `1 :: bytes` is copied
+  into fresh heap cells and interned by `litStrBody` (`Front/LitStr`, the ported `eLitStrWith`).
+  A string with escapes hangs (the plain scanner refuses it).
+- `natVal`: `qnFun` gives the closing quote, `readNatSat` the digits' value capped at `natCap`.
+  Below the cap, `litWord` interns it. At or above it, a literal of 19–36 digits is split
+  `hi · 10^18 + lo` (`readL_split`, `Front/LitBig`), built with the verified `bigMul`/`bigAdd` and
+  interned by `litBlk`; a longer literal hangs (a resource limit of the port).

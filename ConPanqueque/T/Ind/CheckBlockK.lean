@@ -184,7 +184,7 @@ def cbkBody (C : Ctx) : ProgHOL 64 := prologue cbkLocals
   (.seq (.assign .local cbkRs1 (.load .one (.op .add [vv cbkO1, .const 32])))
   (.seq (.assign .local cbkNqq (.load .one (vv cbkTq)))
   (guardP cbkNqq 1
-  (.seq (.call (some (some (.local, cbkR), none)) fCtb [vv cbkO1, vv cbkOrr1, vv cbkOpp, vv cbkOn, vv cbkNtb, vv cbkOq, vv cbkNq, vv cbkLv, vv cbkOlw, vv cbkTy0, vv cbkOpp, vv cbkNpp, vv cbkPa, vv cbkNd, vv cbkNm1, vv cbkOs, vv cbkNsl, vv cbkOm1, vv cbkNct, vv cbkNi, vv cbkInd, vv cbkNpc, vv cbkNp1, vv cbkRs1, vv cbkTq, vv cbkOms, vv cbkNcl])
+  (.seq (.call (some (some (.local, cbkR), none)) fCtb [vv cbkO1, vv cbkOrr1, vv cbkOpp, vv cbkOn, vv cbkNtb, vv cbkOq, vv cbkNq, vv cbkLv, vv cbkOlw, vv cbkTy0, vv cbkOpp, vv cbkNpp, vv cbkPa, vv cbkNd, vv cbkNm1, vv cbkOs, vv cbkNsl, vv cbkOm1, vv cbkNct, vv cbkNi, vv cbkInd, vv cbkNpc, vv cbkNp1, vv cbkRs1, vv cbkTq, vv cbkOms, vv cbkNcl, vv cbkOrc])
   (cbkInst C))))))
   hang)))))))))))))))))
   hang)))))))
@@ -790,13 +790,14 @@ theorem cbk_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   refine specR_callNC (C := C6) cbkR fCtb ctbParams
     [vv cbkO1, vv cbkOrr1, vv cbkOpp, vv cbkOn, vv cbkNtb, vv cbkOq, vv cbkNq, vv cbkLv, vv cbkOlw, vv cbkTy0, vv cbkOpp,
       vv cbkNpp, vv cbkPa, vv cbkNd, vv cbkNm1, vv cbkOs, vv cbkNsl, vv cbkOm1, vv cbkNct, vv cbkNi, vv cbkInd, vv cbkNpc,
-      vv cbkNp1, vv cbkRs1, vv cbkTq, vv cbkOms, vv cbkNcl] (ctbBody C)
+      vv cbkNp1, vv cbkRs1, vv cbkTq, vv cbkOms, vv cbkNcl, vv cbkOrc] (ctbBody C)
     ([cellA C o1, cellA C orr1, cellA C opp, cellA C on,
         BitVec.ofNat 64 q.tbl.length, cellA C ocq, BitVec.ofNat 64 m.ctors.length, Enc.idxW m.lvls, cellA C olp1,
         Enc.idxW ms0.cvT.type, cellA C opp, BitVec.ofNat 64 m.pfvs.length, cellA C od, BitVec.ofNat 64 m.ds.length,
         Enc.idxW ms0.cvT.name, cellA C os, BitVec.ofNat 64 q.rd.slots.length, cellA C om1, BitVec.ofNat 64 q.p.numCtors,
         BitVec.ofNat 64 m.nIdx, Enc.idxW m.ind, BitVec.ofNat 64 m.nPc] ++
-        [BitVec.ofNat 64 q.p.nP, Enc.idxW q.p.resSort, cellA C oQ, cellA C oms, BitVec.ofNat 64 q.cls.length]) (by decide) rfl (by decide) hcF.self
+        [BitVec.ofNat 64 q.p.nP, Enc.idxW q.p.resSort, cellA C oQ, cellA C oms, BitVec.ofNat 64 q.cls.length,
+          cellA C orc]) (by decide) rfl (by decide) hcF.self
     ⟨by simp +decide [sev, Env.get_cons, Env.get, Env.kill, cbkParams, ctxEnv] <;> rfl,
       by simp +decide [sev, Env.get_cons, Env.get, Env.kill, cbkParams, ctxEnv] <;> rfl,
       by simp +decide [sev, Env.get_cons, Env.get, Env.kill, cbkParams, ctxEnv] <;> rfl,
@@ -823,6 +824,7 @@ theorem cbk_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
       by simp +decide [sev, Env.get_cons, Env.get, Env.kill, cbkParams, ctxEnv] <;> rfl,
       by simp +decide [sev, Env.get_cons, Env.get, Env.kill, cbkParams, ctxEnv] <;> rfl,
       by simp +decide [sev, Env.get_cons, Env.get, Env.kill, cbkParams, ctxEnv] <;> rfl,
+      by simp +decide [sev, Env.get_cons, Env.get, Env.kill, cbkParams, ctxEnv] <;> rfl,
       by simp +decide [sev, Env.get_cons, Env.get, Env.kill, cbkParams, ctxEnv] <;> rfl, trivial⟩
     (PostCB C6 (consBlockCtors q.p.nP q.p.ctorGroups C6.fe))
     (fun fe₂ w s' C' => ∃ EH envM H, C' = ctxNew C6 fe₂ EH envM H ∧ C6.EH <+: EH ∧ C6.H <+: H ∧
@@ -841,7 +843,7 @@ theorem cbk_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
         (by rw [hmc']; intro c hc'; have := hnf c hc'; omega) (fun c hc' => cvDen_ext (hcs c hc').1 hx6) hnd hcnew
         olp1 hlpb1 opp (by rw [hpfv]; exact hppb6) (by rw [hpfv]; omega) od hdb hdl os ⟨sps, hspl, hspb, hspr⟩ hsl hcb k0
         hsl0' om1 hM1 (by rw [hqp]; simp [BlockShape.k, hms]; omega) hni56 hnpc62 hni
-        hrc0 hnest oms (tmBlk_mono hp6' htm) Q (by omega) oQ ⟨qps, hqQl, hqQb, hqQr⟩
+        hrc0 orc hrcb hnest oms (tmBlk_mono hp6' htm) Q (by omega) oQ ⟨qps, hqQl, hqQb, hqQr⟩
         (fun t ht => (htab t ht).2.1)
         (fun t ht => by obtain ⟨-, -, b1, b2, b3, b4⟩ := htab t ht; exact ⟨by omega, b2, by omega, b4⟩) s6
         (fun s3 g0 cvRis s7 pre s1' s' cv hc3 hga hpb h => by
