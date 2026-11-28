@@ -264,6 +264,7 @@ set_option maxHeartbeats 16000000 in
 /-- **`checkBlockTail` after the recursor stage**: one member, one recursor at it. -/
 theorem cts_spec (mode : ConLeche.CheckMode) (C : Ctx) (hok : CtxOK C) (hpl : C.saved = none) (hc : CTSCodes C)
     (p : BlockShape) (hk : p.k = 1) (osh : Nat) (hip : C.H[osh + 6]? = some (boolW p.isProp))
+    (om : Nat) (hom : C.H[osh]? = some (cellA C om)) (hkm : C.H[om]? = some (BitVec.ofNat 64 p.k))
     (rc : RecShape) (hrecs : p.recs = [rc]) (orr : Nat) (hrr : RecRep C C.H orr rc) (hrP : rc.rP < 2 ^ 62)
     (hrl : rc.rules.length < 2 ^ 58)
     (m : TargetMajor) (hmm : m.member = some 0) (oq : Nat) (hcr : CtorsRep C C.H oq m.ctors)
@@ -298,7 +299,7 @@ theorem cts_spec (mode : ConLeche.CheckMode) (C : Ctx) (hok : CtxOK C) (hpl : C.
     (PostKX C s) (fun b w s' H' => s' = s ∧ H' = C.H ∧ w = boolW b)
     (fun a w s' st ⟨h1, h2, h3⟩ => ⟨C.H, List.prefix_refl _, ⟨h1, rfl, h2⟩, h3⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu kxParams _ rfl hlk)
-      (kx_spec C p hk osh hip m hmm oq hcr (by omega) s))
+      (kx_spec C p osh hip om hom hkm (by omega) m 0 hmm oq hcr (by omega) s))
     (fun b w s1 H1 _ ⟨e1, e2, e3⟩ => ?_)
   subst e1 e2 e3
   refine UD.specR_heapLoadI' (C := C) ctsKi _ (orr + 5) _ hisk (by decide)
@@ -469,9 +470,9 @@ theorem ctb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     (s : AState)
     (hcvd : ∀ (s3 : AState) (g0 : ClassGen) (cvRis : List IConstantVal) (s7 : AState) (pre : List EIdx) s1 s' cv,
       ctbPre mode C.fe p s = .ok ((), s3) →
-      gaPre mode (consSumCtors p.nP ms0.cvT.name ms0.ctors C.fe) p q.params q.tbl q.rd m block s3 = .ok ((g0, cvRis), s7) →
+      gaPre mode (consBlockCtors p.nP p.ctorGroups C.fe) p q.params q.tbl q.rd m block s3 = .ok ((g0, cvRis), s7) →
       g0.prefixBinders s7 = .ok (some pre, s1) →
-      classRecTyOk mode (consSumCtors p.nP ms0.cvT.name ms0.ctors C.fe) { g0 with pre := pre } p.k rc rc.cvR 0 s1 =
+      classRecTyOk mode (consBlockCtors p.nP p.ctorGroups C.fe) { g0 with pre := pre } p.k rc rc.cvR 0 s1 =
         .ok (cv, s') → (denoteE s'.store cv.type).isSome = true) :
     SpecR (σ := σ) (Pre C s (ctbParams.zip ([cellA C osh, cellA C orr, cellA C opm, cellA C ot,
         BitVec.ofNat 64 q.tbl.length, cellA C oq, BitVec.ofNat 64 m.ctors.length, Enc.idxW m.lvls, cellA C olp,
@@ -479,7 +480,7 @@ theorem ctb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
         Enc.idxW ms0.cvT.name, cellA C osl, BitVec.ofNat 64 q.rd.slots.length, cellA C om, BitVec.ofNat 64 p.numCtors,
         BitVec.ofNat 64 m.nIdx, Enc.idxW m.ind, BitVec.ofNat 64 m.nPc] ++
         [BitVec.ofNat 64 p.nP, Enc.idxW p.resSort, cellA C oQ]))) (ctbBody C) s
-      (checkBlockTail mode block q Q) (PostCB C (consSumCtors p.nP ms0.cvT.name ms0.ctors C.fe)) := by
+      (checkBlockTail mode block q Q) (PostCB C (consBlockCtors p.nP p.ctorGroups C.fe)) := by
   refine specR_prologue (postCB_locals C _) (ctb_none C _) ?_
   rw [checkBlockTail_eq, hqp, hq1, hnest, hcls]
   have hk1 : p.k = 1 := by simp [BlockShape.k, hms]
@@ -515,12 +516,12 @@ theorem ctb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
       by simp +decide [sev, Env.get_cons, Env.get, ctbParams, ctxEnv], trivial⟩
     (fun a w s' st => (pure (consBlockCtors p.nP ((p.members.map memberGroup).drop 0) C.fe) : AM IFEnv) s1 = .ok (a, s') ∧
       PostEnv (ctxH C H1) a w s' st)
-    (fun r w s' C' => r = consSumCtors p.nP ms0.cvT.name ms0.ctors C.fe ∧ s' = s1 ∧ ∃ EH envM H,
+    (fun r w s' C' => r = consBlockCtors p.nP p.ctorGroups C.fe ∧ s' = s1 ∧ ∃ EH envM H,
       C' = ctxNew (ctxH C H1) r EH envM H ∧ C.EH <+: EH ∧ H1 <+: H ∧ CtxOK (ctxNew (ctxH C H1) r EH envM H) ∧
       TblGate r ∧ FlagsOK r ∧ LitsPinned r C.pins)
     (fun a w s' st ⟨hrun, EH, envM, H, h1, h2, h3, h4, h5, h6, h7⟩ => by
       obtain ⟨e1, e2⟩ := AM.pure_ok hrun
-      exact ⟨_, ⟨by rw [e1, List.drop_zero, hms]; try rfl, e2, EH, envM, H, rfl, h1, h2, h3, h5, h6, h7⟩, h4⟩)
+      exact ⟨_, ⟨by rw [e1, List.drop_zero]; rfl, e2, EH, envM, H, rfl, h1, h2, h3, h5, h6, h7⟩, h4⟩)
     (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu ccaParams _ rfl hlk)
       (cca_spec (ctxH C H1) ⟨by ctx_tr hc.csc, by ctx_tr hc.cca⟩ p.nP (by omega) p.members om
         (ptrsRep_mono hp1' (fun _ _ h => memberRep_mono hp1' h) hM) (by simp [hms])
@@ -538,7 +539,7 @@ theorem ctb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     unfold ctbPre
     rw [am_bind_run hbisr]
     rw [← hs3]; rfl
-  set fe₂ := consSumCtors p.nP ms0.cvT.name ms0.ctors C.fe with hfe₂
+  set fe₂ := consBlockCtors p.nP p.ctorGroups C.fe with hfe₂
   set C2 := ctxNew (ctxH C H1) fe₂ EH2 envM2 H2 with hC2
   refine specR_callNC (C := C2) ctbR fGa gaParams
     [vv ctbSh, vv ctbOrr, vv ctbPm, vv ctbOt, vv ctbNt, vv ctbOq, vv ctbNq, vv ctbLv, vv ctbOlp, vv ctbTy0,
@@ -588,7 +589,9 @@ theorem ctb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
       r.strLit = C3.fe.strLit ∧ (∀ n, r.rawTable? n = C3.fe.rawTable? n))
     (fun r w s' st ⟨H, h1, h2, h3⟩ => ⟨_, ⟨H, rfl, h1, h3⟩, h2⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ctsParams _ rfl hlk)
-      (cts_spec mode C3 hok3 hpl (by ctx_tr hc.cts) p hk1 osh (shapeRep_mono hpC3 hsh).2.2.2.2.2.2 rc hrecs orr
+      (cts_spec mode C3 hok3 hpl (by ctx_tr hc.cts) p hk1 osh (shapeRep_mono hpC3 hsh).2.2.2.2.2.2
+        (shapeRep_mono hpC3 hsh).1.choose (shapeRep_mono hpC3 hsh).1.choose_spec.1
+        (shapeRep_mono hpC3 hsh).1.choose_spec.2.1 rc hrecs orr
         (recRep_mono hpC3 hrr) hrP hrl { m with nfs := q.tbl } hmm oq (ctorsRep_mono hpC3 hcr) hcsl cv rhss o orh oc
         ho1 ho2 hrh hcv Q hQ oQ (pRep_mono hpC3 (fun _ _ h => tblVRep_mono hpC3 h) hqQ) hden hbd s4))
     (fun fe₃ w s5 C5 ⟨H5, eC, hp5, hf5, ht5, hb5, hn5, hs5, hr5⟩ => ?_)

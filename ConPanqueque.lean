@@ -554,11 +554,13 @@ import ConPanqueque.T.Ind.FeR
 import ConPanqueque.T.Ind.GenRecCheck
 import ConPanqueque.T.Ind.GenRecHead
 import ConPanqueque.T.Ind.StreamK
+import ConPanqueque.T.Ind.StreamRecsAll
 import ConPanqueque.T.Ind.StreamChk
 import ConPanqueque.T.Decl.FeSwitch
 import ConPanqueque.T.Ind.StructTbl
 import ConPanqueque.T.Ind.StructTbl2
 import ConPanqueque.T.Ind.BlockTables
+import ConPanqueque.T.Ind.BlockTablesAll
 import ConPanqueque.T.Ind.BlockTables2
 import ConPanqueque.T.Decl.TblIns
 import ConPanqueque.T.Ind.TblWrite

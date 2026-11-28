@@ -1,10 +1,10 @@
 import ConPanqueque.T.Ind.RecPins
 
 /-!
-# The large-elimination guard (`blockLargeElimAllowed`, a single-member unnested block)
+# The large-elimination guard (`blockLargeElimAllowed`, an unnested block)
 
-The block's sort never zero (`nz`, the never-zero walk), or at most one constructor; otherwise the port hangs
-(the twin rejects).
+The block's sort never zero (`nz`, the never-zero walk), or one member with at most one constructor; otherwise
+the port hangs (the twin rejects). The member count `k` is a parameter (any `k`).
 -/
 
 open Flapjack Flapjack.Pancake.PanLang Flapjack.PanSemStateFiniteExact Flapjack.Basis.Pure.MlString
@@ -26,15 +26,18 @@ theorem nz_isNeverZero : ∀ l : ConLeche.Level, nz l = ConLeche.Level.isNeverZe
 def leaS := ofString "lea_s"
 def leaN := ofString "lea_n"
 def leaX := ofString "lea_x"
+def leaK := ofString "lea_k"
 def fLea := ofString "largeElimGuard"
 
-def leaParams : List MlS := [leaS, leaN]
+def leaParams : List MlS := [leaS, leaN, leaK]
 def leaLocals : List MlS := [leaX]
 
 def leaBody : ProgHOL 64 := prologue leaLocals
   (.seq (.call (some (some (.local, leaX), none)) fNz0 [vv leaS])
   (.ite (.cmp .equal (vv leaX) (.const 0))
-    (.ite (.cmp .lower (vv leaN) (.const 2)) (.return (.const 0)) hang)
+    (.ite (.cmp .equal (vv leaK) (.const 1))
+      (.ite (.cmp .lower (vv leaN) (.const 2)) (.return (.const 0)) hang)
+      hang)
     (.return (.const 0))))
 
 section
@@ -44,11 +47,11 @@ theorem lea_none (C : Ctx) (vals : List (BitVec 64)) :
     ∀ x, x ∈ leaLocals → (ctxEnv C ++ leaParams.zip vals).get x = none :=
   Knot.params_none C leaLocals leaParams vals (by decide) (by decide)
 
-/-- **The guard** on a large single-member block, its sort denoting at the floor. -/
+/-- **The guard** on a large unnested block of any member count, its sort denoting at the floor. -/
 theorem lea_spec (C : Ctx) (hcz : C.code.lookup fNz0 = some ([(nzU, ShapeHOL.one)], nzBody, .one))
-    (p : BlockShape) (hlg : p.large = true) (hk : p.k = 1) (lsr : ConLeche.Level)
+    (p : BlockShape) (hlg : p.large = true) (hkb : p.k < 2 ^ 63) (lsr : ConLeche.Level)
     (hSd : denoteL C.St.ls p.resSort = some lsr) (hnc : p.numCtors < 2 ^ 63) (X : CheckError) (s : AState) :
-    SpecR (σ := σ) (Pre C s (leaParams.zip [Enc.idxW p.resSort, BitVec.ofNat 64 p.numCtors])) leaBody s
+    SpecR (σ := σ) (Pre C s (leaParams.zip [Enc.idxW p.resSort, BitVec.ofNat 64 p.numCtors, BitVec.ofNat 64 p.k])) leaBody s
       (blockLargeElimAllowed p false >>= fun b => if b then pure () else fail X) (Decl.PostU C) := by
   refine specR_prologue (Decl.postU_locals _) (lea_none _ _) ?_
   refine specR_atEntry fun t0 ht0 => ?_
@@ -75,6 +78,15 @@ theorem lea_spec (C : Ctx) (hcz : C.code.lookup fNz0 = some ([(nzU, ShapeHOL.one
   cases b
   · refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, boolW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
       (fun _ => ?_) (fun h => absurd h (by decide))
+    by_cases hk' : ¬ p.k = 1
+    · have hk := hk'
+      have hne : BitVec.ofNat 64 p.k ≠ 1#64 := fun e => hk (by
+        have := congrArg BitVec.toNat e; simp at this; omega)
+      exact specR_ifI _ 0 (by simp only [sev, sev_vv, Env.get_cons]; simp +decide [Env.get, leaParams, ctxEnv,
+          Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne) (fun h => absurd rfl h) (fun _ => specR_hangI)
+    have hk : p.k = 1 := Decidable.of_not_not hk'
+    refine specR_ifI _ 1 (by simp only [sev, sev_vv, Env.get_cons]; simp +decide [Env.get, leaParams, ctxEnv,
+        Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hk]) (fun _ => ?_) (fun h => absurd h (by decide))
     by_cases hn : p.numCtors < 2
     · have hlw := ConPanqueque.T.Decl.nd_lt_iff p.numCtors 2 (by omega) (by omega)
       refine specR_ifI _ 1 (by simp only [sev, sev_vv, Env.get_cons]; simp +decide [Env.get, leaParams, ctxEnv,

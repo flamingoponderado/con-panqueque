@@ -108,13 +108,13 @@ theorem bt_empty_spec (C : Ctx) (hok : CtxOK C) {s : AState} {Γ : Env} {M : Mem
       fun i hi => absurd hi (by simp)⟩, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 set_option maxHeartbeats 32000000 in
-/-- **`blockTables`** of a single-member block. -/
+/-- **`blockTables`** of one member (any member whose level parameters are the block's). -/
 theorem bt_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : BTCodes C)
-    (p : BlockShape) (ms0 : MemberShape) (hms : p.members = [ms0]) (om : Nat) (hmr : MemberRep C C.H om ms0)
+    (p : BlockShape) (ms0 : MemberShape) (hlps : p.lps = ms0.cvT.levelParams) (om : Nat) (hmr : MemberRep C C.H om ms0)
     (hnP : p.nP < 2 ^ 57) (hni : ms0.nIdx < 2 ^ 64) (hnf : ∀ c ∈ ms0.ctors, c.2 < 2 ^ 57)
     (hcl : ms0.ctors.length < 2 ^ 63) (s : AState) :
     SpecR (σ := σ) (Pre C s (btParams.zip [cellA C om, BitVec.ofNat 64 p.nP])) (btBody C) s
-      (blockTables p p.members) (PostBTb C) := by
+      (blockTables p [ms0]) (PostBTb C) := by
   refine specR_prologue (postBTb_locals C) (bt_none C _) ?_
   obtain ⟨⟨oc, hoc, hcvT⟩, ⟨od, hod, hcvD⟩, hniw, ⟨ol, hol, hcr⟩⟩ := hmr
   obtain ⟨-, ⟨wl, hwl, olp, hwlo, hebl⟩, -⟩ := hcvT
@@ -130,7 +130,6 @@ theorem bt_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
   refine UD.specR_heapLoadI' (C := C) btCs _ (om + 3) _ hol (by decide)
     (by simp +decide [sev, Env.get_cons, Env.get, btParams, ctxEnv]; exact cellA_add_ofNat C om 3) ?_
   refine UD.specR_heapLoadI' (C := C) btNc (vv btCs) ol _ hcr.1 (by decide) (by simp [sev, Env.get_cons]) ?_
-  rw [hms]
   simp only [blockTables, MemberShape.structCtor?]
   rcases hcs : ms0.ctors with _ | ⟨c, _ | ⟨c', cs'⟩⟩
   · simp only
@@ -196,7 +195,7 @@ theorem bt_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ctx
     ⟨[H2.length], rfl, ⟨by simpa using k0, fun i hi => by simp at hi; subst hi; simpa using k1⟩,
       fun i hi hio => by
         simp at hi; subst hi
-        exact tblVRep_mono hp3' ⟨g0, ⟨olp, g1, by have := blkAt_mono hebl (hp1'.trans hp2'); simpa [BlockShape.lps, hms, ctxH] using this⟩,
+        exact tblVRep_mono hp3' ⟨g0, ⟨olp, g1, by have := blkAt_mono hebl (hp1'.trans hp2'); simpa [hlps, ctxH] using this⟩,
           g2, g3, g4, ⟨ob, g5, blkAt_mono hb hp2'⟩⟩⟩, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
 
 end

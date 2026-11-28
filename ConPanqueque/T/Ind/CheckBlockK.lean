@@ -10,6 +10,7 @@ import ConPanqueque.T.Ind.CheckBlock
 import ConPanqueque.T.Ind.BlockIsRec
 import ConPanqueque.T.Ind.CheckBlockInst
 import ConPanqueque.T.Ind.PassCls
+import ConPanqueque.T.Ind.BlockTablesAll
 
 /-!
 # `checkBlock` (one member, one recursor at it, unnested)
@@ -124,7 +125,7 @@ def cbkBody (C : Ctx) : ProgHOL 64 := prologue cbkLocals
   (.seq (.call (some (some (.local, cbkQ), none)) fCps [vv cbkSh, vv cbkIr])
   (.seq (.call (some (some (.local, cbkX), none)) fCfa [vv cbkOm, .const 0, vv cbkNm0])
   (.seq (.assign .local cbkNp (.load .one (.op .add [vv cbkSh, .const 16])))
-  (.seq (.call (some (some (.local, cbkTq), none)) fBt [vv cbkOmr, vv cbkNp])
+  (.seq (.call (some (some (.local, cbkTq), none)) fBta [vv cbkOm, .const 0, vv cbkNm0, vv cbkNp])
   (.seq (.assign .local cbkO1 (.load .one (vv cbkQ)))
   (.seq (.assign .local cbkOm1 (.load .one (vv cbkO1)))
   (.seq (.assign .local cbkOmr1 (.load .one (.op .add [vv cbkOm1, .const 8])))
@@ -208,6 +209,7 @@ structure CBKCodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
   cps : CPSCodes mode C
   cfh : CFHCodes C
   bt : BTCodes C
+  bta : C.code.lookup fBta = some (btaParams.map (fun p => (p, ShapeHOL.one)), btaBody C, .one)
   kf1 : C.code.lookup fKf1 = some (kf1Params.map (fun p => (p, ShapeHOL.one)), kf1Body, .one)
   kf2 : C.code.lookup fKf2 = some (kf2Params.map (fun p => (p, ShapeHOL.one)), kf2Body, .one)
   kf3 : C.code.lookup fKf3 = some (kf3Params.map (fun p => (p, ShapeHOL.one)), kf3Body, .one)
@@ -498,17 +500,24 @@ theorem cbk_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   have hok5' : CtxOK C5' := ctxOK_St hok5 _
   refine UD.specR_heapLoadI' (C := C5') cbkNp _ (osh + 2) _ (ConPanqueque.T.Decl.get_prefix hnP0.1 hpC5) (by decide)
     (by simp +decide [sev, Env.get_cons, Env.get, Env.kill, cbkParams, ctxEnv]; exact cellA_add_ofNat C osh 2) ?_
-  have hbt := bt_spec (σ := σ) ra C5' hok5' (by ctx_tr hc.bt) p₀ ms0 hms omr (memberRep_mono hpC5 hmr) (by omega) (by omega)
-    (fun c hc' => by have := hnf c hc'; omega) (by omega) s5
-  rw [hms] at hbt
-  refine specR_callNIH (C := C5') cbkTq fBt btParams [vv cbkOmr, vv cbkNp] (btBody C)
-    [cellA C omr, BitVec.ofNat 64 p₀.nP] (by decide) rfl (by decide) (by ctx_tr hc.bt.self)
-    ⟨by simp +decide [sev, Env.get_cons, Env.kill] <;> rfl, by simp +decide [sev, Env.get_cons, Env.kill], trivial⟩
+  have hbt := bta_spec (σ := σ) ra C5' hok5' ⟨by ctx_tr hc.bt, by ctx_tr hc.bta⟩ p₀ om
+    (ptrsRep_mono hpC5 (fun _ _ h => memberRep_mono hpC5 h) hM) (by rw [hms]; simp) (by omega)
+    (fun ms hm => by rw [hms, List.mem_singleton] at hm; subst hm; simp [BlockShape.lps, hms])
+    (fun ms hm => by rw [hms, List.mem_singleton] at hm; subst hm; omega)
+    (fun ms hm => by rw [hms, List.mem_singleton] at hm; subst hm; exact fun c hc' => by have := hnf c hc'; omega)
+    (fun ms hm => by rw [hms, List.mem_singleton] at hm; subst hm; omega) _ 0 C5'.H s5 rfl (Nat.zero_le _)
+    (List.prefix_refl _)
+  rw [List.drop_zero, show blockTables p₀ p₀.members = blockTables p₀ [ms0] by rw [hms]] at hbt
+  refine specR_callNIH (C := C5') cbkTq fBta btaParams [vv cbkOm, .const 0, vv cbkNm0, vv cbkNp] (btaBody C)
+    [cellA C om, BitVec.ofNat 64 0, BitVec.ofNat 64 p₀.members.length, BitVec.ofNat 64 p₀.nP] (by decide) rfl
+    (by decide) (by ctx_tr hc.bta)
+    ⟨by simp +decide [sev, Env.get_cons, Env.kill] <;> rfl, by simp +decide [sev, Env.get_cons, Env.kill],
+      by simp +decide [sev, Env.get_cons, Env.kill, hms] <;> rfl, by simp +decide [sev, Env.get_cons, Env.kill], trivial⟩
     (fun a w s' st => blockTables p₀ [ms0] s5 = .ok (a, s') ∧ PostBTb C5' a w s' st)
     (fun o w s' H' => blockTables p₀ [ms0] s5 = .ok (o, s') ∧ ∃ Q ob, o = some Q ∧ w = cellA C ob ∧
       PRep C H' ob (fun H o t => TblVRep C H o t) Q)
     (fun a w s' st ⟨hr, Q, H', ob, h1, h2, h3, h4, h5⟩ => ⟨H', h2, ⟨hr, Q, ob, h1, h3, h4⟩, h5⟩)
-    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu btParams _ rfl hlk) hbt))
+    (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu btaParams _ rfl hlk) hbt))
     (fun o w s6 H6 hp6 ⟨hbrun, Q, oQ, eo, ew, hqQ⟩ => ?_)
   subst eo ew
   simp only [unwrapOr, pure_bind]
@@ -813,11 +822,11 @@ theorem cbk_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
       by simp +decide [sev, Env.get_cons, Env.get, Env.kill, cbkParams, ctxEnv] <;> rfl,
       by simp +decide [sev, Env.get_cons, Env.get, Env.kill, cbkParams, ctxEnv] <;> rfl,
       by simp +decide [sev, Env.get_cons, Env.get, Env.kill, cbkParams, ctxEnv] <;> rfl, trivial⟩
-    (PostCB C6 (consSumCtors q.p.nP ms0.cvT.name ms0.ctors C6.fe))
+    (PostCB C6 (consBlockCtors q.p.nP q.p.ctorGroups C6.fe))
     (fun fe₂ w s' C' => ∃ EH envM H, C' = ctxNew C6 fe₂ EH envM H ∧ C6.EH <+: EH ∧ C6.H <+: H ∧
       CtxOK (ctxNew C6 fe₂ EH envM H) ∧ TblGate fe₂ ∧ FlagsOK fe₂ ∧ LitsPinned fe₂ C6.pins ∧
-      (∀ n, fe₂.find? n = (consSumCtors q.p.nP ms0.cvT.name ms0.ctors C6.fe).find? n) ∧
-      (∀ n, fe₂.findTable? n = (consSumCtors q.p.nP ms0.cvT.name ms0.ctors C6.fe).findTable? n))
+      (∀ n, fe₂.find? n = (consBlockCtors q.p.nP q.p.ctorGroups C6.fe).find? n) ∧
+      (∀ n, fe₂.findTable? n = (consBlockCtors q.p.nP q.p.ctorGroups C6.fe).findTable? n))
     (fun a w s' st ⟨EH, envM, H, h1, h2, h3, h4, h5⟩ => ⟨_, ⟨EH, envM, H, rfl, h1, h2, h3, h5⟩, h4⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ctbParams _ rfl hlk)
       (ctb_spec mode ra C6 hok6 hs hpl hcF (by obtain ⟨⟩ := hf; constructor <;> assumption) hg5 hF5 hL5
@@ -834,9 +843,7 @@ theorem cbk_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
         (fun t ht => (htab t ht).2.1)
         (fun t ht => by obtain ⟨-, -, b1, b2, b3, b4⟩ := htab t ht; exact ⟨by omega, b2, by omega, b4⟩) s6
         (fun s3 g0 cvRis s7 pre s1' s' cv hc3 hga hpb h => by
-          have hcc : consSumCtors q.p.nP ms0.cvT.name ms0.ctors q.env1 = consBlockCtors q.p.nP q.p.ctorGroups q.env1 := by
-            simp [BlockShape.ctorGroups, hqpm, consBlockCtors]
-          rw [show C6.fe = q.env1 from rfl, hcc] at hga h
+          rw [show C6.fe = q.env1 from rfl] at hga h
           exact hrun.crt env s1 p₀.members isRec s4 q s5 Q s6 s3 m g0 cvRis s7
             pre s1' s' cv hck0 henv0 hrel0 hx00 hpre hqrun' (by rw [hms]; exact hbrun) (by rw [hcls]; simp)
             (by rw [hqpr]; simp) hc3 hga hpb h)))

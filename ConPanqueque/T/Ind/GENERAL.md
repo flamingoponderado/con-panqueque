@@ -71,7 +71,7 @@ Effort scale:
 | `sd` (`Seeds`) | `classSeeds` | U (no seeds) | Nested: seeds for outside classes plus `nestSeeds`. | M (nested) |
 | `kf1`/`kf2`/`kf3` (`KindsFlat`) | `nestKindsFlat` (`blockNestedBit = false`) | G | Nested: drop the check and carry `nested`. | S |
 | `cfh` (`CtorsFresh`) | constructor freshness at `env1` | 1 (only `ms0.ctors`) | Run over the flattened constructors. | S |
-| `bt` (`BlockTables`, `bt_spec`) | `blockTables` | 1 | A loop over members: a structure-like member (one constructor, no indices) gives a table, otherwise none. Each table goes through `cst` and the install loop. | S |
+| `bt` (`BlockTables`, `bt_spec`) | `blockTables` | G since §9 (`bta`, at most one table in all) | done: `bta` loops over members (§9 step 5); more than one table waits for `cbkInst`'s table loop. | – |
 | `ctb` (`BlockTail`, `ctb_spec`) | `checkBlockTail` | 1 | Calls `bis`, `consCtors`, `cts`, `cst`. Generalize to k classes and recursors. | M |
 | `bis` (`IdxSorts`) | `checkBlockIdxSorts` | 1 | A loop over members. | S |
 | `consCtors` (`ConsCtors`, `csc_spec`) | `consBlockCtors` (per group) | 1 group | A loop over groups (members). | S |
@@ -335,3 +335,66 @@ What still hangs at k > 1, in pipeline order (unchanged from §7 except the done
   `consSumCtors p.nP ms0.cvT.name ms0.ctors` should become `consBlockCtors p.nP p.ctorGroups`).
 * `bt` over members and `cbkInst`'s table branch over a list of tables.
 * the front end (`Front/IndLine*`).
+
+## 9. Mutual blocks, round 3: the generator's k-generic pieces (progress log)
+
+Every step ends with a green build. Nothing accepts a k > 1 block end to end yet: the generator's class-shaped
+core (`tmn`, `ccl`/`cco`, `gb`) still takes one class at member `0`. What changed is that every piece of the
+generator's head and tail that does not depend on the class walk is now k-generic, `ctb_spec` speaks of the
+twin's `consBlockCtors`, and the tables are built over all members.
+
+1. **`ctb_spec` at `consBlockCtors`** (`BlockTail`): the premise `hcvd` and the postcondition (`PostCB`) are stated at
+   `consBlockCtors p.nP p.ctorGroups C.fe` (the twin's `fe₂`) instead of member 0's `consSumCtors`. `cca` already
+   answers that environment, so the proof lost its `hms` rewrite there; `cbk_spec`'s discharge of `hcvd` lost the
+   `consSumCtors = consBlockCtors` bridge (`hcc`), it passes `hrun.crt` directly.
+2. **The large-elimination guard at any member count** (`LargeElim`, `GenRecHead`): `lea`/`lgd` take the member
+   count `k` (`leaK`, `lgdK`). Never-zero sort: pass; otherwise `k = 1` and at most one constructor pass, anything
+   else hangs (the twin's `blockLargeElimAllowed p false` is `false` there, so it fails). `lea_spec`/`lgd_spec` take
+   `p.k < 2^63` instead of `p.k = 1`. `ga` reads `k` from the members' pointer block (`gaK := load ga_om`) and
+   `gaNk := nP + k` (was `nP + 1`).
+3. **`recKExpected` at any member count** (`StreamK`): `kx` reads `k` from the shape (`load (load sh)`) and returns
+   `false` unless `k = 1`. `kx_spec` takes the shape's member cells (`hom`, `hkm`, `p.k < 2^63`) and any member
+   index `t` (`m.member = some t`) instead of `p.k = 1`, `m.member = some 0`. `cts` passes them from `ShapeRep`.
+4. **`classStreamRecs` over all recursors** (new `StreamRecsAll`, `csrBody`/`fCsr`, `csr_spec`): each recursor's
+   constant checked (`ccv` with `false false false`) from the recursors' pointer block, answering
+   `(rcs.drop i).map (·.cvR)` (`PostCSR`). Wired: `ga` loads the shape's recursor block (`ga_orl`, `ga_nrl`) and
+   calls `fCsr` instead of `ccv` on the one record; `GACodes` gained `csr`. `ga_spec` still has `recs = [rc]` for
+   the rest of its body. `csr_spec` takes, per recursor, the level-parameter bound and denotations (`hks`).
+5. **`blockTables` over all members** (new `BlockTablesAll`, `btaBody`/`fBta`, `bta_spec`): member `i`'s tables
+   (`bt`), then the rest's; the two blocks are joined when one is empty, two non-empty ones hang (the install still
+   takes at most one table, `guardP cbk_nqq 1`). `blockTables_cons` splits the twin's walk at the head member and
+   `blockTables_len` bounds its answer (at most one table per member). `bt_spec` is now per member: it takes
+   `p.lps = ms0.cvT.levelParams` instead of `p.members = [ms0]` and refines `blockTables p [ms0]`
+   (`readBlock` checks that every member has the block's level parameters, so the premise holds for every member).
+   Wired: `cbk` calls `fBta [om, 0, nm0, nP]` instead of `fBt [omr, nP]`; `CBKCodes` gained `bta`.
+   `bta_spec` takes `∀ ms ∈ p.members, p.lps = ms.cvT.levelParams` and the per-member bounds.
+
+What still hangs at k > 1, in pipeline order (the next steps, with what each needs):
+* `cbk`: `nm0 = 1`, `nrl = 1`, `ncl = 1`, `nrc = 1`, `rc0 = 0`, slot 0 a motive, the class at member `0` (`mb = 1`),
+  `tgt = 0`. Lifting them means restating `cbk_spec` over `∀ ms ∈ p₀.members` (`CPSMemberOK` is the bundle) and
+  `CBKRun`/`CBKFacts` over the lists, then passing the class pointer block (`TMBlk`, `cbk_oms`) to the generator
+  instead of class 0's unpacked fields.
+* The generator's class walk (§1 rows `ga`, `gb`), which is the real remaining work:
+  - `tmn` (`ClassNfs`): its spec answers `tbl.drop i` (every entry kept; an entry of another class hangs at `cnm`).
+    At k classes `targetMajorNfs` filters: the port must build the kept entries' block per class
+    (`classesNfs` = a loop over the `TMBlk`, each class's own constructors `m.ctors`, its levels and parameters),
+    and `tcc` (`TargetMatch`) must compare against the class's former (`formerTys[t]`, `t = m.member`) instead of
+    member 0's `ty0`/`olp`.
+  - `ccl`/`cco`/`cfs` (`ClassCtorRec`): `classesCtors` over classes; `KindsOK` restricts every recursive field to
+    class `0` — the kinds word must carry the class (`cfKindW`), and `ihk` must look up the IH's class
+    (`firstIhs` over `rd`'s minor slots of the class), then `cfg`/`cnd` (`K53`), `mih`/`mty` (`GenPre`) and `cgo`
+    (`GenRule`) must read that class instead of `0`.
+  - `gb` (`GenRecCheck`): one `classRecTyOk` per recursor (`classRecTysOk` with `rd.recCls`), the motive per class
+    (`motiveTy`, `motVar` counting the motives before the slot), `classFeR` pushing k recursors (`FeR`: a loop of
+    the one-recursor push, then a loop of pops), `classRecsRulesOk` per recursor.
+  - `cts` (`BlockTail`): `streamKCheck`/`streamRecsCheck`/`blockRecInfosTF` over the list (the one-record pieces
+    `kx`, `srr`, `srs` loop naturally once the generator returns k records).
+* `cbkInst`'s table branch over a list (the caller passes at most one table; `bta` hangs on two).
+* The front end (`Front/IndLine*`: `tys = [t]`, `rcs = [r]`, `numMotives = 1`), §1 "Front end".
+
+Code table regenerated (`fCsr`, `fBta` new; `check_code_names.py`: the usual 6 BODIES warnings). The two new files
+are imported from `ConPanqueque.lean`. Full `lake build` green (0 errors, no `sorry`), `main_pipeline_prelude`
+unchanged.
+
+Suggested next step: `tmn`/`classesNfs` over the class block (the first class-shaped piece `ga` runs), with its
+spec answering the filtered entries per class; then `ccl` over classes with the class carried in the kinds word.
