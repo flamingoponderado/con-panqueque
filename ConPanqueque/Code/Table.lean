@@ -557,6 +557,8 @@ def codeEntries (C : ConPanqueque.T.Ctx) : List (MlS × (List (MlS × ShapeHOL) 
   (ConPanqueque.T.Ind.fCfg, (List.map (fun p => (p, Flapjack.Pancake.PanLang.ShapeHOL.one)) ConPanqueque.T.Ind.cfgParams, ConPanqueque.T.Ind.cfgBody, Flapjack.Pancake.PanLang.ShapeHOL.one)),
   (ConPanqueque.T.Ind.fCco, (List.map (fun p => (p, Flapjack.Pancake.PanLang.ShapeHOL.one)) ConPanqueque.T.Ind.ccoParams, ConPanqueque.T.Ind.ccoBody C, Flapjack.Pancake.PanLang.ShapeHOL.one)),
   (ConPanqueque.T.Ind.fCcl, (List.map (fun p => (p, Flapjack.Pancake.PanLang.ShapeHOL.one)) ConPanqueque.T.Ind.cclParams, ConPanqueque.T.Ind.cclBody C, Flapjack.Pancake.PanLang.ShapeHOL.one)),
+  (ConPanqueque.T.Ind.fCcs, (List.map (fun p => (p, Flapjack.Pancake.PanLang.ShapeHOL.one)) ConPanqueque.T.Ind.ccsParams, ConPanqueque.T.Ind.ccsBody C, Flapjack.Pancake.PanLang.ShapeHOL.one)),
+  (ConPanqueque.T.Ind.fSll, (List.map (fun p => (p, Flapjack.Pancake.PanLang.ShapeHOL.one)) ConPanqueque.T.Ind.sllParams, ConPanqueque.T.Ind.sllBody, Flapjack.Pancake.PanLang.ShapeHOL.one)),
   (ConPanqueque.T.Ind.fCmc, (List.map (fun p => (p, Flapjack.Pancake.PanLang.ShapeHOL.one)) ConPanqueque.T.Ind.cmcParams, ConPanqueque.T.Ind.cmcBody, Flapjack.Pancake.PanLang.ShapeHOL.one)),
   (ConPanqueque.T.Ind.fElv, (List.map (fun p => (p, Flapjack.Pancake.PanLang.ShapeHOL.one)) ConPanqueque.T.Ind.elvParams, ConPanqueque.T.Ind.elvBody, Flapjack.Pancake.PanLang.ShapeHOL.one)),
   (ConPanqueque.T.Ind.fMjr, (List.map (fun p => (p, Flapjack.Pancake.PanLang.ShapeHOL.one)) ConPanqueque.T.Ind.mjrParams, ConPanqueque.T.Ind.mjrBody C, Flapjack.Pancake.PanLang.ShapeHOL.one)),

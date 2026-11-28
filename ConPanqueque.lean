@@ -604,6 +604,8 @@ import ConPanqueque.T.Ind.RecInstallAll
 import ConPanqueque.T.Ind.MembersOk
 import ConPanqueque.T.Ind.PiCount
 import ConPanqueque.T.Ind.EraseFVars
+import ConPanqueque.T.Ind.KindDecode
+import ConPanqueque.T.Ind.MotiveSlot
 import ConPanqueque.T.Ind.K53
 import ConPanqueque.T.Ind.ClassCtorRec
 import ConPanqueque.T.Ind.BlockTeles

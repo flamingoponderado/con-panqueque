@@ -642,18 +642,21 @@ def ccoQ := ofString "cco_q"
 def ccoT0 := ofString "cco_t0"
 def ccoD := ofString "cco_d"
 def ccoR := ofString "cco_r"
+def ccoC := ofString "cco_c"
+def ccoOms := ofString "cco_oms"
+def ccoNcl := ofString "cco_ncl"
 def fCco := ofString "classCtorOf"
 
 def ccoParams : List MlS := [ccoTb, ccoTk, ccoCv, ccoNf, ccoSl, ccoSk, ccoNk, ccoMs, ccoDs, ccoDn, ccoInd, ccoNpc, ccoUs,
-  ccoOlp, ccoTy0, ccoPp, ccoPn, ccoNm]
+  ccoOlp, ccoTy0, ccoPp, ccoPn, ccoNm, ccoC, ccoOms, ccoNcl]
 def ccoLocals : List MlS := [ccoCn, ccoE, ccoCt, ccoIh, ccoIl, ccoTy, ccoX, ccoFv, ccoL, ccoU, ccoQ, ccoT0, ccoD, ccoR]
 
 def ccoBody (C : Ctx) : ProgHOL 64 := prologue ccoLocals
   (.seq (.assign .local ccoCn (.load .one (vv ccoCv)))
   (.seq (.call (some (some (.local, ccoE), none)) fFfe [vv ccoTb, .const 0, vv ccoTk, vv ccoCn])
-  (.seq (.call (some (some (.local, ccoCt), none)) fCms [vv ccoSl, .const 0, vv ccoSk, vv ccoCn, .const 0])
+  (.seq (.call (some (some (.local, ccoCt), none)) fCms [vv ccoSl, .const 0, vv ccoSk, vv ccoCn, vv ccoC])
   (.ite (.cmp .equal (vv ccoCt) (.const 1))
-  (.seq (.call (some (some (.local, ccoIh), none)) fCmi [vv ccoSl, .const 0, vv ccoSk, vv ccoCn, .const 0])
+  (.seq (.call (some (some (.local, ccoIh), none)) fCmi [vv ccoSl, .const 0, vv ccoSk, vv ccoCn, vv ccoC])
   (.seq (.assign .local ccoIl (.load .one (vv ccoIh)))
   (.seq (.assign .local ccoTy (.load .one (.op .add [vv ccoE, .const 24])))
   (.seq (.call (some (some (.local, ccoX), none)) fOpenFvars [vv ccoNf, vv ccoTy, vv ccoNk])
@@ -665,8 +668,7 @@ def ccoBody (C : Ctx) : ProgHOL 64 := prologue ccoLocals
   (.ite (.cmp .lower (vv ccoNpc) (.const (BitVec.ofNat 64 (2 ^ 58))))
   (.seq (.call (some (some (.local, ccoU), none)) fCfs [vv ccoFv, .const 0, vv ccoL, vv ccoMs, vv ccoIh, vv ccoIl])
   (.seq (.call (some (some (.local, ccoQ), none)) fCfg [vv ccoU, .const 0, vv ccoL, vv ccoFv, vv ccoL, vv ccoTb, vv ccoTk,
-      vv ccoCn, vv ccoInd, vv ccoNpc, vv ccoMs, vv ccoUs, vv ccoOlp, vv ccoTy0, vv ccoPp, vv ccoPn, vv ccoDs, vv ccoDn,
-      vv ccoNm])
+      vv ccoCn, vv ccoOms, vv ccoNcl, vv ccoMs, vv ccoOlp, vv ccoTy0, vv ccoPp, vv ccoPn, vv ccoNm])
   (.seq (.assign .local ccoT0 (.load .one (.op .add [vv ccoCv, .const 16])))
   (.seq (.call (some (some (.local, ccoD), none)) fInstPis [vv ccoDs, .const 0, vv ccoDn, vv ccoT0])
   (alloc6 C ccoR (vv ccoCv) (vv ccoNf) (vv ccoD) (vv ccoTy) (vv ccoL) (vv ccoU) (.return (vv ccoR)))))))
@@ -703,10 +705,13 @@ theorem postCC_locals (C : Ctx) : ∀ a w s' (st : PState σ) (L : HolFiniteMapE
   fun _ _ _ _ _ ⟨H', o, h1, h2, h3, h4⟩ => ⟨H', o, h1, h2, h3, sr_of_eq h4 rfl rfl rfl rfl⟩
 
 set_option maxHeartbeats 64000000 in
-/-- **`classCtorOf`** at class `0` (a member of a one-member block): ordinary and recursive fields. -/
+/-- **`classCtorOf`** at class `cl` of the class block `ms` (a class at a member): ordinary and recursive fields. -/
 theorem cco_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
-    (hs : C.side = false) (hc : CCOCodes mode C) (p : BlockShape) (ms0 : MemberShape) (hms : p.members = [ms0])
-    (rd : ClassRead) (m : TargetMajor) (hmm : m.member = some 0) (om : Nat)
+    (hs : C.side = false) (hc : CCOCodes mode C) (p : BlockShape) (fts : List EIdx) (hfts : fts = p.formers.map (·.type)) (hml : p.members.length < 2 ^ 58)
+    (wty wnm : BitVec 64)
+    (rd : ClassRead) (ms : List TargetMajor) (cl : Nat) (hcl : cl < 2 ^ 58) (m : TargetMajor) (hmc : ms[cl]? = some m)
+    (t0 : Nat) (hmm : m.member = some t0) (oms : Nat) (hT : TMBlkR C C.H oms ms) (hpfv : ∀ m' ∈ ms, m'.pfvs = m.pfvs)
+    (hmsl : ms.length < 2 ^ 58) (om : Nat)
     (hM : PtrsRep C C.H om (MemberRep C C.H) p.members)
     (ctor : IConstantVal × Nat) (ocv : Nat) (hcv : CVRep C C.H ocv ctor.1) (hnf : ctor.2 < 2 ^ 56)
     (ot osl pd olp pp : Nat) (tbl : List NestCtorNf) (htl : tbl.length < 2 ^ 58)
@@ -714,19 +719,20 @@ theorem cco_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     (hnfe : m.nfs.filter (·.ctor == ctor.1.name) = tbl.filter (·.ctor == ctor.1.name))
     (hsl : rd.slots.length < 2 ^ 58) (hcb : ∀ sl ∈ rd.slots, ∀ c C' ihs, sl = .minor c C' ihs → c < 2 ^ 63 ∧ ihs.length < 2 ^ 63)
     (hsb : SlotBlk C C.H osl rd.slots) (hdl : m.ds.length < 2 ^ 58) (hds : BlkAt C.H pd (m.ds.map Enc.idxW))
-    (hnk : p.nP + p.k < 2 ^ 56) (hlpl : ms0.cvT.levelParams.length < 2 ^ 59) (hpl : m.pfvs.length < 2 ^ 58)
-    (hlp : EBlk C.H olp (ms0.cvT.levelParams.map Enc.idxW)) (hpf : BlkAt C.H pp (m.pfvs.map Enc.idxW))
-    (hnpc0 : m.nPc < 2 ^ 62) (s : AState) :
+    (hnk : p.nP + p.k < 2 ^ 56) (hlpl : p.lps.length < 2 ^ 59) (hpl : m.pfvs.length < 2 ^ 58)
+    (hlp : EBlk C.H olp (p.lps.map Enc.idxW)) (hpf : BlkAt C.H pp (m.pfvs.map Enc.idxW))
+    (hnpc0 : m.nPc < 2 ^ 63) (s : AState) :
     SpecR (σ := σ) (Pre C s (ccoParams.zip [cellA C ot, BitVec.ofNat 64 tbl.length, cellA C ocv,
         BitVec.ofNat 64 ctor.2, cellA C osl, BitVec.ofNat 64 rd.slots.length, BitVec.ofNat 64 (p.nP + p.k), cellA C om,
         cellA C pd, BitVec.ofNat 64 m.ds.length, Enc.idxW m.ind, BitVec.ofNat 64 m.nPc, Enc.idxW m.lvls, cellA C olp,
-        Enc.idxW ms0.cvT.type, cellA C pp, BitVec.ofNat 64 m.pfvs.length, Enc.idxW ms0.cvT.name])) (ccoBody C) s
-      (classCtorOf mode C.fe p [ms0.cvT.type] rd [m] 0 ctor) (PostCC C) := by
+        wty, cellA C pp, BitVec.ofNat 64 m.pfvs.length, wnm, BitVec.ofNat 64 cl, cellA C oms,
+        BitVec.ofNat 64 ms.length])) (ccoBody C) s
+      (classCtorOf mode C.fe p fts rd ms cl ctor) (PostCC C) := by
   refine specR_prologue (postCC_locals _) (cco_none _ _) ?_
   have hp0 : C.H <+: C.H := List.prefix_refl _
   refine UD.specR_heapLoadI' (C := ctxH C C.H) ccoCn (vv ccoCv) ocv _ hcv.1 (by decide) (by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv]; rfl) ?_
   unfold classCtorOf
-  simp only [targetMajorAt, List.getElem?_cons_zero, pure_bind]
+  simp only [targetMajorAt, hmc, pure_bind]
   rw [hnfe]
   refine specR_callPure (C := ctxH C C.H) ccoE fFfe ffeParams [vv ccoTb, .const 0, vv ccoTk, vv ccoCn] ffeBody
     [cellA C ot, BitVec.ofNat 64 0, BitVec.ofNat 64 tbl.length, Enc.idxW ctor.1.name]
@@ -741,42 +747,42 @@ theorem cco_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   simp only [List.drop_zero] at hfe
   rw [hfe]
   simp only
-  refine specR_callPure (C := ctxH C C.H) ccoCt fCms cmsParams [vv ccoSl, .const 0, vv ccoSk, vv ccoCn, .const 0] cmsBody
-    [cellA C osl, BitVec.ofNat 64 0, BitVec.ofNat 64 rd.slots.length, Enc.idxW ctor.1.name, BitVec.ofNat 64 0]
-    ((rd.slots.drop 0).filter (isHitC 0 ctor.1.name)).length (by decide) rfl (by decide) hc.cms
-    ⟨by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], rfl, by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], by simp +decide [sev, Env.get_cons], rfl, trivial⟩ (PostCMS (ctxH C C.H) (rd.slots.drop 0) ctor.1.name s)
+  refine specR_callPure (C := ctxH C C.H) ccoCt fCms cmsParams [vv ccoSl, .const 0, vv ccoSk, vv ccoCn, vv ccoC] cmsBody
+    [cellA C osl, BitVec.ofNat 64 0, BitVec.ofNat 64 rd.slots.length, Enc.idxW ctor.1.name, BitVec.ofNat 64 cl]
+    ((rd.slots.drop 0).filter (isHitC cl ctor.1.name)).length (by decide) rfl (by decide) hc.cms
+    ⟨by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], rfl, by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], trivial⟩ (PostCMS (ctxH C C.H) (rd.slots.drop 0) ctor.1.name s)
     (fun r w s' H' => H' = C.H ∧ w = BitVec.ofNat 64 r ∧ r ≤ (rd.slots.drop 0).length)
     (fun r w s' st ⟨_, h1, h2, h4⟩ => ⟨C.H, hp0, ⟨rfl, h1, h2⟩, h4⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cmsParams _ rfl hlk)
-      (cms_spec C hc.cms rd.slots osl hsl ctor.1.name 0 (by decide) hcb C.H hsb rd.slots.length 0 s (by omega) (by omega)))
+      (cms_spec C hc.cms rd.slots osl hsl ctor.1.name cl (by omega) hcb C.H hsb rd.slots.length 0 s (by omega) (by omega)))
     (fun w H2 hp2 ⟨eH, hw, hr⟩ => ?_)
   subst eH hw
   simp only [List.drop_zero] at hr
-  by_cases hcnt : (rd.slots.filter (isHitC 0 ctor.1.name)).length = 1
+  by_cases hcnt : (rd.slots.filter (isHitC cl ctor.1.name)).length = 1
   swap
-  · have hne : BitVec.ofNat 64 (rd.slots.filter (isHitC 0 ctor.1.name)).length ≠ 1#64 := fun e => hcnt (by
+  · have hne : BitVec.ofNat 64 (rd.slots.filter (isHitC cl ctor.1.name)).length ≠ 1#64 := fun e => hcnt (by
       have := congrArg BitVec.toNat e; simp at this; omega)
     exact specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne) (fun h => absurd rfl h)
       (fun _ => specR_hangI)
   refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hcnt]) (fun _ => ?_) (fun h => absurd h (by decide))
-  obtain ⟨k, hk⟩ := classMinorSlot_one rd 0 ctor.1.name hcnt
+  obtain ⟨k, hk⟩ := classMinorSlot_one rd cl ctor.1.name hcnt
   rw [hk]
   simp only [pure_bind]
-  refine specR_callPure (C := ctxH C C.H) ccoIh fCmi cmiParams [vv ccoSl, .const 0, vv ccoSk, vv ccoCn, .const 0] cmiBody
-    [cellA C osl, BitVec.ofNat 64 0, BitVec.ofNat 64 rd.slots.length, Enc.idxW ctor.1.name, BitVec.ofNat 64 0] () (by decide) rfl (by decide)
+  refine specR_callPure (C := ctxH C C.H) ccoIh fCmi cmiParams [vv ccoSl, .const 0, vv ccoSk, vv ccoCn, vv ccoC] cmiBody
+    [cellA C osl, BitVec.ofNat 64 0, BitVec.ofNat 64 rd.slots.length, Enc.idxW ctor.1.name, BitVec.ofNat 64 cl] () (by decide) rfl (by decide)
     hc.cmi
-    ⟨by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], rfl, by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], by simp +decide [sev, Env.get_cons], rfl, trivial⟩
-    (PostCMI (ctxH C C.H) rd.slots ctor.1.name 0 0 s)
+    ⟨by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], rfl, by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], trivial⟩
+    (PostCMI (ctxH C C.H) rd.slots ctor.1.name cl 0 s)
     (fun _ w s' H' => H' = C.H ∧ ∃ r oi, w = cellA C oi ∧ ∃ hr : r < rd.slots.length,
-      isHitC 0 ctor.1.name rd.slots[r] = true ∧ (∀ k (hk : k < rd.slots.length), k < r → isHitC 0 ctor.1.name rd.slots[k] = false) ∧
+      isHitC cl ctor.1.name rd.slots[r] = true ∧ (∀ k (hk : k < rd.slots.length), k < r → isHitC cl ctor.1.name rd.slots[k] = false) ∧
       PairsRep C.H oi (ihsOf rd.slots[r]))
     (fun a w s' st ⟨_, r, oi, h1, _, h3, h4, h5, h6, h7⟩ => ⟨C.H, hp0, ⟨rfl, r, oi, h1, h3, h4, fun k hk h => h5 k hk (by omega) h, h6⟩, h7⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cmiParams _ rfl hlk)
-      (cmi_spec C hc.cmi rd.slots osl hsl ctor.1.name 0 (by decide) (fun sl h c C' ihs e => (hcb sl h c C' ihs e).1) C.H hsb
+      (cmi_spec C hc.cmi rd.slots osl hsl ctor.1.name cl (by omega) (fun sl h c C' ihs e => (hcb sl h c C' ihs e).1) C.H hsb
         rd.slots.length 0 s (by omega) (by omega)))
     (fun w H2' hp2' ⟨eH, r, oi, hw, hr', hhit, hfirst, hpri⟩ => ?_)
   subst eH hw
-  rw [firstIhs_eq rd.slots 0 ctor.1.name r hr' hhit hfirst]
+  rw [firstIhs_eq rd.slots cl ctor.1.name r hr' hhit hfirst]
   generalize hihs : ihsOf rd.slots[r] = ihs at hpri
   refine UD.specR_heapLoadI' (C := ctxH C C.H) ccoIl (vv ccoIh) oi _ hpri.1 (by decide) (by simp [sev, Env.get_cons]; rfl) ?_
   refine UD.specR_heapLoadI' (C := ctxH C C.H) ccoTy _ (oe + 3) _ hnfr.2.2.2 (by decide)
@@ -840,7 +846,7 @@ theorem cco_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
       ks.length = fvs.length - 0 ∧ KindsOK ks)
     (fun ks w s' st ⟨H', o, hp', hw, hb, hl, hk, hsr⟩ => ⟨H', hp', ⟨o, hw, hb, hl, hk⟩, hsr⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cfsParams _ rfl hlk)
-      (by have h := cfs_spec (σ := σ) C hok hc.cfs p p.members om rfl hM (by rw [hms]; simp) ihs oi hpri hil fvs oa
+      (by have h := cfs_spec (σ := σ) C hok hc.cfs p p.members om rfl hM (by omega) ihs oi hpri hil fvs oa
             (by omega) H3 hp3' hfb fvs.length 0 H3 s2 (by omega) (by omega) (List.prefix_refl _)
           simp only [List.drop_zero] at h; exact h))
     (fun kinds w s4 H4 hp4 ⟨ok, hw, hkb, hkl, hko⟩ => ?_)
@@ -849,12 +855,10 @@ theorem cco_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   have hpC4 : C.H <+: H4 := hp3'.trans hp4'
   rw [← hfe]
   refine specR_callNIH (C := ctxH C H4) ccoQ fCfg cfgParams [vv ccoU, .const 0, vv ccoL, vv ccoFv, vv ccoL, vv ccoTb,
-      vv ccoTk, vv ccoCn, vv ccoInd, vv ccoNpc, vv ccoMs, vv ccoUs, vv ccoOlp, vv ccoTy0, vv ccoPp, vv ccoPn, vv ccoDs,
-      vv ccoDn, vv ccoNm] cfgBody
+      vv ccoTk, vv ccoCn, vv ccoOms, vv ccoNcl, vv ccoMs, vv ccoOlp, vv ccoTy0, vv ccoPp, vv ccoPn, vv ccoNm] cfgBody
     [cellA C ok, BitVec.ofNat 64 0, BitVec.ofNat 64 kinds.length, cellA C oa, BitVec.ofNat 64 fvs.length, cellA C ot,
-      BitVec.ofNat 64 tbl.length, Enc.idxW ctor.1.name, Enc.idxW m.ind, BitVec.ofNat 64 m.nPc, cellA C om,
-      Enc.idxW m.lvls, cellA C olp, Enc.idxW ms0.cvT.type, cellA C pp, BitVec.ofNat 64 m.pfvs.length, cellA C pd,
-      BitVec.ofNat 64 m.ds.length, Enc.idxW ms0.cvT.name] (by decide) rfl (by decide) hc.cfg.self
+      BitVec.ofNat 64 tbl.length, Enc.idxW ctor.1.name, cellA C oms, BitVec.ofNat 64 ms.length, cellA C om,
+      cellA C olp, wty, cellA C pp, BitVec.ofNat 64 m.pfvs.length, wnm] (by decide) rfl (by decide) hc.cfg.self
     ⟨by simp +decide [sev, Env.get_cons], rfl, by simp +decide [sev, Env.get_cons, hkl],
       by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons],
       by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv],
@@ -862,14 +866,13 @@ theorem cco_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
       by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv],
       by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv],
       by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv],
-      by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv],
-      by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv],
+      by simp +decide [sev, Env.get_cons, Env.get, ccoParams, ctxEnv],
       trivial⟩
     (Decl.PostU (ctxH C H4)) (fun _ _ _ _ => True) (fun a w s' st ⟨H', hp', hsr⟩ => ⟨H', hp', trivial, hsr⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cfgParams _ rfl hlk)
-      (by have h := cfg_spec (σ := σ) mode ra C hok hs hc.cfg p ms0 hms om hM m olp pp pd hlpl hdl hpl hnpc tbl ot htl
-            ctor.1.name fvs oa (by omega) kinds ok hko (by omega) H4 hpC4 (eblk_mono hlp hpC4) (blkAt_mono hpf hpC4)
-            (blkAt_mono hds hpC4) (pRep_mono hpC4 (fun _ _ => nfRep_mono hpC4) htb) (blkAt_mono hfb hp4') hkb
+      (by have h := cfg_spec (σ := σ) mode ra C hok hs hc.cfg p fts hfts hml wty wnm om hM ms oms m.pfvs hpfv hmsl olp pp hlpl hpl
+            tbl ot htl ctor.1.name fvs oa (by omega) kinds ok hko (by omega) H4 hpC4 (eblk_mono hlp hpC4) (blkAt_mono hpf hpC4)
+            (tmBlkR_mono hpC4 hT) (pRep_mono hpC4 (fun _ _ => nfRep_mono hpC4) htb) (blkAt_mono hfb hp4') hkb
             kinds.length 0 H4 s4 (by omega) (by omega) (List.prefix_refl _)
           simp only [List.drop_zero] at h; exact h))
     (fun _ w s5 H5 hp5 _ => ?_)
@@ -934,10 +937,13 @@ def cclTy0 := ofString "ccl_ty0"
 def cclPp := ofString "ccl_pp"
 def cclPn := ofString "ccl_pn"
 def cclNm := ofString "ccl_nm"
+def cclC := ofString "ccl_c"
+def cclOms := ofString "ccl_oms"
+def cclNcl := ofString "ccl_ncl"
 def fCcl := ofString "classCtorsOf"
 
 def cclParams : List MlS := [cclCs, cclI, cclN, cclTb, cclTk, cclSl, cclSk, cclNk, cclMs, cclDs, cclDn, cclInd, cclNpc, cclUs,
-  cclOlp, cclTy0, cclPp, cclPn, cclNm]
+  cclOlp, cclTy0, cclPp, cclPn, cclNm, cclC, cclOms, cclNcl]
 def cclLocals : List MlS := gaaLocals ++ [cclO, cclF, cclX]
 
 def cclBody (C : Ctx) : ProgHOL 64 := prologue cclLocals
@@ -946,10 +952,11 @@ def cclBody (C : Ctx) : ProgHOL 64 := prologue cclLocals
     (.seq (.assign .local cclF (.load .one (.op .add [vv cclCs, .op .add [.panop .mul [vv cclI, .const 16], .const 16]])))
     (.seq (.call (some (some (.local, cclX), none)) fCco
         [vv cclTb, vv cclTk, vv cclO, vv cclF, vv cclSl, vv cclSk, vv cclNk, vv cclMs, vv cclDs, vv cclDn, vv cclInd,
-          vv cclNpc, vv cclUs, vv cclOlp, vv cclTy0, vv cclPp, vv cclPn, vv cclNm])
+          vv cclNpc, vv cclUs, vv cclOlp, vv cclTy0, vv cclPp, vv cclPn, vv cclNm, vv cclC, vv cclOms, vv cclNcl])
     (.seq (.call (some (some (.local, ExS.lY), none)) fCcl
         [vv cclCs, .op .add [vv cclI, .const 1], vv cclN, vv cclTb, vv cclTk, vv cclSl, vv cclSk, vv cclNk, vv cclMs,
-          vv cclDs, vv cclDn, vv cclInd, vv cclNpc, vv cclUs, vv cclOlp, vv cclTy0, vv cclPp, vv cclPn, vv cclNm])
+          vv cclDs, vv cclDn, vv cclInd, vv cclNpc, vv cclUs, vv cclOlp, vv cclTy0, vv cclPp, vv cclPn, vv cclNm, vv cclC,
+          vv cclOms, vv cclNcl])
       (prependP C cclX)))))
     (alloc1 C lW (.const 0) (.return (vv lW))))
 
@@ -965,10 +972,13 @@ theorem ccl_none (C : Ctx) (vals : List (BitVec 64)) :
   Knot.params_none C cclLocals cclParams vals (by decide) (by decide)
 
 set_option maxHeartbeats 16000000 in
-/-- **`classCtorsOf`** at class `0` from constructor `i` on. -/
+/-- **`classCtorsOf`** at class `cl` of the class block `ms` from constructor `i` on. -/
 theorem ccl_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
-    (hs : C.side = false) (hc : CCLCodes mode C) (p : BlockShape) (ms0 : MemberShape) (hms : p.members = [ms0])
-    (rd : ClassRead) (m : TargetMajor) (hmm : m.member = some 0) (om : Nat)
+    (hs : C.side = false) (hc : CCLCodes mode C) (p : BlockShape) (fts : List EIdx) (hfts : fts = p.formers.map (·.type)) (hml : p.members.length < 2 ^ 58)
+    (wty wnm : BitVec 64)
+    (rd : ClassRead) (ms : List TargetMajor) (cl : Nat) (hcl : cl < 2 ^ 58) (m : TargetMajor) (hmc : ms[cl]? = some m)
+    (t0 : Nat) (hmm : m.member = some t0) (oms : Nat) (hT : TMBlkR C C.H oms ms) (hpfv : ∀ m' ∈ ms, m'.pfvs = m.pfvs)
+    (hmsl : ms.length < 2 ^ 58) (om : Nat)
     (hM : PtrsRep C C.H om (MemberRep C C.H) p.members)
     (cs : List (IConstantVal × Nat)) (oq : Nat) (hcr : CtorsRep C C.H oq cs) (hcsl : cs.length < 2 ^ 58)
     (hnf : ∀ c ∈ cs, c.2 < 2 ^ 56)
@@ -977,16 +987,16 @@ theorem ccl_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     (hnfs : ∀ c ∈ cs, m.nfs.filter (·.ctor == c.1.name) = tbl.filter (·.ctor == c.1.name))
     (hsl : rd.slots.length < 2 ^ 58) (hcb : ∀ sl ∈ rd.slots, ∀ c C' ihs, sl = .minor c C' ihs → c < 2 ^ 63 ∧ ihs.length < 2 ^ 63)
     (hsb : SlotBlk C C.H osl rd.slots) (hdl : m.ds.length < 2 ^ 58) (hds : BlkAt C.H pd (m.ds.map Enc.idxW))
-    (hnk : p.nP + p.k < 2 ^ 56) (olp pp : Nat) (hlpl : ms0.cvT.levelParams.length < 2 ^ 59)
-    (hpl : m.pfvs.length < 2 ^ 58) (hlp : EBlk C.H olp (ms0.cvT.levelParams.map Enc.idxW))
-    (hpf : BlkAt C.H pp (m.pfvs.map Enc.idxW)) (hnpc0 : m.nPc < 2 ^ 62) :
+    (hnk : p.nP + p.k < 2 ^ 56) (olp pp : Nat) (hlpl : p.lps.length < 2 ^ 59)
+    (hpl : m.pfvs.length < 2 ^ 58) (hlp : EBlk C.H olp (p.lps.map Enc.idxW))
+    (hpf : BlkAt C.H pp (m.pfvs.map Enc.idxW)) (hnpc0 : m.nPc < 2 ^ 63) :
     ∀ f i (H : List (BitVec 64)) (s : AState), cs.length - i = f → i ≤ cs.length → C.H <+: H →
       SpecR (σ := σ) (Pre (ctxH C H) s (cclParams.zip [cellA C oq, BitVec.ofNat 64 i, BitVec.ofNat 64 cs.length,
         cellA C ot, BitVec.ofNat 64 tbl.length, cellA C osl, BitVec.ofNat 64 rd.slots.length,
         BitVec.ofNat 64 (p.nP + p.k), cellA C om, cellA C pd, BitVec.ofNat 64 m.ds.length, Enc.idxW m.ind,
-        BitVec.ofNat 64 m.nPc, Enc.idxW m.lvls, cellA C olp, Enc.idxW ms0.cvT.type, cellA C pp,
-        BitVec.ofNat 64 m.pfvs.length, Enc.idxW ms0.cvT.name])) (cclBody C) s
-        (classCtorsOf mode C.fe p [ms0.cvT.type] rd [m] 0 (cs.drop i)) (PostCCs (ctxH C H)) := by
+        BitVec.ofNat 64 m.nPc, Enc.idxW m.lvls, cellA C olp, wty, cellA C pp,
+        BitVec.ofNat 64 m.pfvs.length, wnm, BitVec.ofNat 64 cl, cellA C oms, BitVec.ofNat 64 ms.length])) (cclBody C) s
+        (classCtorsOf mode C.fe p fts rd ms cl (cs.drop i)) (PostCCs (ctxH C H)) := by
   intro f
   induction f with
   | zero =>
@@ -1019,19 +1029,19 @@ theorem ccl_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     simp only [classCtorsOf]
     refine specR_callNIH (C := ctxH C H) cclX fCco ccoParams
       [vv cclTb, vv cclTk, vv cclO, vv cclF, vv cclSl, vv cclSk, vv cclNk, vv cclMs, vv cclDs, vv cclDn, vv cclInd,
-        vv cclNpc, vv cclUs, vv cclOlp, vv cclTy0, vv cclPp, vv cclPn, vv cclNm] (ccoBody C)
+        vv cclNpc, vv cclUs, vv cclOlp, vv cclTy0, vv cclPp, vv cclPn, vv cclNm, vv cclC, vv cclOms, vv cclNcl] (ccoBody C)
       [cellA C ot, BitVec.ofNat 64 tbl.length, cellA C oc, BitVec.ofNat 64 cs[i].2, cellA C osl,
         BitVec.ofNat 64 rd.slots.length, BitVec.ofNat 64 (p.nP + p.k), cellA C om, cellA C pd, BitVec.ofNat 64 m.ds.length,
-        Enc.idxW m.ind, BitVec.ofNat 64 m.nPc, Enc.idxW m.lvls, cellA C olp, Enc.idxW ms0.cvT.type, cellA C pp,
-        BitVec.ofNat 64 m.pfvs.length, Enc.idxW ms0.cvT.name]
+        Enc.idxW m.ind, BitVec.ofNat 64 m.nPc, Enc.idxW m.lvls, cellA C olp, wty, cellA C pp,
+        BitVec.ofNat 64 m.pfvs.length, wnm, BitVec.ofNat 64 cl, cellA C oms, BitVec.ofNat 64 ms.length]
       (by decide) rfl (by decide) hc.cco.self
       ⟨by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv],
-        by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], trivial⟩
+        by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], trivial⟩
       (PostCC (ctxH C H)) (fun cc w _ H' => ∃ o, w = cellA C o ∧ CCRep C H' o cc)
       (fun cc w s' st ⟨H', o, hp', hw, hr, hsr⟩ => ⟨H', hp', ⟨o, hw, hr⟩, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ccoParams _ rfl hlk)
-        (cco_spec mode ra (ctxH C H) (ctxOK_H hok H) hs (by ctx_tr hc.cco) p ms0 hms rd m hmm om
-          (ptrsRep_mono hp (fun _ _ => memberRep_mono hp) hM) cs[i] oc (cvRep_mono hp hcv)
+        (cco_spec mode ra (ctxH C H) (ctxOK_H hok H) hs (by ctx_tr hc.cco) p fts hfts hml wty wnm rd ms cl hcl m hmc t0 hmm oms
+          (tmBlkR_mono hp hT) hpfv hmsl om (ptrsRep_mono hp (fun _ _ => memberRep_mono hp) hM) cs[i] oc (cvRep_mono hp hcv)
           (hnf cs[i] (List.getElem_mem hin)) ot osl pd olp pp tbl htl (pRep_mono hp (fun _ _ => nfRep_mono hp) htb)
           (hnfs cs[i] (List.getElem_mem hin)) hsl hcb
           (slotBlk_mono hp hsb) hdl (blkAt_mono hds hp) hnk hlpl hpl (eblk_mono hlp hp) (blkAt_mono hpf hp) hnpc0 s))
@@ -1040,12 +1050,14 @@ theorem ccl_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     have hp1' : H <+: H1 := hp1
     refine specR_callNIH (C := ctxH C H1) ExS.lY fCcl cclParams
       [vv cclCs, .op .add [vv cclI, .const 1], vv cclN, vv cclTb, vv cclTk, vv cclSl, vv cclSk, vv cclNk, vv cclMs,
-        vv cclDs, vv cclDn, vv cclInd, vv cclNpc, vv cclUs, vv cclOlp, vv cclTy0, vv cclPp, vv cclPn, vv cclNm] (cclBody C)
+        vv cclDs, vv cclDn, vv cclInd, vv cclNpc, vv cclUs, vv cclOlp, vv cclTy0, vv cclPp, vv cclPn, vv cclNm, vv cclC,
+          vv cclOms, vv cclNcl] (cclBody C)
       [cellA C oq, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 cs.length, cellA C ot, BitVec.ofNat 64 tbl.length,
         cellA C osl, BitVec.ofNat 64 rd.slots.length, BitVec.ofNat 64 (p.nP + p.k), cellA C om, cellA C pd,
         BitVec.ofNat 64 m.ds.length, Enc.idxW m.ind, BitVec.ofNat 64 m.nPc, Enc.idxW m.lvls, cellA C olp,
-        Enc.idxW ms0.cvT.type, cellA C pp, BitVec.ofNat 64 m.pfvs.length, Enc.idxW ms0.cvT.name] (by decide) rfl (by decide) hc.self
-      ⟨by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv]; exact word_add1_eq i, by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], trivial⟩
+        wty, cellA C pp, BitVec.ofNat 64 m.pfvs.length, wnm, BitVec.ofNat 64 cl, cellA C oms, BitVec.ofNat 64 ms.length]
+        (by decide) rfl (by decide) hc.self
+      ⟨by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv]; exact word_add1_eq i, by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cclParams, ctxEnv], trivial⟩
       (PostCCs (ctxH C H1)) (fun ccs w _ H' => ∃ o, w = cellA C o ∧ PRep C H' o (fun H o cc => CCRep C H o cc) ccs)
       (fun ccs w s' st ⟨H', o, hp', hw, hr, hsr⟩ => ⟨H', hp', ⟨o, hw, hr⟩, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cclParams _ rfl hlk)
@@ -1065,5 +1077,313 @@ theorem ccl_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
 
 end
 
+
+/-! ## `classesCtors` (every class of the class block) -/
+
+def ccsMs := ofString "ccs_ms"
+def ccsI := ofString "ccs_i"
+def ccsK := ofString "ccs_k"
+def ccsTb := ofString "ccs_tb"
+def ccsTk := ofString "ccs_tk"
+def ccsSl := ofString "ccs_sl"
+def ccsSk := ofString "ccs_sk"
+def ccsNk := ofString "ccs_nk"
+def ccsOm := ofString "ccs_om"
+def ccsOlp := ofString "ccs_olp"
+def ccsTy0 := ofString "ccs_ty0"
+def ccsPp := ofString "ccs_pp"
+def ccsPn := ofString "ccs_pn"
+def ccsNm := ofString "ccs_nm"
+def ccsQ := ofString "ccs_q"
+def ccsOc := ofString "ccs_oc"
+def ccsNc := ofString "ccs_nc"
+def ccsOa := ofString "ccs_oa"
+def ccsInd := ofString "ccs_ind"
+def ccsLv := ofString "ccs_lv"
+def ccsOd := ofString "ccs_od"
+def ccsNd := ofString "ccs_nd"
+def ccsNpc := ofString "ccs_npc"
+def ccsX := ofString "ccs_x"
+def fCcs := ofString "classesCtors"
+
+def ccsParams : List MlS := [ccsMs, ccsI, ccsK, ccsTb, ccsTk, ccsSl, ccsSk, ccsNk, ccsOm, ccsOlp, ccsTy0, ccsPp, ccsPn,
+  ccsNm]
+def ccsLocals : List MlS := gaaLocals ++ [ccsQ, ccsOc, ccsNc, ccsOa, ccsInd, ccsLv, ccsOd, ccsNd, ccsNpc, ccsX]
+
+def ccsBody (C : Ctx) : ProgHOL 64 := prologue ccsLocals
+  (.ite (.cmp .lower (vv ccsI) (vv ccsK))
+    (.seq (.assign .local ccsQ (.load .one (.op .add [vv ccsMs, .op .add [.panop .mul [vv ccsI, .const 8], .const 8]])))
+    (.seq (.assign .local ccsOc (.load .one (.op .add [vv ccsQ, .const 8])))
+    (.seq (.assign .local ccsNc (.load .one (vv ccsOc)))
+    (.seq (.assign .local ccsOa (.load .one (.op .add [vv ccsQ, .const 24])))
+    (.seq (.assign .local ccsInd (.load .one (vv ccsOa)))
+    (.seq (.assign .local ccsLv (.load .one (.op .add [vv ccsOa, .const 8])))
+    (.seq (.assign .local ccsOd (.load .one (.op .add [vv ccsOa, .const 16])))
+    (.seq (.assign .local ccsNd (.load .one (vv ccsOd)))
+    (.seq (.assign .local ccsNpc (.load .one (.op .add [vv ccsOa, .const 24])))
+    (.seq (.call (some (some (.local, ccsX), none)) fCcl
+        [vv ccsOc, .const 0, vv ccsNc, vv ccsTb, vv ccsTk, vv ccsSl, vv ccsSk, vv ccsNk, vv ccsOm, vv ccsOd, vv ccsNd,
+          vv ccsInd, vv ccsNpc, vv ccsLv, vv ccsOlp, vv ccsTy0, vv ccsPp, vv ccsPn, vv ccsNm, vv ccsI, vv ccsMs, vv ccsK])
+    (.seq (.call (some (some (.local, ExS.lY), none)) fCcs
+        [vv ccsMs, .op .add [vv ccsI, .const 1], vv ccsK, vv ccsTb, vv ccsTk, vv ccsSl, vv ccsSk, vv ccsNk, vv ccsOm,
+          vv ccsOlp, vv ccsTy0, vv ccsPp, vv ccsPn, vv ccsNm])
+      (prependP C ccsX))))))))))))
+    (alloc1 C lW (.const 0) (.return (vv lW))))
+
+structure CCSCodes (mode : ConLeche.CheckMode) (C : Ctx) : Prop where
+  ccl : CCLCodes mode C
+  self : C.code.lookup fCcs = some (ccsParams.map (fun p => (p, ShapeHOL.one)), ccsBody C, .one)
+
+section
+variable {σ : Type}
+
+theorem ccs_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ ccsLocals → (ctxEnv C ++ ccsParams.zip vals).get x = none :=
+  Knot.params_none C ccsLocals ccsParams vals (by decide) (by decide)
+
+/-- Every class's constructors, as a block of blocks of records. -/
+def PostCCss (C : Ctx) (xss : List (List ClassCtor)) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
+  ∃ H' o, C.H <+: H' ∧ w = cellA C o ∧
+    PRep C H' o (fun H o xs => PRep C H o (fun H o cc => CCRep C H o cc) xs) xss ∧ SR (ctxH C H') s' st
+
+theorem postCCss_locals (C : Ctx) : ∀ a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
+    PostCCss C a w s' st → PostCCss C a w s' { st with locals := L } :=
+  fun _ _ _ _ _ ⟨H', o, h1, h2, h3, h4⟩ => ⟨H', o, h1, h2, h3, sr_of_eq h4 rfl rfl rfl rfl⟩
+
+set_option maxHeartbeats 16000000 in
+/-- **`classesCtors`** from class `i` of the class block `ms` (every class at a member). -/
+theorem ccs_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
+    (hs : C.side = false) (hc : CCSCodes mode C) (p : BlockShape) (fts : List EIdx) (hfts : fts = p.formers.map (·.type))
+    (hml : p.members.length < 2 ^ 58) (wty wnm : BitVec 64)
+    (rd : ClassRead) (ms : List TargetMajor) (oms : Nat) (hT : TMBlkR C C.H oms ms) (pfvs : List EIdx)
+    (hpfv : ∀ m ∈ ms, m.pfvs = pfvs) (hmsl : ms.length < 2 ^ 58) (hmem : ∀ m ∈ ms, ∃ t, m.member = some t)
+    (hmsb : ∀ m ∈ ms, m.ctors.length < 2 ^ 58 ∧ m.ds.length < 2 ^ 58) (hnf : ∀ m ∈ ms, ∀ c ∈ m.ctors, c.2 < 2 ^ 56)
+    (om : Nat) (hM : PtrsRep C C.H om (MemberRep C C.H) p.members)
+    (ot osl : Nat) (tbl : List NestCtorNf) (htl : tbl.length < 2 ^ 58)
+    (htb : PRep C C.H ot (fun H o nf => NfRep C H o nf) tbl)
+    (hnfs : ∀ m ∈ ms, ∀ c ∈ m.ctors, m.nfs.filter (·.ctor == c.1.name) = tbl.filter (·.ctor == c.1.name))
+    (hsl : rd.slots.length < 2 ^ 58) (hcb : ∀ sl ∈ rd.slots, ∀ c C' ihs, sl = .minor c C' ihs → c < 2 ^ 63 ∧ ihs.length < 2 ^ 63)
+    (hsb : SlotBlk C C.H osl rd.slots) (hnk : p.nP + p.k < 2 ^ 56) (olp pp : Nat) (hlpl : p.lps.length < 2 ^ 59)
+    (hpl : pfvs.length < 2 ^ 58) (hlp : EBlk C.H olp (p.lps.map Enc.idxW)) (hpf : BlkAt C.H pp (pfvs.map Enc.idxW)) :
+    ∀ f i (H : List (BitVec 64)) (s : AState), ms.length - i = f → i ≤ ms.length → C.H <+: H →
+      SpecR (σ := σ) (Pre (ctxH C H) s (ccsParams.zip [cellA C oms, BitVec.ofNat 64 i, BitVec.ofNat 64 ms.length,
+        cellA C ot, BitVec.ofNat 64 tbl.length, cellA C osl, BitVec.ofNat 64 rd.slots.length,
+        BitVec.ofNat 64 (p.nP + p.k), cellA C om, cellA C olp, wty, cellA C pp, BitVec.ofNat 64 pfvs.length, wnm]))
+        (ccsBody C) s (classesCtors mode C.fe p fts rd ms i (ms.drop i)) (PostCCss (ctxH C H)) := by
+  have hT0 := hT
+  obtain ⟨ps, hpsl, hpsb, hpsr⟩ := hT0
+  intro f
+  induction f with
+  | zero =>
+    intro i H s hf hi hp
+    have hin : i = ms.length := by omega
+    subst hin
+    refine specR_prologue (postCCss_locals _) (ccs_none _ _) ?_
+    have hlw := nd_lt_iff ms.length ms.length (by omega) (by omega)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv]; simp +decide [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw]) (fun h => absurd rfl h) (fun _ => ?_)
+    rw [List.drop_length]
+    simp only [classesCtors]
+    refine specR_alloc1I (ctxOK_H hok H) lW (.const 0) 0 (by decide) (fun _ => rfl) (fun H2 ws hp2 hws => ?_)
+    have hg : ((H2 ++ ws).set H2.length (0 : BitVec 64))[H2.length]? = some 0 := List.getElem?_set_self (by simp [hws])
+    have hpr' : H2 <+: (H2 ++ ws).set H2.length (0 : BitVec 64) := prefix_set (List.prefix_append _ _) (Nat.le_refl _) _
+    exact specR_returnI _ (cellA C H2.length) (by simp [sev, Env.get_cons]; rfl) (fun t ht => ⟨_, H2.length,
+      (hp2 : H <+: H2).trans hpr', rfl, ⟨[], rfl, ⟨by simpa using hg, fun i hi => absurd hi (by simp)⟩,
+        fun i hi => absurd hi (by simp)⟩, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  | succ f ih =>
+    intro i H s hf hi hp
+    have hin : i < ms.length := by omega
+    refine specR_prologue (postCCss_locals _) (ccs_none _ _) ?_
+    have hlw := nd_lt_iff i ms.length (by omega) (by omega)
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv]; simp +decide [Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw.mpr hin]) (fun _ => ?_) (fun h => absurd h (by decide))
+    obtain ⟨op, hop, hrep⟩ := hpsr i hin
+    have hq := hpsb.2 i (by simp; omega)
+    simp only [List.getElem_map] at hq
+    have hpi : ps[i]'(by omega) = op := by
+      rw [List.getElem?_eq_getElem (by omega)] at hop; exact Option.some.inj hop
+    rw [hpi] at hq
+    obtain ⟨oa, ha3, hind, hlv, ⟨od, hod, hdb⟩, hnpcE, -, ⟨oc, hoc, hcr⟩, -, -⟩ := hrep
+    have hmi := List.getElem_mem hin
+    have hmb := hmsb ms[i] hmi
+    have hpfc : ms[i].pfvs = pfvs := hpfv _ hmi
+    obtain ⟨t0, ht0⟩ := hmem ms[i] hmi
+    refine UD.specR_heapLoadI' (C := ctxH C H) ccsQ _ (oms + 1 + i) _ (get_prefix hq hp) (by decide)
+      (by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv]; exact cellA_mulIdx C oms i (by omega)) ?_
+    refine UD.specR_heapLoadI' (C := ctxH C H) ccsOc _ (op + 1) _ (get_prefix hoc hp) (by decide)
+      (by simp +decide [sev, Env.get_cons]; exact cellA_add8 C op) ?_
+    refine UD.specR_heapLoadI' (C := ctxH C H) ccsNc (vv ccsOc) oc _ (get_prefix hcr.1 hp) (by decide)
+      (by simp +decide [sev, Env.get_cons]; rfl) ?_
+    refine UD.specR_heapLoadI' (C := ctxH C H) ccsOa _ (op + 3) _ (get_prefix ha3 hp) (by decide)
+      (by simp +decide [sev, Env.get_cons]; exact cellA_add_ofNat C op 3) ?_
+    refine UD.specR_heapLoadI' (C := ctxH C H) ccsInd (vv ccsOa) oa _ (get_prefix hind hp) (by decide)
+      (by simp +decide [sev, Env.get_cons]; rfl) ?_
+    refine UD.specR_heapLoadI' (C := ctxH C H) ccsLv _ (oa + 1) _ (get_prefix hlv hp) (by decide)
+      (by simp +decide [sev, Env.get_cons]; exact cellA_add8 C oa) ?_
+    refine UD.specR_heapLoadI' (C := ctxH C H) ccsOd _ (oa + 2) _ (get_prefix hod hp) (by decide)
+      (by simp +decide [sev, Env.get_cons]; exact cellA_add_ofNat C oa 2) ?_
+    have hdl0 := hdb.1
+    simp only [List.length_map] at hdl0
+    refine UD.specR_heapLoadI' (C := ctxH C H) ccsNd (vv ccsOd) od _ (get_prefix hdl0 hp) (by decide)
+      (by simp +decide [sev, Env.get_cons]; rfl) ?_
+    refine UD.specR_heapLoadI' (C := ctxH C H) ccsNpc _ (oa + 3) _ (get_prefix hnpcE.1 hp) (by decide)
+      (by simp +decide [sev, Env.get_cons]; exact cellA_add_ofNat C oa 3) ?_
+    rw [List.drop_eq_getElem_cons hin]
+    simp only [classesCtors, bind_assoc]
+    refine specR_callNIH (C := ctxH C H) ccsX fCcl cclParams
+      [vv ccsOc, .const 0, vv ccsNc, vv ccsTb, vv ccsTk, vv ccsSl, vv ccsSk, vv ccsNk, vv ccsOm, vv ccsOd, vv ccsNd,
+        vv ccsInd, vv ccsNpc, vv ccsLv, vv ccsOlp, vv ccsTy0, vv ccsPp, vv ccsPn, vv ccsNm, vv ccsI, vv ccsMs, vv ccsK]
+      (cclBody C)
+      [cellA C oc, BitVec.ofNat 64 0, BitVec.ofNat 64 ms[i].ctors.length, cellA C ot, BitVec.ofNat 64 tbl.length,
+        cellA C osl, BitVec.ofNat 64 rd.slots.length, BitVec.ofNat 64 (p.nP + p.k), cellA C om, cellA C od,
+        BitVec.ofNat 64 ms[i].ds.length, Enc.idxW ms[i].ind, BitVec.ofNat 64 ms[i].nPc, Enc.idxW ms[i].lvls, cellA C olp,
+        wty, cellA C pp, BitVec.ofNat 64 pfvs.length, wnm, BitVec.ofNat 64 i, cellA C oms, BitVec.ofNat 64 ms.length]
+      (by decide) rfl (by decide) hc.ccl.self
+      ⟨by simp +decide [sev, Env.get_cons], rfl, by simp +decide [sev, Env.get_cons],
+        by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons],
+        by simp +decide [sev, Env.get_cons], by simp +decide [sev, Env.get_cons],
+        by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], trivial⟩
+      (fun a w s' st => PostCCs (ctxH C H) a w s' st)
+      (fun xs w _ H' => ∃ o, w = cellA C o ∧ PRep C H' o (fun H o cc => CCRep C H o cc) xs)
+      (fun xs w s' st ⟨H', o, hp', hw, hr, hsr⟩ => ⟨H', hp', ⟨o, hw, hr⟩, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cclParams _ rfl hlk)
+        (by have h := ccl_spec (σ := σ) mode ra C hok hs hc.ccl p fts hfts hml wty wnm rd ms i (by omega) ms[i]
+              (List.getElem?_eq_getElem hin) t0 ht0 oms hT (fun m' hm' => (hpfv m' hm').trans hpfc.symm) hmsl om hM
+              ms[i].ctors oc hcr hmb.1 (hnf ms[i] hmi) ot osl od tbl htl htb (hnfs ms[i] hmi) hsl hcb hsb hmb.2 hdb hnk
+              olp pp hlpl (by rw [hpfc]; exact hpl) hlp (by rw [hpfc]; exact hpf) hnpcE.2 ms[i].ctors.length 0 H s
+              (by omega) (by omega) hp
+            simp only [List.drop_zero] at h; rw [hpfc] at h; exact h))
+      (fun xs w s1 H1 hp1 ⟨ox, hw, hrx⟩ => ?_)
+    subst hw
+    have hp1' : H <+: H1 := hp1
+    refine specR_callNIH (C := ctxH C H1) ExS.lY fCcs ccsParams
+      [vv ccsMs, .op .add [vv ccsI, .const 1], vv ccsK, vv ccsTb, vv ccsTk, vv ccsSl, vv ccsSk, vv ccsNk, vv ccsOm,
+        vv ccsOlp, vv ccsTy0, vv ccsPp, vv ccsPn, vv ccsNm] (ccsBody C)
+      [cellA C oms, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 ms.length, cellA C ot, BitVec.ofNat 64 tbl.length,
+        cellA C osl, BitVec.ofNat 64 rd.slots.length, BitVec.ofNat 64 (p.nP + p.k), cellA C om, cellA C olp, wty,
+        cellA C pp, BitVec.ofNat 64 pfvs.length, wnm] (by decide) rfl (by decide) hc.self
+      ⟨by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv]; exact word_add1_eq i, by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, ccsParams, ctxEnv], trivial⟩
+      (PostCCss (ctxH C H1))
+      (fun xss w _ H' => ∃ o, w = cellA C o ∧ PRep C H' o (fun H o xs => PRep C H o (fun H o cc => CCRep C H o cc) xs) xss)
+      (fun xss w s' st ⟨H', o, hp', hw, hr, hsr⟩ => ⟨H', hp', ⟨o, hw, hr⟩, hsr⟩)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ccsParams _ rfl hlk)
+        (ih (i + 1) H1 s1 (by omega) (by omega) (hp.trans hp1')))
+      (fun xss w s2 H2 hp2 ⟨oy, hw, hry⟩ => ?_)
+    subst hw
+    have hp2' : H1 <+: H2 := hp2
+    obtain ⟨oss, hossl, hossb, hossr⟩ := hry
+    refine ExPre.prepend_spec C hok (H := H2) ccsX (cellA C ox) oy (oss.map (cellA C)) (by decide)
+      (by simp +decide [Env.get_cons]) (by simp +decide [Env.get_cons]) hossb (by decide)
+      (by simp +decide [Env.get_cons, Env.get, ccsParams, ctxEnv]) (by decide) (fun H' o t hp' hb hsr => ?_)
+    exact ⟨H', o, hp1'.trans (hp2'.trans hp'), rfl,
+      ⟨ox :: oss, by simp [hossl], hb, fun j hj hjo => by
+        rcases j with _ | j
+        · exact pRep_mono (hp2'.trans hp') (fun _ _ => ccRep_mono (hp2'.trans hp')) hrx
+        · exact pRep_mono hp' (fun _ _ => ccRep_mono hp') (hossr j (by simpa using hj) (by simpa using hjo))⟩, hsr⟩
+
+end
+
+/-! ## The total constructor count of a block of class-constructor blocks -/
+
+def sllO := ofString "sll_o"
+def sllI := ofString "sll_i"
+def sllK := ofString "sll_k"
+def sllA := ofString "sll_a"
+def sllP := ofString "sll_p"
+def sllN := ofString "sll_n"
+def sllB := ofString "sll_b"
+def sllR := ofString "sll_r"
+def fSll := ofString "sumLengths"
+
+def sllParams : List MlS := [sllO, sllI, sllK, sllA]
+def sllLocals : List MlS := [sllP, sllN, sllB, sllR]
+
+def sllBody : ProgHOL 64 := prologue sllLocals
+  (.ite (.cmp .lower (vv sllI) (vv sllK))
+    (.seq (.assign .local sllP (.load .one (.op .add [vv sllO, .op .add [.panop .mul [vv sllI, .const 8], .const 8]])))
+    (.seq (.assign .local sllN (.load .one (vv sllP)))
+    (.seq (.assign .local sllB (.op .add [vv sllA, vv sllN]))
+    (guardP sllB 62
+    (.seq (.call (some (some (.local, sllR), none)) fSll [vv sllO, .op .add [vv sllI, .const 1], vv sllK, vv sllB])
+      (.return (vv sllR)))))))
+    (.return (vv sllA)))
+
+section
+variable {σ : Type}
+
+theorem sll_none (C : Ctx) (vals : List (BitVec 64)) :
+    ∀ x, x ∈ sllLocals → (ctxEnv C ++ sllParams.zip vals).get x = none :=
+  Knot.params_none C sllLocals sllParams vals (by decide) (by decide)
+
+/-- A natural-number answer, the state unchanged. -/
+def PostSLL (C : Ctx) (s : AState) (r : Nat) (w : BitVec 64) (s' : AState) (st : PState σ) : Prop :=
+  s' = s ∧ w = BitVec.ofNat 64 r ∧ SR C s' st
+
+theorem postSLL_locals (C : Ctx) (s : AState) : ∀ a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
+    PostSLL C s a w s' st → PostSLL C s a w s' { st with locals := L } :=
+  fun _ _ _ _ _ ⟨h1, h2, h3⟩ => ⟨h1, h2, sr_of_eq h3 rfl rfl rfl rfl⟩
+
+/-- **The summed lengths** of a block of blocks from block `i` on, added to `acc` (a sum reaching `2 ^ 62` hangs). -/
+theorem sll_spec (C : Ctx) (hok : CtxOK C)
+    (hc : C.code.lookup fSll = some (sllParams.map (fun p => (p, ShapeHOL.one)), sllBody, .one))
+    (xss : List (List ClassCtor)) (o : Nat) (H : List (BitVec 64))
+    (hR : PRep C H o (fun H o xs => PRep C H o (fun H o cc => CCRep C H o cc) xs) xss) (hl : xss.length < 2 ^ 58) :
+    ∀ f i acc (s : AState), xss.length - i = f → i ≤ xss.length → acc < 2 ^ 62 →
+      SpecR (σ := σ) (Pre (ctxH C H) s (sllParams.zip [cellA C o, BitVec.ofNat 64 i, BitVec.ofNat 64 xss.length,
+        BitVec.ofNat 64 acc])) sllBody s (pure (acc + ((xss.drop i).map List.length).sum)) (PostSLL (ctxH C H) s) := by
+  obtain ⟨os, hosl, hosb, hosr⟩ := hR
+  intro f
+  induction f with
+  | zero =>
+    intro i acc s hf hi ha
+    have hin : i = xss.length := by omega
+    subst hin
+    refine specR_prologue (postSLL_locals _ s) (sll_none _ _) ?_
+    have hlw := nd_lt_iff xss.length xss.length (by omega) (by omega)
+    refine specR_ifI _ 0 (by simp +decide [sev, Env.get, sllParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw])
+      (fun h => absurd rfl h) (fun _ => ?_)
+    rw [List.drop_length]
+    exact specR_returnI _ (BitVec.ofNat 64 acc) (by simp +decide [sev, Env.get, sllParams, ctxEnv])
+      (fun t ht => ⟨rfl, by simp, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+  | succ f ih =>
+    intro i acc s hf hi ha
+    have hin : i < xss.length := by omega
+    refine specR_prologue (postSLL_locals _ s) (sll_none _ _) ?_
+    have hlw := nd_lt_iff i xss.length (by omega) (by omega)
+    refine specR_ifI _ 1 (by simp +decide [sev, Env.get, sllParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlw.mpr hin])
+      (fun _ => ?_) (fun h => absurd h (by decide))
+    have hio : i < os.length := by omega
+    obtain ⟨os', hl', hb', -⟩ := hosr i hin hio
+    have hq := hosb.2 i (by simp; omega)
+    simp only [List.getElem_map] at hq
+    refine UD.specR_heapLoadI' (C := ctxH C H) sllP _ (o + 1 + i) _ hq (by decide)
+      (by simp +decide [sev, Env.get, sllParams, ctxEnv]; exact cellA_mulIdx C o i (by omega)) ?_
+    have hn0 : H[os[i]]? = some (BitVec.ofNat 64 xss[i].length) := by simpa [hl'] using hb'.1
+    refine UD.specR_heapLoadI' (C := ctxH C H) sllN (vv sllP) os[i] _ hn0 (by decide)
+      (by simp +decide [sev, Env.get_cons]; rfl) ?_
+    refine specR_fact (fun t ht' => inv_heapLen ht') (fun hHN => ?_)
+    have hHN' : H.length ≤ C.HN := hHN
+    have hxl : xss[i].length < 2 ^ 61 := by
+      have := blk_len_lt hok hHN' hb'; simp [hl'] at this; omega
+    refine specR_assignI sllB _ (BitVec.ofNat 64 (acc + xss[i].length)) (by decide)
+      (by simp +decide [sev, Env.get_cons, Env.get, sllParams, ctxEnv]; rw [BitVec.ofNat_add_ofNat]) ?_
+    refine specR_guardI sllB (acc + xss[i].length) 62 (by decide) (by simp [Env.get_cons]) (by omega) (fun hlt => ?_)
+    have hsum : ((xss.drop i).map List.length).sum = xss[i].length + ((xss.drop (i + 1)).map List.length).sum := by
+      rw [List.drop_eq_getElem_cons hin, List.map_cons, List.sum_cons]
+    refine specR_congr (m' := (pure (acc + xss[i].length + ((xss.drop (i + 1)).map List.length).sum) : AM Nat) >>=
+      fun r => pure r) (by rw [hsum, bind_pure, Nat.add_assoc]) ?_
+    refine specR_callNIM sllR fSll sllParams [vv sllO, .op .add [vv sllI, .const 1], vv sllK, vv sllB] sllBody
+      [cellA C o, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 xss.length, BitVec.ofNat 64 (acc + xss[i].length)]
+      (by decide) rfl (by decide) hc
+      ⟨by simp +decide [sev, Env.get_cons, Env.get, sllParams, ctxEnv],
+        by simp +decide [sev, Env.get_cons, Env.get, sllParams, ctxEnv]; exact word_add1_eq i,
+        by simp +decide [sev, Env.get_cons, Env.get, sllParams, ctxEnv], by simp +decide [sev, Env.get_cons], trivial⟩
+      (PostSLL (ctxH C H) s) (fun _ _ _ _ h => h.2.2)
+      (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu sllParams _ rfl hlk)
+        (ih (i + 1) (acc + xss[i].length) s (by omega) (by omega) hlt))
+      (fun r w s1 st ⟨hs1, hw, _⟩ => ?_)
+    subst hs1 hw
+    exact specR_returnI _ _ (by simp [Env.get]) (fun t ht => ⟨rfl, rfl, sr_of_eq ht.sr rfl rfl rfl rfl⟩)
+
+end
 
 end ConPanqueque.T.Ind

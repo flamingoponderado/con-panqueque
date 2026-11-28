@@ -527,3 +527,60 @@ What still hangs at k > 1 (ordered plan, continuing §10's; items 1 and the kind
 6. **`cbk`**: drop `nm0 = 1`, `nrl = 1`, `ncl = 1`, `nrc = 1`, `rc0 = 0`, slot-0 motive, member-0 class, `tgt = 0`;
    `cbk_spec`/`CBKRun`/`CBKFacts` over all members (`CPSMemberOK`); `cbkInst`'s table branch over a list.
 7. **Front end** (`Front/IndLine*`, `IndBoundsP`/`indRun_of_front`), §1 "Front end".
+
+## 12. Mutual blocks, round 6: node agreement and the constructors over the class block (progress log)
+
+Every step ends with a green build. Still nothing accepts a k > 1 block end to end (`cbk` still tests `ncl = 1`
+and the rest of §11's restrictions; `gb` and the IH readers in `GenPre`/`GenRule` still read class 0), but the whole
+`classesCtors` stage of the generator (node agreement included) is now k-generic and wired.
+
+1. **`k53`/`cnd`/`cfg` off member 0** (`K53`, §11 plan item 1). `k53_spec`, `cnd_spec`, `cfg_spec` (and `cco_spec`,
+   `ccl_spec`) no longer take `p.members = [ms0]`: they take `fts` with `fts = p.formers.map (·.type)`,
+   `p.members.length < 2 ^ 58`, `p.lps` for the level parameters, and two arbitrary words `wty wnm` for the dead
+   `k53_ty0`/`k53_nm` parameters (no procedure reads them since §10 step 3; they are only passed through).
+2. **`cfg` decodes the field's class** (§11 plan items 1 and 3 for `cfg`). New `KindDecode` (lemmas `kindW_cls`,
+   `kindW_tele`; `TMBlkR`, a block of `TMRep` records with no condition on `nfs`/`pfvs`, with `tmBlkR_mono`,
+   `tmBlkR_of_tmBlk`, `tmBlkR_nfs`). `cfg` ("classFieldsAgree") takes the class block `oms` and the class count
+   instead of class 0's unpacked fields (`cfgParams` lost `cfgK`, `k53Npc`, `k53Us`, `k53Pa`, `k53Nd`, gained
+   `cfgOms`, `cfgNcl`; the five became locals). At a recursive field it computes `c = w >>> 32` (hang unless
+   `c < ncl`; the twin's `targetMajorDefault` is never reached), `tele = (w &&& (2^32-1)) - 1`, reads class `c`'s
+   `ind`, `lvls`, `ds`, `nPc` off the block (`guardP` 58 on `nPc` and `|ds|`) and runs `classLeafAt`/`cnd` against
+   class `c`. `cfg_spec` answers `classFieldsAgree … fts ms …` for any class list `ms` with
+   `TMBlkR C H0 oms ms`, `∀ m ∈ ms, m.pfvs = pfvs`. The `guardP cfgX 32` hang is gone.
+3. **`cco`/`ccl` at class `cl`** (§11 plan item 2, first half). `cco` ("classCtorOf") gained trailing parameters
+   `ccoC` (the class index, passed to `fCms`/`fCmi` instead of `.const 0`), `ccoOms`, `ccoNcl` (passed to `cfg`);
+   `ccl` passes `cclC`, `cclOms`, `cclNcl` through. `cco_spec`/`ccl_spec` answer `classCtorOf … ms cl` /
+   `classCtorsOf … ms cl` for `ms[cl]? = some m`, `m.member = some t0` (any member), `TMBlkR C C.H oms ms`;
+   `hnpc0` relaxed to `2 ^ 63`.
+4. **`classesCtors` over the class block** (new `ccs`/`fCcs` "classesCtors" and `sll`/`fSll` "sumLengths" in
+   `ClassCtorRec`). `ccs` reads class `i`'s constructors, `ds`, `ind`, `lvls`, `nPc` off the `TMBlkR` and runs `ccl`
+   at class `i`, then the rest, answering `classesCtors … ms i (ms.drop i)` as a block of blocks (`PostCCss`);
+   `ccs_spec` needs every class at a member, per-class bounds, and the `nfs` premise per class. `sll` sums the
+   inner lengths (a sum reaching `2 ^ 62` hangs), answering `acc + ((xss.drop i).map List.length).sum`.
+   **Wired**: `ga` calls `fCcs [oms, 0, ncl, …]` then `fSll` and compares the minor count with the sum (the twin's
+   `(ctors.map List.length).sum`), then loads class 0's block for `gb` (still single-class). `GACodes.ccl` became
+   `GACodes.ccs` + `GACodes.sll`; `classesCtors_one` recovers class 0's run for the rest of `ga_spec`.
+5. **`motiveSlotOf`** (new `MotiveSlot`, `msl`/`fMsl`, `msl_spec`): the slot of the `c`-th motive from slot `i`
+   on, `0` if none; `motiveSlot_eq` turns the twin's `ClassRead.motiveSlot` into the walked form. Not wired yet
+   (not in the code table): it is the piece `mih`/`cgo`/`gb` need for `ClassGen.motVar c`.
+
+Code table regenerated (`fCcs`, `fSll` new; `fCfg`, `fCco`, `fCcl`, `fGa` changed; `check_code_names.py`: the usual
+6 BODIES warnings). `KindDecode` and `MotiveSlot` are imported from `ConPanqueque.lean`. The statements of
+`ga_spec`, `ctb_spec`, `cbk_spec` and `main_pipeline_prelude` are unchanged.
+
+What still hangs at k > 1 (ordered plan, continuing §11's; items 1, 2 and the `cfg` part of 3 are done):
+1. **Readers of the IH's class in `GenPre`/`GenRule`** (`mih`, `cgo`, and `mty`'s conclusion motive): replace the
+   `guardP _ 32` hang by the `cfg` decoding (`kindW_cls`/`kindW_tele`), read class `t`'s `nPc` off a `TMBlkR`
+   (hang past the block; the twin's `nPc := 0` default is never needed) and the motive variable
+   `fvar (nP + msl slots t)` (`msl_spec` + `motiveSlot_eq` give `ClassGen.motVar t`). This needs the class block and
+   the slot block threaded from `ga` through `gb` into `mty`/`mih`/`cgr`/`cgo` (their specs take
+   `g.cls = [m]`, `hsl0` today; replace by `TMBlkR C H oms g.cls` + `SlotBlk … g.slots`).
+2. **`gb` per recursor** (`GenRecCheck`, `FeR`, `RuleCheck`, `GenMotive`), unchanged from §11 item 4; `ga` already
+   holds every class's constructors (`ga_css`, a block of blocks), so `gb` should take that block instead of class
+   0's (`ga` now loads `ga_css[0]` only to feed today's `gb`).
+3. **`ga_spec`/`ctb_spec` over class lists**: drop `q.cls = [m]`, `p.recs = [rc]`, `p.members = [ms0]`; `ccs_spec`
+   already states everything per class (`classesCtors_one` is then no longer needed).
+4. **`cts`** (`BlockTail`): `streamKCheck`/`streamRecsCheck`/`blockRecInfosTF` over the output list.
+5. **`cbk`**: drop `nm0 = 1`, `nrl = 1`, `ncl = 1`, `nrc = 1`, `rc0 = 0`, slot-0 motive, member-0 class, `tgt = 0`;
+   `cbk_spec`/`CBKRun`/`CBKFacts` over all members (`CPSMemberOK`); `cbkInst`'s table branch over a list.
+6. **Front end** (`Front/IndLine*`, `IndBoundsP`/`indRun_of_front`), §1 "Front end".

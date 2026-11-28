@@ -1,6 +1,7 @@
 import ConPanqueque.T.Ind.GenPre
 import ConPanqueque.T.Ind.EraseFVars
 import ConPanqueque.T.Ind.PiCount
+import ConPanqueque.T.Ind.KindDecode
 
 /-!
 # Node agreement at a recursive field (`targetK53`, `classNodesAgree`, `classFieldsAgree`)
@@ -334,18 +335,19 @@ set_option maxHeartbeats 64000000 in
 /-- **`targetK53`** at one recorded field `f`, the call's telescope and leaf a block `tele ++ [leaf]` (every `false`
 hangs). -/
 theorem k53_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
-    (hs : C.side = false) (hc : K53Codes mode C) (p : BlockShape) (ms0 : MemberShape) (hms : p.members = [ms0])
+    (hs : C.side = false) (hc : K53Codes mode C) (p : BlockShape) (fts : List EIdx) (hfts : fts = p.formers.map (·.type)) (hml : p.members.length < 2 ^ 58)
+    (wty wnm : BitVec 64)
     (om : Nat) (hM : PtrsRep C C.H om (MemberRep C C.H) p.members)
-    (Mc : TargetMajor) (olp pp pa : Nat) (hlpl : ms0.cvT.levelParams.length < 2 ^ 59) (hdl : Mc.ds.length < 2 ^ 58)
+    (Mc : TargetMajor) (olp pp pa : Nat) (hlpl : p.lps.length < 2 ^ 59) (hdl : Mc.ds.length < 2 ^ 58)
     (hpl : Mc.pfvs.length < 2 ^ 58) (hnpc : Mc.nPc < 2 ^ 58)
-    (H0 : List (BitVec 64)) (hp0 : C.H <+: H0) (hlp : EBlk H0 olp (ms0.cvT.levelParams.map Enc.idxW))
+    (H0 : List (BitVec 64)) (hp0 : C.H <+: H0) (hlp : EBlk H0 olp (p.lps.map Enc.idxW))
     (hpf : BlkAt H0 pp (Mc.pfvs.map Enc.idxW)) (hA : BlkAt H0 pa (Mc.ds.map Enc.idxW))
     (tele : List EIdx) (leaf : EIdx) (tb : Nat) (htb : BlkAt H0 tb (tele.map Enc.idxW ++ [Enc.idxW leaf]))
     (f : EIdx) (H : List (BitVec 64)) (hp : H0 <+: H) (s : AState) :
     SpecR (σ := σ) (Pre (ctxH C H) s (k53Params.zip [cellA C tb, BitVec.ofNat 64 tele.length, Enc.idxW leaf,
-        Enc.idxW f, BitVec.ofNat 64 Mc.nPc, cellA C om, Enc.idxW Mc.lvls, cellA C olp, Enc.idxW ms0.cvT.type,
-        cellA C pp, BitVec.ofNat 64 Mc.pfvs.length, cellA C pa, BitVec.ofNat 64 Mc.ds.length, Enc.idxW ms0.cvT.name]))
-      k53Body s (targetK53 mode C.fe p [ms0.cvT.type] Mc tele leaf f) (PostB (ctxH C H)) := by
+        Enc.idxW f, BitVec.ofNat 64 Mc.nPc, cellA C om, Enc.idxW Mc.lvls, cellA C olp, wty,
+        cellA C pp, BitVec.ofNat 64 Mc.pfvs.length, cellA C pa, BitVec.ofNat 64 Mc.ds.length, wnm]))
+      k53Body s (targetK53 mode C.fe p fts Mc tele leaf f) (PostB (ctxH C H)) := by
   refine specR_prologue (postB_locals _) (k53_none _ _) ?_
   unfold targetK53
   have hpC : C.H <+: H := hp0.trans hp
@@ -623,7 +625,7 @@ theorem k53_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     (PostB (ctxH C H10)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu ntParams _ rfl hlk)
       (by simp only [BlockShape.memberNames]
-          exact nt_spec C hok hc.nt p.members om hM (by rw [hms]; simp) 0 0 (by decide) (by decide) app H10 s10 hpC10))
+          exact nt_spec C hok hc.nt p.members om hM (by omega) 0 0 (by decide) (by decide) app H10 s10 hpC10))
     (fun b wb s11 H11 hp11 hw => ?_)
   subst hw
   have hp11' : H10 <+: H11 := hp11
@@ -635,7 +637,7 @@ theorem k53_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   simp only [ite_true]
   have hpH11 : H <+: H11 := hp1'.trans (hp2'.trans (hp3'.trans (hp4'.trans (hp5'.trans (hp6'.trans (hp69.trans
     (hp10'.trans hp11')))))))
-  refine specR_congr (m' := targetClassMatch mode C.fe p [ms0.cvT.type] Mc.pfvs Mc.lvls Mc.ds us1 (la.take Mc.nPc) >>=
+  refine specR_congr (m' := targetClassMatch mode C.fe p fts Mc.pfvs Mc.lvls Mc.ds us1 (la.take Mc.nPc) >>=
     fun r => pure r) (by simp) ?_
   refine specR_callNIH (C := ctxH C H11) k53R fTcc tccParams
     [vv k53Us, vv k53U1, vv k53Olp, vv k53Ms, vv k53Pp, vv k53Pn, vv k53Pa, vv k53Lp, vv k53Nd] (tccBody C)
@@ -649,10 +651,10 @@ theorem k53_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
       trivial⟩
     (PostB (ctxH C H11)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu tccParams _ rfl hlk)
-      (tcc_spec mode ra C hok hs hc.tcc p [ms0.cvT.type] (by simp [BlockShape.formers, hms]) Mc.pfvs Mc.ds
-        (la.take Mc.nPc) Mc.lvls us1 olp om pp pa olp' (by rw [show p.lps = ms0.cvT.levelParams by simp [BlockShape.lps, hms]]; exact hlpl)
-        hdl (by omega) hpl (by rw [hms]; simp) H11 (hpC10.trans hp11')
-        (by rw [show p.lps = ms0.cvT.levelParams by simp [BlockShape.lps, hms]]; exact eblk_mono hlp (hp.trans hpH11))
+      (tcc_spec mode ra C hok hs hc.tcc p fts hfts Mc.pfvs Mc.ds
+        (la.take Mc.nPc) Mc.lvls us1 olp om pp pa olp' hlpl
+        hdl (by omega) hpl hml H11 (hpC10.trans hp11')
+        (eblk_mono hlp (hp.trans hpH11))
         (ptrsRep_mono (hpC10.trans hp11') (fun _ _ h => memberRep_mono (hpC10.trans hp11') h) hM) (blkAt_mono hpf (hp.trans hpH11))
         (blkAt_mono hA (hp.trans hpH11)) (blkAt_mono hlpb hp11') s11))
     (fun r wr s12 H12 hp12 hw => ?_)
@@ -723,13 +725,14 @@ theorem cnd_none (C : Ctx) (vals : List (BitVec 64)) :
 set_option maxHeartbeats 64000000 in
 /-- **`classNodesAgree`** over the table's entries of constructor `cn` from entry `j` on. -/
 theorem cnd_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
-    (hs : C.side = false) (hc : CNDCodes mode C) (p : BlockShape) (ms0 : MemberShape) (hms : p.members = [ms0])
+    (hs : C.side = false) (hc : CNDCodes mode C) (p : BlockShape) (fts : List EIdx) (hfts : fts = p.formers.map (·.type)) (hml : p.members.length < 2 ^ 58)
+    (wty wnm : BitVec 64)
     (om : Nat) (hM : PtrsRep C C.H om (MemberRep C C.H) p.members)
-    (Mc : TargetMajor) (olp pp pa : Nat) (hlpl : ms0.cvT.levelParams.length < 2 ^ 59) (hdl : Mc.ds.length < 2 ^ 58)
+    (Mc : TargetMajor) (olp pp pa : Nat) (hlpl : p.lps.length < 2 ^ 59) (hdl : Mc.ds.length < 2 ^ 58)
     (hpl : Mc.pfvs.length < 2 ^ 58) (hnpc : Mc.nPc < 2 ^ 58)
     (tbl : List NestCtorNf) (ot : Nat) (htl : tbl.length < 2 ^ 58) (cn : NIdx)
     (fvs : List EIdx) (pv : Nat) (hfl : fvs.length < 2 ^ 56) (i : Nat) (hi : i < 2 ^ 56)
-    (H0 : List (BitVec 64)) (hp0 : C.H <+: H0) (hlp : EBlk H0 olp (ms0.cvT.levelParams.map Enc.idxW))
+    (H0 : List (BitVec 64)) (hp0 : C.H <+: H0) (hlp : EBlk H0 olp (p.lps.map Enc.idxW))
     (hpf : BlkAt H0 pp (Mc.pfvs.map Enc.idxW)) (hA : BlkAt H0 pa (Mc.ds.map Enc.idxW))
     (htb : PRep C H0 ot (fun H o nf => NfRep C H o nf) tbl) (hfb : BlkAt H0 pv (fvs.map Enc.idxW))
     (tele : List EIdx) (leaf : EIdx) (tb : Nat) (htlb : BlkAt H0 tb (tele.map Enc.idxW ++ [Enc.idxW leaf])) :
@@ -737,9 +740,9 @@ theorem cnd_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
       SpecR (σ := σ) (Pre (ctxH C H) s (cndParams.zip [cellA C ot, BitVec.ofNat 64 j, BitVec.ofNat 64 tbl.length,
         Enc.idxW cn, cellA C pv, BitVec.ofNat 64 fvs.length, BitVec.ofNat 64 i, cellA C tb,
         BitVec.ofNat 64 tele.length, Enc.idxW leaf, BitVec.ofNat 64 Mc.nPc, cellA C om, Enc.idxW Mc.lvls, cellA C olp,
-        Enc.idxW ms0.cvT.type, cellA C pp, BitVec.ofNat 64 Mc.pfvs.length, cellA C pa, BitVec.ofNat 64 Mc.ds.length,
-        Enc.idxW ms0.cvT.name])) cndBody s
-        (classNodesAgree mode C.fe p [ms0.cvT.type] Mc tele leaf fvs i ((tbl.drop j).filter (·.ctor == cn)))
+        wty, cellA C pp, BitVec.ofNat 64 Mc.pfvs.length, cellA C pa, BitVec.ofNat 64 Mc.ds.length,
+        wnm])) cndBody s
+        (classNodesAgree mode C.fe p fts Mc tele leaf fvs i ((tbl.drop j).filter (·.ctor == cn)))
         (Decl.PostU (ctxH C H)) := by
   obtain ⟨os, hosl, hosb, hosr⟩ := htb
   have hpost : ∀ (H : List (BitVec 64)) a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
@@ -778,16 +781,16 @@ theorem cnd_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
         Γ = ((cndX, Enc.idxW tbl[j].ctor) :: (cndP, cellA C os[j]) :: (ctxEnv (ctxH C H) ++ cndParams.zip
           [cellA C ot, BitVec.ofNat 64 j, BitVec.ofNat 64 tbl.length, Enc.idxW cn, cellA C pv,
             BitVec.ofNat 64 fvs.length, BitVec.ofNat 64 i, cellA C tb, BitVec.ofNat 64 tele.length, Enc.idxW leaf,
-            BitVec.ofNat 64 Mc.nPc, cellA C om, Enc.idxW Mc.lvls, cellA C olp, Enc.idxW ms0.cvT.type, cellA C pp,
-            BitVec.ofNat 64 Mc.pfvs.length, cellA C pa, BitVec.ofNat 64 Mc.ds.length, Enc.idxW ms0.cvT.name])) →
+            BitVec.ofNat 64 Mc.nPc, cellA C om, Enc.idxW Mc.lvls, cellA C olp, wty, cellA C pp,
+            BitVec.ofNat 64 Mc.pfvs.length, cellA C pa, BitVec.ofNat 64 Mc.ds.length, wnm])) →
         ∀ (Γ' : Env) (M : Mem), (∀ x, x ∈ cndParams → Γ'.get x = Γ.get x) →
         SpecR (σ := σ) (Inv (ctxH C Hr) sr Γ' M (ctxLocals ++ cndLocals)) cndRec sr
-          (classNodesAgree mode C.fe p [ms0.cvT.type] Mc tele leaf fvs i ((tbl.drop (j + 1)).filter (·.ctor == cn)))
+          (classNodesAgree mode C.fe p fts Mc tele leaf fvs i ((tbl.drop (j + 1)).filter (·.ctor == cn)))
           (Decl.PostU (ctxH C H)) := by
       intro Hr sr Γ hpr eΓ Γ' M hΓ
       subst eΓ
       have g : ∀ x, x ∈ cndParams → Γ'.get x = _ := hΓ
-      refine specR_congr (m' := classNodesAgree mode C.fe p [ms0.cvT.type] Mc tele leaf fvs i
+      refine specR_congr (m' := classNodesAgree mode C.fe p fts Mc tele leaf fvs i
         ((tbl.drop (j + 1)).filter (·.ctor == cn)) >>= fun _ => pure ()) (by simp) ?_
       unfold cndRec
       refine specR_callNIH (C := ctxH C Hr) cndR fCnd cndParams [vv cndT, .op .add [vv cndJ, .const 1], vv cndK, vv cndCn,
@@ -795,8 +798,8 @@ theorem cnd_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
           vv k53Pp, vv k53Pn, vv k53Pa, vv k53Nd, vv k53Nm] cndBody
         [cellA C ot, BitVec.ofNat 64 (j + 1), BitVec.ofNat 64 tbl.length, Enc.idxW cn, cellA C pv,
             BitVec.ofNat 64 fvs.length, BitVec.ofNat 64 i, cellA C tb, BitVec.ofNat 64 tele.length, Enc.idxW leaf,
-            BitVec.ofNat 64 Mc.nPc, cellA C om, Enc.idxW Mc.lvls, cellA C olp, Enc.idxW ms0.cvT.type, cellA C pp,
-            BitVec.ofNat 64 Mc.pfvs.length, cellA C pa, BitVec.ofNat 64 Mc.ds.length, Enc.idxW ms0.cvT.name]
+            BitVec.ofNat 64 Mc.nPc, cellA C om, Enc.idxW Mc.lvls, cellA C olp, wty, cellA C pp,
+            BitVec.ofNat 64 Mc.pfvs.length, cellA C pa, BitVec.ofNat 64 Mc.ds.length, wnm]
         (by decide) rfl (by decide) hc.self
         ⟨by simp only [sev, sev_vv]; rw [g _ (by decide)]; simp +decide [Env.get_cons, Env.get, cndParams, ctxEnv],
           by simp only [sev, sev_vv]; rw [g _ (by decide)]; simp +decide [Env.get_cons, Env.get, cndParams, ctxEnv]; exact word_add1_eq j,
@@ -874,8 +877,8 @@ theorem cnd_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     refine specR_callNIH (C := ctxH C H1) cndR fK53 k53Params [vv k53Tb, vv k53Tn, vv k53Mj, vv cndF, vv k53Npc, vv k53Ms,
         vv k53Us, vv k53Olp, vv k53Ty0, vv k53Pp, vv k53Pn, vv k53Pa, vv k53Nd, vv k53Nm] k53Body
       [cellA C tb, BitVec.ofNat 64 tele.length, Enc.idxW leaf, Enc.idxW ds[i], BitVec.ofNat 64 Mc.nPc, cellA C om,
-        Enc.idxW Mc.lvls, cellA C olp, Enc.idxW ms0.cvT.type, cellA C pp, BitVec.ofNat 64 Mc.pfvs.length, cellA C pa,
-        BitVec.ofNat 64 Mc.ds.length, Enc.idxW ms0.cvT.name] (by decide) rfl (by decide) hc.k53.self
+        Enc.idxW Mc.lvls, cellA C olp, wty, cellA C pp, BitVec.ofNat 64 Mc.pfvs.length, cellA C pa,
+        BitVec.ofNat 64 Mc.ds.length, wnm] (by decide) rfl (by decide) hc.k53.self
       ⟨by simp +decide [sev, Env.get_cons, Env.get, cndParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cndParams, ctxEnv],
         by simp +decide [sev, Env.get_cons, Env.get, cndParams, ctxEnv], by simp +decide [sev, Env.get_cons],
         by simp +decide [sev, Env.get_cons, Env.get, cndParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cndParams, ctxEnv],
@@ -886,7 +889,7 @@ theorem cnd_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
         trivial⟩
       (PostB (ctxH C H1)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu k53Params _ rfl hlk)
-        (k53_spec mode ra C hok hs hc.k53 p ms0 hms om hM Mc olp pp pa hlpl hdl hpl hnpc H0 hp0 hlp hpf hA tele leaf tb
+        (k53_spec mode ra C hok hs hc.k53 p fts hfts hml wty wnm om hM Mc olp pp pa hlpl hdl hpl hnpc H0 hp0 hlp hpf hA tele leaf tb
           htlb ds[i] H1 (hp.trans hp1') s1))
       (fun b wb s2 H2 hp2 hw => ?_)
     subst hw
@@ -917,24 +920,39 @@ def cfgLf := ofString "cfg_lf"
 def cfgHd := ofString "cfg_hd"
 def cfgNm := ofString "cfg_nm"
 def cfgR := ofString "cfg_r"
+def cfgOms := ofString "cfg_oms"
+def cfgNcl := ofString "cfg_ncl"
+def cfgC := ofString "cfg_c"
+def cfgQ := ofString "cfg_q"
+def cfgOa := ofString "cfg_oa"
 def fCfg := ofString "classFieldsAgree"
 
-def cfgParams : List MlS := [cfgKb, cfgI, cfgN, cndFv, cndFn, cndT, cndK, cndCn, cfgK, k53Npc, k53Ms, k53Us, k53Olp,
-  k53Ty0, k53Pp, k53Pn, k53Pa, k53Nd, k53Nm]
-def cfgLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, cfgX, cfgFt, cfgSb, cfgWl, cfgLf, cfgHd, cfgNm, cfgR]
+def cfgParams : List MlS := [cfgKb, cfgI, cfgN, cndFv, cndFn, cndT, cndK, cndCn, cfgOms, cfgNcl, k53Ms, k53Olp,
+  k53Ty0, k53Pp, k53Pn, k53Nm]
+def cfgLocals : List MlS := [lFl, lDh, lDt, lDg, lDi, lRp, lRn, cfgX, cfgFt, cfgSb, cfgWl, cfgLf, cfgHd, cfgNm, cfgR,
+  cfgC, cfgQ, cfgOa, cfgK, k53Npc, k53Us, k53Pa, k53Nd]
 
 def cfgRec : ProgHOL 64 :=
   .seq (.call (some (some (.local, cfgR), none)) fCfg [vv cfgKb, .op .add [vv cfgI, .const 1], vv cfgN, vv cndFv,
-      vv cndFn, vv cndT, vv cndK, vv cndCn, vv cfgK, vv k53Npc, vv k53Ms, vv k53Us, vv k53Olp, vv k53Ty0, vv k53Pp,
-      vv k53Pn, vv k53Pa, vv k53Nd, vv k53Nm])
+      vv cndFn, vv cndT, vv cndK, vv cndCn, vv cfgOms, vv cfgNcl, vv k53Ms, vv k53Olp, vv k53Ty0, vv k53Pp,
+      vv k53Pn, vv k53Nm])
     (.return (.const 0))
 
 def cfgBody : ProgHOL 64 := prologue cfgLocals
   (.ite (.cmp .lower (vv cfgI) (vv cfgN))
     (.seq (.assign .local cfgX (.load .one (.op .add [vv cfgKb, .op .add [.panop .mul [vv cfgI, .const 8], .const 8]])))
     (.ite (.cmp .equal (vv cfgX) (.const 0)) cfgRec
-    (guardP cfgX 32 (.ite (.cmp .lower (vv cfgI) (vv cndFn))
-    (.seq (.assign .local cfgX (.op .sub [vv cfgX, .const 1]))
+    (.seq (.assign .local cfgC (.shift .lsr (vv cfgX) (.const 32)))
+    (.ite (.cmp .lower (vv cfgC) (vv cfgNcl))
+    (.seq (.assign .local cfgX (.op .sub [.op .and [vv cfgX, .const (BitVec.ofNat 64 (2 ^ 32 - 1))], .const 1]))
+    (.seq (.assign .local cfgQ (.load .one (.op .add [vv cfgOms, .op .add [.panop .mul [vv cfgC, .const 8], .const 8]])))
+    (.seq (.assign .local cfgOa (.load .one (.op .add [vv cfgQ, .const 24])))
+    (.seq (.assign .local cfgK (.load .one (vv cfgOa)))
+    (.seq (.assign .local k53Us (.load .one (.op .add [vv cfgOa, .const 8])))
+    (.seq (.assign .local k53Pa (.load .one (.op .add [vv cfgOa, .const 16])))
+    (.seq (.assign .local k53Nd (.load .one (vv k53Pa)))
+    (.seq (.assign .local k53Npc (.load .one (.op .add [vv cfgOa, .const 24])))
+    (guardP k53Npc 58 (guardP k53Nd 58 (.ite (.cmp .lower (vv cfgI) (vv cndFn))
     (.seq (.assign .local cfgFt (.load .one (.op .add [vv cndFv, .op .add [.panop .mul [vv cfgI, .const 8], .const 8]])))
     (.seq (.call (some (some (.local, cfgFt), none)) fFvt [vv cfgFt])
     (.seq (.call (some (some (.local, cfgSb), none)) fStripPis [vv cfgX, vv cfgFt])
@@ -952,7 +970,8 @@ def cfgBody : ProgHOL 64 := prologue cfgLocals
             vv k53Pn, vv k53Pa, vv k53Nd, vv k53Nm])
           cfgRec)
         hang)))))
-      hang))))))))))
+      hang)))))))))
+    hang)))))))))))
     hang))))
     (.return (.const 0)))
 
@@ -969,25 +988,26 @@ theorem cfg_none (C : Ctx) (vals : List (BitVec 64)) :
   Knot.params_none C cfgLocals cfgParams vals (by decide) (by decide)
 
 set_option maxHeartbeats 64000000 in
-/-- **`classFieldsAgree`** at the one class `m` from field `i` on (the kinds a block of `cfKindW`s). -/
+/-- **`classFieldsAgree`** over the class block `ms` from field `i` on (the kinds a block of `cfKindW`s; a field's
+class is read off its kinds word, a class past the block hangs). -/
 theorem cfg_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C)
-    (hs : C.side = false) (hc : CFGCodes mode C) (p : BlockShape) (ms0 : MemberShape) (hms : p.members = [ms0])
+    (hs : C.side = false) (hc : CFGCodes mode C) (p : BlockShape) (fts : List EIdx) (hfts : fts = p.formers.map (·.type))
+    (hml : p.members.length < 2 ^ 58) (wty wnm : BitVec 64)
     (om : Nat) (hM : PtrsRep C C.H om (MemberRep C C.H) p.members)
-    (m : TargetMajor) (olp pp pa : Nat) (hlpl : ms0.cvT.levelParams.length < 2 ^ 59) (hdl : m.ds.length < 2 ^ 58)
-    (hpl : m.pfvs.length < 2 ^ 58) (hnpc : m.nPc < 2 ^ 58)
+    (ms : List TargetMajor) (oms : Nat) (pfvs : List EIdx) (hpfv : ∀ m ∈ ms, m.pfvs = pfvs) (hmsl : ms.length < 2 ^ 58)
+    (olp pp : Nat) (hlpl : p.lps.length < 2 ^ 59) (hpl : pfvs.length < 2 ^ 58)
     (tbl : List NestCtorNf) (ot : Nat) (htl : tbl.length < 2 ^ 58) (cn : NIdx)
     (fvs : List EIdx) (pv : Nat) (hfl : fvs.length < 2 ^ 56)
     (ks : List ClassField) (pk : Nat) (hko : KindsOK ks) (hkl : ks.length < 2 ^ 56)
-    (H0 : List (BitVec 64)) (hp0 : C.H <+: H0) (hlp : EBlk H0 olp (ms0.cvT.levelParams.map Enc.idxW))
-    (hpf : BlkAt H0 pp (m.pfvs.map Enc.idxW)) (hA : BlkAt H0 pa (m.ds.map Enc.idxW))
+    (H0 : List (BitVec 64)) (hp0 : C.H <+: H0) (hlp : EBlk H0 olp (p.lps.map Enc.idxW))
+    (hpf : BlkAt H0 pp (pfvs.map Enc.idxW)) (hT : TMBlkR C H0 oms ms)
     (htb : PRep C H0 ot (fun H o nf => NfRep C H o nf) tbl) (hfb : BlkAt H0 pv (fvs.map Enc.idxW))
     (hkb : BlkAt H0 pk (ks.map cfKindW)) :
     ∀ f i (H : List (BitVec 64)) (s : AState), ks.length - i = f → i ≤ ks.length → H0 <+: H →
       SpecR (σ := σ) (Pre (ctxH C H) s (cfgParams.zip [cellA C pk, BitVec.ofNat 64 i, BitVec.ofNat 64 ks.length,
-        cellA C pv, BitVec.ofNat 64 fvs.length, cellA C ot, BitVec.ofNat 64 tbl.length, Enc.idxW cn, Enc.idxW m.ind,
-        BitVec.ofNat 64 m.nPc, cellA C om, Enc.idxW m.lvls, cellA C olp, Enc.idxW ms0.cvT.type, cellA C pp,
-        BitVec.ofNat 64 m.pfvs.length, cellA C pa, BitVec.ofNat 64 m.ds.length, Enc.idxW ms0.cvT.name])) cfgBody s
-        (classFieldsAgree mode C.fe p [ms0.cvT.type] [m] fvs (tbl.filter (·.ctor == cn)) i (ks.drop i))
+        cellA C pv, BitVec.ofNat 64 fvs.length, cellA C ot, BitVec.ofNat 64 tbl.length, Enc.idxW cn, cellA C oms,
+        BitVec.ofNat 64 ms.length, cellA C om, cellA C olp, wty, cellA C pp, BitVec.ofNat 64 pfvs.length, wnm])) cfgBody s
+        (classFieldsAgree mode C.fe p fts ms fvs (tbl.filter (·.ctor == cn)) i (ks.drop i))
         (Decl.PostU (ctxH C H)) := by
   have hpost : ∀ (H : List (BitVec 64)) a w s' (st : PState σ) (L : HolFiniteMapExact MlS (ValueHOL 64)),
       Decl.PostU (ctxH C H) a w s' st → Decl.PostU (ctxH C H) a w s' { st with locals := L } :=
@@ -1021,29 +1041,24 @@ theorem cfg_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     have hrec : ∀ (Hr : List (BitVec 64)) (sr : AState) (Γ' : Env) (M : Mem), H <+: Hr →
         (∀ x, x ∈ cfgParams → Γ'.get x = (ctxEnv (ctxH C H) ++ cfgParams.zip [cellA C pk, BitVec.ofNat 64 i,
           BitVec.ofNat 64 ks.length, cellA C pv, BitVec.ofNat 64 fvs.length, cellA C ot, BitVec.ofNat 64 tbl.length,
-          Enc.idxW cn, Enc.idxW m.ind, BitVec.ofNat 64 m.nPc, cellA C om, Enc.idxW m.lvls, cellA C olp,
-          Enc.idxW ms0.cvT.type, cellA C pp, BitVec.ofNat 64 m.pfvs.length, cellA C pa, BitVec.ofNat 64 m.ds.length,
-          Enc.idxW ms0.cvT.name]).get x) →
+          Enc.idxW cn, cellA C oms, BitVec.ofNat 64 ms.length, cellA C om, cellA C olp, wty, cellA C pp,
+          BitVec.ofNat 64 pfvs.length, wnm]).get x) →
         SpecR (σ := σ) (Inv (ctxH C Hr) sr Γ' M (ctxLocals ++ cfgLocals)) cfgRec sr
-          (classFieldsAgree mode C.fe p [ms0.cvT.type] [m] fvs (tbl.filter (·.ctor == cn)) (i + 1) (ks.drop (i + 1)))
+          (classFieldsAgree mode C.fe p fts ms fvs (tbl.filter (·.ctor == cn)) (i + 1) (ks.drop (i + 1)))
           (Decl.PostU (ctxH C H)) := by
       intro Hr sr Γ' M hpr g
-      refine specR_congr (m' := classFieldsAgree mode C.fe p [ms0.cvT.type] [m] fvs (tbl.filter (·.ctor == cn)) (i + 1)
+      refine specR_congr (m' := classFieldsAgree mode C.fe p fts ms fvs (tbl.filter (·.ctor == cn)) (i + 1)
         (ks.drop (i + 1)) >>= fun _ => pure ()) (by simp) ?_
       unfold cfgRec
       refine specR_callNIH (C := ctxH C Hr) cfgR fCfg cfgParams [vv cfgKb, .op .add [vv cfgI, .const 1], vv cfgN, vv cndFv,
-          vv cndFn, vv cndT, vv cndK, vv cndCn, vv cfgK, vv k53Npc, vv k53Ms, vv k53Us, vv k53Olp, vv k53Ty0, vv k53Pp,
-          vv k53Pn, vv k53Pa, vv k53Nd, vv k53Nm] cfgBody
+          vv cndFn, vv cndT, vv cndK, vv cndCn, vv cfgOms, vv cfgNcl, vv k53Ms, vv k53Olp, vv k53Ty0, vv k53Pp,
+          vv k53Pn, vv k53Nm] cfgBody
         [cellA C pk, BitVec.ofNat 64 (i + 1), BitVec.ofNat 64 ks.length, cellA C pv, BitVec.ofNat 64 fvs.length,
-          cellA C ot, BitVec.ofNat 64 tbl.length, Enc.idxW cn, Enc.idxW m.ind, BitVec.ofNat 64 m.nPc, cellA C om,
-          Enc.idxW m.lvls, cellA C olp, Enc.idxW ms0.cvT.type, cellA C pp, BitVec.ofNat 64 m.pfvs.length, cellA C pa,
-          BitVec.ofNat 64 m.ds.length, Enc.idxW ms0.cvT.name]
+          cellA C ot, BitVec.ofNat 64 tbl.length, Enc.idxW cn, cellA C oms, BitVec.ofNat 64 ms.length, cellA C om,
+          cellA C olp, wty, cellA C pp, BitVec.ofNat 64 pfvs.length, wnm]
         (by decide) rfl (by decide) hc.self
         ⟨by simp only [sev, sev_vv]; rw [g _ (by decide)]; simp +decide [Env.get_cons, Env.get, cfgParams, ctxEnv],
           by simp only [sev, sev_vv]; rw [g _ (by decide)]; simp +decide [Env.get_cons, Env.get, cfgParams, ctxEnv]; exact word_add1_eq i,
-          by simp only [sev, sev_vv]; rw [g _ (by decide)]; simp +decide [Env.get_cons, Env.get, cfgParams, ctxEnv],
-          by simp only [sev, sev_vv]; rw [g _ (by decide)]; simp +decide [Env.get_cons, Env.get, cfgParams, ctxEnv],
-          by simp only [sev, sev_vv]; rw [g _ (by decide)]; simp +decide [Env.get_cons, Env.get, cfgParams, ctxEnv],
           by simp only [sev, sev_vv]; rw [g _ (by decide)]; simp +decide [Env.get_cons, Env.get, cfgParams, ctxEnv],
           by simp only [sev, sev_vv]; rw [g _ (by decide)]; simp +decide [Env.get_cons, Env.get, cfgParams, ctxEnv],
           by simp only [sev, sev_vv]; rw [g _ (by decide)]; simp +decide [Env.get_cons, Env.get, cfgParams, ctxEnv],
@@ -1071,15 +1086,57 @@ theorem cfg_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
       simp only [classFieldsAgree]
       exact hrec H s _ _ (List.prefix_refl _) (fun x hx => by
         simp only [cfgParams, List.mem_cons, List.not_mem_nil, or_false] at hx
-        rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> rfl)
+        rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> rfl)
     rw [hk] at hkx ⊢
     have hkw : cfKindW (.recursive c tele) ≠ 0 := by
       simp only [cfKindW]; intro e; have := congrArg BitVec.toNat e; simp at this; omega
     refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hkw)
       (fun h => absurd rfl h) (fun _ => ?_)
-    refine specR_guardI cfgX (tele + 1 + 2 ^ 32 * c) 32 (by decide) (by simp [Env.get_cons, cfKindW]) (by omega)
-      (fun hk32 => ?_)
-    obtain rfl : c = 0 := by omega
+    refine specR_assignI cfgC _ (BitVec.ofNat 64 c) (by decide)
+      (by simp only [sev, sev_vv, Env.get_cons]; simp only [cfKindW]; rw [← kindW_cls c tele htele hc24]; rfl) ?_
+    have hlwc := nd_lt_iff c ms.length (by omega) (by omega)
+    by_cases hcl : c < ms.length
+    swap
+    · exact specR_ifI _ 0 (by simp only [sev, sev_vv, Env.get_cons]; simp +decide [Env.get, cfgParams, ctxEnv,
+          Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; rw [Nat.mod_eq_of_lt (by omega), Nat.mod_eq_of_lt (by omega)]; omega)
+        (fun h => absurd rfl h) (fun _ => specR_hangI)
+    refine specR_ifI _ 1 (by simp only [sev, sev_vv, Env.get_cons]; simp +decide [Env.get, cfgParams, ctxEnv,
+        Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlwc.mpr hcl]) (fun _ => ?_) (fun h => absurd h (by decide))
+    refine specR_assignI cfgX _ (BitVec.ofNat 64 tele) (by decide)
+      (by simp only [sev, sev_vv, Env.get_cons]; simp only [cfKindW]; rw [← kindW_tele c tele htele hc24]; rfl) ?_
+    refine specR_fact (fun t ht' => inv_heapLen ht') (fun hHN1 => ?_)
+    have hHN1' : H.length ≤ C.HN := hHN1
+    obtain ⟨ps, hpsl, hpsb, hpsr⟩ := hT
+    obtain ⟨op, hop, hrep⟩ := hpsr c hcl
+    have hq := hpsb.2 c (by simp; omega)
+    simp only [List.getElem_map] at hq
+    have hpi : ps[c]'(by omega) = op := by
+      rw [List.getElem?_eq_getElem (by omega)] at hop; exact Option.some.inj hop
+    rw [hpi] at hq
+    obtain ⟨oa, ha3, hind, hlv, ⟨od, hod, hdb⟩, hnpcE, -, -, -, -⟩ := hrep
+    have hpfc : ms[c].pfvs = pfvs := hpfv _ (List.getElem_mem hcl)
+    refine UD.specR_heapLoadI' (C := ctxH C H) cfgQ _ (oms + 1 + c) _ (get_prefix hq hp) (by decide)
+      (by simp +decide [sev, Env.get_cons, Env.get, cfgParams, ctxEnv]; exact cellA_mulIdx C oms c (by omega)) ?_
+    refine UD.specR_heapLoadI' (C := ctxH C H) cfgOa _ (op + 3) _ (get_prefix ha3 hp) (by decide)
+      (by simp +decide [sev, Env.get_cons]; exact cellA_add_ofNat C op 3) ?_
+    refine UD.specR_heapLoadI' (C := ctxH C H) cfgK (vv cfgOa) oa _ (get_prefix hind hp) (by decide)
+      (by simp +decide [sev, Env.get_cons]; rfl) ?_
+    refine UD.specR_heapLoadI' (C := ctxH C H) k53Us _ (oa + 1) _ (get_prefix hlv hp) (by decide)
+      (by simp +decide [sev, Env.get_cons]; exact cellA_add8 C oa) ?_
+    refine UD.specR_heapLoadI' (C := ctxH C H) k53Pa _ (oa + 2) _ (get_prefix hod hp) (by decide)
+      (by simp +decide [sev, Env.get_cons]; exact cellA_add_ofNat C oa 2) ?_
+    have hdl0 := hdb.1
+    simp only [List.length_map] at hdl0
+    refine UD.specR_heapLoadI' (C := ctxH C H) k53Nd (vv k53Pa) od _ (get_prefix hdl0 hp) (by decide)
+      (by simp +decide [sev, Env.get_cons]; rfl) ?_
+    refine UD.specR_heapLoadI' (C := ctxH C H) k53Npc _ (oa + 3) _ (get_prefix hnpcE.1 hp) (by decide)
+      (by simp +decide [sev, Env.get_cons]; exact cellA_add_ofNat C oa 3) ?_
+    have hdl61 : ms[c].ds.length < 2 ^ 61 := by
+      have := blk_len_lt hok hHN1' (blkAt_mono hdb hp); simp at this; omega
+    refine specR_guardI k53Npc ms[c].nPc 58 (by decide) (by simp [Env.get_cons]) (by have := hnpcE.2; omega)
+      (fun hnpc => ?_)
+    refine specR_guardI k53Nd ms[c].ds.length 58 (by decide) (by simp +decide [Env.get_cons]) (by omega)
+      (fun hdl => ?_)
     simp only [classFieldsAgree]
     have hlwf := nd_lt_iff i fvs.length (by omega) (by omega)
     by_cases hif : i < fvs.length
@@ -1089,8 +1146,6 @@ theorem cfg_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
         (fun h => absurd rfl h) (fun _ => specR_hangI)
     refine specR_ifI _ 1 (by simp only [sev, sev_vv, Env.get_cons]; simp +decide [Env.get, cfgParams, ctxEnv,
         Flapjack.Compiler.Encoders.Asm.wordCmpHOL, hlwf.mpr hif]) (fun _ => ?_) (fun h => absurd h (by decide))
-    refine specR_assignI cfgX _ (BitVec.ofNat 64 tele) (by decide)
-      (by simp only [sev, sev_vv, Env.get_cons]; simp [cfKindW]; exact ofNat_succ_sub_one tele) ?_
     have hfx := hfb.2 i (by simp; omega)
     simp only [List.getElem_map] at hfx
     refine UD.specR_heapLoadI' (C := ctxH C H) cfgFt _ (pv + 1 + i) _ (get_prefix hfx hp) (by decide)
@@ -1135,7 +1190,7 @@ theorem cfg_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
       simpa using this
     refine UD.specR_heapLoadI' (C := ctxH C H2) cfgLf _ (ob + 1 + tys.length) _ hlw2 (by decide)
       (by simp +decide [sev, Env.get_cons]; exact cellA_mulIdx C ob tys.length (by omega)) ?_
-    simp only [targetMajorAt, List.getElem?_cons_zero, pure_bind]
+    simp only [targetMajorAt, List.getElem?_eq_getElem hcl, pure_bind]
     unfold classLeafAt
     simp only [bind_assoc]
     refine specR_callNIM (C := ctxH C H2) cfgHd fGetAppFn [pFu, pH] [.const (BitVec.ofNat 64 coreWalkFuel), vv cfgLf]
@@ -1164,9 +1219,9 @@ theorem cfg_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
     refine specR_loadI' cfgNm (vv lRp) P (P + BitVec.ofNat 64 0) (Enc.idxW I1) (by decide)
       (by simp [sev, Env.get_cons]) (by simp)
       (by simpa [encEView, Enc.encConst] using wordsAt_mem0 P (Enc.idxW I1) [Enc.idxW us1] []) ?_
-    by_cases hI : I1 = m.ind
+    by_cases hI : I1 = ms[c].ind
     swap
-    · have hne : Enc.idxW I1 ≠ Enc.idxW m.ind := fun e => hI (Enc.idxW_inj e)
+    · have hne : Enc.idxW I1 ≠ Enc.idxW ms[c].ind := fun e => hI (Enc.idxW_inj e)
       exact specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Env.get, cfgParams, ctxEnv,
           Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne) (fun h => absurd rfl h) (fun _ => specR_hangI)
     refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Env.get, cfgParams, ctxEnv,
@@ -1177,9 +1232,9 @@ theorem cfg_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
         vv cfgI, vv cfgSb, vv cfgWl, vv cfgLf, vv k53Npc, vv k53Ms, vv k53Us, vv k53Olp, vv k53Ty0, vv k53Pp,
         vv k53Pn, vv k53Pa, vv k53Nd, vv k53Nm] cndBody
       [cellA C ot, BitVec.ofNat 64 0, BitVec.ofNat 64 tbl.length, Enc.idxW cn, cellA C pv, BitVec.ofNat 64 fvs.length,
-        BitVec.ofNat 64 i, cellA C ob, BitVec.ofNat 64 tys.length, Enc.idxW lf, BitVec.ofNat 64 m.nPc, cellA C om,
-        Enc.idxW m.lvls, cellA C olp, Enc.idxW ms0.cvT.type, cellA C pp, BitVec.ofNat 64 m.pfvs.length, cellA C pa,
-        BitVec.ofNat 64 m.ds.length, Enc.idxW ms0.cvT.name] (by decide) rfl (by decide) hc.cnd.self
+        BitVec.ofNat 64 i, cellA C ob, BitVec.ofNat 64 tys.length, Enc.idxW lf, BitVec.ofNat 64 ms[c].nPc, cellA C om,
+        Enc.idxW ms[c].lvls, cellA C olp, wty, cellA C pp, BitVec.ofNat 64 pfvs.length, cellA C od,
+        BitVec.ofNat 64 ms[c].ds.length, wnm] (by decide) rfl (by decide) hc.cnd.self
       ⟨by simp +decide [sev, Env.get_cons, Env.get, cfgParams, ctxEnv], rfl,
         by simp +decide [sev, Env.get_cons, Env.get, cfgParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cfgParams, ctxEnv],
         by simp +decide [sev, Env.get_cons, Env.get, cfgParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, cfgParams, ctxEnv],
@@ -1193,16 +1248,17 @@ theorem cfg_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
         trivial⟩
       (Decl.PostU (ctxH C H2)) (fun _ _ _ _ => True) (fun a w s' st ⟨H', hp', hsr⟩ => ⟨H', hp', trivial, hsr⟩)
       (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu cndParams _ rfl hlk)
-        (by have h := cnd_spec (σ := σ) mode ra C hok hs hc.cnd p ms0 hms om hM m olp pp pa hlpl hdl hpl hnpc tbl ot htl cn fvs pv
-              hfl i (by omega) H2 hpC2 (eblk_mono hlp (hp.trans hp2')) (blkAt_mono hpf (hp.trans hp2'))
-              (blkAt_mono hA (hp.trans hp2')) (pRep_mono (hp.trans hp2') (fun _ _ => nfRep_mono (hp.trans hp2')) htb)
+        (by have h := cnd_spec (σ := σ) mode ra C hok hs hc.cnd p fts hfts hml wty wnm om hM ms[c] olp pp od hlpl hdl (by rw [hpfc]; exact hpl)
+              hnpc tbl ot htl cn fvs pv
+              hfl i (by omega) H2 hpC2 (eblk_mono hlp (hp.trans hp2')) (by rw [hpfc]; exact blkAt_mono hpf (hp.trans hp2'))
+              (blkAt_mono hdb (hp.trans hp2')) (pRep_mono (hp.trans hp2') (fun _ _ => nfRep_mono (hp.trans hp2')) htb)
               (blkAt_mono hfb (hp.trans hp2')) tys lf ob hsb tbl.length 0 H2 s2 (by omega) (by omega) (List.prefix_refl _)
-            simp only [List.drop_zero] at h; exact h))
+            simp only [List.drop_zero] at h; rw [hpfc] at h; exact h))
       (fun _ w s3 H3 hp3 _ => ?_)
     have hp3' : H2 <+: H3 := hp3
     exact hrec H3 s3 _ _ (hp2'.trans hp3') (fun x hx => by
       simp only [cfgParams, List.mem_cons, List.not_mem_nil, or_false] at hx
-      rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> rfl)
+      rcases hx with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> rfl)
 
 end
 
