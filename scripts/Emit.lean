@@ -3,14 +3,15 @@ import ConPanqueque.Start.Main4
 open ConPanqueque.Emit Flapjack Flapjack.Pancake.PanLang ConPanqueque.Code ConPanqueque.Start
 
 /-! Print the verified program to `pancake/checker.pnk`: the globals with the values
-`InitGlobals` assumes, `main` (`mainBody3`), and the code table at the concrete layout.  Each
-function is parsed back with flapjack's parser and compared (after normalisation). -/
+`InitGlobals` assumes, `main` (`mainBody3`), and the emitted code table (`codeT`: the function `die`
+added, every `hang` a tail call to it) at the concrete layout.  Each function is parsed back with
+flapjack's parser and compared (after normalisation). -/
 
 /-- A computable context with the concrete layout (the table depends only on the layout). -/
 def Cemit : ConPanqueque.T.Ctx := C1 emptyCode [] [] P0
 
 #eval show IO Unit from do
-  let es := codeEntries Cemit
+  let es := ConPanqueque.Logic.dieEntries (codeEntries Cemit)
   let globs : List (String × Nat) :=
     [("Gdir", base), ("Gfln", base + 4096), ("Gfll", base + 4104), ("Gfls", base + 4112), ("Gfle", base + 4120),
      ("Gkb", base + 8192), ("Ght", base + H0 + 8 * NH), ("Geo", 0), ("Glit", 0), ("Get", base + E0 + 8 * 64)]

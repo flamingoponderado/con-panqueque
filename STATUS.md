@@ -9,7 +9,9 @@ input. The gaps below are documented future work.
 
 [`ConPanqueque.Start.main_pipeline_prelude`](ConPanqueque/Start/Main4.lean) says:
 take the Pancake program `mainBody3`, the program that `scripts/Emit.lean` emits
-and `cake --pancake` compiles. Start it from the initial state (`InitMem`,
+and `cake --pancake` compiles (the proved program `mainBody3P` with every failure exit `hang`
+replaced by a tail call to the one function `die`; `ConPanqueque/Logic/Die.lean` proves the
+replacement only adds ways to stop). Start it from the initial state (`InitMem`,
 `InitGlobals`, little-endian). If it returns, then:
 
 - it recorded a `read` FFI event with input bytes `b`;

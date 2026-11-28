@@ -22,15 +22,16 @@ set_option maxRecDepth 100000
 
 /-- The concrete code table, at the concrete layout. -/
 noncomputable def Cg : Ctx := C1 (codeMap []) [] [] P0
-noncomputable def codeT : Code := codeMap (codeEntries Cg)
+/-- The code table the proofs use (the emitted one, `codeT` in `Start/Main4.lean`, adds `die`). -/
+noncomputable def codeTP : Code := codeMap (codeEntries Cg)
 
-theorem codeEntries_C1 (H EH : List (BitVec 64)) (P : Pins) : codeEntries (C1 codeT H EH P) = codeEntries Cg := rfl
+theorem codeEntries_C1 (H EH : List (BitVec 64)) (P : Pins) : codeEntries (C1 codeTP H EH P) = codeEntries Cg := rfl
 
 theorem code_C1 (H EH : List (BitVec 64)) (P : Pins) :
-    (C1 codeT H EH P).code = codeMap (codeEntries (C1 codeT H EH P)) := by rw [codeEntries_C1]; rfl
+    (C1 codeTP H EH P).code = codeMap (codeEntries (C1 codeTP H EH P)) := by rw [codeEntries_C1]; rfl
 
-theorem pinCodes_T : PinCodes codeT := by
-  refine ⟨?_, ?_, ?_, ?_, ?_⟩ <;> (rw [codeT, codeMap_lookup]; rfl)
+theorem pinCodes_T : PinCodes codeTP := by
+  refine ⟨?_, ?_, ?_, ?_, ?_⟩ <;> (rw [codeTP, codeMap_lookup]; rfl)
 
 /-- Declare each local (initially 0). -/
 def decsZ : List MlS → ProgHOL 64 → ProgHOL 64

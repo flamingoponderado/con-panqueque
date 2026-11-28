@@ -474,9 +474,12 @@ The start-state hypotheses of `top_verdict_table` are now established by code, i
   `parseBytes (inputOf nb …) = .ok rc`, and `checkDeclsPure .verified … [] rc.decls` accepts.
   `main_model` (`Start/Model`): then, by con-leche's model theorems, the stream's environment has a
   set-theoretic model and stores no constant of type `False`.
-- **Code table.** `codeT := codeMap (codeEntries Cg)` at the concrete layout. `codeEntries` does not
+- **Code table.** `codeTP := codeMap (codeEntries Cg)` at the concrete layout. `codeEntries` does not
   depend on the context's non-layout fields (`rfl`), so `C1.code = codeMap (codeEntries C1)` holds
-  for every heap and pin table.
+  for every heap and pin table. The emitted table is `codeT := codeMap (dieEntries (codeEntries Cg))`
+  (`Start/Main4`): the function `die` (body `hang`) added, and every `hang` in every body replaced by
+  the tail call `return die();` (`dieT`, `Logic/Die`). `dieT_sim`: the emitted program stops or
+  agrees with the proved one, so `main_pipeline_prelude` holds for `mainBody3 := dieT mainBody3P`.
 - **Executable.** `scripts/Emit.lean` prints the globals with `InitGlobals`' values, `main`
   (`mainBody`) and the table at the layout. All 394 functions round-trip through flapjack's
   parser. `make -C pancake checker` builds it with `cake --pancake` v3479. The harness prints

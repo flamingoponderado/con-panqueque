@@ -6,6 +6,7 @@ import ConPanqueque.Logic.BasisNames
 import ConPanqueque.Logic.Byte
 import ConPanqueque.Logic.Sep
 import ConPanqueque.Logic.Stop
+import ConPanqueque.Logic.Die
 import ConPanqueque.Alloc
 import ConPanqueque.Rep
 import ConPanqueque.ExprRep

@@ -19,7 +19,7 @@ variable {σ : Type}
 /-- **If the compiled checker returns, the declarations it read have a model**, and none of them
 is a stored constant of type `False`. -/
 theorem main_model (V : Type w) [ConLeche.SetTheory V] (ra : ConPanqueque.Hash.RuntimeAssumptions)
-    (hbits : System.Platform.numBits = 64) (t : PState σ) (hm : InitMem t) (hg : InitGlobals t codeT)
+    (hbits : System.Platform.numBits = 64) (t : PState σ) (hm : InitMem t) (hg : InitGlobals t codeTP)
     (hbe : t.be = false) (w : BitVec 64)
     (hret : (evaluateHOLFiniteState t mainBody2).1 = some (.returned (.val (.word w)))) :
     ∃ nb bs : List (BitVec 8), ⟨.extCall fRead, [], bs.zip nb⟩ ∈ (evaluateHOLFiniteState t mainBody2).2.ffi.ioEvents ∧

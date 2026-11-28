@@ -85,7 +85,7 @@ theorem writeH_append (A B : List (BitVec 64)) (A0 : BitVec 64) (j0 : Nat) : ∀
 set_option maxHeartbeats 4000000 in
 /-- The body after the declarations. -/
 theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : System.Platform.numBits = 64)
-    (t : PState σ) (hm : InitMem t) (hg : InitGlobals t codeT) (hbe : t.be = false)
+    (t : PState σ) (hm : InitMem t) (hg : InitGlobals t codeTP) (hbe : t.be = false)
     (hloc : ∀ x ∈ mainLocals2, ∃ w, t.locals.lookup x = some (.val (.word w))) :
     Stop (evaluateHOLFiniteState t mainCore2).1 ∨
       ((∃ w, (evaluateHOLFiniteState t mainCore2).1 = some (.returned (.val (.word w)))) ∧
@@ -105,8 +105,8 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
     seq_normal _ (storesP_spec initL t (fun p hp => (hm.zero p.1 (initL_dom p hp).1 (initL_dom p hp).2.1
       (initL_dom p hp).2.2).1))
   rw [e0, ← hR1]
-  have hinv0 : Inv (C0 codeT) (sBoot P0) [] [] mainLocals2 (tI t) :=
-    ⟨sr_init hm codeT hg, fun x v h => absurd h (by simp [T.Env.get]), fun _ _ h => absurd h (by simp),
+  have hinv0 : Inv (C0 codeTP) (sBoot P0) [] [] mainLocals2 (tI t) :=
+    ⟨sr_init hm codeTP hg, fun x v h => absurd h (by simp [T.Env.get]), fun _ _ h => absurd h (by simp),
       fun x hx => hloc x hx⟩
   -- the buffer's address and size
   obtain ⟨wa, hwa⟩ := hloc kRA (by decide)
@@ -120,16 +120,16 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
       (by simp only [t1]; rw [lookup_setVar_other _ _ (by decide)]; exact hwl)
   rw [seq_normal _ ea1, seq_normal _ ea2]
   let Γ2 : Env := [(kRL, BitVec.ofNat 64 (8 * Lw)), (kRA, cA j0F)]
-  have hinv2 : Inv (C0 codeT) (sBoot P0) Γ2 [] mainLocals2 t2 := inv_set (inv_set hinv0 kRA _) kRL _
+  have hinv2 : Inv (C0 codeTP) (sBoot P0) Γ2 [] mainLocals2 t2 := inv_set (inv_set hinv0 kRA _) kRL _
   have hbe2 : t2.be = false := hbe
   -- the read
-  have hal : (cellA (C0 codeT) j0F).toNat % 8 = 0 := by
+  have hal : (cellA (C0 codeTP) j0F).toNat % 8 = 0 := by
     show (cA j0F).toNat % 8 = 0; simp only [cA]; addr_tac'
-  have hov : (cellA (C0 codeT) j0F).toNat + 8 * Lw + 8 < 2 ^ 64 := by
+  have hov : (cellA (C0 codeTP) j0F).toNat + 8 * Lw + 8 < 2 ^ 64 := by
     show (cA j0F).toNat + 8 * Lw + 8 < 2 ^ 64; simp only [cA]; addr_tac'
-  have hcells : j0F + Lw ≤ (C0 codeT).H.length := by
+  have hcells : j0F + Lw ≤ (C0 codeTP).H.length := by
     show j0F + Lw ≤ Himg.length; rw [Himg_length]; simp [NH]
-  rcases read_step (C0 codeT) (ctxOK_init codeT) (sBoot P0) Γ2 [] mainLocals2 j0F Lw fRead hal hcells (by omega)
+  rcases read_step (C0 codeTP) (ctxOK_init codeTP) (sBoot P0) Γ2 [] mainLocals2 j0F Lw fRead hal hcells (by omega)
       (by simp [Γ2, T.Env.get_cons]; rfl) (by simp [Γ2, T.Env.get_cons]) fRead_ne t2 hinv2 hbe2 with
     hs3 | ⟨hn3, nb, bs, hl, hio, hinv3⟩
   · exact Or.inl (seq_stop _ _ _ hs3)
@@ -137,10 +137,10 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
     at hio hinv3
   rw [seq_normal (s := t2) (s₁ := t3) _ (by rw [← hn3, ← ht3])]
   let H' := writeH Himg (cA j0F) j0F 0 nb
-  have hinv3' : Inv (Cb codeT H' EH0) (sBoot P0) Γ2 [] mainLocals2 t3 := hinv3
+  have hinv3' : Inv (Cb codeTP H' EH0) (sBoot P0) Γ2 [] mainLocals2 t3 := hinv3
   rw [show Cprog = Cb emptyCode [] EH0 from rfl,
-    nameP_congr (C := Cb emptyCode [] EH0) (C' := Cb codeT H' EH0) rfl rfl]
-  have hmono := evaluateHOLFiniteState_ioEvents_mono (nameP (Cb codeT H' EH0) boolRecCs
+    nameP_congr (C := Cb emptyCode [] EH0) (C' := Cb codeTP H' EH0) rfl rfl]
+  have hmono := evaluateHOLFiniteState_ioEvents_mono (nameP (Cb codeTP H' EH0) boolRecCs
     (.seq (.assign .local vBr (vv vPn)) (pinsP Cprog (envAllocP Cprog vPb (.const (BitVec.ofNat 64 8))
       (.seq (.store (vv vPb) (vv vBr)) (offCheckP Cprog (ConPanqueque.T.Lit.basisP Cprog ConPanqueque.T.Lit.basisKinds (frontAssigns (restP2 capF))))))))) t3 _ _ rfl
   have hev : (⟨.extCall fRead, [], bs.zip nb⟩ : _) ∈ t3.ffi.ioEvents := by rw [hio]; simp
@@ -152,7 +152,7 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
       ∀ sP (EH' : List (BitVec 64)) (Γ' : Env), internReservedPins s1 = .ok ((), sP) →
       PinBlock EH' sP.pins → sP.pins.zeroLevel = default → EH'.length = 138 →
       (∀ y, y ∉ [vPn, vKa, vPb, vRs] → Γ'.get y = Γ1.get y) →
-      SpecR (σ := σ) (Inv (C1 codeT H' EH' sP.pins) sP Γ' [] mainLocals2)
+      SpecR (σ := σ) (Inv (C1 codeTP H' EH' sP.pins) sP Γ' [] mainLocals2)
         (envAllocP Cprog vPb (.const (BitVec.ofNat 64 8)) (.seq (.store (vv vPb) (vv vBr)) (offCheckP Cprog (ConPanqueque.T.Lit.basisP Cprog ConPanqueque.T.Lit.basisKinds (frontAssigns (restP2 capF))))))
         sP (ConPanqueque.T.Lit.basisTwin ConPanqueque.T.Lit.basisKinds >>= fun _ => (pure () : AM Unit))
         (fun _ _ _ _ => Verdict2 nb) := by
@@ -160,9 +160,9 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
     obtain ⟨hokP, hextP, hpo, hpp, hoff, -, -⟩ := internReservedPins_run hok1 hoff1 hrun
     have hr16 : sP.pins.reserved.length ≤ 16 := by
       rw [(denoteNL_get hpo.reserved).1, reserved_length]
-    rw [envAllocP_congr (C := Cprog) (C' := C1 codeT H' EH' sP.pins) rfl rfl]
+    rw [envAllocP_congr (C := Cprog) (C' := C1 codeTP H' EH' sP.pins) rfl rfl]
     refine specR_envAllocI vPb _ 1 (by decide) (hD _ (by decide)) (fun v => rfl) (fun ws hws hroom => ?_)
-    show SpecR (Inv (C1 codeT H' (EH' ++ ws) sP.pins) sP _ [] mainLocals2) _ sP _ _
+    show SpecR (Inv (C1 codeTP H' (EH' ++ ws) sP.pins) sP _ [] mainLocals2) _ sP _ _
     have hag2 : ∀ j, j < 138 → (EH' ++ ws)[j]? = EH'[j]? := fun j hj => List.getElem?_append_left (by omega)
     have hb2 := pinBlock_agree hb hr16 hag2
     have hl2 : (EH' ++ ws).length = 139 := by simp [hlen, hws]
@@ -170,15 +170,15 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
       (by simp only [sev, vv, T.Env.get_cons, ite_true, C1_EH, hlen]; rfl)
       (by simp only [sev, vv, T.Env.get_cons, show vBr ≠ vPb by decide, ite_false]
           rw [hag _ (by decide), hbr]) ?_
-    show SpecR (Inv (C1 codeT H' ((EH' ++ ws).set 138 (Enc.idxW bh)) sP.pins) sP _ [] mainLocals2) _ sP _ _
+    show SpecR (Inv (C1 codeTP H' ((EH' ++ ws).set 138 (Enc.idxW bh)) sP.pins) sP _ [] mainLocals2) _ sP _ _
     let EH3 := (EH' ++ ws).set 138 (Enc.idxW bh)
     have hb3 : PinBlock EH3 sP.pins := pinBlock_agree hb2 hr16 (fun j hj => by
       simp only [EH3]; rw [List.getElem?_set, ite_eq_right (by omega)])
     have hB3 : EH3[138]? = some (Enc.idxW bh) := List.getElem?_set_self (by omega)
     have hbdP : denoteN sP.store.ns bh = some boolRecName := denoteN_ext hbd1 hextP
-    let C := C1 codeT H' EH3 sP.pins
+    let C := C1 codeTP H' EH3 sP.pins
     have hC : C.code = codeMap (codeEntries C) := code_C1 _ _ _
-    have hag' : ∀ y, y ∉ [vPn, vKa, vPb, vRs, vBr] → T.Env.get ((vPb, ecell (C1 codeT H' EH' sP.pins) EH'.length) :: Γ') y
+    have hag' : ∀ y, y ∉ [vPn, vKa, vPb, vRs, vBr] → T.Env.get ((vPb, ecell (C1 codeTP H' EH' sP.pins) EH'.length) :: Γ') y
         = Γ2.get y := by
       intro y hy
       simp only [List.mem_cons, List.not_mem_nil, or_false, not_or] at hy
@@ -217,7 +217,7 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
     intro tf htf
     have g4 : ∀ y, y ≠ vPn → y ≠ vKa → (∀ c j, 0 ≤ j → y ≠ ConPanqueque.T.Lit.gv c j) →
         Γ4.get y = T.Env.get ((ocD, 0) :: (ocC, 0) :: (ocB, 0) :: (ocA, 0) ::
-          (vPb, ecell (C1 codeT H' EH' sP.pins) EH'.length) :: Γ') y :=
+          (vPb, ecell (C1 codeTP H' EH' sP.pins) EH'.length) :: Γ') y :=
       fun y h1 h2 h3 => ag4 y h3 h1 h2
     have gvNe : ∀ (m : MlS), m.explode.head? ≠ some (BitVec.ofNat 8 'g'.toNat) → ∀ c j, 0 ≤ j → m ≠ ConPanqueque.T.Lit.gv c j :=
       fun m hm c j _ e => ConPanqueque.T.Lit.gv_ne_of hm e.symm
@@ -235,7 +235,7 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
       exact (writeH_append Himg extra (cA j0F) j0F 0 nb (fun b _ hb => by
         rw [Himg_length]; simp [NH]; rw [hl] at hb; omega)).symm
     rcases rest_verdict2 (hbi := hbiS) [] [] ra (ctxSt (ctxH C H'') s'.store) (ctxOK_St (ctxOK_H (ctxOK_C1 _ _ _ _ hb3) H'') _)
-        (by ctx_tr (frontOK_C1 codeT H' EH3 sP.pins))
+        (by ctx_tr (frontOK_C1 codeTP H' EH3 sP.pins))
         (frontCodes_St (frontCodes_ctxH (front_ok σ C hC)) _) (foldCodes_St (foldCodes_ctxH (fold_ok C hC) H'') _) rfl rfl rfl
         (fun _ => rfl) (feed_ok C hC) s' hokP' hoff'.1 hpo' hpp' trivial
         (ConRon.Bridge.denoteN_ext (ConRon.Bridge.denoteN_ext hA1 hextP) hist.ext) hb3' bh hB3 hbd' hbp _ [] mainLocals2 (fun x hx => by
@@ -261,7 +261,7 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
   -- `Bool.rec`, then the pins
   have hk1 : ∀ (bh : NIdx) (s1 : AState) (Γ1 : Env), (∀ y, y ≠ vPn → y ≠ vKa → Γ1.get y = Γ2.get y) →
       Γ1.get vPn = some (Enc.idxW bh) → internName boolRecName (sBoot P0) = .ok (bh, s1) →
-      SpecR (σ := σ) (Inv (Cb codeT H' EH0) s1 Γ1 [] mainLocals2)
+      SpecR (σ := σ) (Inv (Cb codeTP H' EH0) s1 Γ1 [] mainLocals2)
         (.seq (.assign .local vBr (vv vPn)) (pinsP Cprog (envAllocP Cprog vPb (.const (BitVec.ofNat 64 8))
           (.seq (.store (vv vPb) (vv vBr)) (offCheckP Cprog (ConPanqueque.T.Lit.basisP Cprog ConPanqueque.T.Lit.basisKinds (frontAssigns (restP2 capF)))))))) s1
         ((fun _ => internReservedPins >>= fun _ =>
@@ -272,8 +272,8 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
     have hoff1 : s1.store.scratchOn = false := by rw [st1.scratch]; exact (boot_ok P0).2.1
     have hbp := ConRon.Bridge.Frontend.PersN_of_denote st1.ok.wf hoff1 hden1
     refine specR_assignI vBr (vv vPn) (Enc.idxW bh) (hD _ (by decide)) (by simpa [sev, vv] using hpn) ?_
-    rw [show Cprog = Cb emptyCode [] EH0 from rfl, pinsP_Cb emptyCode codeT [] EH0 H' EH0]
-    refine pins_spec ra codeT pinCodes_T mainLocals2 (fun x hx => by
+    rw [show Cprog = Cb emptyCode [] EH0 from rfl, pinsP_Cb emptyCode codeTP [] EH0 H' EH0]
+    refine pins_spec ra codeTP pinCodes_T mainLocals2 (fun x hx => by
         simp only [List.mem_cons, List.not_mem_nil, or_false] at hx
         rcases hx with rfl | rfl | rfl | rfl <;> decide) H' s1 _ []
       (fun _ => ConPanqueque.T.Lit.basisTwin ConPanqueque.T.Lit.basisKinds >>= fun _ => pure ())
@@ -282,7 +282,7 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
         (fun y hy => by
           simp only [List.mem_cons, List.not_mem_nil, or_false, not_or] at hy
           simp only [T.Env.get_cons, ite_eq_right hy.2.2]; exact hag1 y hy.1 hy.2.1) sP EH' Γ' hrun hb hz hlen hag)
-  rcases name_spec ra (Cb codeT H' EH0) (ctxOK_Cb codeT H' EH0 (fun _ _ => rfl)) (frontOK_Cb codeT H' EH0)
+  rcases name_spec ra (Cb codeTP H' EH0) (ctxOK_Cb codeTP H' EH0 (fun _ _ => rfl)) (frontOK_Cb codeTP H' EH0)
       pinCodes_T.nstr mainLocals2 (hD _ (by decide)) (hD _ (by decide)) boolRecName boolRecCs (by decide)
       (fun c hc => by simp only [boolRecCs, List.mem_cons, List.not_mem_nil, or_false] at hc
                       rcases hc with rfl | rfl <;> decide) (sBoot P0) (boot_ok P0).1 (boot_ok P0).2.2.1 Γ2 [] _ hk1 t3 hinv3' with
@@ -292,7 +292,7 @@ theorem core_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
 
 /-- **The whole program's verdict, with the pass.** -/
 theorem main_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : System.Platform.numBits = 64)
-    (t : PState σ) (hm : InitMem t) (hg : InitGlobals t codeT) (hbe : t.be = false) :
+    (t : PState σ) (hm : InitMem t) (hg : InitGlobals t codeTP) (hbe : t.be = false) :
     Stop (evaluateHOLFiniteState t mainBody2).1 ∨
       ((∃ w, (evaluateHOLFiniteState t mainBody2).1 = some (.returned (.val (.word w)))) ∧
         ∃ nb bs : List (BitVec 8), nb.length = 8 * Lw ∧
@@ -301,7 +301,7 @@ theorem main_verdict2 (ra : ConPanqueque.Hash.RuntimeAssumptions) (hbits : Syste
   unfold mainBody2
   rw [e]
   have hm' : InitMem t' := ⟨fun a hal hb1 hb2 => by rw [h1, h2]; exact hm.zero a hal hb1 hb2⟩
-  have hg' : InitGlobals t' codeT := by
+  have hg' : InitGlobals t' codeTP := by
     obtain ⟨c, d, n1, n2, n3, n4, k, ht, eo, lit, et⟩ := hg
     exact ⟨by rw [h4]; exact c, by rw [h3]; exact d, by rw [h3]; exact n1, by rw [h3]; exact n2, by rw [h3]; exact n3,
       by rw [h3]; exact n4, by rw [h3]; exact k, by rw [h3]; exact ht, by rw [h3]; exact eo, by rw [h3]; exact lit,
