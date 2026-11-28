@@ -398,3 +398,67 @@ unchanged.
 
 Suggested next step: `tmn`/`classesNfs` over the class block (the first class-shaped piece `ga` runs), with its
 spec answering the filtered entries per class; then `ccl` over classes with the class carried in the kinds word.
+
+## 10. Mutual blocks, round 4: the generator core over classes (progress log)
+
+Every step ends with a green build. Still nothing accepts a k > 1 block end to end (the `ga`/`gb` class walk and
+`cbk`'s tests remain), but the class-matching half of the generator (§9 plan item 1) is now k-generic.
+
+1. **`targetAbs` over all members** (`TargetAbs`): `tab`/`ta` take the members' pointer block (`tabMs`/`taMs`) and
+   a block of holes (`tabHb`/`taHb`) instead of one name and one hole. The const arm looks the constant's name up
+   with `fMemFindIdx` (`mfi`, the members' `cvT` names) and, on a hit `t`, returns hole `t` from the block.
+   `tab_spec`/`ta_spec` refine `targetAbsGo (ms.map (·.cvT.name)) us holes` for any member list, given
+   `PtrsRep … om ms`, `BlkAt … ohb (holes.map Enc.idxW)` and `holes.length = ms.length`. `TABCodes` gained `mfi`.
+2. **`targetHoles` into a block** (new `thf`/`fThf` "targetHolesFill" in `TargetMatch`, `thf_spec`): member `i`'s
+   hole `.fvar (b + i)` at its former's type (`cvT.type`, read off the member record), interned in member order and
+   stored at cell `i` of a fresh block (`PostTHF`: the holes, their count, the cells).
+3. **`targetParamsDefEq`, `targetClassMatch` at any member count** (`TargetMatch`): `tpd` passes the members' block
+   and the holes block to `ta` (`tpd_spec` over `ms`, `holes`). `tcc` no longer takes `ty0`/`nm`: it takes the
+   members' block `om`, reads `k`, allocates a `k + 1` block, fills it with `thf` (the twin's `targetHoles formerTys
+   pfvs.length`, run inside every match exactly as the twin does) and calls `tpd` at depth `pn + k`. `tcc_spec`
+   refines `targetClassMatch mode fe p fts …` at `fts = p.formers.map (·.type)` with `EBlk … p.lps` (no
+   `p.members = [ms0]`). `TCCCodes`: `fv` replaced by `thf`. `K53` (`classNodesAgree`'s match) passes `k53Ms`
+   (the `[ms0.cvT.type]` / `ms0.cvT.levelParams` premises turned into `p.formers`/`p.lps` with `hms`).
+4. **`targetMajorNfs` filters** (`ClassNfs`): an entry whose constructor is not one of the class's is skipped
+   (was: hang), a kept entry still has to match (`tcc`; a mismatch hangs). `tmn` takes the members' block instead
+   of `ty0`/`nm`; `tmn_spec` (any `p`, formers `fts = p.formers.map (·.type)`) answers
+   `(tbl.drop i).filter (fun e => ctors.any (·.1.name == e.ctor))`. The kept entries are **not copied**: the only
+   reader of a class's `nfs` is `classCtorOf`'s `m.nfs.filter (·.ctor == c)`, and `nfs_filter_ctor` shows that the
+   class's filtered table, filtered again to one of its constructors, is the table filtered to it. So `cco`/`ccl`
+   keep reading the whole table `ot` (`cco_spec`/`ccl_spec` take `tbl` and the premise
+   `m.nfs.filter (·.ctor == c) = tbl.filter (·.ctor == c)` per constructor).
+   `ga_spec`'s class is now `{ m with nfs := tbl.filter (fun e => m.ctors.any (·.1.name == e.ctor)) }` (also in
+   `PostGR`, the `gb` call, `hgaPre`); `ctb` follows (`BlockTail`, `q.tbl`). The statements of `ctb_spec`,
+   `cbk_spec` and `main_pipeline_prelude` are unchanged.
+5. **`classesNfs` over the class block** (new `cns`/`fCns` "classesNfs" in `ClassNfs`, `cns_spec`): class `i` of a
+   `TMBlk` (its constructors, levels, parameters read off the `TMRep`) through `tmn`, then the rest; refines
+   `classesNfs mode fe p fts tbl (ms.drop i)` with answer `(ms.drop i).map (fun m => { m with nfs := tbl.filter … })`.
+   Not wired yet: `ga` still unpacks class 0 (it gets class 0's fields from `cbk` through `ctb`); wiring needs the
+   class pointer block (`cbk_oms`) threaded through `ctb` into `ga`, which is part of item 2 below. Not in the code
+   table until wired (`check_code_names.py` does not see it).
+
+Code table regenerated (`fThf` new; `fTab`, `fTa`, `fTpd`, `fTcc`, `fTmn` changed). Full `lake build` green
+(no `sorry`), `main_pipeline_prelude` unchanged.
+
+What still hangs at k > 1 (ordered plan, continuing §9's):
+1. **Thread the class block into the generator**: `cbk` passes `cbk_oms` (the `TMBlk`, `PostCPS`) and the class
+   count through `ctb` into `ga` (new `ctb`/`ga` parameters; `ctb_spec`/`ga_spec` take `TMBlk C C.H oms q.params
+   q.cls` instead of class 0's unpacked fields and `hcls : q.cls = [m]`); `ga` calls `fCns [oms, 0, ncl, ot, nt,
+   olp, om, pp, npp]` instead of `fTmn` (`cns_spec` is ready; `ga_spec`'s `genRecCheck_eq` lemma must then be
+   restated without `hk : p.k = 1`, keeping `classesNfs` as a call).
+2. **`ccl`/`cco`/`cfs` over classes** (`ClassCtorRec`): a loop `classesCtors` over the class block (per class its
+   constructors, `c` its index); `cfKindW` must carry the class (e.g. `(tele + 1) + 2^32 * cls`, the telescope is
+   already bounded by `2^32` in `KindsOK`); `ihk` returns the hit's class (`firstIhs` on `rd`'s minor slot of the
+   class); `KindsOK` relaxed to `.recursive c tele` with `c < #classes`; `cfg`/`cnd` (`K53`) read class `c`'s
+   `TMRep` (`targetMajorAt ms c`) instead of class 0's unpacked fields; `cco_spec`'s `classCtorOf … [m] 0` becomes
+   `… ms c`. The `nfs` premise of `cco_spec` is already in the shape every class needs (`nfs_filter_ctor`).
+3. **`mih`/`mty` (`GenPre`) and `cgo` (`GenRule`)**: read the IH's class from the kinds word (motive index of
+   class `c` = `motVar` counting the motives before the slot) instead of `0`.
+4. **`gb` per recursor** (`GenRecCheck`, `FeR`): `classRecTysOk` loop (`classRecTyOk` with `rd.recCls[r]`), a
+   motive per class (`motiveTy`), `classFeR` as a loop of the one-recursor push and a loop of pops,
+   `classRecsRulesOk` per recursor; `PostGR` over the output list.
+5. **`cts`** (`BlockTail`): `streamKCheck`/`streamRecsCheck`/`blockRecInfosTF` over the output list (the
+   one-record `kx`, `srr`, `srs` looped).
+6. **`cbk`**: drop `nm0 = 1`, `nrl = 1`, `ncl = 1`, `nrc = 1`, `rc0 = 0`, slot-0 motive, member-0 class, `tgt = 0`;
+   restate `cbk_spec`/`CBKRun`/`CBKFacts` over all members (`CPSMemberOK`); `cbkInst`'s table branch over a list.
+7. **Front end** (`Front/IndLine*`, `IndBoundsP`/`indRun_of_front`), §1 "Front end".

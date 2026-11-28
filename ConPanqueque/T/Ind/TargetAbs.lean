@@ -34,22 +34,25 @@ def tabW := ofString "tab_w"
 def tabR := ofString "tab_r"
 def fTab := ofString "targetAbs"
 
-def tabNm := ofString "tab_nm"
+def tabMs := ofString "tab_ms"
 def tabUs := ofString "tab_us"
-def tabHl := ofString "tab_hl"
+def tabHb := ofString "tab_hb"
 def tabCn := ofString "tab_cn"
 def tabCu := ofString "tab_cu"
+def tabKn := ofString "tab_kn"
+def tabTi := ofString "tab_ti"
+def tabHx := ofString "tab_hx"
 
-def tabParams : List MlS := [pFu, pH, tabM, tabNm, tabUs, tabHl]
+def tabParams : List MlS := [pFu, pH, tabM, tabMs, tabUs, tabHb]
 def tabLocals : List MlS := gaaLocals ++ [tabB, tabK, tabX, tabA1, tabA2, tabA3, tabQ, tabY, tabZ, tabV, tabM1, tabM2,
-  tabM3, tabW, tabR, tabCn, tabCu]
+  tabM3, tabW, tabR, tabCn, tabCu, tabKn, tabTi, tabHx]
 
 /-- Return the pair `[r, memo]`. -/
 def tabRet (C : Ctx) (r m : MlS) : ProgHOL 64 := alloc2 C tabR (vv r) (vv m) (.return (vv tabR))
 
 /-- One child walked: `Q := rfv(child, memo)`, then its result in `y` and the memo in `m'`. -/
 def tabCall (x child memo y m' : MlS) (rest : ProgHOL 64) : ProgHOL 64 :=
-  .seq (.call (some (some (.local, x), none)) fTab [.op .sub [vv pFu, .const 1], vv child, vv memo, vv tabNm, vv tabUs, vv tabHl])
+  .seq (.call (some (some (.local, x), none)) fTab [.op .sub [vv pFu, .const 1], vv child, vv memo, vv tabMs, vv tabUs, vv tabHb])
   (.seq (.assign .local y (.load .one (vv x)))
   (.seq (.assign .local m' (.load .one (.op .add [vv x, .const 8]))) rest))
 
@@ -71,12 +74,18 @@ def tabProj (C : Ctx) : ProgHOL 64 :=
   (tabCall tabQ tabA2 tabM tabY tabM1
     (.seq (.call (some (some (.local, tabW), none)) fInternProj [vv tabA1, vv tabY, vv tabB]) (tabSet C tabM1)))
 
-/-- The const arm: the member at the block's levels is its hole, anything else itself. -/
+/-- The const arm: a member (pointer block `tabMs`) at the block's levels is its hole (block `tabHb`), anything else
+itself. -/
 def tabConst (C : Ctx) : ProgHOL 64 :=
   .seq (.assign .local tabCn (.load .one (vv lRp)))
   (.seq (.assign .local tabCu (.load .one (.op .add [vv lRp, .const 8])))
   (.ite (.cmp .equal (vv tabCu) (vv tabUs))
-    (.ite (.cmp .equal (vv tabCn) (vv tabNm)) (tabRet C tabHl tabM) (tabRet C pH tabM))
+    (.seq (.assign .local tabKn (.load .one (vv tabMs)))
+    (.seq (.call (some (some (.local, tabTi), none)) fMemFindIdx [vv tabMs, vv tabCn, .const 0, vv tabKn])
+    (.ite (.cmp .equal (vv tabTi) (.const 0)) (tabRet C pH tabM)
+      (.seq (.assign .local tabTi (.op .sub [vv tabTi, .const 1]))
+      (.seq (.assign .local tabHx (.load .one (.op .add [vv tabHb, .op .add [.panop .mul [vv tabTi, .const 8], .const 8]])))
+        (tabRet C tabHx tabM))))))
     (tabRet C pH tabM)))
 
 /-- A compound node: the view's children loaded, then the memo, then the arm. -/
@@ -114,6 +123,7 @@ structure TABCodes (C : Ctx) : Prop where
   fa : C.code.lookup fInternForallE = some ([(lEf, .one), (lEa, .one)], bin2Body forDataE 15, .one)
   lt : C.code.lookup fInternLet = some ([(lEty, .one), (lEvl, .one), (lEbd, .one)], letBody, .one)
   pj : C.code.lookup fInternProj = some ([(lEp, .one), (lEe, .one), (lIw, .one)], projBody, .one)
+  mfi : C.code.lookup fMemFindIdx = some (mfiParams.map (fun p => (p, ShapeHOL.one)), mfiBody, .one)
 
 section
 variable {σ : Type}
@@ -132,15 +142,16 @@ theorem postTAB_locals (C : Ctx) : ∀ a w s' (st : PState σ) (L : HolFiniteMap
   fun _ _ _ _ _ ⟨H', op, mw', hp, hw, h1, h2, h3, hs⟩ => ⟨H', op, mw', hp, hw, h1, h2, h3, sr_of_eq hs rfl rfl rfl rfl⟩
 
 /-- The walk at fuel `n`, from any heap holding the openers' block. -/
-def TABRec (C : Ctx) (tnm : NIdx) (tus : LsIdx) (tx : EIdx) (n : Nat) : Prop :=
+def TABRec (C : Ctx) (ms : List MemberShape) (om : Nat) (tus : LsIdx) (holes : List EIdx) (ohb : Nat) (n : Nat) : Prop :=
   ∀ (h : EIdx) (memo : Std.HashMap EIdx EIdx) (mw : BitVec 64) (H : List (BitVec 64)) (s : AState), C.H <+: H →
     MemoRep C.HB H mw memo →
-    SpecR (σ := σ) (Pre (ctxH C H) s (tabParams.zip [BitVec.ofNat 64 n, Enc.idxW h, mw, Enc.idxW tnm, Enc.idxW tus,
-      Enc.idxW tx])) (tabBody C) s
-      (targetAbsGo [tnm] tus [tx] memo n h) (PostTAB (ctxH C H))
+    SpecR (σ := σ) (Pre (ctxH C H) s (tabParams.zip [BitVec.ofNat 64 n, Enc.idxW h, mw, cellA C om, Enc.idxW tus,
+      cellA C ohb])) (tabBody C) s
+      (targetAbsGo (ms.map (·.cvT.name)) tus holes memo n h) (PostTAB (ctxH C H))
 
 /-- One child walked (`tabCall`). -/
-theorem tab_call {β : Type} (C : Ctx) (hc : TABCodes C) (tnm : NIdx) (tus : LsIdx) (tx : EIdx) (n : Nat) (ih : TABRec (σ := σ) C tnm tus tx n)
+theorem tab_call {β : Type} (C : Ctx) (hc : TABCodes C) (ms : List MemberShape) (om : Nat) (tus : LsIdx) (holes : List EIdx)
+    (ohb : Nat) (n : Nat) (ih : TABRec (σ := σ) C ms om tus holes ohb n)
     {s : AState} {Γ : Env} {M : Mem} {rest : ProgHOL 64} {k : EIdx × Std.HashMap EIdx EIdx → AM β}
     {R : β → BitVec 64 → AState → PState σ → Prop} (H : List (BitVec 64)) (hp : C.H <+: H)
     (x child memo y m' : MlS)
@@ -148,17 +159,17 @@ theorem tab_call {β : Type} (C : Ctx) (hc : TABCodes C) (tnm : NIdx) (tus : LsI
     (hne : y ≠ x ∧ m' ≠ x ∧ m' ≠ y)
     (c : EIdx) (memo0 : Std.HashMap EIdx EIdx) (mw : BitVec 64) (hm : MemoRep C.HB H mw memo0)
     (gF : Γ.get pFu = some (BitVec.ofNat 64 (n + 1))) (gC : Γ.get child = some (Enc.idxW c))
-    (gM : Γ.get memo = some mw) (gNm : Γ.get tabNm = some (Enc.idxW tnm))
-    (gUs : Γ.get tabUs = some (Enc.idxW tus)) (gHl : Γ.get tabHl = some (Enc.idxW tx))
+    (gM : Γ.get memo = some mw) (gNm : Γ.get tabMs = some (cellA C om))
+    (gUs : Γ.get tabUs = some (Enc.idxW tus)) (gHl : Γ.get tabHb = some (cellA C ohb))
     (hk : ∀ (r : EIdx × Std.HashMap EIdx EIdx) (H' : List (BitVec 64)) (op : Nat) (mw' : BitVec 64) (s' : AState),
       H <+: H' → MemoRep C.HB H' mw' r.2 →
       SpecR (Inv (ctxH C H') s' ((m', mw') :: (y, Enc.idxW r.1) :: (x, cellA C op) :: Γ) [] (ctxLocals ++ tabLocals))
         rest s' (k r) R) :
     SpecR (Inv (ctxH C H) s Γ M (ctxLocals ++ tabLocals)) (tabCall x child memo y m' rest) s
-      (targetAbsGo [tnm] tus [tx] memo0 n c >>= k) R := by
+      (targetAbsGo (ms.map (·.cvT.name)) tus holes memo0 n c >>= k) R := by
   unfold tabCall
-  refine specR_callNIH (C := ctxH C H) x fTab tabParams [.op .sub [vv pFu, .const 1], vv child, vv memo, vv tabNm, vv tabUs, vv tabHl]
-    (tabBody C) [BitVec.ofNat 64 n, Enc.idxW c, mw, Enc.idxW tnm, Enc.idxW tus, Enc.idxW tx] (by decide) rfl hx.1 hc.self
+  refine specR_callNIH (C := ctxH C H) x fTab tabParams [.op .sub [vv pFu, .const 1], vv child, vv memo, vv tabMs, vv tabUs, vv tabHb]
+    (tabBody C) [BitVec.ofNat 64 n, Enc.idxW c, mw, cellA C om, Enc.idxW tus, cellA C ohb] (by decide) rfl hx.1 hc.self
     ⟨by simp only [sev, sev_vv, gF]; simp; exact ofNat_succ_sub_one n, by simp [sev, gC], by simp [sev, gM],
       by simp [sev, gNm], by simp [sev, gUs], by simp [sev, gHl], trivial⟩
     (PostTAB (ctxH C H)) (fun r w _ H' => ∃ op mw', w = cellA C op ∧ H'[op]? = some (Enc.idxW r.1) ∧
@@ -211,8 +222,10 @@ end
 set_option maxHeartbeats 16000000 in
 /-- **`targetAbsGo`** for a single-member block. -/
 theorem tab_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : TABCodes C)
-    (tnm : NIdx) (tus : LsIdx) (tx : EIdx) :
-    ∀ n, n < 2 ^ 64 → TABRec (σ := σ) C tnm tus tx n := by
+    (ms : List MemberShape) (om : Nat) (tus : LsIdx) (holes : List EIdx) (ohb : Nat)
+    (hM : PtrsRep C C.H om (MemberRep C C.H) ms) (hml : ms.length < 2 ^ 59)
+    (hhb : BlkAt C.H ohb (holes.map Enc.idxW)) (hhl : holes.length = ms.length) :
+    ∀ n, n < 2 ^ 64 → TABRec (σ := σ) C ms om tus holes ohb n := by
   intro n
   induction n with
   | zero =>
@@ -247,12 +260,12 @@ theorem tab_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       exact specR_returnI (vv tabR) (cellA C H2.length) (by simp [sev, Env.get_cons]; rfl) (fun t ht =>
         ⟨_, H2.length, mw, (hp2 : H <+: H2).trans h2, rfl, g0, g1, memoRep_mono ((hp2 : H <+: H2).trans h2) hm,
           sr_of_eq ht.sr rfl rfl rfl rfl⟩)
-    have hleafX : ∀ (Γ : Env) (M : Mem), Γ.get tabHl = some (Enc.idxW tx) → Γ.get tabM = some mw →
-        SpecR (σ := σ) (Inv (ctxH C H) s Γ M (ctxLocals ++ tabLocals)) (tabRet C tabHl tabM) s (pure (tx, memo))
+    have hleafX : ∀ (tx : EIdx) (Γ : Env) (M : Mem), Γ.get tabHx = some (Enc.idxW tx) → Γ.get tabM = some mw →
+        SpecR (σ := σ) (Inv (ctxH C H) s Γ M (ctxLocals ++ tabLocals)) (tabRet C tabHx tabM) s (pure (tx, memo))
           (PostTAB (ctxH C H)) := by
-      intro Γ M gH gM
+      intro tx Γ M gH gM
       unfold tabRet
-      refine specR_alloc2I (ctxOK_H hok H) tabR (vv tabHl) (vv tabM) (Enc.idxW tx) mw (by decide)
+      refine specR_alloc2I (ctxOK_H hok H) tabR (vv tabHx) (vv tabM) (Enc.idxW tx) mw (by decide)
         (fun _ => by simp +decide [sev, Env.get_cons, gH]) (fun _ => by simp +decide [sev, Env.get_cons, gM])
         (fun H2 ws hp2 hws => ?_)
       obtain ⟨g0, g1⟩ := img2_get H2 ws (Enc.idxW tx) mw hws
@@ -351,18 +364,50 @@ theorem tab_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       · subst hu
         refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Env.get, tabParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
           (fun _ => ?_) (fun h => absurd h (by decide))
-        by_cases hn : c = tnm
-        · subst hn
-          refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, Env.get, tabParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
+        have hMH : PtrsRep C H om (MemberRep C H) ms := ptrsRep_mono hp (fun _ _ h => memberRep_mono hp h) hM
+        refine UD.specR_heapLoadI' (C := ctxH C H) tabKn (vv tabMs) om _ hMH.1 (by decide)
+          (by simp +decide [sev, Env.get_cons, Env.get, tabParams, ctxEnv]; rfl) ?_
+        simp only [beq_self_eq_true, ite_true]
+        refine specR_congr (m' := (pure ((((ms.map (·.cvT.name)).drop 0).findIdx? (· == c)).map (· + 0)) :
+          AM (Option Nat)) >>= fun o => match o with
+            | some t => match holes[t]? with
+              | some x => pure (x, memo)
+              | none => pure (h, memo)
+            | none => pure (h, memo)) (by simp <;> rfl) ?_
+        refine specR_callNIM tabTi fMemFindIdx mfiParams [vv tabMs, vv tabCn, .const 0, vv tabKn] mfiBody
+          [cellA C om, Enc.idxW c, BitVec.ofNat 64 0, BitVec.ofNat 64 ms.length] (by decide) rfl (by decide) hc.mfi
+          ⟨by simp +decide [sev, Env.get_cons, Env.get, tabParams, ctxEnv], by simp +decide [sev, Env.get_cons], rfl,
+            by simp +decide [sev, Env.get_cons], trivial⟩
+          (fun a w s' st => (pure ((((ms.map (·.cvT.name)).drop 0).findIdx? (· == c)).map (· + 0)) : AM (Option Nat)) s =
+            .ok (a, s') ∧ PostON (ctxH C H) a w s' st) (fun _ _ _ _ h => h.2.2.2)
+          (fun u hu _ hlk => specR_run (Knot.specR_of_pre u (pre_of_lookups hu mfiParams _ rfl hlk)
+            (mfi_spec C hok hc.mfi ms c om H hMH hml _ 0 s rfl (by omega))))
+          (fun a w s2 st ⟨hrun, hw, hb, _⟩ => ?_)
+        simp only [pure, StateT.pure, Except.pure, Except.ok.injEq, Prod.mk.injEq] at hrun
+        obtain ⟨hra, hs2⟩ := hrun
+        subst hw; subst hs2
+        rcases a with _ | t
+        · refine specR_ifI _ 1 (by simp +decide [sev, Env.get_cons, optNatW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL])
             (fun _ => ?_) (fun h => absurd h (by decide))
-          simp [List.findIdx?, List.findIdx?.go]
-          exact hleafX _ _ (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv])
-        · have hne : Enc.idxW c ≠ Enc.idxW tnm := fun e => hn (Enc.idxW_inj e)
-          refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Env.get, tabParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
-            (fun h => absurd rfl h) (fun _ => ?_)
-          have hn' : (tnm == c) = false := beq_eq_false_iff_ne.mpr (fun h => hn h.symm)
-          simp [List.findIdx?, List.findIdx?.go, hn']
           exact hleaf _ _ (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv])
+        have ht63 := hb t rfl
+        have htl : t < ms.length := by
+          have h1 : ((ms.map (·.cvT.name)).drop 0).findIdx? (· == c) = some t := by
+            have := hra; simp only [Option.map_eq_some_iff] at this; obtain ⟨a, ha, he⟩ := this; simp at he; rw [← he]; exact ha
+          have := List.findIdx?_eq_some_iff_getElem.mp h1
+          obtain ⟨hlt, -⟩ := this; simpa using hlt
+        have hnt : BitVec.ofNat 64 (t + 1) ≠ 0#64 := by intro e; have := congrArg BitVec.toNat e; simp at this; omega
+        refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, optNatW, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hnt)
+          (fun h => absurd rfl h) (fun _ => ?_)
+        refine specR_assignI tabTi _ (BitVec.ofNat 64 t) (by decide)
+          (by simp +decide [sev, Env.get_cons, optNatW]; exact word_sub_eq (t + 1) 1 (by omega) (by omega)) ?_
+        have hth : t < holes.length := by omega
+        have hx := hhb.2 t (by simp; omega)
+        simp only [List.getElem_map] at hx
+        refine UD.specR_heapLoadI' (C := ctxH C H) tabHx _ (ohb + 1 + t) _ (get_prefix hx hp) (by decide)
+          (by simp +decide [sev, Env.get_cons, Env.get, tabParams, ctxEnv]; exact cellA_mulIdx C ohb t (by omega)) ?_
+        simp only [List.getElem?_eq_getElem hth]
+        exact hleafX _ _ _ (by simp +decide [Env.get_cons]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv])
       · have hne : Enc.idxW us ≠ Enc.idxW tus := fun e => hu (Enc.idxW_inj e)
         refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Env.get, tabParams, ctxEnv, Flapjack.Compiler.Encoders.Asm.wordCmpHOL]; exact hne)
           (fun h => absurd rfl h) (fun _ => ?_)
@@ -391,11 +436,11 @@ theorem tab_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
         (fun _ => ?_) (fun h => absurd h (by decide))
       unfold tabBin
       simp only [bind_assoc]
-      refine tab_call C hc tnm tus tx n ih' H hp tabQ tabA1 tabM tabY tabM1 (by decide) (by decide) a memo mw hm
+      refine tab_call C hc ms om tus holes ohb n ih' H hp tabQ tabA1 tabM tabY tabM1 (by decide) (by decide) a memo mw hm
         (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (fun r1 H1 op1 mw1 s1 hp1 hm1 => ?_)
       obtain ⟨a2, m1⟩ := r1
       simp only
-      refine tab_call C hc tnm tus tx n ih' H1 (hp.trans hp1) tabQ tabA2 tabM1 tabZ tabM2 (by decide)
+      refine tab_call C hc ms om tus holes ohb n ih' H1 (hp.trans hp1) tabQ tabA2 tabM1 tabZ tabM2 (by decide)
         (by decide) b m1 mw1 hm1 (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (fun r2 H2 op2 mw2 s2 hp2 hm2 => ?_)
       obtain ⟨b2, m2⟩ := r2
       simp only
@@ -429,11 +474,11 @@ theorem tab_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
         (fun _ => ?_) (fun h => absurd h (by decide))
       unfold tabBin
       simp only [bind_assoc]
-      refine tab_call C hc tnm tus tx n ih' H hp tabQ tabA1 tabM tabY tabM1 (by decide) (by decide) a memo mw hm
+      refine tab_call C hc ms om tus holes ohb n ih' H hp tabQ tabA1 tabM tabY tabM1 (by decide) (by decide) a memo mw hm
         (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (fun r1 H1 op1 mw1 s1 hp1 hm1 => ?_)
       obtain ⟨a2, m1⟩ := r1
       simp only
-      refine tab_call C hc tnm tus tx n ih' H1 (hp.trans hp1) tabQ tabA2 tabM1 tabZ tabM2 (by decide)
+      refine tab_call C hc ms om tus holes ohb n ih' H1 (hp.trans hp1) tabQ tabA2 tabM1 tabZ tabM2 (by decide)
         (by decide) b m1 mw1 hm1 (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (fun r2 H2 op2 mw2 s2 hp2 hm2 => ?_)
       obtain ⟨b2, m2⟩ := r2
       simp only
@@ -467,11 +512,11 @@ theorem tab_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
         (fun h => absurd rfl h) (fun _ => ?_)
       unfold tabBin
       simp only [bind_assoc]
-      refine tab_call C hc tnm tus tx n ih' H hp tabQ tabA1 tabM tabY tabM1 (by decide) (by decide) a memo mw hm
+      refine tab_call C hc ms om tus holes ohb n ih' H hp tabQ tabA1 tabM tabY tabM1 (by decide) (by decide) a memo mw hm
         (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (fun r1 H1 op1 mw1 s1 hp1 hm1 => ?_)
       obtain ⟨a2, m1⟩ := r1
       simp only
-      refine tab_call C hc tnm tus tx n ih' H1 (hp.trans hp1) tabQ tabA2 tabM1 tabZ tabM2 (by decide)
+      refine tab_call C hc ms om tus holes ohb n ih' H1 (hp.trans hp1) tabQ tabA2 tabM1 tabZ tabM2 (by decide)
         (by decide) b m1 mw1 hm1 (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (fun r2 H2 op2 mw2 s2 hp2 hm2 => ?_)
       obtain ⟨b2, m2⟩ := r2
       simp only
@@ -501,15 +546,15 @@ theorem tab_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
       refine hmemo _ _ _ _ (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (fun _ => ?_)
       unfold tabLet
       simp only [bind_assoc]
-      refine tab_call C hc tnm tus tx n ih' H hp tabQ tabA1 tabM tabY tabM1 (by decide) (by decide) ty memo mw hm
+      refine tab_call C hc ms om tus holes ohb n ih' H hp tabQ tabA1 tabM tabY tabM1 (by decide) (by decide) ty memo mw hm
         (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (fun r1 H1 op1 mw1 s1 hp1 hm1 => ?_)
       obtain ⟨t2, m1⟩ := r1
       simp only
-      refine tab_call C hc tnm tus tx n ih' H1 (hp.trans hp1) tabQ tabA2 tabM1 tabZ tabM2 (by decide)
+      refine tab_call C hc ms om tus holes ohb n ih' H1 (hp.trans hp1) tabQ tabA2 tabM1 tabZ tabM2 (by decide)
         (by decide) v m1 mw1 hm1 (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (fun r2 H2 op2 mw2 s2 hp2 hm2 => ?_)
       obtain ⟨v2, m2⟩ := r2
       simp only
-      refine tab_call C hc tnm tus tx n ih' H2 ((hp.trans hp1).trans hp2) tabQ tabA3 tabM2
+      refine tab_call C hc ms om tus holes ohb n ih' H2 ((hp.trans hp1).trans hp2) tabQ tabA3 tabM2
         tabV tabM3 (by decide) (by decide) b m2 mw2 hm2 (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (fun r3 H3 op3 mw3 s3 hp3 hm3 => ?_)
       obtain ⟨b2, m3⟩ := r3
       simp only
@@ -547,7 +592,7 @@ theorem tab_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
         refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL] <;> omega)
           (fun h => absurd rfl h) (fun _ => ?_)
         simp only [bind_assoc]
-        refine tab_call C hc tnm tus tx n ih' H hp tabQ tabA2 tabM tabY tabM1 (by decide) (by decide) e memo mw hm
+        refine tab_call C hc ms om tus holes ohb n ih' H hp tabQ tabA2 tabM tabY tabM1 (by decide) (by decide) e memo mw hm
           (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (fun r1 H1 op1 mw1 s1 hp1 hm1 => ?_)
         obtain ⟨u2, m1⟩ := r1
         simp only
@@ -574,7 +619,7 @@ theorem tab_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : Ct
           refine specR_ifI _ 0 (by simp +decide [sev, Env.get_cons, Flapjack.Compiler.Encoders.Asm.wordCmpHOL] <;> omega)
             (fun h => absurd rfl h) (fun _ => ?_)
           simp only [bind_assoc]
-          refine tab_call C hc tnm tus tx n ih' H hp tabQ tabA2 tabM tabY tabM1 (by decide) (by decide) e memo mw hm
+          refine tab_call C hc ms om tus holes ohb n ih' H hp tabQ tabA2 tabM tabY tabM1 (by decide) (by decide) e memo mw hm
             (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (by simp +decide [Env.get_cons, Env.get, tabParams, ctxEnv]) (fun r1 H1 op1 mw1 s1 hp1 hm1 => ?_)
           obtain ⟨u2, m1⟩ := r1
           simp only
@@ -610,19 +655,19 @@ end
 /-! ## `targetAbs` -/
 
 def taE := ofString "ta_e"
-def taNm := ofString "ta_nm"
+def taMs := ofString "ta_ms"
 def taUs := ofString "ta_us"
-def taHl := ofString "ta_hl"
+def taHb := ofString "ta_hb"
 def taQ := ofString "ta_q"
 def taR := ofString "ta_r"
 def fTa := ofString "targetAbsTop"
 
-def taParams : List MlS := [taE, taNm, taUs, taHl]
+def taParams : List MlS := [taE, taMs, taUs, taHb]
 def taLocals : List MlS := [taQ, taR]
 
 def taBody : ProgHOL 64 := prologue taLocals
   (.seq (.call (some (some (.local, taQ), none)) fTab
-      [.const (BitVec.ofNat 64 coreWalkFuel), vv taE, .const 0, vv taNm, vv taUs, vv taHl])
+      [.const (BitVec.ofNat 64 coreWalkFuel), vv taE, .const 0, vv taMs, vv taUs, vv taHb])
   (.seq (.assign .local taR (.load .one (vv taQ))) (.return (vv taR))))
 
 section
@@ -632,24 +677,27 @@ theorem ta_none (C : Ctx) (vals : List (BitVec 64)) :
     ∀ x, x ∈ taLocals → (ctxEnv C ++ taParams.zip vals).get x = none :=
   Knot.params_none C taLocals taParams vals (by decide) (by decide)
 
-/-- **`targetAbs [nm] us [x] e`**. -/
+/-- **`targetAbs names us holes e`**, the names the members' (pointer block `om`), the holes a block at `ohb`. -/
 theorem ta_spec (ra : ConPanqueque.Hash.RuntimeAssumptions) (C : Ctx) (hok : CtxOK C) (hc : TABCodes C)
     (hct : C.code.lookup fTa = some (taParams.map (fun p => (p, ShapeHOL.one)), taBody, .one))
-    (tnm : NIdx) (tus : LsIdx) (tx : EIdx) (H : List (BitVec 64)) (hp : C.H <+: H) (s : AState) (e : EIdx) :
-    SpecR (σ := σ) (Pre (ctxH C H) s (taParams.zip [Enc.idxW e, Enc.idxW tnm, Enc.idxW tus, Enc.idxW tx])) taBody s
-      (targetAbs [tnm] tus [tx] e) (PostK (ctxH C H)) := by
+    (ms : List MemberShape) (om : Nat) (tus : LsIdx) (holes : List EIdx) (ohb : Nat) (H : List (BitVec 64))
+    (hp : C.H <+: H) (hM : PtrsRep C H om (MemberRep C H) ms) (hml : ms.length < 2 ^ 59)
+    (hhb : BlkAt H ohb (holes.map Enc.idxW)) (hhl : holes.length = ms.length) (s : AState) (e : EIdx) :
+    SpecR (σ := σ) (Pre (ctxH C H) s (taParams.zip [Enc.idxW e, cellA C om, Enc.idxW tus, cellA C ohb])) taBody s
+      (targetAbs (ms.map (·.cvT.name)) tus holes e) (PostK (ctxH C H)) := by
   refine specR_prologue (postK_locals _) (ta_none _ _) ?_
   unfold targetAbs
   refine specR_callNIH (C := ctxH C H) taQ fTab tabParams
-    [.const (BitVec.ofNat 64 coreWalkFuel), vv taE, .const 0, vv taNm, vv taUs, vv taHl]
-    (tabBody C) [BitVec.ofNat 64 coreWalkFuel, Enc.idxW e, 0, Enc.idxW tnm, Enc.idxW tus, Enc.idxW tx] (by decide) rfl
+    [.const (BitVec.ofNat 64 coreWalkFuel), vv taE, .const 0, vv taMs, vv taUs, vv taHb]
+    (tabBody C) [BitVec.ofNat 64 coreWalkFuel, Enc.idxW e, 0, cellA C om, Enc.idxW tus, cellA C ohb] (by decide) rfl
     (by decide) hc.self
     ⟨rfl, by simp +decide [sev, Env.get, taParams, ctxEnv], rfl, by simp +decide [sev, Env.get, taParams, ctxEnv],
       by simp +decide [sev, Env.get, taParams, ctxEnv], by simp +decide [sev, Env.get, taParams, ctxEnv], trivial⟩
     (PostTAB (ctxH C H)) (fun r w _ H' => ∃ op, w = cellA C op ∧ H'[op]? = some (Enc.idxW r.1))
     (fun r w s' st ⟨H', op, mw', hp', hw, h1, _, _, hsr⟩ => ⟨H', hp', ⟨op, hw, h1⟩, hsr⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu tabParams _ rfl hlk)
-      (tab_spec ra C hok hc tnm tus tx coreWalkFuel CV.coreWalkFuel_lt e ∅ 0 H s hp ⟨[], rfl, fun k => by simp⟩))
+      (tab_spec ra (ctxH C H) (ctxOK_H hok H) (by ctx_tr hc) ms om tus holes ohb hM hml hhb hhl coreWalkFuel
+        CV.coreWalkFuel_lt e ∅ 0 H s (List.prefix_refl _) ⟨[], rfl, fun k => by simp⟩))
     (fun r w s1 H1 hp1 ⟨op, hw, h1⟩ => ?_)
   subst hw
   refine UD.specR_heapLoadI' (C := ctxH C H1) taR (vv taQ) op _ h1 (by decide) (by simp [sev, Env.get_cons]; rfl) ?_

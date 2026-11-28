@@ -550,11 +550,11 @@ theorem ctb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
         Enc.idxW ms0.cvT.name, cellA C osl, BitVec.ofNat 64 q.rd.slots.length, cellA C om, BitVec.ofNat 64 p.numCtors,
         BitVec.ofNat 64 m.nIdx, Enc.idxW m.ind, BitVec.ofNat 64 m.nPc] (by decide) rfl (by decide) (by ctx_tr hc.ga.self)
     ⟨by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, Env.kill, ctbParams, ctxEnv], trivial⟩
-    (PostGR { m with nfs := q.tbl } C2)
+    (PostGR { m with nfs := q.tbl.filter (fun e => m.ctors.any (·.1.name == e.ctor)) } C2)
     (fun r w s' C' => ∃ EH envM H o, C' = ctxNew C2 r.1 EH envM H ∧ C2.EH <+: EH ∧ C2.H <+: H ∧
       CtxOK (ctxNew C2 r.1 EH envM H) ∧ TblGate r.1 ∧ FlagsOK r.1 ∧ LitsPinned r.1 C2.pins ∧
       (∀ n, r.1.find? n = C2.fe.find? n) ∧ (∀ n, r.1.findTable? n = C2.fe.findTable? n) ∧
-      ∃ cv rhss orh oc, r.2 = [(cv, { m with nfs := q.tbl }, rhss)] ∧ w = cellA C o ∧ H[o]? = some (cellA C orh) ∧
+      ∃ cv rhss orh oc, r.2 = [(cv, { m with nfs := q.tbl.filter (fun e => m.ctors.any (·.1.name == e.ctor)) }, rhss)] ∧ w = cellA C o ∧ H[o]? = some (cellA C orh) ∧
       H[o + 1]? = some (cellA C oc) ∧ BlkAt H orh (rhss.map Enc.idxW) ∧ CVRep C H oc cv)
     (fun r w s' st ⟨EH, envM, H, o, h1, h2, h3, h4, h5⟩ => ⟨_, ⟨EH, envM, H, o, rfl, h1, h2, h3, h5⟩, h4⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu gaParams _ rfl hlk)
@@ -573,7 +573,7 @@ theorem ctb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   have hp3' : H2 <+: H3 := hp3
   have hpC3 : C.H <+: H3 := hpC2.trans hp3'
   set C3 := ctxNew C2 fe₂b EH3 envM3 H3 with hC3
-  refine specR_congr (m' := tailS mode p Q (C3.fe, [(cv, { m with nfs := q.tbl }, rhss)]) >>= fun r => pure r)
+  refine specR_congr (m' := tailS mode p Q (C3.fe, [(cv, { m with nfs := q.tbl.filter (fun e => m.ctors.any (·.1.name == e.ctor)) }, rhss)]) >>= fun r => pure r)
     (by rw [bind_pure]; rfl) ?_
   refine specR_callNC (C := C3) ctbX fCts ctsParams [vv ctbR, vv ctbOrr, vv ctbOq, vv ctbNq, vv ctbSh, vv ctbQ]
     (ctsBody C) [cellA C o, cellA C orr, cellA C oq, BitVec.ofNat 64 m.ctors.length, cellA C osh, cellA C oQ]
@@ -592,7 +592,7 @@ theorem ctb_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
       (cts_spec mode C3 hok3 hpl (by ctx_tr hc.cts) p hk1 osh (shapeRep_mono hpC3 hsh).2.2.2.2.2.2
         (shapeRep_mono hpC3 hsh).1.choose (shapeRep_mono hpC3 hsh).1.choose_spec.1
         (shapeRep_mono hpC3 hsh).1.choose_spec.2.1 rc hrecs orr
-        (recRep_mono hpC3 hrr) hrP hrl { m with nfs := q.tbl } hmm oq (ctorsRep_mono hpC3 hcr) hcsl cv rhss o orh oc
+        (recRep_mono hpC3 hrr) hrP hrl { m with nfs := q.tbl.filter (fun e => m.ctors.any (·.1.name == e.ctor)) } hmm oq (ctorsRep_mono hpC3 hcr) hcsl cv rhss o orh oc
         ho1 ho2 hrh hcv Q hQ oQ (pRep_mono hpC3 (fun _ _ h => tblVRep_mono hpC3 h) hqQ) hden hbd s4))
     (fun fe₃ w s5 C5 ⟨H5, eC, hp5, hf5, ht5, hb5, hn5, hs5, hr5⟩ => ?_)
   subst eC

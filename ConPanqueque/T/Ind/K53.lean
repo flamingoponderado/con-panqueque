@@ -279,8 +279,8 @@ def k53Tail : ProgHOL 64 :=
   (.seq (.call (some (some (.local, k53Ap), none)) ExK.fMka [vv k53Hd, vv k53Lp, .const 0, vv k53Npc])
   (.seq (.call (some (some (.local, k53O), none)) fNocTop [vv k53Ap, vv k53Ms, .const 0, .const 0])
   (.ite (.cmp .equal (vv k53O) (.const 0)) hang
-  (.seq (.call (some (some (.local, k53R), none)) fTcc [vv k53Us, vv k53U1, vv k53Olp, vv k53Ty0, vv k53Pp, vv k53Pn,
-      vv k53Pa, vv k53Lp, vv k53Nd, vv k53Nm])
+  (.seq (.call (some (some (.local, k53R), none)) fTcc [vv k53Us, vv k53U1, vv k53Olp, vv k53Ms, vv k53Pp, vv k53Pn,
+      vv k53Pa, vv k53Lp, vv k53Nd])
     (.return (vv k53R)))))))))))))
   hang) hang)))))))))))))
 
@@ -638,19 +638,22 @@ theorem k53_spec (mode : ConLeche.CheckMode) (ra : ConPanqueque.Hash.RuntimeAssu
   refine specR_congr (m' := targetClassMatch mode C.fe p [ms0.cvT.type] Mc.pfvs Mc.lvls Mc.ds us1 (la.take Mc.nPc) >>=
     fun r => pure r) (by simp) ?_
   refine specR_callNIH (C := ctxH C H11) k53R fTcc tccParams
-    [vv k53Us, vv k53U1, vv k53Olp, vv k53Ty0, vv k53Pp, vv k53Pn, vv k53Pa, vv k53Lp, vv k53Nd, vv k53Nm] (tccBody C)
-    [Enc.idxW Mc.lvls, Enc.idxW us1, cellA C olp, Enc.idxW ms0.cvT.type, cellA C pp, BitVec.ofNat 64 Mc.pfvs.length,
-      cellA C pa, cellA C olp', BitVec.ofNat 64 Mc.ds.length, Enc.idxW ms0.cvT.name] (by decide) rfl (by decide) hc.tcc.self
+    [vv k53Us, vv k53U1, vv k53Olp, vv k53Ms, vv k53Pp, vv k53Pn, vv k53Pa, vv k53Lp, vv k53Nd] (tccBody C)
+    [Enc.idxW Mc.lvls, Enc.idxW us1, cellA C olp, cellA C om, cellA C pp, BitVec.ofNat 64 Mc.pfvs.length,
+      cellA C pa, cellA C olp', BitVec.ofNat 64 Mc.ds.length] (by decide) rfl (by decide) hc.tcc.self
     ⟨by simp +decide [sev, Env.get_cons, Env.get, k53Params, ctxEnv], by simp +decide [sev, Env.get_cons],
       by simp +decide [sev, Env.get_cons, Env.get, k53Params, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, k53Params, ctxEnv],
       by simp +decide [sev, Env.get_cons, Env.get, k53Params, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, k53Params, ctxEnv],
       by simp +decide [sev, Env.get_cons, Env.get, k53Params, ctxEnv], by simp +decide [sev, Env.get_cons],
-      by simp +decide [sev, Env.get_cons, Env.get, k53Params, ctxEnv], by simp +decide [sev, Env.get_cons, Env.get, k53Params, ctxEnv],
+      by simp +decide [sev, Env.get_cons, Env.get, k53Params, ctxEnv],
       trivial⟩
     (PostB (ctxH C H11)) (fun b w _ _ => w = boolW b) (fun b w s' st ⟨H', hp', hw, hsr⟩ => ⟨H', hp', hw, hsr⟩)
     (fun u hu _ hlk => Knot.specR_of_pre u (pre_of_lookups hu tccParams _ rfl hlk)
-      (tcc_spec mode ra C hok hs hc.tcc p ms0 hms ms0.cvT.type Mc.pfvs Mc.ds (la.take Mc.nPc) Mc.lvls us1 olp pp pa olp'
-        hlpl hdl (by omega) hpl H11 (hpC10.trans hp11') (eblk_mono hlp (hp.trans hpH11)) (blkAt_mono hpf (hp.trans hpH11))
+      (tcc_spec mode ra C hok hs hc.tcc p [ms0.cvT.type] (by simp [BlockShape.formers, hms]) Mc.pfvs Mc.ds
+        (la.take Mc.nPc) Mc.lvls us1 olp om pp pa olp' (by rw [show p.lps = ms0.cvT.levelParams by simp [BlockShape.lps, hms]]; exact hlpl)
+        hdl (by omega) hpl (by rw [hms]; simp) H11 (hpC10.trans hp11')
+        (by rw [show p.lps = ms0.cvT.levelParams by simp [BlockShape.lps, hms]]; exact eblk_mono hlp (hp.trans hpH11))
+        (ptrsRep_mono (hpC10.trans hp11') (fun _ _ h => memberRep_mono (hpC10.trans hp11') h) hM) (blkAt_mono hpf (hp.trans hpH11))
         (blkAt_mono hA (hp.trans hpH11)) (blkAt_mono hlpb hp11') s11))
     (fun r wr s12 H12 hp12 hw => ?_)
   subst hw
